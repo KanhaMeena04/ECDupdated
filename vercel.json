@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd FoodPandaAdmin-main && npm install --no-audit --no-fund && npm run build",
+  "outputDirectory": "FoodPandaAdmin-main/build",
+  "framework": "create-react-app",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

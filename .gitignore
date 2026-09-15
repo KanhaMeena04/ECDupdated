@@ -1,0 +1,39 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Node / JS
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+build/
+.next/
+.out/
+
+# Environment / Credentials
+.env
+.env.local
+.env.production
+*.pem
+*.key
+FoodPanda-main/config/serviceAccountKey.json
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+**/build/
+android/.gradle/
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# Large Archives
+*.zip
