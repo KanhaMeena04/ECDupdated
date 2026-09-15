@@ -10,6 +10,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Restaurant
 
     steps:
       - name: Checkout Repository
@@ -28,11 +31,9 @@ jobs:
           cache: true
 
       - name: Install Dependencies
-        working-directory: Restaurant
         run: flutter pub get
 
       - name: Build APK
-        working-directory: Restaurant
         run: flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
