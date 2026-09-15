@@ -13,10 +13,10 @@ plugins {
 
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
-check(keystorePropertiesFile.exists()) {
-    "Missing android/key.properties required for release signing."
+val hasKeyProperties = keystorePropertiesFile.exists()
+if (hasKeyProperties) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
-keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 
 android {
     namespace = "com.ecdkart.restaurant"
@@ -44,17 +44,23 @@ android {
     }
 
     signingConfigs {
-        create("upload") {
-            keyAlias = keystoreProperties.getProperty("keyAlias")
-            keyPassword = keystoreProperties.getProperty("keyPassword")
-            storeFile = file(keystoreProperties.getProperty("storeFile"))
-            storePassword = keystoreProperties.getProperty("storePassword")
+        if (hasKeyProperties) {
+            create("upload") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("upload")
+            if (hasKeyProperties) {
+                signingConfig = signingConfigs.getByName("upload")
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
+            }
         }
     }
 }
