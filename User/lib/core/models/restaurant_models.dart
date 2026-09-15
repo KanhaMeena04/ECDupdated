@@ -14,6 +14,11 @@ class MenuItem {
   final double rating;
   final bool isVeg;
   final String description;
+  final bool outOfStock;
+  final int preparationTime;
+  final String subcategory;
+  final bool isFeatured;
+  final bool adminPriceOverridden;
 
   const MenuItem({
     required this.id,
@@ -26,6 +31,11 @@ class MenuItem {
     required this.rating,
     required this.isVeg,
     required this.description,
+    this.outOfStock = false,
+    this.preparationTime = 15,
+    this.subcategory = '',
+    this.isFeatured = false,
+    this.adminPriceOverridden = false,
   });
 
   /// Get effective original price (if not explicitly provided, returns ~40% higher price)

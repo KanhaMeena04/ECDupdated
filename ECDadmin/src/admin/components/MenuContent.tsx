@@ -275,6 +275,9 @@ export const menuItems = [
   text: "Content Management",
   icon: <Article />,
   children: [
+    { text: "User App CMS Tower", path: "/user-app-cms" },
+    { text: "Catalog & Menu Control", path: "/catalog-master-control" },
+    { text: "Pricing & Fee Control", path: "/pricing-control" },
     { text: "Privacy Policy", path: "/privacy-policy" },
     { text: "Terms and Conditions", path: "/terms-condition" },
     { text: "FAQ", path: "/faq" },

@@ -12,6 +12,16 @@ const categorySchema = new mongoose.Schema(
       ar: { type: String },
     },
     image: { type: String },
+    description: { type: String, default: "" },
+    subcategories: [{
+      name: { type: String, required: true },
+      image: { type: String },
+      isActive: { type: Boolean, default: true },
+      priority: { type: Number, default: 0 }
+    }],
+    position: { type: Number, default: 0 },
+    isFeatured: { type: Boolean, default: false },
+    userAppVisible: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

@@ -40,7 +40,6 @@ import {
   datePickersCustomizations,
   treeViewCustomizations,
 } from '../dashboard/theme/customizations';
-import { API_BASE_URL } from '../../utils/utils';
 
 const xThemeComponents = {
   ...chartsCustomizations,

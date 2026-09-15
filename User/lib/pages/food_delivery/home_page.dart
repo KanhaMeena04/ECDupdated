@@ -208,6 +208,7 @@ class _HomeTabState extends State<_HomeTab> {
   @override
   void initState() {
     super.initState();
+    _fetchHomeSections();
     _fetchBanners();
     _fetchCategories();
     _fetchPopularDishes();
@@ -271,11 +272,41 @@ class _HomeTabState extends State<_HomeTab> {
 
   Future<void> _refreshData() async {
     await Future.wait([
+      _fetchHomeSections(),
       _fetchBanners(),
       _fetchCategories(),
       _fetchPopularDishes(),
       _fetchRestaurants(),
     ]);
+  }
+
+  List<Map<String, dynamic>> _cmsSections = [];
+
+  Future<void> _fetchHomeSections() async {
+    try {
+      final sections = await RestaurantApiService.getHomeScreenSections();
+      if (mounted && sections.isNotEmpty) {
+        setState(() {
+          _cmsSections = sections;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching home CMS sections: $e');
+    }
+  }
+
+  bool _isSectionActive(String key) {
+    if (_cmsSections.isEmpty) return true;
+    final sec = _cmsSections.firstWhere((s) => s['sectionKey'] == key, orElse: () => {});
+    if (sec.isEmpty) return true;
+    return sec['isActive'] == true;
+  }
+
+  String _getSectionTitle(String key, String defaultTitle) {
+    if (_cmsSections.isEmpty) return defaultTitle;
+    final sec = _cmsSections.firstWhere((s) => s['sectionKey'] == key, orElse: () => {});
+    if (sec.isEmpty || sec['title'] == null || (sec['title'] as String).isEmpty) return defaultTitle;
+    return sec['title'] as String;
   }
 
   List<Category> _categories = [];
@@ -668,9 +699,9 @@ class _HomeTabState extends State<_HomeTab> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              "What's on your mind?",
-                              style: TextStyle(
+                            Text(
+                              _getSectionTitle('food_categories', "What's on your mind?"),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
@@ -916,94 +947,99 @@ class _HomeTabState extends State<_HomeTab> {
                   ),
 
                   // Recommended For You
-                  Padding(
-                    padding: const EdgeInsets.only(
-                        left: 16, top: 12, right: 16, bottom: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Recommended For You',
-                          style: isDark
-                              ? const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  height: 1.4,
-                                )
-                              : const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black87,
-                                  height: 1.4,
+                  if (_isSectionActive('recommended_dishes')) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(
+                          left: 16, top: 12, right: 16, bottom: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _getSectionTitle('recommended_dishes', 'Recommended For You'),
+                            style: isDark
+                                ? const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    height: 1.4,
+                                  )
+                                : const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black87,
+                                    height: 1.4,
+                                  ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RecommendedRestaurantsPage(),
                                 ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const RecommendedRestaurantsPage(),
+                              );
+                            },
+                            child: const Text(
+                              'View All',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFE89D1E),
                               ),
-                            );
-                          },
-                          child: const Text(
-                            'View All',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFE89D1E),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  _isLoadingRestaurants
-                      ? const Center(child: CircularProgressIndicator())
-                      : AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 600),
-                          switchInCurve: Curves.easeOutCubic,
-                          switchOutCurve: Curves.easeInCubic,
-                          transitionBuilder: (child, animation) {
-                            return FadeTransition(
-                              opacity: animation,
-                              child: SlideTransition(
-                                position: Tween<Offset>(
-                                  begin: const Offset(0.04, 0.0),
-                                  end: Offset.zero,
-                                ).animate(animation),
-                                child: child,
+                    _isLoadingRestaurants
+                        ? const Center(child: CircularProgressIndicator())
+                        : AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 600),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            transitionBuilder: (child, animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0.04, 0.0),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: SizedBox(
+                              key: ValueKey('recommended_shuffle_$_shuffleSeed'),
+                              height: 240,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                itemCount: _displayRestaurants.length > 5 ? 5 : _displayRestaurants.length,
+                                itemBuilder: (context, index) {
+                                  return _RecommendedRestaurantCard(
+                                    restaurant: _displayRestaurants[index],
+                                  );
+                                },
                               ),
-                            );
-                          },
-                          child: SizedBox(
-                            key: ValueKey('recommended_shuffle_$_shuffleSeed'),
-                            height: 240,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: _displayRestaurants.length > 5 ? 5 : _displayRestaurants.length,
-                              itemBuilder: (context, index) {
-                                return _RecommendedRestaurantCard(
-                                  restaurant: _displayRestaurants[index],
-                                );
-                              },
                             ),
                           ),
-                        ),
+                  ],
 
                   // Favourites Section
-                  const _FavouritesSection(),
+                  if (_isSectionActive('favourites_section'))
+                    const _FavouritesSection(),
 
                   // Recent Orders Section
-                  const _RecentOrdersSection(),
+                  if (_isSectionActive('recent_orders_section'))
+                    const _RecentOrdersSection(),
 
-                  // ── ECDkart vs OTHER APPS Section (Matching Screenshot 2 Premium Design) ──
-                  _EcdkartComparisonSection(
-                    restaurants: _displayRestaurants,
-                    isDark: isDark,
-                  ),
+                  // ── ECDkart vs OTHER APPS Section ──
+                  if (_isSectionActive('ecdkart_comparison'))
+                    _EcdkartComparisonSection(
+                      restaurants: _displayRestaurants,
+                      isDark: isDark,
+                    ),
 
                   // ── Explore Section Top Filter Bar (Matching Screenshots 1 & 2) ──
                   Padding(

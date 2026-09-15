@@ -20,6 +20,25 @@ class RestaurantApiService {
   static String get categoriesUrl => '$apiBaseUrl/categories';
   static String get popularDishesUrl => '$apiBaseUrl/popular-dishes';
   static String get bannersUrl => '$apiBaseUrl/banners';
+  static String get homeSectionsUrl => '$apiBaseUrl/home/sections';
+
+  static Future<List<Map<String, dynamic>>> getHomeScreenSections() async {
+    if (kFrontendPreviewMode) {
+      return [];
+    }
+    try {
+      final response = await http.get(Uri.parse(homeSectionsUrl));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        final List<dynamic> data = jsonResponse['sections'] ?? [];
+        return data.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching home screen sections: $e');
+      return [];
+    }
+  }
 
   static Future<Map<String, String>> _getHeaders() async {
     final token = await AuthService.getToken();
@@ -364,15 +383,27 @@ class RestaurantApiService {
   }
 
   static MenuItem _fromJsonToMenuItem(Map<String, dynamic> json) {
+    final rawPrice = _parseDouble(json['price'] ?? json['basePrice'], 0.0);
+    final rawMrp = _parseDouble(json['mrp'] ?? json['originalBasePrice'], rawPrice > 0 ? rawPrice * 1.3 : 0.0);
+    final rawDiscount = _parseDouble(json['discountPercent'], 0.0);
+    final isOut = json['outOfStock'] == true || json['available'] == false;
+
     return MenuItem(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Item',
       imageUrl: json['image']?.toString() ?? json['imageUrl']?.toString() ?? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
-      price: _parseDouble(json['price'], 0.0),
+      price: rawPrice,
+      originalPrice: rawMrp > rawPrice ? rawMrp : null,
+      comparisonTag: rawDiscount > 0 ? '${rawDiscount.toInt()}% OFF' : null,
       category: json['category']?.toString() ?? 'General',
       rating: _parseDouble(json['rating'], 4.0),
       isVeg: json['isVeg'] == true || json['isVegetarian'] == true || json['veg'] == true,
       description: json['description']?.toString() ?? '',
+      outOfStock: isOut,
+      preparationTime: _parseInt(json['preparationTime'], 15),
+      subcategory: json['subcategory']?.toString() ?? '',
+      isFeatured: json['isFeatured'] == true,
+      adminPriceOverridden: json['adminPriceOverride']?['isOverridden'] == true,
     );
   }
 

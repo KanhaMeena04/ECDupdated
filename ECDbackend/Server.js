@@ -99,6 +99,8 @@ app.use('/api/v1/orders', orderRoutes);
 
 app.use('/api/riders', riderRoutes);
 app.use('/api/v1/riders', riderRoutes);
+app.use('/api/drivers', riderRoutes);
+app.use('/api/v1/drivers', riderRoutes);
 
 app.use('/api/admin/cms', adminCmsRoutes); // Must come BEFORE /api/admin
 app.use('/api/admin/reports', reportRoutes); // Must come BEFORE /api/admin
@@ -112,6 +114,18 @@ app.use('/api/v1/settings', settingsRoutes);
 
 app.use('/api/search', searchRoutes);
 app.use('/api/v1/search', searchRoutes);
+
+const homeCmsRoutes = require('./routes/homeCmsRoutes');
+app.use('/api/home', homeCmsRoutes);
+app.use('/api/v1/home', homeCmsRoutes);
+
+const catalogCmsRoutes = require('./routes/catalogCmsRoutes');
+app.use('/api/catalog', catalogCmsRoutes);
+app.use('/api/v1/catalog', catalogCmsRoutes);
+
+const pricingCmsRoutes = require('./routes/pricingCmsRoutes');
+app.use('/api/pricing', pricingCmsRoutes);
+app.use('/api/v1/pricing', pricingCmsRoutes);
 
 app.use('/api/home', homeRoutes);
 app.use('/api/v1/home', homeRoutes);

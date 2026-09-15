@@ -80,6 +80,9 @@ const AboutUs=lazy(()=>import("../contentmanagement/pages/AboutUs"))
 const FAQ=lazy(()=>import("../contentmanagement/pages/FAQ"))
 const LandingPage=lazy(()=>import("../contentmanagement/pages/LandingPage"))
 const PrivacyPolicy=lazy(()=>import("../contentmanagement/pages/PrivacyPolicy"))
+const UserAppCmsPage=lazy(()=>import("../contentmanagement/pages/UserAppCmsPage"))
+const CatalogMasterControl=lazy(()=>import("../contentmanagement/pages/CatalogMasterControl"))
+const PricingControlTower=lazy(()=>import("../contentmanagement/pages/PricingControlTower"))
 const RestaurantDashboard=lazy(()=>import("../restaurants/pages/RestaurantDashboard"))
 const EditRestaurant=lazy(()=>import("../restaurants/pages/EditRestaurant"))
 
@@ -254,6 +257,9 @@ const AdminRoutes = () => {
 				 <Route path="/contact" element={<Contact/>} />
 				 <Route path="/landing-page" element={<LandingPage/>} />
 				 <Route path="/privacy-policy" element={<PrivacyPolicy/>} />
+				 <Route path="/user-app-cms" element={<UserAppCmsPage/>} />
+				 <Route path="/catalog-master-control" element={<CatalogMasterControl/>} />
+				 <Route path="/pricing-control" element={<PricingControlTower/>} />
 
 				 <Route path="/documents" element={<Document/>} />
 				 <Route path="/add-document" element={<AddDocument/>} />

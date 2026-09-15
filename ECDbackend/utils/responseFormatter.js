@@ -17,6 +17,7 @@ const getRatingCount = (rating) => {
 };
 exports.formatRestaurantForUser = (restaurant) => {
   if (!restaurant) return null;
+  const isOverridden = restaurant.adminOverride && restaurant.adminOverride.isOverridden;
   return {
     _id: restaurant._id,
     name: restaurant.name,
@@ -33,16 +34,19 @@ exports.formatRestaurantForUser = (restaurant) => {
     area: restaurant.area,
     phone: restaurant.phone || restaurant.contactNumber,
     contactNumber: restaurant.contactNumber,
-    deliveryTime: restaurant.deliveryTime,
+    deliveryTime: isOverridden && restaurant.adminOverride.deliveryTime !== undefined ? restaurant.adminOverride.deliveryTime : restaurant.deliveryTime,
     deliveryType: restaurant.deliveryType || [],
     isFreeDelivery: restaurant.isFreeDelivery,
     minOrderValue: restaurant.minOrderValue || 0,
     estimatedPreparationTime: restaurant.estimatedPreparationTime || 15,
-    isActive: restaurant.isActive,
+    isActive: isOverridden && restaurant.adminOverride.isActive !== undefined ? restaurant.adminOverride.isActive : restaurant.isActive,
+    isOnline: isOverridden && restaurant.adminOverride.isOnline !== undefined ? restaurant.adminOverride.isOnline : (restaurant.isOnline !== undefined ? restaurant.isOnline : true),
+    isFeatured: isOverridden && restaurant.adminOverride.isFeatured !== undefined ? restaurant.adminOverride.isFeatured : (restaurant.isFeatured || false),
     isTemporarilyClosed: restaurant.isTemporarilyClosed || false,
     menuApproved: restaurant.menuApproved || false,
     verificationStatus: restaurant.verificationStatus || 'pending',
     timing: restaurant.timing,
+    offers: restaurant.offers || []
   };
 };
 exports.formatRestaurantForList = (restaurant) => {
@@ -52,6 +56,7 @@ exports.formatRestaurantForList = (restaurant) => {
 };
 exports.formatRestaurantForAdmin = (restaurant) => {
   if (!restaurant) return null;
+  const isOverridden = restaurant.adminOverride && restaurant.adminOverride.isOverridden;
   return {
     _id: restaurant._id,
     name: restaurant.name,
@@ -74,6 +79,9 @@ exports.formatRestaurantForAdmin = (restaurant) => {
     deliveryType: restaurant.deliveryType || [],
     paymentMethods: restaurant.paymentMethods,
     isActive: restaurant.isActive,
+    isOnline: restaurant.isOnline !== undefined ? restaurant.isOnline : true,
+    isFeatured: restaurant.isFeatured || false,
+    adminOverride: restaurant.adminOverride || { isOverridden: false },
     restaurantApproved: restaurant.restaurantApproved,
     menuApproved: restaurant.menuApproved,
     isTemporarilyClosed: restaurant.isTemporarilyClosed || false,
@@ -91,6 +99,7 @@ exports.formatRestaurantForAdmin = (restaurant) => {
     verificationStatus: restaurant.verificationStatus,
     bankDetails: restaurant.bankDetails,
     taxConfig: restaurant.taxConfig,
+    offers: restaurant.offers || [],
     totalOrders: restaurant.totalOrders || 0,
     totalEarnings: restaurant.totalEarnings || 0,
     totalDeliveries: restaurant.totalDeliveries || 0,
@@ -102,18 +111,39 @@ exports.formatRestaurantForAdmin = (restaurant) => {
 };
 exports.formatProductForUser = (product) => {
   if (!product) return null;
+  const isOverridden = product.adminPriceOverride && product.adminPriceOverride.isOverridden;
+  const effectiveBasePrice = isOverridden && product.adminPriceOverride.basePrice !== undefined ? product.adminPriceOverride.basePrice : product.basePrice;
+  const effectiveMrp = isOverridden && product.adminPriceOverride.mrp !== undefined ? product.adminPriceOverride.mrp : (product.mrp || effectiveBasePrice);
+  const effectiveDiscountPercent = isOverridden && product.adminPriceOverride.discountPercent !== undefined ? product.adminPriceOverride.discountPercent : (product.discountPercent || 0);
+  const effectiveDiscountAmount = isOverridden && product.adminPriceOverride.discountAmount !== undefined ? product.adminPriceOverride.discountAmount : (product.discountAmount || 0);
+  const effectiveOfferPrice = isOverridden && product.adminPriceOverride.offerPrice !== undefined ? product.adminPriceOverride.offerPrice : product.offerPrice;
+
   return {
     _id: product._id,
+    restaurant: product.restaurant,
+    category: product.category,
     name: product.name,
     description: product.description,
     image: product.image,
-    basePrice: product.basePrice,
+    price: effectiveBasePrice,
+    basePrice: effectiveBasePrice,
+    originalBasePrice: product.basePrice,
+    mrp: effectiveMrp,
+    discountPercent: effectiveDiscountPercent,
+    discountAmount: effectiveDiscountAmount,
+    offerPrice: effectiveOfferPrice,
+    sellingPrice: effectiveBasePrice,
     isVeg: product.isVeg,
-    available: product.available,
+    available: product.available && !product.outOfStock,
+    outOfStock: product.outOfStock || false,
+    preparationTime: product.preparationTime || 15,
+    subcategory: product.subcategory || '',
+    isFeatured: product.isFeatured || false,
     variations: product.variations || [],
     addOns: product.addOns || [],
     seasonal: product.seasonal || false,
     seasonTag: product.seasonTag,
+    adminPriceOverride: product.adminPriceOverride || { isOverridden: false },
   };
 };
 exports.formatOrderForCustomer = (order) => {
