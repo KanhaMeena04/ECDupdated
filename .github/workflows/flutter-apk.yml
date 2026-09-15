@@ -3,8 +3,8 @@ name: Build Flutter APK
 on:
   push:
     branches:
-          Resturant-app-updated # Apni branch ka naam yahan likho
-           # Apni branch ka naam yahan likho
+      - Resturant-app-updated
+      - main
   workflow_dispatch:
 
 jobs:
@@ -24,16 +24,20 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.44.6"
+          flutter-version: "3.24.5"
+          channel: "stable"
+          cache: true
 
       - name: Install Dependencies
+        working-directory: Restaurant
         run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --release
+        working-directory: Restaurant
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: restaurant-app-release
+          path: Restaurant/build/app/outputs/flutter-apk/app-release.apk
