@@ -2,7 +2,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/services/api_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/models/auth_response_model.dart';
-import '../../../data/models/user_models.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 

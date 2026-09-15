@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'screens/login_screen.dart';
-import 'screens/dashboard_screen.dart';
 import 'screens/splash_screen.dart';
 import 'api_constants.dart';
 

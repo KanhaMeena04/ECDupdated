@@ -7,8 +7,6 @@ import '../../providers/cart_provider.dart';
 import '../../core/models/cart_item.dart';
 import '../../core/models/product.dart';
 import '../../core/models/restaurant_models.dart';
-import '../../services/coupon_api_service.dart';
-import '../checkout/order_success_page.dart';
 import '../payment/review_pay_page.dart';
 import '../../providers/address_provider.dart';
 import '../../providers/location_provider.dart';

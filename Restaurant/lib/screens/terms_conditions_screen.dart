@@ -32,7 +32,7 @@ class TermsConditionsScreen extends StatelessWidget {
               Center(
                 child: Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: const Color(0xFF248C70).withOpacity(0.1), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: const Color(0xFF248C70).withValues(alpha: 0.1), shape: BoxShape.circle),
                   child: const Icon(Icons.article_rounded, size: 48, color: Color(0xFF248C70)),
                 ),
               ),

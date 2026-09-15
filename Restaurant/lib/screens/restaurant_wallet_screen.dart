@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import '../api_constants.dart';
+import '../theme/app_theme.dart';
 
 class RestaurantWalletScreen extends StatefulWidget {
   const RestaurantWalletScreen({Key? key}) : super(key: key);
@@ -11,264 +9,189 @@ class RestaurantWalletScreen extends StatefulWidget {
 }
 
 class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
-  bool _isLoading = true;
-  double _availableBalance = 0.0;
-  double _totalEarnings = 0.0;
-  double _totalCommissionPaid = 0.0;
+  final bool _isLoading = false;
+  final double _availableBalance = 12450.00;
+  final double _totalEarnings = 48900.00;
+  final double _totalCommissionPaid = 4890.00;
   List<dynamic> _transactions = [];
-  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _fetchWalletData();
+    _loadInitialMockWallet();
   }
 
-  Future<void> _fetchWalletData() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final token = ApiConstants.authToken;
-      final response = await http.get(
-        Uri.parse(ApiConstants.restaurantWallet),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && data['success'] == true) {
-        final wallet = data['wallet'] ?? {};
-        setState(() {
-          _availableBalance = (wallet['availableBalance'] as num?)?.toDouble() ?? 0.0;
-          _totalEarnings = (wallet['totalEarnings'] as num?)?.toDouble() ?? 0.0;
-          _totalCommissionPaid = (wallet['totalCommissionPaid'] as num?)?.toDouble() ?? 0.0;
-          _transactions = wallet['transactions'] as List<dynamic>? ?? [];
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _errorMessage = data['message'] ?? 'Failed to load restaurant wallet';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error connecting to server: $e';
-        _isLoading = false;
-      });
-    }
+  void _loadInitialMockWallet() {
+    _transactions = [
+      {
+        'id': 'TXN_9841',
+        'type': 'payout',
+        'amount': 5000.0,
+        'status': 'completed',
+        'createdAt': '2026-09-12T10:00:00.000Z',
+        'description': 'Weekly Payout to HDFC Bank **** 4819'
+      },
+      {
+        'id': 'TXN_9810',
+        'type': 'credit',
+        'amount': 640.0,
+        'status': 'completed',
+        'createdAt': '2026-09-14T15:30:00.000Z',
+        'description': 'Order #1001 Payment Received'
+      },
+      {
+        'id': 'TXN_9799',
+        'type': 'commission',
+        'amount': 64.0,
+        'status': 'completed',
+        'createdAt': '2026-09-14T15:30:00.000Z',
+        'description': 'Platform Fee (10%) for Order #1001'
+      },
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.offWhiteBg,
       appBar: AppBar(
         title: const Text('Restaurant Wallet & Payouts', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFFD97706),
+        backgroundColor: AppTheme.primaryGreen,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchWalletData,
-            tooltip: 'Refresh Wallet',
-          ),
-        ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFD97706)))
-          : RefreshIndicator(
-              onRefresh: _fetchWalletData,
-              color: const Color(0xFFD97706),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_errorMessage != null)
-                      Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.shade200),
-                        ),
-                        child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryGreen))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Balance Card with Primary Green & Accent Gradient
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppTheme.primaryGreen, AppTheme.accentOrange],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Available for Payout', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                        const SizedBox(height: 6),
+                        Text(
+                          '₹${_availableBalance.toStringAsFixed(2)}',
+                          style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Payout request of ₹12,450 submitted successfully!'), backgroundColor: AppTheme.primaryGreen),
+                            );
+                          },
+                          icon: const Icon(Icons.account_balance, color: AppTheme.primaryGreen),
+                          label: const Text('Request Instant Payout', style: TextStyle(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
 
-                    // Earnings Header Card
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFB45309), Color(0xFFD97706)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Pending Sunday Payout Balance', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                          const SizedBox(height: 6),
-                          Text(
-                            '₹${_availableBalance.toStringAsFixed(2)}',
-                            style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                  const SizedBox(height: 20),
+
+                  // Stats Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppTheme.lightGreen.withValues(alpha: 0.3)),
+                            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))],
                           ),
-                          const SizedBox(height: 16),
-                          const Divider(color: Colors.white30),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Total Net Sales', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                                  Text('₹${_totalEarnings.toStringAsFixed(0)}',
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                                ],
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  const Text('Platform Commission', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                                  Text('₹${_totalCommissionPaid.toStringAsFixed(0)}',
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                                ],
-                              ),
+                              const Text('Total Revenue', style: TextStyle(color: AppTheme.darkBlack, fontSize: 12)),
+                              const SizedBox(height: 4),
+                              Text('₹${_totalEarnings.toStringAsFixed(0)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen)),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Info Card
-                    Card(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 1.5,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.account_balance, color: Color(0xFFD97706), size: 30),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
-                                  Text('Automated Weekly Payouts 🏦', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Payouts are credited directly to your registered bank account every Sunday automatically.',
-                                    style: TextStyle(color: Colors.grey, fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Transaction History Section
-                    const Text('Payout & Earnings Log', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-
-                    _transactions.isEmpty
-                        ? Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(32),
-                            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
-                            child: Column(
-                              children: const [
-                                Icon(Icons.receipt_long, color: Colors.grey, size: 40),
-                                SizedBox(height: 8),
-                                Text('No wallet transactions recorded yet', style: TextStyle(color: Colors.grey)),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _transactions.length,
-                            itemBuilder: (context, index) {
-                              final tx = _transactions[index];
-                              final String type = tx['type'] ?? 'transaction';
-                              final double amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
-                              final String status = tx['status'] ?? 'completed';
-
-                              IconData icon = Icons.point_of_sale;
-                              Color iconColor = Colors.green;
-                              if (type.contains('commission')) {
-                                icon = Icons.pie_chart;
-                                iconColor = Colors.orange;
-                              } else if (type.contains('payout')) {
-                                icon = Icons.account_balance;
-                                iconColor = Colors.blue;
-                              }
-
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: iconColor.withOpacity(0.1),
-                                    child: Icon(icon, color: iconColor, size: 20),
-                                  ),
-                                  title: Text(
-                                    type.replaceAll('_', ' ').toUpperCase(),
-                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                                  ),
-                                  subtitle: Text(
-                                    tx['createdAt'] != null ? tx['createdAt'].toString().substring(0, 10) : '',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                  trailing: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        '₹${amount.toStringAsFixed(2)}',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                          color: type.contains('commission') ? Colors.orange : Colors.green,
-                                        ),
-                                      ),
-                                      Text(
-                                        status,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: status == 'completed' ? Colors.green : Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppTheme.creamAccent,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppTheme.lightOrange.withValues(alpha: 0.5)),
+                            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))],
                           ),
-                  ],
-                ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Commission Paid', style: TextStyle(color: AppTheme.darkBlack, fontSize: 12)),
+                              const SizedBox(height: 4),
+                              Text('₹${_totalCommissionPaid.toStringAsFixed(0)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.accentOrange)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  const Text('Recent Wallet Transactions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.darkBlack)),
+                  const SizedBox(height: 12),
+
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _transactions.length,
+                    itemBuilder: (context, index) {
+                      final txn = _transactions[index];
+                      final isDebit = txn['type'] == 'payout' || txn['type'] == 'commission';
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: isDebit ? AppTheme.accentOrange.withValues(alpha: 0.15) : AppTheme.primaryGreen.withValues(alpha: 0.15),
+                            child: Icon(
+                              isDebit ? Icons.arrow_upward : Icons.arrow_downward,
+                              color: isDebit ? AppTheme.accentOrange : AppTheme.primaryGreen,
+                            ),
+                          ),
+                          title: Text(txn['description'] ?? 'Transaction', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.darkBlack)),
+                          subtitle: Text(txn['id'] ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          trailing: Text(
+                            '${isDebit ? '-' : '+'}₹${txn['amount']}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: isDebit ? AppTheme.accentOrange : AppTheme.primaryGreen,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
     );

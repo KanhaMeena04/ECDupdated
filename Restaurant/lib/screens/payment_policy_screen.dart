@@ -32,7 +32,7 @@ class PaymentPolicyScreen extends StatelessWidget {
               Center(
                 child: Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: const Color(0xFF248C70).withOpacity(0.1), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: const Color(0xFF248C70).withValues(alpha: 0.1), shape: BoxShape.circle),
                   child: const Icon(Icons.payment_rounded, size: 48, color: Color(0xFF248C70)),
                 ),
               ),
@@ -48,7 +48,7 @@ class PaymentPolicyScreen extends StatelessWidget {
               const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                 child: Row(
                   children: [
                     const Icon(Icons.info_outline, color: Colors.orange, size: 20),

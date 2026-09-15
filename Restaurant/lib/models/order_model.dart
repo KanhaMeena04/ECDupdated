@@ -105,7 +105,7 @@ class Order {
       quantity: oQty,
       status: parsedStatus,
       totalAmount: (json['payableAmount'] ?? json['totalAmount'] ?? 0.0).toDouble(),
-      restaurantEarning: json['restaurantEarnings'] != null ? json['restaurantEarnings'].toDouble() : null,
+      restaurantEarning: (json['restaurantEarnings'] as num?)?.toDouble(),
       pickupOtp: json['pickupOtp']?.toString(),
       riderName: parsedRiderName,
       riderId: parsedRiderId,

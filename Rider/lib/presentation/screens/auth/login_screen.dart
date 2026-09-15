@@ -7,7 +7,6 @@ import '../../../data/services/auth_service.dart';
 import '../../../logic/blocs/auth/auth_bloc.dart';
 import '../../../logic/blocs/auth/auth_event.dart';
 import '../../../logic/blocs/auth/auth_state.dart';
-import '../../widgets/custom_button.dart';
 import 'otp_screen.dart';
 import 'pin_login_screen.dart';
 
@@ -68,14 +67,6 @@ class _LoginScreenState extends State<LoginScreen> {
       final phone = _phoneController.text.trim();
       context.read<AuthBloc>().add(SendOtpRequested(phone: phone));
     }
-  }
-
-  void _navigateToPinLogin() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => PinLoginScreen(phone: _phoneController.text.trim()),
-      ),
-    );
   }
 
   @override

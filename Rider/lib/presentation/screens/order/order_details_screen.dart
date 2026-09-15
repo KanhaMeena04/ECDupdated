@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../logic/blocs/driver/driver_bloc.dart';
 import '../../../logic/blocs/driver/driver_event.dart';
 import '../../../logic/blocs/driver/driver_state.dart';
@@ -18,7 +17,6 @@ class OrderDetailsScreen extends StatefulWidget {
 
 class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   static const Color primaryGreen = Color(0xFF248C70);
-  static const Color lightGreen = Color(0xFFE8F5E9);
   bool _isLoading = false;
   late Map<String, dynamic> _currentOrder;
 
@@ -240,7 +238,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: items.length,
-                          separatorBuilder: (_, __) => const Divider(height: 16),
+                          separatorBuilder: (_, _) => const Divider(height: 16),
                           itemBuilder: (context, index) {
                             final item = items[index];
                             final qty = item['qty'] ?? item['quantity'] ?? 1;
@@ -545,10 +543,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
 class InlineDeliveryOtpForm extends StatefulWidget {
   final Map<String, dynamic> order;
-  const InlineDeliveryOtpForm({Key? key, required this.order}) : super(key: key);
+  const InlineDeliveryOtpForm({super.key, required this.order});
 
   @override
-  _InlineDeliveryOtpFormState createState() => _InlineDeliveryOtpFormState();
+  State<InlineDeliveryOtpForm> createState() => _InlineDeliveryOtpFormState();
 }
 
 class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
@@ -561,10 +559,12 @@ class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
     setState(() => _isSendingOtp = true);
     try {
       final response = await ApiService.sendDeliveryOtp(widget.order['_id'] ?? '');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(response['message'] ?? 'OTP sent successfully'), backgroundColor: primaryGreen),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
       );

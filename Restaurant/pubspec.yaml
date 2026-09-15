@@ -38,3 +38,4 @@ flutter:
   assets:
     - splash_logo.png
     - assets/audio/
+    - assets/images/

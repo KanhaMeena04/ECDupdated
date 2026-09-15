@@ -11,13 +11,9 @@ import '../../services/user_api_service.dart';
 import '../../services/auth_service.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_text_styles.dart';
 import '../../providers/theme_provider.dart';
 import '../../routes/app_routes.dart';
-import '../order/my_orders_page.dart';
 import 'policy_page.dart';
-import 'support_chat_page.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../providers/user_provider.dart';
 
 class _GroupMenuItem {

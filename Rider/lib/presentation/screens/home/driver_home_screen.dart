@@ -14,7 +14,6 @@ import '../../../logic/blocs/driver/driver_state.dart';
 import '../../../data/services/location_service.dart';
 import '../auth/login_screen.dart';
 import '../auth/profile_screen.dart';
-import '../order/order_details_screen.dart';
 import '../order/order_tracking_screen.dart';
 import '../wallet/rider_wallet_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,12 +33,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   final Set<String> _processedOrders = {};
 
   late AnimationController _timerController;
-  Timer? _pollingTimer;
 
   // Blinkit-style colors
   static const Color primaryGreen = Color(0xFF248C70);
   static const Color lightGreen = Color(0xFFE8F5E9);
-  static const Color darkGreen = Color(0xFF248C70);
 
   @override
   void initState() {
@@ -487,7 +484,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         final earnings = (activeOrder['driverEarnings'] ?? activeOrder['deliveryCharge'] ?? 50.0).toStringAsFixed(2);
         final orderAmount = (activeOrder['payableAmount'] ?? activeOrder['totalAmount'] ?? 0.0).toStringAsFixed(2);
         final customerName = activeOrder['customer']?['name'] ?? 'Customer';
-        final orderNumber = activeOrder['orderNumber'] ?? 'Unknown';
         final paymentMode = (activeOrder['paymentTransaction'] != null && (activeOrder['paymentTransaction']['provider'] == 'cod' || activeOrder['paymentTransaction']['provider'] == 'Cash on Delivery')) || activeOrder['paymentMethod'] == 'Cash on Delivery' || activeOrder['paymentMethod'] == 'COD' ? 'Cash on Delivery' : 'Online / UPI';
 
         return Positioned(
@@ -1692,114 +1688,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       ),
     );
   }
-
-  void _showPaymentQRDialog(BuildContext context, Map<String, dynamic> order) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Column(
-          children: [
-            const Text(
-              'Accept Payment',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Order #${order['orderNumber']}',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: Column(
-                children: [
-                  const Icon(Icons.qr_code_scanner, size: 200, color: Colors.black),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Scan to Pay via PhonePe',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  Text(
-                    'Total: â‚¹${order['payableAmount'] ?? order['totalAmount']}',
-                    style: const TextStyle(color: primaryGreen, fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Wait for customer to scan and complete payment.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Payment Confirmed!'), backgroundColor: primaryGreen),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryGreen,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Confirm Payment Received'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Logout',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.read<AuthBloc>().add(const LogoutRequested());
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red[600],
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class BorderProgressPainter extends CustomPainter {
@@ -1842,10 +1730,10 @@ class BorderProgressPainter extends CustomPainter {
 
 class InlineDeliveryOtpForm extends StatefulWidget {
   final Map<String, dynamic> order;
-  const InlineDeliveryOtpForm({Key? key, required this.order}) : super(key: key);
+  const InlineDeliveryOtpForm({super.key, required this.order});
 
   @override
-  _InlineDeliveryOtpFormState createState() => _InlineDeliveryOtpFormState();
+  State<InlineDeliveryOtpForm> createState() => _InlineDeliveryOtpFormState();
 }
 
 class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
@@ -1858,10 +1746,12 @@ class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
     setState(() => _isSendingOtp = true);
     try {
       final response = await ApiService.sendDeliveryOtp(widget.order['_id'] ?? '');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(response['message'] ?? 'OTP sent successfully'), backgroundColor: primaryGreen),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
       );

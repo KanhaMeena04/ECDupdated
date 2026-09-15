@@ -1,8 +1,7 @@
 import '../core/constants/app_constants.dart';
 import '../core/config/app_mode.dart';
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import '../core/models/restaurant_models.dart';
 import '../core/models/category.dart';

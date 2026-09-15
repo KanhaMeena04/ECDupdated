@@ -8,7 +8,6 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import '../../../logic/blocs/driver/driver_bloc.dart';
 import '../../../logic/blocs/driver/driver_event.dart';
 import '../../../logic/blocs/driver/driver_state.dart';
-import '../../../data/services/api_service.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   final Map<String, dynamic> order;
@@ -33,7 +32,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   StreamSubscription<Position>? _positionSubscription;
   bool _isLoading = false;
 
-  Set<Polyline> _polylines = {};
+  final Set<Polyline> _polylines = {};
   static const String googleApiKey = 'AIzaSyCN7XqyxOj5lgr2uaMNrTOg6PzHTOGa0xU';
   PolylinePoints polylinePoints = PolylinePoints(apiKey: googleApiKey);
 
@@ -89,7 +88,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     
     final targetLatLng = widget.isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
     
+    // ignore: deprecated_member_use
     PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+      // ignore: deprecated_member_use
       request: PolylineRequest(
         origin: PointLatLng(_driverLatLng!.latitude, _driverLatLng!.longitude),
         destination: PointLatLng(targetLatLng.latitude, targetLatLng.longitude),
@@ -187,85 +188,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         );
       }
     }
-  }
-
-  void _showOtpVerificationDialog(BuildContext context, String targetStatus) {
-    // Only used for delivery to customer now
-    final isDelivery = targetStatus == 'delivered';
-    final TextEditingController textController = TextEditingController();
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.security, color: primaryGreen),
-            const SizedBox(width: 8),
-            Text('Confirm Delivery OTP', style: const TextStyle(fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Please request the 4-digit OTP from the customer to verify and complete delivery.',
-              style: TextStyle(color: Colors.grey[700], fontSize: 14),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: textController,
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              decoration: InputDecoration(
-                hintText: 'Enter 4-digit OTP',
-                counterText: '',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: primaryGreen, width: 2),
-                ),
-              ),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 4),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final code = textController.text.trim();
-              if (code.length != 4) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid 4-digit OTP')),
-                );
-                return;
-              }
-              Navigator.pop(dialogCtx);
-              setState(() => _isLoading = true);
-              context.read<DriverBloc>().add(
-                    UpdateOrderStatus(
-                      orderId: widget.order['_id'] ?? '',
-                      status: targetStatus,
-                      otp: code,
-                    ),
-                  );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryGreen,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Verify & Submit'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _handleStatusTransition(BuildContext context, String currentStatus) {

@@ -1,6 +1,5 @@
 import '../core/constants/app_constants.dart';
 import '../core/config/app_mode.dart';
-import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;

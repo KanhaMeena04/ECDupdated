@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:vegbox_driver_app/presentation/screens/auth/login_screen.dart';
-import 'package:vegbox_driver_app/presentation/screens/auth/documentation_screen.dart';
 import 'package:vegbox_driver_app/presentation/screens/home/driver_home_screen.dart';
 import '../../../logic/blocs/auth/auth_bloc.dart';
 import '../../../logic/blocs/auth/auth_event.dart';

@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_text_styles.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/address_provider.dart';
@@ -11,9 +10,7 @@ import '../../providers/user_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../services/location_service.dart';
 import '../../widgets/safe_image.dart';
-import '../payment/address_selection_page.dart';
 import '../profile/profile_page.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../providers/location_provider.dart';
@@ -194,68 +191,6 @@ class CustomAppBar extends StatelessWidget {
       ),
     );
   }
-
-  void _showLocationSheet(BuildContext context) {
-    final locationProvider = context.read<LocationProvider>();
-    final controller = TextEditingController(text: locationProvider.location);
-
-    const presets = [
-      'Vijay Nagar, Indore',
-      'Palasia, Indore',
-      'Bhawarkuwa, Indore',
-      'Sapna Sangeeta, Indore',
-      'Scheme 54, Indore',
-      'MG Road, Indore',
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            LatLng? currentCenter;
-            
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom,
-              ),
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE5E7EB),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    const Text(
-                      'Change Location',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF2C2C2C),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Enter your delivery address',
-                      style: TextStyle(
-                        fontSize: 13,
                         color: Color(0xFF9CA3AF),
                       ),
                     ),

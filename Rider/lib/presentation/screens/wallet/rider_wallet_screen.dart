@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../data/services/api_service.dart';
 
 class RiderWalletScreen extends StatefulWidget {
-  const RiderWalletScreen({Key? key}) : super(key: key);
+  const RiderWalletScreen({super.key});
 
   @override
   State<RiderWalletScreen> createState() => _RiderWalletScreenState();
