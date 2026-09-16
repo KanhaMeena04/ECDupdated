@@ -16,6 +16,7 @@ class Order {
   final String orderType;
   final String? pickupTime;
   final DateTime? createdAt;
+  final String address;
 
   Order({
     required this.id,
@@ -35,6 +36,7 @@ class Order {
     this.orderType = 'delivery',
     this.pickupTime,
     this.createdAt,
+    this.address = '13 Amsterdam st',
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {

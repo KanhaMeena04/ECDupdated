@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'restaurant_dashboard_screen.dart';
 import 'order_history_screen.dart';
 import 'menu_management_screen.dart';
+import 'restaurant_profile_screen.dart';
+import 'order_management_settings_screen.dart';
+import 'notification_settings_screen.dart';
+import 'pickup_orders_screen.dart';
 import 'terms_conditions_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'payment_policy_screen.dart';
@@ -140,10 +145,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 children: [
                   _buildMenuItem(
+                    icon: Icons.storefront_outlined,
+                    title: 'Restaurant Profile',
+                    subtitle: 'View and update restaurant details & hours',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RestaurantProfileScreen())),
+                  ),
+                  const Divider(height: 1, indent: 60),
+                  _buildMenuItem(
+                    icon: Icons.space_dashboard_outlined,
+                    title: 'Dashboard & Analytics',
+                    subtitle: 'Activity summary, earnings & revenue analytics',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RestaurantDashboardScreen())),
+                  ),
+                  const Divider(height: 1, indent: 60),
+                  _buildMenuItem(
                     icon: Icons.restaurant_menu,
                     title: 'Menu Management',
                     subtitle: 'Add or edit items and prices',
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MenuManagementScreen())),
+                  ),
+                  const Divider(height: 1, indent: 60),
+                  _buildMenuItem(
+                    icon: Icons.tune_outlined,
+                    title: 'Order Management',
+                    subtitle: 'Auto-accept, order limits & prep times',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderManagementSettingsScreen())),
+                  ),
+                  const Divider(height: 1, indent: 60),
+                  _buildMenuItem(
+                    icon: Icons.notifications_none_outlined,
+                    title: 'Notification Setting',
+                    subtitle: 'Order alerts, prep status & delivery alerts',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationSettingsScreen())),
+                  ),
+                  const Divider(height: 1, indent: 60),
+                  _buildMenuItem(
+                    icon: Icons.shopping_bag_outlined,
+                    title: 'Pickup Orders',
+                    subtitle: 'Manage active customer pick-up orders',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PickupOrdersScreen())),
                   ),
                   const Divider(height: 1, indent: 60),
                   _buildMenuItem(

@@ -3,10 +3,11 @@ import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../models/order_model.dart';
+import '../theme/app_colors.dart';
 import 'menu_management_screen.dart';
-import 'order_history_screen.dart';
+import 'restaurant_dashboard_screen.dart';
 import 'profile_screen.dart';
-import 'restaurant_wallet_screen.dart';
+import 'order_details_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -18,15 +19,13 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _currentBottomNavIndex = 0;
   bool _isOnline = true;
-  final Map<String, TextEditingController> _otpControllers = {};
+  String _selectedOrderType = 'delivery'; // 'delivery' or 'pickup'
+  String _selectedStatusFilter = 'All'; // 'All', 'Placed', 'Preparing', 'Ready', 'Picked Up', 'Delivered'
+
   List<Order> _orders = [];
+  final Map<String, TextEditingController> _otpControllers = {};
   Timer? _timer;
   final AudioPlayer _audioPlayer = AudioPlayer();
-
-  String _selectedFilter = 'today'; // Default to today
-  int _totalOrders = 12;
-  double _totalEarnings = 3480.00;
-  bool _isLoadingStats = false;
 
   @override
   void initState() {
@@ -40,51 +39,289 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Order(
         id: '1001',
         backendId: 'mock_ord_1',
-        customerName: 'Rahul Sharma',
-        orderName: 'Paneer Butter Masala + 1 more',
-        quantity: 2,
+        customerName: 'Rohit',
+        address: '13 Amsterdam st',
+        orderName: '6 pcs chicken + Margherita Pizza + 2 more',
+        quantity: 4,
         items: [
-          {'name': 'Paneer Butter Masala', 'quantity': 2, 'price': 240.0},
-          {'name': 'Butter Naan', 'quantity': 4, 'price': 40.0},
+          {
+            'name': '6 pcs chicken ...',
+            'variant': 'Original',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+          {
+            'name': 'Margherita Pizza',
+            'variant': 'Regular',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
         ],
-        totalAmount: 640.0,
-        status: 'Accepted',
-        createdAt: now.subtract(const Duration(minutes: 10)),
+        totalAmount: 240.0,
+        status: 'Placed',
+        createdAt: now.subtract(const Duration(minutes: 5)),
         orderType: 'delivery',
       ),
       Order(
         id: '1002',
         backendId: 'mock_ord_2',
-        customerName: 'Priya Singh',
-        orderName: 'Veg Biryani + 1 more',
-        quantity: 1,
+        customerName: 'Rohit',
+        address: '13 Amsterdam st',
+        orderName: '6 pcs chicken + Margherita Pizza',
+        quantity: 2,
         items: [
-          {'name': 'Veg Biryani', 'quantity': 1, 'price': 220.0},
-          {'name': 'Raita', 'quantity': 1, 'price': 40.0},
+          {
+            'name': '6 pcs chicken ...',
+            'variant': 'Original',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+          {
+            'name': 'Margherita Pizza',
+            'variant': 'Regular',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
         ],
-        totalAmount: 260.0,
+        totalAmount: 240.0,
         status: 'Preparing',
-        createdAt: now.subtract(const Duration(minutes: 25)),
+        createdAt: now.subtract(const Duration(minutes: 18)),
         orderType: 'delivery',
       ),
       Order(
         id: '1003',
         backendId: 'mock_ord_3',
-        customerName: 'Amit Verma',
-        orderName: 'Chole Bhature',
+        customerName: 'Rohit',
+        address: '13 Amsterdam st',
+        orderName: '6 pcs chicken + Margherita Pizza',
         quantity: 2,
         items: [
-          {'name': 'Chole Bhature', 'quantity': 2, 'price': 150.0},
+          {
+            'name': '6 pcs chicken ...',
+            'variant': 'Original',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+          {
+            'name': 'Margherita Pizza',
+            'variant': 'Regular',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
         ],
-        totalAmount: 300.0,
-        status: 'Rider Assigned',
-        createdAt: now.subtract(const Duration(minutes: 40)),
+        totalAmount: 240.0,
+        status: 'Ready',
+        createdAt: now.subtract(const Duration(minutes: 32)),
         orderType: 'delivery',
+      ),
+      Order(
+        id: '1004',
+        backendId: 'mock_ord_4',
+        customerName: 'Rohit',
+        address: '13 Amsterdam st',
+        orderName: '6 pcs chicken + Margherita Pizza',
+        quantity: 2,
+        items: [
+          {
+            'name': '6 pcs chicken ...',
+            'variant': 'Original',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+          {
+            'name': 'Margherita Pizza',
+            'variant': 'Regular',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
+        ],
+        totalAmount: 240.0,
+        status: 'Picked Up',
+        createdAt: now.subtract(const Duration(minutes: 45)),
+        orderType: 'delivery',
+      ),
+      Order(
+        id: '1005',
+        backendId: 'mock_ord_5',
+        customerName: 'Rohit',
+        address: '13 Amsterdam st',
+        orderName: '6 pcs chicken + Margherita Pizza',
+        quantity: 2,
+        items: [
+          {
+            'name': '6 pcs chicken ...',
+            'variant': 'Original',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+          {
+            'name': 'Margherita Pizza',
+            'variant': 'Regular',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
+        ],
+        totalAmount: 240.0,
+        status: 'Delivered',
+        createdAt: now.subtract(const Duration(hours: 1, minutes: 10)),
+        orderType: 'delivery',
+      ),
+
+      // --- Pick-up Orders (Matching Reference Image) ---
+      Order(
+        id: '2001',
+        backendId: 'mock_pickup_1',
+        customerName: 'Rohit',
+        address: '13 Amsterdam st',
+        orderName: '6 pcs chicken + Margherita Pizza + 2 more',
+        quantity: 4,
+        items: [
+          {
+            'name': '6 pcs chicken ...',
+            'variant': 'Original',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+          {
+            'name': 'Margherita Pizza',
+            'variant': 'Regular',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
+        ],
+        totalAmount: 240.0,
+        status: 'Placed',
+        createdAt: now.subtract(const Duration(minutes: 2)),
+        orderType: 'pickup',
+      ),
+      Order(
+        id: '2002',
+        backendId: 'mock_pickup_2',
+        customerName: 'Rohit',
+        address: '13 Amsterdam st',
+        orderName: '6 pcs chicken + Margherita Pizza',
+        quantity: 2,
+        items: [
+          {
+            'name': '6 pcs chicken ...',
+            'variant': 'Original',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+          {
+            'name': 'Margherita Pizza',
+            'variant': 'Regular',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
+        ],
+        totalAmount: 240.0,
+        status: 'Placed',
+        createdAt: now.subtract(const Duration(minutes: 8)),
+        orderType: 'pickup',
+      ),
+      Order(
+        id: '2003',
+        backendId: 'mock_pickup_3',
+        customerName: 'Rohit',
+        address: '13 Amsterdam st',
+        orderName: '6 pcs chicken + Margherita Pizza',
+        quantity: 2,
+        items: [
+          {
+            'name': '6 pcs chicken ...',
+            'variant': 'Original',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+          {
+            'name': 'Margherita Pizza',
+            'variant': 'Regular',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
+        ],
+        totalAmount: 240.0,
+        status: 'Preparing',
+        createdAt: now.subtract(const Duration(minutes: 15)),
+        orderType: 'pickup',
+      ),
+      Order(
+        id: '2004',
+        backendId: 'mock_pickup_4',
+        customerName: 'Rohit',
+        address: '13 Amsterdam st',
+        orderName: '6 pcs chicken + Margherita Pizza',
+        quantity: 2,
+        items: [
+          {
+            'name': '6 pcs chicken ...',
+            'variant': 'Original',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+          {
+            'name': 'Margherita Pizza',
+            'variant': 'Regular',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
+        ],
+        totalAmount: 240.0,
+        status: 'Ready',
+        createdAt: now.subtract(const Duration(minutes: 25)),
+        orderType: 'pickup',
+      ),
+      Order(
+        id: '2005',
+        backendId: 'mock_pickup_5',
+        customerName: 'Rohit',
+        address: '13 Amsterdam st',
+        orderName: '6 pcs chicken + Margherita Pizza',
+        quantity: 2,
+        items: [
+          {
+            'name': '6 pcs chicken ...',
+            'variant': 'Original',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+          {
+            'name': 'Margherita Pizza',
+            'variant': 'Regular',
+            'quantity': 1,
+            'price': 120.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
+        ],
+        totalAmount: 240.0,
+        status: 'Picked Up',
+        createdAt: now.subtract(const Duration(minutes: 40)),
+        orderType: 'pickup',
       ),
     ];
 
     for (var order in _orders) {
-      if (order.status == 'Rider Assigned' && !_otpControllers.containsKey(order.id)) {
+      if (order.status == 'Ready' && !_otpControllers.containsKey(order.id)) {
         _otpControllers[order.id] = TextEditingController(text: '1234');
       }
     }
@@ -100,687 +337,1028 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  void _toggleOnlineStatus(bool value) {
+  void _acceptOrder(Order order) {
     setState(() {
-      _isOnline = value;
+      order.status = 'Preparing';
     });
-
-    if (_isOnline) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You are now online. Restaurant is receiving orders.'),
-          backgroundColor: Color(0xFF248C70),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You are offline. Food is no longer purchasable.'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  void _prepareOrder(Order order) {
-    setState(() {
-      final index = _orders.indexWhere((o) => o.id == order.id);
-      if (index != -1) {
-        _orders[index] = Order(
-          id: order.id,
-          backendId: order.backendId,
-          customerName: order.customerName,
-          orderName: order.orderName,
-          quantity: order.quantity,
-          items: order.items,
-          totalAmount: order.totalAmount,
-          status: 'Preparing',
-          createdAt: order.createdAt,
-          orderType: order.orderType,
-        );
-      }
-    });
-
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Order is now being prepared.'), backgroundColor: Colors.orange),
-    );
-  }
-
-  void _assignToRider(Order order) {
-    setState(() {
-      final index = _orders.indexWhere((o) => o.id == order.id);
-      if (index != -1) {
-        _orders[index] = Order(
-          id: order.id,
-          backendId: order.backendId,
-          customerName: order.customerName,
-          orderName: order.orderName,
-          quantity: order.quantity,
-          items: order.items,
-          totalAmount: order.totalAmount,
-          status: 'Rider Assigned',
-          createdAt: order.createdAt,
-          orderType: order.orderType,
-        );
-        _otpControllers[order.id] = TextEditingController(text: '1234');
-      }
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Order marked ready! Waiting for rider (OTP: 1234)'), backgroundColor: Colors.blue),
-    );
-  }
-
-  void _verifyAndHandover(Order order) {
-    final otp = _otpControllers[order.id]?.text ?? '';
-
-    if (otp.length == 4) {
-      setState(() {
-        _orders.removeWhere((o) => o.id == order.id);
-        _otpControllers.remove(order.id);
-        _totalOrders += 1;
-        _totalEarnings += order.totalAmount;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP Verified! Order handed over to rider.'), backgroundColor: Color(0xFF248C70)),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 4-digit OTP.'), backgroundColor: Colors.red),
-      );
-    }
-  }
-
-  void _fetchDashboardStats({bool showLoading = false}) {
-    if (showLoading) {
-      setState(() => _isLoadingStats = true);
-    }
-
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) {
-        setState(() {
-          if (_selectedFilter == 'today') {
-            _totalOrders = 12;
-            _totalEarnings = 3480.00;
-          } else if (_selectedFilter == 'weekly') {
-            _totalOrders = 84;
-            _totalEarnings = 24360.00;
-          } else {
-            _totalOrders = 360;
-            _totalEarnings = 104400.00;
-          }
-          if (showLoading) _isLoadingStats = false;
-        });
-      }
-    });
-  }
-
-  void _showCancelDialog(Order order) {
-    String? selectedReason;
-    final TextEditingController noteController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (dialogContext, setStateDialog) {
-            return AlertDialog(
-              title: const Text('Cancel Order', style: TextStyle(fontWeight: FontWeight.bold)),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Please select a reason for cancellation:', style: TextStyle(fontSize: 14)),
-                    const SizedBox(height: 10),
-                    RadioGroup<String>(
-                      groupValue: selectedReason,
-                      onChanged: (value) => setStateDialog(() => selectedReason = value),
-                      child: const Column(
-                        children: [
-                          RadioListTile<String>(
-                            title: Text('We have no ingredients', style: TextStyle(fontSize: 14)),
-                            value: 'We have no ingredients',
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          RadioListTile<String>(
-                            title: Text('Supplier issue / Not able to service this order', style: TextStyle(fontSize: 14)),
-                            value: 'Supplier issue / Not able to service this order',
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          RadioListTile<String>(
-                            title: Text('Others', style: TextStyle(fontSize: 14)),
-                            value: 'Others',
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (selectedReason == 'Others') ...[
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: noteController,
-                        decoration: const InputDecoration(
-                          hintText: 'Enter cancellation note...',
-                          border: OutlineInputBorder(),
-                        ),
-                        maxLines: 2,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Back', style: TextStyle(color: Colors.grey)),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (selectedReason == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please select a reason')),
-                      );
-                      return;
-                    }
-                    final finalReason = selectedReason == 'Others'
-                        ? (noteController.text.trim().isEmpty ? 'Others' : noteController.text.trim())
-                        : selectedReason!;
-                    Navigator.pop(dialogContext);
-                    _cancelOrder(order, finalReason);
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  child: const Text('Confirm Cancel', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _cancelOrder(Order order, String reason) {
-    setState(() {
-      _orders.removeWhere((o) => o.id == order.id);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Order cancelled.'), backgroundColor: Colors.orange),
-    );
-  }
-
-  String _formatDate(DateTime? date) {
-    if (date == null) return '';
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${date.day} ${months[date.month - 1]}, ${date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour)}:${date.minute.toString().padLeft(2, '0')} ${date.hour >= 12 ? 'PM' : 'AM'}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final activeOrdersCount = _orders.where((o) => o.status != 'Delivered' && o.status != 'Cancelled').length;
-
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF5FAF8),
-        appBar: _currentBottomNavIndex == 0
-            ? AppBar(
-                backgroundColor: Colors.white,
-                elevation: 0.5,
-                title: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFF248C70), width: 1.5),
-                        color: Colors.white,
-                      ),
-                      child: ClipOval(
-                        child: Image.asset(
-                          'splash_logo.png',
-                          width: 32,
-                          height: 32,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ECDKART Restaurant',
-                          style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 16, color: const Color(0xFF2C2C2C)),
-                        ),
-                        Text(
-                          _isOnline ? 'Online • Receiving Orders' : 'Offline • Not Accepting Orders',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: _isOnline ? const Color(0xFF248C70) : Colors.red,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                actions: [
-                  Row(
-                    children: [
-                      Text(
-                        _isOnline ? 'ONLINE' : 'OFFLINE',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: _isOnline ? const Color(0xFF248C70) : Colors.red,
-                        ),
-                      ),
-                      Switch(
-                        value: _isOnline,
-                        onChanged: _toggleOnlineStatus,
-                        activeThumbColor: const Color(0xFF248C70),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.account_circle, color: Color(0xFF2C2C2C)),
-                    onPressed: () {
-                      setState(() {
-                        _currentBottomNavIndex = 4;
-                      });
-                    },
-                  ),
-                ],
-                bottom: const TabBar(
-                  labelColor: Color(0xFF248C70),
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: Color(0xFF248C70),
-                  tabs: [
-                    Tab(text: 'Orders Overview'),
-                    Tab(text: 'Analytics & Revenue'),
-                  ],
-                ),
-              )
-            : null,
-        body: IndexedStack(
-          index: _currentBottomNavIndex,
-          children: [
-            TabBarView(
-              children: [
-                _buildOrdersTab(),
-                _buildAnalyticsTab(),
-              ],
-            ),
-            const MenuManagementScreen(),
-            const OrderHistoryScreen(),
-            const RestaurantWalletScreen(),
-            const ProfileScreen(),
-          ],
-        ),
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: NavigationBar(
-            selectedIndex: _currentBottomNavIndex,
-            onDestinationSelected: (index) {
-              setState(() {
-                _currentBottomNavIndex = index;
-              });
-            },
-            backgroundColor: Colors.white,
-            indicatorColor: const Color(0xFF248C70).withValues(alpha: 0.15),
-            elevation: 0,
-            destinations: [
-              NavigationDestination(
-                icon: Badge(
-                  label: Text('$activeOrdersCount'),
-                  isLabelVisible: activeOrdersCount > 0,
-                  backgroundColor: const Color(0xFFE89D1E),
-                  child: const Icon(Icons.dashboard_outlined),
-                ),
-                selectedIcon: Badge(
-                  label: Text('$activeOrdersCount'),
-                  isLabelVisible: activeOrdersCount > 0,
-                  backgroundColor: const Color(0xFFE89D1E),
-                  child: const Icon(Icons.dashboard_rounded, color: Color(0xFF248C70)),
-                ),
-                label: 'Orders',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.restaurant_menu_outlined),
-                selectedIcon: Icon(Icons.restaurant_menu_rounded, color: Color(0xFF248C70)),
-                label: 'Menu',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.history_outlined),
-                selectedIcon: Icon(Icons.history_rounded, color: Color(0xFF248C70)),
-                label: 'History',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.account_balance_wallet_outlined),
-                selectedIcon: Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF248C70)),
-                label: 'Wallet',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded, color: Color(0xFF248C70)),
-                label: 'Profile',
-              ),
-            ],
-          ),
-        ),
+      const SnackBar(
+        content: Text('Order accepted! Moved to Preparing state.'),
+        backgroundColor: AppColors.primaryGreen,
+        duration: Duration(seconds: 2),
       ),
     );
   }
 
-  Widget _buildOrdersTab() {
-    final activeOrders = _orders.where((o) => o.status != 'Delivered' && o.status != 'Cancelled').toList();
+  void _rejectOrder(Order order) {
+    setState(() {
+      _orders.removeWhere((o) => o.id == order.id);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Order rejected.'),
+        backgroundColor: Colors.redAccent,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Live Orders (${activeOrders.length})',
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF2C2C2C)),
+  void _markSearchingRider(Order order) {
+    _showSearchingRiderModal(order);
+  }
+
+  void _showSearchingRiderModal(Order order) {
+    Timer? searchTimer;
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        // Auto assign rider after 3 seconds simulation
+        searchTimer = Timer(const Duration(seconds: 3), () {
+          if (Navigator.canPop(dialogContext)) {
+            Navigator.pop(dialogContext);
+          }
+          if (mounted) {
+            setState(() {
+              order.status = 'Ready';
+              order.riderName = 'Ramesh Kumar (Rider)';
+              order.riderPhone = '+91 98765 43210';
+              if (!_otpControllers.containsKey(order.id)) {
+                _otpControllers[order.id] = TextEditingController(text: '1234');
+              }
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Rider Found! Assigned nearby rider Ramesh Kumar'),
+                backgroundColor: AppColors.primaryGreen,
+                duration: Duration(seconds: 3),
               ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _loadInitialMockData();
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Orders Refreshed!'), backgroundColor: Color(0xFF248C70)),
-                  );
-                },
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Refresh'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF248C70),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            );
+          }
+        });
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          elevation: 10,
+          backgroundColor: Colors.white,
+          child: Container(
+            width: 270,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Searching Rider...',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (activeOrders.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(30),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Column(
-                children: [
-                  Icon(Icons.inbox, size: 48, color: Colors.grey),
-                  SizedBox(height: 12),
-                  Text('No active orders right now', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
-                ],
-              ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: activeOrders.length,
-              itemBuilder: (context, index) {
-                final order = activeOrders[index];
-                return _buildOrderCard(order);
-              },
+                const SizedBox(height: 28),
+
+                // Animated Circular Progress with Scooter Icon matching Reference Image
+                SizedBox(
+                  width: 124,
+                  height: 124,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Inner circular background tint
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.delivery_dining_rounded,
+                            size: 54,
+                            color: AppColors.primaryGreen,
+                          ),
+                        ),
+                      ),
+
+                      // Outer circular progress spinner ring
+                      const SizedBox(
+                        width: 120,
+                        height: 120,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 4.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+                          backgroundColor: Color(0xFFE8F5E9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                Text(
+                  'Connecting to nearby riders...',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
+          ),
+        );
+      },
+    ).then((_) {
+      searchTimer?.cancel();
+    });
+  }
+
+  void _handlePickup(Order order) {
+    setState(() {
+      order.status = 'Picked Up';
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Order picked up by rider!'),
+        backgroundColor: AppColors.primaryGreen,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _markDelivered(Order order) {
+    setState(() {
+      order.status = 'Delivered';
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Order marked as Delivered successfully!'),
+        backgroundColor: AppColors.primaryGreen,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  int _getCountForStatus(String status) {
+    return _orders.where((o) => o.orderType == _selectedOrderType && o.status == status).length;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: IndexedStack(
+          index: _currentBottomNavIndex,
+          children: [
+            _buildHomeScreenContent(),
+            const MenuManagementScreen(),
+            const RestaurantDashboardScreen(),
+            const ProfileScreen(),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildReferenceBottomNavBar(),
+    );
+  }
+
+  Widget _buildHomeScreenContent() {
+    // Filter orders based on status filter & order type
+    final filteredOrders = _orders.where((o) {
+      final matchesType = o.orderType == _selectedOrderType;
+      if (_selectedStatusFilter == 'All') return matchesType;
+      return matchesType && o.status == _selectedStatusFilter;
+    }).toList();
+
+    return Column(
+      children: [
+        // Top Header Section
+        _buildHeaderSection(),
+
+        // Scrollable Body
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 12),
+                // Earnings Card Banner
+                _buildEarningsCard(),
+                const SizedBox(height: 16),
+
+                // Order Type Selector (Delivery / Pick-up)
+                _buildOrderTypeTabs(),
+                const SizedBox(height: 16),
+
+                // Horizontal Filter Pills Row
+                _buildFilterPillsRow(),
+                const SizedBox(height: 16),
+
+                // Orders List
+                if (filteredOrders.isEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    alignment: Alignment.center,
+                    child: Column(
+                      children: [
+                        Icon(Icons.inbox_outlined, size: 48, color: Colors.grey[400]),
+                        const SizedBox(height: 10),
+                        Text(
+                          'No orders in this status',
+                          style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: filteredOrders.length,
+                    itemBuilder: (context, index) {
+                      final order = filteredOrders[index];
+                      return _buildReferenceOrderCard(order);
+                    },
+                  ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Header Section matching Reference Image 1 with generated gourmet background image & safe error handling
+  Widget _buildHeaderSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Background Header Image with safe errorBuilder fallback
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/restaurant_top_header_bg.jpg',
+              fit: BoxFit.cover,
+              color: Colors.white.withValues(alpha: 0.92),
+              colorBlendMode: BlendMode.srcOver,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: Colors.white,
+              ),
+            ),
+          ),
+
+          // Header Content
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Row(
+              children: [
+                // Restaurant Profile Avatar with safe fallback
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primaryGreen, width: 2),
+                    color: Colors.white,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/restaurant_login_header.jpg',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                        child: const Icon(Icons.restaurant, color: AppColors.primaryGreen, size: 24),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Restaurant Name & Edit Profile Link
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cellar Door Restaurant',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() => _currentBottomNavIndex = 3); // Switch to Profile
+                        },
+                        child: Text(
+                          'Edit Restaurant Profile',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: AppColors.primaryGreen,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Online / Offline Switch
+                Switch(
+                  value: _isOnline,
+                  onChanged: (val) {
+                    setState(() => _isOnline = val);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(_isOnline ? 'Restaurant is now Online' : 'Restaurant is Offline'),
+                        backgroundColor: _isOnline ? AppColors.primaryGreen : Colors.red,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  activeThumbColor: AppColors.primaryGreen,
+                ),
+                const SizedBox(width: 4),
+
+                // Notification Bell Button
+                GestureDetector(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No new notifications')),
+                    );
+                  },
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primaryGreen,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.notifications_active_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildOrderCard(Order order) {
-    return Card(
+  // Earnings Banner Card matching Reference Image 1 with yellow background
+  Widget _buildEarningsCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB), // Soft elegant yellow card background
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Earning',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                'January',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            '₹2300.00',
+            style: GoogleFonts.poppins(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryGreen, // Primary Green Text
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Order Type Tabs (Delivery / Pick-up)
+  Widget _buildOrderTypeTabs() {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE), width: 1.5)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedOrderType = 'delivery'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: _selectedOrderType == 'delivery' ? AppColors.primaryGreen : Colors.transparent,
+                      width: 2.5,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  'Delivery',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: _selectedOrderType == 'delivery' ? FontWeight.bold : FontWeight.w500,
+                    color: _selectedOrderType == 'delivery' ? Colors.black : Colors.grey[600],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedOrderType = 'pickup'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: _selectedOrderType == 'pickup' ? AppColors.primaryGreen : Colors.transparent,
+                      width: 2.5,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  'Pick-up',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: _selectedOrderType == 'pickup' ? FontWeight.bold : FontWeight.w500,
+                    color: _selectedOrderType == 'pickup' ? Colors.black : Colors.grey[600],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Filter Pills Row matching Reference Image 1 & 2
+  Widget _buildFilterPillsRow() {
+    final filters = [
+      {'name': 'Placed', 'count': _getCountForStatus('Placed'), 'color': const Color(0xFF6C757D)},
+      {'name': 'Preparing', 'count': _getCountForStatus('Preparing'), 'color': const Color(0xFFE89D1E)},
+      {'name': 'Ready', 'count': _getCountForStatus('Ready'), 'color': const Color(0xFF4A90E2)},
+      {'name': 'Picked Up', 'count': _getCountForStatus('Picked Up'), 'color': const Color(0xFF8E44AD)},
+      {'name': 'Delivered', 'count': _getCountForStatus('Delivered'), 'color': AppColors.primaryGreen},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: filters.map((f) {
+          final String name = f['name'] as String;
+          final int count = f['count'] as int;
+          final Color pillColor = f['color'] as Color;
+          final bool isSelected = _selectedStatusFilter == name;
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedStatusFilter = isSelected ? 'All' : name;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primaryGreen : pillColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primaryGreen.withValues(alpha: 0.3),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : [],
+                ),
+                child: Text(
+                  '$name ($count)',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // Order Card Component matching Reference UI strictly
+  Widget _buildReferenceOrderCard(Order order) {
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Top Customer Header Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Order #${order.id}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(order.status).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.customerName,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      Text(
+                        order.address,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    order.status,
-                    style: TextStyle(color: _getStatusColor(order.status), fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right, color: Colors.black87),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order)),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text('Customer: ${order.customerName}', style: const TextStyle(fontSize: 13, color: Colors.grey)),
-            Text('Placed at: ${_formatDate(order.createdAt)}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            const Divider(height: 20),
-            Column(
-              children: order.items.map((item) {
-                final Map<String, dynamic> itemMap = item is Map<String, dynamic>
-                    ? item
-                    : {'name': 'Item', 'quantity': 1, 'price': 0.0};
-                final name = itemMap['name'] ?? 'Item';
-                final qty = itemMap['quantity'] ?? 1;
-                final price = (itemMap['price'] ?? 0.0).toDouble();
+            const Divider(height: 20, color: Color(0xFFF0F0F0)),
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
+            // Items Horizontal Preview Row
+            Row(
+              children: [
+                // Item 1
+                Expanded(
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('${qty}x $name', style: const TextStyle(fontWeight: FontWeight.w500)),
-                      Text('₹${(price * qty).toStringAsFixed(0)}'),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset(
+                          order.items.isNotEmpty && order.items[0]['image'] != null
+                              ? order.items[0]['image']
+                              : 'assets/images/restaurant_chicken_item.jpg',
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: 44,
+                            height: 44,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.fastfood, size: 20, color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              order.items.isNotEmpty ? order.items[0]['name'] : '6 pcs chicken ...',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            Text(
+                              order.items.isNotEmpty ? (order.items[0]['variant'] ?? 'Original') : 'Original',
+                              style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                );
-              }).toList(),
+                ),
+                const SizedBox(width: 8),
+
+                // Item 2
+                Expanded(
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset(
+                          order.items.length > 1 && order.items[1]['image'] != null
+                              ? order.items[1]['image']
+                              : 'assets/images/restaurant_pizza_item.jpg',
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: 44,
+                            height: 44,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.local_pizza, size: 20, color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              order.items.length > 1 ? order.items[1]['name'] : 'Margherita Pizza',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            Text(
+                              order.items.length > 1 ? (order.items[1]['variant'] ?? 'Regular') : 'Regular',
+                              style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '+2 More',
+                  style: GoogleFonts.poppins(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
             ),
-            const Divider(height: 20),
+            const SizedBox(height: 14),
+
+            // Order Date & Price Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Total Amount', style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('₹${order.totalAmount.toStringAsFixed(0)}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: const Color(0xFF248C70))),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Order placed on 24, May, 11:59PM',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      order.status,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _getStatusTextColor(order.status),
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '₹${order.totalAmount.toStringAsFixed(2)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 12),
-            _buildOrderActions(order),
+            const SizedBox(height: 14),
+
+            // Bottom Action Area matching each state
+            _buildCardActionArea(order),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildOrderActions(Order order) {
-    if (order.status == 'Accepted') {
+  // State Action Section matching exact reference images
+  Widget _buildCardActionArea(Order order) {
+    if (order.status == 'Placed') {
       return Row(
         children: [
           Expanded(
-            child: ElevatedButton(
-              onPressed: () => _prepareOrder(order),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              child: const Text('Start Preparing', style: TextStyle(color: Colors.white)),
+            child: OutlinedButton(
+              onPressed: () => _rejectOrder(order),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primaryGreen, width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Text(
+                'Reject',
+                style: GoogleFonts.poppins(
+                  color: AppColors.primaryGreen,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: () => _showCancelDialog(order),
-            style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Cancel'),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () => _acceptOrder(order),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen, // Primary Green Theme
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Text(
+                'Accept',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
           ),
         ],
       );
     } else if (order.status == 'Preparing') {
       return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () => _assignToRider(order),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF248C70)),
-              child: const Text('Mark Food Ready', style: TextStyle(color: Colors.white)),
+          Text(
+            'Food is ready for\npickup',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => _markSearchingRider(order),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen, // Solid green theme button
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            ),
+            child: Text(
+              'Searching Rider',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
       );
-    } else if (order.status == 'Rider Assigned') {
-      final controller = _otpControllers[order.id];
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    } else if (order.status == 'Ready') {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('Enter 4-Digit Rider Handover OTP:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  keyboardType: TextInputType.number,
-                  maxLength: 4,
-                  decoration: const InputDecoration(
-                    hintText: 'OTP (e.g. 1234)',
-                    counterText: '',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  ),
-                ),
+          Text(
+            'Has the rider picked\nup your food?',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => _handlePickup(order),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: Text(
+              'Pick up',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
               ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () => _verifyAndHandover(order),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF248C70)),
-                child: const Text('Verify & Handover', style: TextStyle(color: Colors.white)),
-              ),
-            ],
+            ),
           ),
         ],
+      );
+    } else if (order.status == 'Picked Up') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFFDE68A), width: 1),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Your order is almost there!',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
+            GestureDetector(
+              onTap: () => _markDelivered(order),
+              child: const Icon(
+                Icons.two_wheeler_rounded,
+                color: AppColors.primaryGreen,
+                size: 24,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (order.status == 'Delivered') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFFDE68A), width: 1),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                'Your order has been delivered successfully.\nOrder completed.',
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.delivery_dining_rounded,
+              color: AppColors.primaryGreen,
+              size: 26,
+            ),
+          ],
+        ),
       );
     }
     return const SizedBox.shrink();
   }
 
-  Color _getStatusColor(String status) {
+  Color _getStatusTextColor(String status) {
     switch (status) {
-      case 'Accepted':
-        return Colors.blue;
+      case 'Placed':
+        return Colors.grey[600]!;
       case 'Preparing':
-        return Colors.orange;
-      case 'Rider Assigned':
-        return Colors.purple;
+        return const Color(0xFFE89D1E);
+      case 'Ready':
+        return const Color(0xFF4A90E2);
+      case 'Picked Up':
+        return const Color(0xFF8E44AD);
       case 'Delivered':
-        return const Color(0xFF248C70);
+        return AppColors.primaryGreen;
       default:
-        return Colors.grey;
+        return Colors.black;
     }
   }
 
-  Widget _buildAnalyticsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  // Custom Bottom Navigation Bar with active indicator line matching Reference Image 3
+  Widget _buildReferenceBottomNavBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Performance Overview', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
-              DropdownButton<String>(
-                value: _selectedFilter,
-                items: const [
-                  DropdownMenuItem(value: 'today', child: Text('Today')),
-                  DropdownMenuItem(value: 'weekly', child: Text('This Week')),
-                  DropdownMenuItem(value: 'monthly', child: Text('This Month')),
-                ],
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _selectedFilter = val);
-                    _fetchDashboardStats(showLoading: true);
-                  }
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (_isLoadingStats)
-            const Center(child: CircularProgressIndicator(color: Color(0xFF248C70)))
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard('Total Orders', '$_totalOrders', Icons.shopping_bag, Colors.blue),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatCard('Total Revenue', '₹${_totalEarnings.toStringAsFixed(0)}', Icons.account_balance_wallet, const Color(0xFF248C70)),
-                ),
-              ],
-            ),
-          const SizedBox(height: 20),
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: ListTile(
-              leading: const Icon(Icons.wallet, color: Color(0xFFE89D1E), size: 32),
-              title: const Text('View Wallet & Payout Details', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('Check commission, pending payouts, and bank transfers'),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const RestaurantWalletScreen()),
-                );
-              },
-            ),
-          ),
+          _buildNavItem(0, Icons.home_rounded, 'Home'),
+          _buildNavItem(1, Icons.assignment_outlined, 'Menu'),
+          _buildNavItem(2, Icons.space_dashboard_outlined, 'Dashboard'),
+          _buildNavItem(3, Icons.person_outline_rounded, 'Profile'),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(backgroundColor: color.withValues(alpha: 0.15), child: Icon(icon, color: color)),
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-          const SizedBox(height: 4),
-          Text(value, style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF2C2C2C))),
-        ],
+  Widget _buildNavItem(int index, IconData icon, String label) {
+    final isSelected = _currentBottomNavIndex == index;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _currentBottomNavIndex = index),
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Active top line indicator matching Reference Image 3
+            Container(
+              height: 3,
+              width: double.infinity,
+              color: isSelected ? AppColors.primaryGreen : Colors.transparent,
+            ),
+            const SizedBox(height: 8),
+            Icon(
+              icon,
+              color: isSelected ? AppColors.primaryGreen : Colors.grey[500],
+              size: 22,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? AppColors.primaryGreen : Colors.grey[500],
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
       ),
     );
   }

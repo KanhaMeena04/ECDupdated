@@ -1790,11 +1790,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                       ),
-                      child: Image.asset(
-                        'splash_logo.png',
-                        height: 44,
-                        fit: BoxFit.contain,
-                      ),
+                      child: _buildEcdkartLogoText(fontSize: 22),
                     ),
                   ),
                 ],
@@ -3719,6 +3715,37 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEcdkartLogoText({double fontSize = 22}) {
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        style: GoogleFonts.poppins(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.0,
+        ),
+        children: const [
+          TextSpan(
+            text: 'ECD',
+            style: TextStyle(color: Color(0xFF2C2C2C)),
+          ),
+          TextSpan(
+            text: 'K',
+            style: TextStyle(color: Color(0xFF248C70)),
+          ),
+          TextSpan(
+            text: 'A',
+            style: TextStyle(color: Color(0xFFE89D1E)),
+          ),
+          TextSpan(
+            text: 'RT',
+            style: TextStyle(color: Color(0xFF2C2C2C)),
           ),
         ],
       ),
