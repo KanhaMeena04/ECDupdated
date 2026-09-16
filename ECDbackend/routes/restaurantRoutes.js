@@ -134,7 +134,9 @@ router.get('/admin/listName', protect, admin, getAllRestaurantsNameForAdmin);
 router.get('/admin/list/active', protect, admin, getActiveRestaurantsForAdmin);
 router.put('/admin/verify/:id', protect, admin, verifyRestaurantDocuments);
 router.get('/admin/:id', protect, admin, getRestaurantByIdAdmin);
+router.get('/details/:id', getRestaurantById);
 router.get('/:id', getRestaurantById);
 router.post('/:id/favorite', protect, toggleFavorite);
 router.delete('/:id', protect, admin, deleteRestaurant);
 module.exports = router;
+

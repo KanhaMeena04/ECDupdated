@@ -21,12 +21,15 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = (userData) => {
+  const login = (userData, token) => {
     setUser(userData); // role comes from backend
     try {
       localStorage.setItem('user', JSON.stringify(userData));
+      if (token) {
+        localStorage.setItem('token', token);
+      }
     } catch (err) {
-      console.warn('Failed to persist user to localStorage', err);
+      console.warn('Failed to persist auth data to localStorage', err);
     }
   };
 
@@ -34,8 +37,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     try {
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
     } catch (err) {
-      console.warn('Failed to remove user from localStorage', err);
+      console.warn('Failed to remove auth data from localStorage', err);
     }
   };
 

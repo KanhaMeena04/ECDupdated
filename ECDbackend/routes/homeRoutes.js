@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { optionalAuth } = require('../middleware/authMiddleware');
 const { 
 	getHomeData, 
 	getBanners, 
@@ -8,9 +8,12 @@ const {
 	getRecommendedRestaurants, 
 	getExploreRestaurants 
 } = require('../controllers/homeController');
-router.get('/', protect, getHomeData);
-router.get('/banners', protect, getBanners);
-router.get('/categories', protect, getCategories);
-router.get('/recommended', protect, getRecommendedRestaurants);
-router.get('/explore', protect, getExploreRestaurants);
+
+router.get('/', optionalAuth, getHomeData);
+router.get('/banners', optionalAuth, getBanners);
+router.get('/categories', optionalAuth, getCategories);
+router.get('/recommended', optionalAuth, getRecommendedRestaurants);
+router.get('/explore', optionalAuth, getExploreRestaurants);
+
 module.exports = router;
+

@@ -68,11 +68,9 @@ const io = socketIO(server, {
   pingTimeout: 60000,
   pingInterval: 25000
 });
-require('./sockets')(io);
 const initCronJobs = require('./services/cronService');
-initCronJobs();
-const initPaymentCronJobs = require('./services/paymentCronJobs'); // NEW: weekly payout cron
-initPaymentCronJobs();
+const initPaymentCronJobs = require('./services/paymentCronJobs');
+
 app.use(cookieParser());
 app.use(cors(corsConfig));
 const { handleStripeWebhook } = require('./controllers/paymentController');
@@ -130,6 +128,15 @@ app.use('/api/v1/pricing', pricingCmsRoutes);
 app.use('/api/home', homeRoutes);
 app.use('/api/v1/home', homeRoutes);
 
+const { getCategories, getBanners, getPopularDishes } = require('./controllers/homeController');
+app.get('/api/categories', getCategories);
+app.get('/api/v1/categories', getCategories);
+app.get('/api/banners', getBanners);
+app.get('/api/v1/banners', getBanners);
+app.get('/api/popular-dishes', getPopularDishes);
+app.get('/api/v1/popular-dishes', getPopularDishes);
+
+
 app.use('/api/cities', cityRoutes);
 app.use('/api/v1/cities', cityRoutes);
 
@@ -169,18 +176,21 @@ app.use(notFound);
 app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 const HOST = "0.0.0.0";
+
+server.listen(PORT, HOST, () => {
+  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  console.log(`Socket.IO server ready for real-time connections`);
+});
+
 const InitializeConnection = async () => {
   try {
     await Promise.resolve(connectDB());
     console.log("DB connect");
-    server.listen(PORT, HOST, () => {
-      console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-      console.log(`Socket.IO server ready for real-time connections`);
-      console.log(server.address());
-    });
+    initCronJobs();
+    initPaymentCronJobs();
   }
   catch (err) {
     console.log("error occured " + err);
   }
-}
+};
 InitializeConnection();

@@ -88,7 +88,7 @@ export default function CatalogMasterControl() {
   const fetchRestaurants = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/catalog/restaurants");
+      const res = await api.get("/api/catalog/restaurants");
       setRestaurants(res.data.restaurants || []);
     } catch (err) {
       console.error(err);
@@ -101,7 +101,7 @@ export default function CatalogMasterControl() {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/catalog/categories");
+      const res = await api.get("/api/catalog/categories");
       setCategories(res.data.categories || []);
     } catch (err) {
       console.error(err);
@@ -119,7 +119,7 @@ export default function CatalogMasterControl() {
       if (selectedCategory) params.categoryId = selectedCategory;
       if (searchQuery) params.search = searchQuery;
 
-      const res = await api.get("/catalog/products", { params });
+      const res = await api.get("/api/catalog/products", { params });
       setProducts(res.data.products || []);
     } catch (err) {
       console.error(err);
@@ -132,7 +132,7 @@ export default function CatalogMasterControl() {
   const fetchAuditLogs = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/catalog/audit-logs");
+      const res = await api.get("/api/catalog/audit-logs");
       setAuditLogs(res.data.logs || []);
     } catch (err) {
       console.error(err);
@@ -162,7 +162,7 @@ export default function CatalogMasterControl() {
   // Handler: Restaurant Master Control Switch
   const handleRestaurantControl = async (id, fields) => {
     try {
-      await api.put(`/catalog/restaurants/${id}/master-control`, fields);
+      await api.put(`/api/catalog/restaurants/${id}/master-control`, fields);
       showAlert("Restaurant master control updated!");
       fetchRestaurants();
     } catch (err) {
@@ -173,7 +173,7 @@ export default function CatalogMasterControl() {
   // Handler: Add Restaurant Offer
   const handleAddOfferSubmit = async () => {
     try {
-      await api.post(`/catalog/restaurants/${offerModal.restaurantId}/offers`, offerForm);
+      await api.post(`/api/catalog/restaurants/${offerModal.restaurantId}/offers`, offerForm);
       showAlert("Offer created successfully!");
       setOfferModal({ open: false, restaurantId: null });
       fetchRestaurants();
@@ -185,7 +185,7 @@ export default function CatalogMasterControl() {
   // Handler: Category Toggle & Save
   const handleCategoryToggle = async (cat) => {
     try {
-      await api.put(`/catalog/categories/${cat._id}`, {
+      await api.put(`/api/catalog/categories/${cat._id}`, {
         userAppVisible: !cat.userAppVisible,
         reason: "Admin toggled User App visibility",
       });
@@ -199,10 +199,10 @@ export default function CatalogMasterControl() {
   const handleSaveCategory = async () => {
     try {
       if (categoryModal.category) {
-        await api.put(`/catalog/categories/${categoryModal.category._id}`, categoryForm);
+        await api.put(`/api/catalog/categories/${categoryModal.category._id}`, categoryForm);
         showAlert("Category updated successfully!");
       } else {
-        await api.post("/catalog/categories", categoryForm);
+        await api.post("/api/catalog/categories", categoryForm);
         showAlert("Category created successfully!");
       }
       setCategoryModal({ open: false, category: null });
@@ -216,7 +216,7 @@ export default function CatalogMasterControl() {
   const handlePriceOverrideSubmit = async () => {
     try {
       const prodId = priceOverrideModal.product._id;
-      await api.put(`/catalog/products/${prodId}/price-override`, {
+      await api.put(`/api/catalog/products/${prodId}/price-override`, {
         isOverridden: true,
         basePrice: Number(overrideForm.basePrice),
         mrp: Number(overrideForm.mrp),
@@ -233,7 +233,7 @@ export default function CatalogMasterControl() {
 
   const handleClearPriceOverride = async (prodId) => {
     try {
-      await api.put(`/catalog/products/${prodId}/price-override`, {
+      await api.put(`/api/catalog/products/${prodId}/price-override`, {
         isOverridden: false,
         reason: "Admin cleared price override",
       });
@@ -247,7 +247,7 @@ export default function CatalogMasterControl() {
   // Handler: Product Status (OOS, Veg, Featured)
   const handleProductStatusToggle = async (id, fields) => {
     try {
-      await api.patch(`/catalog/products/${id}/status`, fields);
+      await api.patch(`/api/catalog/products/${id}/status`, fields);
       showAlert("Product status updated!");
       fetchProducts();
     } catch (err) {

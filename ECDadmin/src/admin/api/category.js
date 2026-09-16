@@ -3,6 +3,13 @@ import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../../utils/utils.js";
 
+const normalizeArray = (data) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.categories)) return data.categories;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+};
+
 const useMasterCategory = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -19,7 +26,7 @@ const useMasterCategory = () => {
         withCredentials: true,
       });
       // ✅ normalize response
-      setCategories(Array.isArray(res.data) ? res.data : []);
+      setCategories(normalizeArray(res.data));
     } catch (err) {
       setError(err.response?.data?.message || "Failed to fetch categories");
       setCategories([]);

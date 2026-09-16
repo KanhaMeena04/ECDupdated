@@ -1,4 +1,5 @@
 const MasterCategory = require('../models/MasterCategory'); // <--- Updated Import
+const Category = require('../models/Category');
 const Unit = require('../models/Unit');
 const Tag = require('../models/Tag');
 const Addon = require('../models/Addon');
@@ -30,6 +31,16 @@ exports.addMasterCategory = async (req, res) => {
             image, 
             status: status || 'active' 
         });
+        // Also sync with Category model
+        try {
+          await Category.create({
+            name: { en: name.trim() },
+            image,
+            isActive: (status || 'active') === 'active'
+          });
+        } catch (e) {
+          console.log('Category sync note:', e.message);
+        }
         console.log('✅ Master category created:', newCategory._id);
         res.status(201).json({ 
             success: true,
@@ -50,24 +61,43 @@ exports.getAllMasterCategories = async (req, res) => {
         const { page, limit, skip } = getPaginationParams(req, 50);
         const search = req.query.search || '';
         const query = buildSearchQuery(search, ['name']);
-        const total = await MasterCategory.countDocuments(query);
-        const categories = await MasterCategory.find(query)
+        let total = await MasterCategory.countDocuments(query);
+        let categories = await MasterCategory.find(query)
             .skip(skip)
             .limit(limit)
             .sort({ createdAt: -1 });
+
+        // Fallback sync with Category model if MasterCategory is empty
+        if (categories.length === 0) {
+            const catRecords = await Category.find({ isActive: true });
+            if (catRecords && catRecords.length > 0) {
+                categories = catRecords.map(c => {
+                    const nameStr = typeof c.name === 'object' ? (c.name.en || c.name.de || 'Category') : (c.name || 'Category');
+                    return {
+                        _id: c._id,
+                        name: nameStr,
+                        image: c.image || '',
+                        status: c.isActive ? 'active' : 'inactive',
+                        createdAt: c.createdAt
+                    };
+                });
+                total = categories.length;
+            }
+        }
+
         res.status(200).json({
             success: true,
             categories,
             total,
             page,
-            limit,
-            pages: Math.ceil(total / limit)
+            totalPages: Math.ceil(total / limit)
         });
     } catch (error) {
         console.error('❌ Error fetching master categories:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
-            message: error.message || "Failed to fetch categories" 
+            message: error.message || "Failed to fetch categories",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 };

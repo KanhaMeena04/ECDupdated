@@ -459,11 +459,48 @@ exports.getHomeData = async (req, res) => {
 };
 exports.getCategories = async (req, res) => {
   try {
-    const categories = await Cuisine.find({ isActive: true })
-      .select("name image")
-      .limit(20);
+    const Category = require('../models/Category');
+    const Cuisine = require('../models/Cuisine');
+
+    const dbCategories = await Category.find({ isActive: true, userAppVisible: { $ne: false } })
+      .sort({ position: 1 })
+      .lean();
+
+    let list = dbCategories.map(c => {
+      let nameStr = 'Category';
+      if (typeof c.name === 'object' && c.name !== null) {
+        nameStr = c.name.en || c.name.de || c.name.ar || Object.values(c.name)[0] || 'Category';
+      } else if (typeof c.name === 'string') {
+        nameStr = c.name;
+      }
+      return {
+        _id: c._id ? c._id.toString() : '',
+        id: c._id ? c._id.toString() : '',
+        name: nameStr,
+        title: nameStr,
+        image: c.image || 'assets/static/c5.png',
+        position: c.position || 0,
+        isFeatured: c.isFeatured || false,
+      };
+    });
+
+    if (list.length === 0) {
+      const dbCuisines = await Cuisine.find({ isActive: true }).lean();
+      list = dbCuisines.map(c => ({
+        _id: c._id ? c._id.toString() : '',
+        id: c._id ? c._id.toString() : '',
+        name: c.name,
+        title: c.name,
+        image: c.image || 'assets/static/c5.png',
+        position: 0,
+        isFeatured: false,
+      }));
+    }
+
     res.status(200).json({
-      categories,
+      success: true,
+      categories: list,
+      count: list.length,
       message: "Categories fetched successfully"
     });
   } catch (error) {
@@ -471,6 +508,27 @@ exports.getCategories = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.getPopularDishes = async (req, res) => {
+  try {
+    const Product = require('../models/Product');
+    const { formatProductForUser } = require('../utils/responseFormatter');
+    const products = await Product.find({ available: true, isApproved: true })
+      .limit(10)
+      .lean();
+    const formatted = products.map(p => formatProductForUser(p));
+    res.status(200).json({
+      success: true,
+      dishes: formatted,
+      products: formatted,
+      count: formatted.length
+    });
+  } catch (error) {
+    console.error("Get Popular Dishes Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.getRecommendedRestaurants = async (req, res) => {
   try {
     const userId = req.user ? req.user._id : null;
@@ -548,6 +606,7 @@ exports.getRecommendedRestaurants = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 exports.getExploreRestaurants = async (req, res) => {
   try {
     const { 
@@ -650,6 +709,7 @@ exports.getExploreRestaurants = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 exports.getBanners = async (req, res) => {
   try {
     const banners = await Banner.find({ isActive: true }).sort({ position: 1 });
@@ -662,3 +722,5 @@ exports.getBanners = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+

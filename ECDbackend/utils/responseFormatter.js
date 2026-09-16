@@ -111,7 +111,7 @@ exports.formatRestaurantForAdmin = (restaurant) => {
 };
 exports.formatProductForUser = (product) => {
   if (!product) return null;
-  const isOverridden = product.adminPriceOverride && product.adminPriceOverride.isOverridden;
+  const isOverridden = product.adminPriceOverride && (product.adminPriceOverride.isOverridden || product.adminPriceOverride.enabled);
   const effectiveBasePrice = isOverridden && product.adminPriceOverride.basePrice !== undefined ? product.adminPriceOverride.basePrice : product.basePrice;
   const effectiveMrp = isOverridden && product.adminPriceOverride.mrp !== undefined ? product.adminPriceOverride.mrp : (product.mrp || effectiveBasePrice);
   const effectiveDiscountPercent = isOverridden && product.adminPriceOverride.discountPercent !== undefined ? product.adminPriceOverride.discountPercent : (product.discountPercent || 0);

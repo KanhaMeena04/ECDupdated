@@ -133,8 +133,8 @@ const useWalletDetails = () => {
 const useCODBlockUnblock = () => {
   const toggleCodBlock = async (userId, isBlocked) => {
     try {
-      const res = await axios.patch(
-        `${API_BASE_URL}/users/${userId}/cod`,
+      const res = await axios.put(
+        `${API_BASE_URL}/api/admin/users/${userId}/cod`,
         { isCodBlocked: isBlocked },
         { withCredentials: true }
       );

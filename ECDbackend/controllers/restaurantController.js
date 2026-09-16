@@ -6,7 +6,7 @@ const Product = require("../models/Product"); // Required for Menu
 const Category = require("../models/Category");
 const Rider = require("../models/Rider");
 const { getPaginationParams } = require("../utils/pagination");
-const { formatRestaurantForUser, formatRestaurantForAdmin } = require("../utils/responseFormatter");
+const { formatRestaurantForUser, formatRestaurantForAdmin, formatProductForUser } = require("../utils/responseFormatter");
 const { getFileUrl } = require("../utils/upload");
 const { getNearbyRidersQuery, calculateDistance, estimateTravelMinutes } = require("../utils/locationUtils");
 const { isRestaurantOpenNow } = require("../utils/restaurantAvailability");
@@ -51,21 +51,49 @@ const normalizeTranslation = (value) => {
   const parsed = parseIfString(value);
   if (!parsed) return parsed;
   if (typeof parsed === "string") return { en: parsed };
-  return parsed;
-};
-const normalizeDeliveryType = (value) => {
-  const parsed = parseIfString(value);
-  if (Array.isArray(parsed)) return parsed;
-  if (typeof parsed === "string" && parsed.trim()) {
-    if (parsed.includes(",")) {
-      return parsed
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
+  if (typeof parsed === "object") {
+    const obj = { ...parsed };
+    if (!obj.en) {
+      obj.en = obj.de || obj.ar || obj.name || "Restaurant description";
     }
-    return [parsed.trim()];
+    return obj;
   }
   return parsed;
+};
+const mapSingleDeliveryType = (val) => {
+  if (!val || typeof val !== "string") return null;
+  const lower = val.trim().toLowerCase();
+  if (lower === "home" || lower === "home_delivery" || lower === "delivery" || lower === "home delivery") return "Home Delivery";
+  if (lower === "pickup" || lower === "self_pickup" || lower === "self pickup") return "Pickup";
+  if (lower === "dining") return "Dining";
+  if (lower === "both") return ["Home Delivery", "Pickup"];
+  if (["Home Delivery", "Pickup", "Dining"].includes(val.trim())) return val.trim();
+  return null;
+};
+
+const normalizeDeliveryType = (value) => {
+  if (!value) return ["Home Delivery"];
+  const parsed = parseIfString(value);
+  let rawItems = [];
+  if (Array.isArray(parsed)) {
+    rawItems = parsed;
+  } else if (typeof parsed === "string" && parsed.trim()) {
+    if (parsed.includes(",")) {
+      rawItems = parsed.split(",").map((i) => i.trim()).filter(Boolean);
+    } else {
+      rawItems = [parsed.trim()];
+    }
+  }
+  const result = new Set();
+  for (const item of rawItems) {
+    const mapped = mapSingleDeliveryType(item);
+    if (Array.isArray(mapped)) {
+      mapped.forEach((m) => result.add(m));
+    } else if (mapped) {
+      result.add(mapped);
+    }
+  }
+  return result.size > 0 ? Array.from(result) : ["Home Delivery"];
 };
 const normalizeBankDetails = (value) => {
   const parsed = parseIfString(value);
@@ -232,12 +260,18 @@ exports.adminCreateRestaurant = async (req, res) => {
       documents.gst = documents.gst || {};
       documents.gst.number = req.body.gstNumber || req.body.vatNumber;
     }
+    const finalName = parsedName || (typeof name === "string" ? { en: name } : name) || { en: "New Restaurant" };
+    const finalDescription = parsedDescription || (typeof description === "string" ? { en: description } : description) || { en: "Quality food and service" };
+    const finalContact = contactNumber || ownerMobile || "9999999999";
+    const finalAddress = address || `${area || "Main Market"}, ${city || "Sohna"}`;
+    const finalDeliveryTime = Number(deliveryTime) || 30;
+
     const [restaurant] = await Restaurant.create(
       [
         {
           owner: user._id,
-          name: parsedName || name,
-          description: parsedDescription || description,
+          name: finalName,
+          description: finalDescription,
           restaurantType,
           cuisine: parsedCuisine || cuisine,
           brand,
@@ -245,15 +279,15 @@ exports.adminCreateRestaurant = async (req, res) => {
           bannerImage,
           restaurantImages,
           email: ownerEmail,
-          contactNumber,
-          address,
-          city,
-          area,
-          location: parsedLocation || location || { type: "Point", coordinates: [0, 0] },
-          deliveryTime,
-          geofenceRadius,
+          contactNumber: finalContact,
+          address: finalAddress,
+          city: city || "Sohna",
+          area: area || "Sohna Market",
+          location: parsedLocation || location || { type: "Point", coordinates: [77.081, 28.248] },
+          deliveryTime: finalDeliveryTime,
+          geofenceRadius: Number(geofenceRadius) || 10,
           deliveringZones,
-          deliveryType: parsedDeliveryType || deliveryType,
+          deliveryType: parsedDeliveryType,
           paymentMethods,
           packagingCharge,
           adminCommission,
@@ -858,19 +892,14 @@ exports.getRestaurantById = async (req, res) => {
         (c) => c._id.toString() === p.category.toString(),
       );
       if (!category) return;
+      const formattedProd = formatProductForUser(p);
       const item = {
+        ...formattedProd,
         _id: p._id,
         categoryId: p.category,
-        name: p.name.en || p.name,
-        description: p.description ? p.description.en || p.description : "",
-        image: p.image,
-        basePrice: p.basePrice,
-        isVeg: p.isVeg,
-        variations: p.variations,
-        addOns: p.addOns,
-        available: p.available,
         isBestSeller: false,
       };
+
       const categoryKey = category._id.toString();
       if (!menuByCategoryId[categoryKey]) {
         menuByCategoryId[categoryKey] = {

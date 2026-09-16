@@ -286,11 +286,23 @@ class RestaurantApiService {
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         final List<dynamic> data = jsonResponse['categories'] ?? [];
-        return data.map((json) => Category(
-          id: json['_id']?.toString() ?? json['slug']?.toString() ?? '',
-          title: json['name']?.toString() ?? '',
-          image: json['image']?.toString() ?? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
-        )).toList();
+        return data.map((json) {
+          String catTitle = '';
+          if (json['title'] != null && json['title'].toString().isNotEmpty) {
+            catTitle = json['title'].toString();
+          } else if (json['name'] != null) {
+            if (json['name'] is Map) {
+              catTitle = json['name']['en']?.toString() ?? json['name'].values.first?.toString() ?? 'Category';
+            } else {
+              catTitle = json['name'].toString();
+            }
+          }
+          return Category(
+            id: json['_id']?.toString() ?? json['slug']?.toString() ?? '',
+            title: catTitle.isNotEmpty ? catTitle : 'Category',
+            image: json['image']?.toString() ?? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
+          );
+        }).toList();
       }
       return [];
     } catch (e) {
@@ -307,10 +319,10 @@ class RestaurantApiService {
       final response = await http.get(Uri.parse(popularDishesUrl));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-        final List<dynamic> data = jsonResponse['dishes'] ?? [];
+        final List<dynamic> data = jsonResponse['dishes'] ?? jsonResponse['products'] ?? [];
         return data.map((json) => PopularDish(
           id: json['_id']?.toString() ?? '',
-          name: json['name']?.toString() ?? '',
+          name: json['name'] is Map ? (json['name']['en']?.toString() ?? json['name'].values.first?.toString() ?? '') : (json['name']?.toString() ?? ''),
           slug: json['slug']?.toString() ?? '',
           imageUrl: json['image']?.toString() ?? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
           category: json['category']?.toString() ?? '',
@@ -348,23 +360,32 @@ class RestaurantApiService {
       menuItems = (json['menu'] as List).map((i) => _fromJsonToMenuItem(i)).toList();
     }
 
-    // Robust mapping with fallbacks for every field
+    String rName = 'Unknown Restaurant';
+    if (json['name'] != null) {
+      if (json['name'] is Map) {
+        rName = json['name']['en']?.toString() ?? json['name']['de']?.toString() ?? json['name'].values.first?.toString() ?? 'Unknown Restaurant';
+      } else {
+        rName = json['name'].toString();
+      }
+    }
+
     return Restaurant(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       slug: json['slug']?.toString() ?? '',
-      name: json['name']?.toString() ?? 'Unknown Restaurant',
+      name: rName,
       imageUrl: json['coverImage']?.toString() ?? json['logo']?.toString() ?? json['image']?.toString() ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600',
-      rating: _parseDouble((json['avgRating'] != null && json['avgRating'] > 0) ? json['avgRating'] : (json['adminRating'] ?? json['rating'] ?? json['avgRating']), 4.0),
-      reviewCount: _parseInt(json['totalReviews'] != null && json['totalReviews'] > 0 ? json['totalReviews'] : (json['orderCount'] ?? json['reviewCount'] ?? json['totalReviews']), 100),
-      distanceKm: _parseDouble(json['distance'] ?? json['distanceKm'], 2.5),
-      deliveryTimeMin: _parseInt(json['deliveryTime'] ?? json['deliveryTimeMin'] ?? json['prepTime'], 30),
+      rating: _parseDouble((json['avgRating'] != null && json['avgRating'] > 0) ? json['avgRating'] : (json['adminRating'] ?? json['rating'] ?? json['avgRating']), 4.5),
+      reviewCount: _parseInt(json['totalReviews'] != null && json['totalReviews'] > 0 ? json['totalReviews'] : (json['orderCount'] ?? json['reviewCount'] ?? json['totalReviews']), 120),
+      distanceKm: _parseDouble(json['distance'] ?? json['distanceKm'], 1.8),
+      deliveryTimeMin: _parseInt(json['deliveryTime'] ?? json['deliveryTimeMin'] ?? json['prepTime'], 25),
       deliveryCharge: _parseDouble(json['deliveryCharge'] ?? json['shippingFee'], 0.0),
-      cuisine: json['storeType']?.toString() ?? json['cuisine']?.toString() ?? json['description']?.toString() ?? 'Food',
+      cuisine: (json['cuisine'] is List) ? (json['cuisine'] as List).join(', ') : (json['storeType']?.toString() ?? json['cuisine']?.toString() ?? 'North Indian, Fast Food'),
       menu: menuItems,
       isActive: json['isActive'] == true,
       isOnline: json['isOnline'] == true,
     );
   }
+
 
   static double _parseDouble(dynamic value, double defaultVal) {
     if (value == null) return defaultVal;

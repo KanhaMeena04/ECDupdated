@@ -110,7 +110,7 @@ export default function PricingControlTower() {
   const fetchPricingConfig = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/pricing/config");
+      const res = await api.get("/api/pricing/config");
       const c = res.data.config;
       if (c.deliveryFeeConfig) setDeliveryConfig(c.deliveryFeeConfig);
       if (c.surgeConfig) setSurgeConfig(c.surgeConfig);
@@ -136,7 +136,7 @@ export default function PricingControlTower() {
   const handleSaveDeliveryConfig = async () => {
     try {
       setLoading(true);
-      await api.put("/pricing/delivery-config", {
+      await api.put("/api/pricing/delivery-config", {
         ...deliveryConfig,
         reason: "Admin updated delivery fees & slabs",
       });
@@ -183,7 +183,7 @@ export default function PricingControlTower() {
   const handleSaveSurgeConfig = async () => {
     try {
       setLoading(true);
-      await api.put("/pricing/surge-config", {
+      await api.put("/api/pricing/surge-config", {
         ...surgeConfig,
         reason: "Admin updated surge pricing charges",
       });
@@ -200,7 +200,7 @@ export default function PricingControlTower() {
   const handleSaveCommissionConfig = async () => {
     try {
       setLoading(true);
-      await api.put("/pricing/commission-config", {
+      await api.put("/api/pricing/commission-config", {
         ...commissionConfig,
         reason: "Admin updated central commission settings",
       });
@@ -215,7 +215,7 @@ export default function PricingControlTower() {
 
   const handleSaveRestaurantCommission = async () => {
     try {
-      await api.put("/pricing/commission-config", {
+      await api.put("/api/pricing/commission-config", {
         restaurantOverrides: [{
           restaurantId: restaurantCommModal.restaurant._id,
           commissionPercent: Number(restaurantCommValue),
@@ -234,7 +234,7 @@ export default function PricingControlTower() {
   const handleSaveFeeConfig = async () => {
     try {
       setLoading(true);
-      await api.put("/pricing/fee-config", {
+      await api.put("/api/pricing/fee-config", {
         platformFeeConfig,
         packagingFeeConfig,
         reason: "Admin updated platform & packaging fees",
@@ -254,7 +254,7 @@ export default function PricingControlTower() {
       if (!previewInput.restaurantId && restaurants.length > 0) {
         previewInput.restaurantId = restaurants[0]._id;
       }
-      const res = await api.post("/pricing/preview", previewInput);
+      const res = await api.post("/api/pricing/preview", previewInput);
       setPreviewResult(res.data);
       showAlert("Live pricing calculated!");
     } catch (err) {

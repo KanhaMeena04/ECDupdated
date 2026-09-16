@@ -124,8 +124,26 @@ const ensureOwnOrder = async (req, res, next) => {
   req.isCustomer = true;
   next();
 };
+const optionalAuth = async (req, res, next) => {
+  try {
+    let token = req.cookies.token;
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = await User.findById(decoded._id || decoded.id).select('-password');
+    }
+  } catch (error) {
+    // Silently continue for optional auth
+    req.user = null;
+  }
+  next();
+};
+
 module.exports = { 
   protect, 
+  optionalAuth,
   admin, 
   restaurantOwner, 
   rider, 
@@ -135,3 +153,4 @@ module.exports = {
   ensureOwnDelivery,
   ensureOwnOrder
 };
+

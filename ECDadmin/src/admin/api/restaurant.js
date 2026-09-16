@@ -37,8 +37,10 @@ const useAdminCreateRestaurantForm = () => {
     email: "",
     contactNumber: "",
     address: "",
-    city: "",
-    area: "",
+    city: "Sohna",
+    area: "Sohna Central",
+    latitude: 28.248,
+    longitude: 77.081,
 
     // SETTINGS
     deliveryTime: "",
@@ -150,7 +152,13 @@ const useAdminCreateRestaurantForm = () => {
         timing: formData.timing,
 
         documents: formData.documents, // files + numbers
-        location: { type: "Point", coordinates: [0, 0] },
+        location: {
+          type: "Point",
+          coordinates: [
+            parseFloat(formData.longitude || 77.081),
+            parseFloat(formData.latitude || 28.248)
+          ]
+        },
       };
 
       const response = await axios.post(
@@ -318,17 +326,27 @@ const useRestaurantMenu = (restaurantId) => {
     }
   };
 
-  const approveMenuItem = async (menuId) => {
-    await axios.patch(`${API_BASE_URL}/api/admin/restaurants/${menuId}/approve-menu`, {}, { withCredentials: true });
+  const approveMenuItem = async (productId) => {
+    await axios.put(`${API_BASE_URL}/api/admin/products/${productId}/approve`, {}, { withCredentials: true });
     fetchMenu();
   };
 
-  const deleteMenuItem = async (menuId) => {
-    await axios.delete(`${API_BASE_URL}/api/admin/menu/${menuId}`, { withCredentials: true });
+  const rejectMenuItem = async (productId) => {
+    await axios.put(`${API_BASE_URL}/api/admin/products/${productId}/reject`, {}, { withCredentials: true });
     fetchMenu();
   };
 
-  return { menu, loading, fetchMenu, approveMenuItem, deleteMenuItem };
+  const approveRestaurantMenu = async (restId) => {
+    await axios.patch(`${API_BASE_URL}/api/admin/restaurants/${restId || restaurantId}/approve-menu`, {}, { withCredentials: true });
+    fetchMenu();
+  };
+
+  const deleteMenuItem = async (productId) => {
+    await axios.delete(`${API_BASE_URL}/api/admin/menu/${productId}`, { withCredentials: true });
+    fetchMenu();
+  };
+
+  return { menu, loading, fetchMenu, approveMenuItem, rejectMenuItem, approveRestaurantMenu, deleteMenuItem };
 };
 
 const useApprovedRestaurantList = () => {
@@ -377,7 +395,7 @@ const useAddRestaurant = (initialValues, successCallback) => {
 
     try {
       const res = await axios.post(
-        `${API_BASE_URL}api/restaurants/admin/create`,
+        `${API_BASE_URL}/api/restaurants/admin/create`,
         data,
         { withCredentials: true }
       );
