@@ -13,7 +13,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
   late TabController _tabController;
 
   // Controllers for Restaurant Details
-  final TextEditingController _tradeNameController = TextEditingController(text: 'Cellar Door Restaurant');
+  final TextEditingController _tradeNameController = TextEditingController(text: 'ECDKART Partner Restaurant');
   final TextEditingController _typeController = TextEditingController(text: 'Casual Dining & Fast Food');
   final TextEditingController _cuisineController = TextEditingController(text: 'Pizza, Italian, Fast Food');
   final TextEditingController _aboutController = TextEditingController(
@@ -27,7 +27,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
 
   // Contact Info
   final TextEditingController _phoneController = TextEditingController(text: '+1 416-026-0518');
-  final TextEditingController _emailController = TextEditingController(text: 'Cellar@gmail.com');
+  final TextEditingController _emailController = TextEditingController(text: 'ecdkartpartner@gmail.com');
 
   // Documents
   final TextEditingController _tradeLicenseController = TextEditingController(text: 'TL-94820194');
@@ -149,8 +149,23 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
                 width: double.infinity,
                 decoration: const BoxDecoration(
                   image: DecorationImage(
-                    image: NetworkImage('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80'),
+                    image: AssetImage('assets/images/restaurant_header_bg.jpg'),
                     fit: BoxFit.cover,
+                  ),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.0, 0.40, 0.75, 1.0],
+                      colors: [
+                        Colors.black.withValues(alpha: 0.15),
+                        Colors.white.withValues(alpha: 0.45),
+                        Colors.white.withValues(alpha: 0.85),
+                        Colors.white,
+                      ],
+                    ),
                   ),
                 ),
               ),
