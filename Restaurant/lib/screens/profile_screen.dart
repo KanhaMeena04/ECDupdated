@@ -7,6 +7,7 @@ import 'restaurant_profile_screen.dart';
 import 'order_management_settings_screen.dart';
 import 'notification_settings_screen.dart';
 import 'pickup_orders_screen.dart';
+import 'cancelled_orders_screen.dart';
 import 'terms_conditions_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'payment_policy_screen.dart';
@@ -191,6 +192,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: 'Order History',
                     subtitle: 'View all past completed orders',
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen())),
+                  ),
+                  const Divider(height: 1, indent: 60),
+                  _buildMenuItem(
+                    icon: Icons.cancel_outlined,
+                    title: 'Cancelled Orders',
+                    subtitle: 'View all cancelled & refunded orders',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CancelledOrdersScreen())),
                   ),
                   const Divider(height: 1, indent: 60),
                   _buildMenuItem(

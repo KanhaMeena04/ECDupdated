@@ -17,6 +17,18 @@ class Order {
   final String? pickupTime;
   final DateTime? createdAt;
   final String address;
+  bool customerArrived;
+  DateTime? customerArrivedAt;
+  int? prepTimeMinutes;
+  int bufferTimeMinutes;
+  String? bufferReason;
+  String? pickupSlot;
+  String? prepNote;
+  int cancellationWindowMinutes;
+  int gracePeriodMinutes;
+  DateTime? readyAt;
+  DateTime? cancelledAt;
+  String? cancellationReason;
 
   Order({
     required this.id,
@@ -37,7 +49,53 @@ class Order {
     this.pickupTime,
     this.createdAt,
     this.address = '13 Amsterdam st',
+    this.customerArrived = false,
+    this.customerArrivedAt,
+    this.prepTimeMinutes = 15,
+    this.bufferTimeMinutes = 0,
+    this.bufferReason,
+    this.pickupSlot,
+    this.prepNote,
+    this.cancellationWindowMinutes = 5,
+    this.gracePeriodMinutes = 15,
+    this.readyAt,
+    this.cancelledAt,
+    this.cancellationReason,
   });
+
+  int get totalEstimatedPrepMinutes => (prepTimeMinutes ?? 15) + bufferTimeMinutes;
+
+  bool get isSelfPickup => orderType.toLowerCase() == 'pickup';
+
+  bool get isWithinCancellationWindow {
+    if (createdAt == null) return true;
+    final diff = DateTime.now().difference(createdAt!).inMinutes;
+    return diff < cancellationWindowMinutes;
+  }
+
+  int get remainingCancellationSeconds {
+    if (createdAt == null) return cancellationWindowMinutes * 60;
+    final diff = DateTime.now().difference(createdAt!).inSeconds;
+    final totalSec = cancellationWindowMinutes * 60;
+    final rem = totalSec - diff;
+    return rem > 0 ? rem : 0;
+  }
+
+  bool get isWithinGracePeriod {
+    final start = readyAt ?? createdAt;
+    if (start == null) return true;
+    final diff = DateTime.now().difference(start).inMinutes;
+    return diff < gracePeriodMinutes;
+  }
+
+  int get remainingGraceSeconds {
+    final start = readyAt ?? createdAt;
+    if (start == null) return gracePeriodMinutes * 60;
+    final diff = DateTime.now().difference(start).inSeconds;
+    final totalSec = gracePeriodMinutes * 60;
+    final rem = totalSec - diff;
+    return rem > 0 ? rem : 0;
+  }
 
   factory Order.fromJson(Map<String, dynamic> json) {
     String cName = 'Unknown Customer';

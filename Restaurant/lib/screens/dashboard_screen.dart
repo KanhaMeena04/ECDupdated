@@ -8,6 +8,7 @@ import 'menu_management_screen.dart';
 import 'restaurant_dashboard_screen.dart';
 import 'profile_screen.dart';
 import 'order_details_screen.dart';
+import 'cancelled_orders_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -37,6 +38,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final now = DateTime.now();
     _orders = [
       Order(
+        id: '1000',
+        backendId: 'mock_ord_new_1',
+        customerName: 'Rahul Sharma',
+        address: '42 Park Avenue, Flat 3B',
+        orderName: 'Butter Chicken + 2 Butter Naan',
+        quantity: 2,
+        items: [
+          {
+            'name': 'Butter Chicken',
+            'variant': 'Half',
+            'quantity': 1,
+            'price': 260.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+          {
+            'name': 'Butter Naan',
+            'variant': 'Standard',
+            'quantity': 2,
+            'price': 100.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
+        ],
+        totalAmount: 360.0,
+        status: 'Placed',
+        createdAt: now, // Placed JUST NOW (Full 5 min cancellation window active)
+        orderType: 'delivery',
+      ),
+      Order(
         id: '1001',
         backendId: 'mock_ord_1',
         customerName: 'Rohit',
@@ -61,7 +90,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
         totalAmount: 240.0,
         status: 'Placed',
-        createdAt: now.subtract(const Duration(minutes: 5)),
+        createdAt: now.subtract(const Duration(minutes: 1)),
         orderType: 'delivery',
       ),
       Order(
@@ -176,8 +205,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
         createdAt: now.subtract(const Duration(hours: 1, minutes: 10)),
         orderType: 'delivery',
       ),
+      Order(
+        id: '1006',
+        backendId: 'mock_ord_6',
+        customerName: 'Priya Verma',
+        address: '55 Green Park Main',
+        orderName: 'Paneer Tikka + Garlic Naan',
+        quantity: 2,
+        items: [
+          {
+            'name': 'Paneer Tikka',
+            'variant': 'Special',
+            'quantity': 1,
+            'price': 220.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+        ],
+        totalAmount: 310.0,
+        status: 'Cancelled',
+        createdAt: now.subtract(const Duration(minutes: 15)),
+        cancelledAt: now.subtract(const Duration(minutes: 12)),
+        cancellationReason: 'Customer requested cancellation (within 5-min window)',
+        orderType: 'delivery',
+      ),
 
       // --- Pick-up Orders (Matching Reference Image) ---
+      Order(
+        id: '2009',
+        backendId: 'mock_pickup_fresh_2',
+        customerName: 'Karan Malhotra',
+        address: '15 Civil Lines, Counter Pickup',
+        orderName: 'Special Thali + Cold Coffee',
+        quantity: 2,
+        items: [
+          {
+            'name': 'Special Thali',
+            'variant': 'Deluxe',
+            'quantity': 1,
+            'price': 250.0,
+            'image': 'assets/images/restaurant_chicken_item.jpg',
+          },
+          {
+            'name': 'Cold Coffee',
+            'variant': 'Large',
+            'quantity': 1,
+            'price': 100.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
+        ],
+        totalAmount: 350.0,
+        status: 'Placed',
+        createdAt: now, // Placed JUST NOW
+        orderType: 'pickup',
+      ),
+      Order(
+        id: '2000',
+        backendId: 'mock_pickup_new_1',
+        customerName: 'Amit Patel',
+        address: '88 MG Road, Counter Pickup',
+        orderName: 'Farmhouse Pizza + Chocolate Lava Cake',
+        quantity: 2,
+        items: [
+          {
+            'name': 'Farmhouse Pizza',
+            'variant': 'Medium',
+            'quantity': 1,
+            'price': 250.0,
+            'image': 'assets/images/restaurant_pizza_item.jpg',
+          },
+        ],
+        totalAmount: 320.0,
+        status: 'Placed',
+        createdAt: now, // Placed JUST NOW (Full 5 min cancellation window active)
+        orderType: 'pickup',
+      ),
       Order(
         id: '2001',
         backendId: 'mock_pickup_1',
@@ -555,7 +656,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 // Horizontal Filter Pills Row
                 _buildFilterPillsRow(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+
+                if (_selectedStatusFilter == 'Cancelled') ...[
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CancelledOrdersScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.analytics_outlined, color: Colors.redAccent, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Cancelled & Refunded Report', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                Text('Tap to view full cancellation log and store refund details', style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey[600])),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.redAccent),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
                 // Orders List
                 if (filteredOrders.isEmpty)
@@ -843,6 +982,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       {'name': 'Ready', 'count': _getCountForStatus('Ready'), 'color': const Color(0xFF4A90E2)},
       {'name': 'Picked Up', 'count': _getCountForStatus('Picked Up'), 'color': const Color(0xFF8E44AD)},
       {'name': 'Delivered', 'count': _getCountForStatus('Delivered'), 'color': AppColors.primaryGreen},
+      {'name': 'Cancelled', 'count': _getCountForStatus('Cancelled'), 'color': Colors.redAccent},
     ];
 
     return SingleChildScrollView(
@@ -947,7 +1087,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order)),
-                  ),
+                  ).then((_) => setState(() {})),
                 ),
               ],
             ),
@@ -1115,6 +1255,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // State Action Section matching exact reference images
   Widget _buildCardActionArea(Order order) {
+    if (order.isSelfPickup) {
+      if (order.status == 'Placed' || order.status == 'Pending') {
+        return Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _rejectOrder(order),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.primaryGreen, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(
+                  'Reject',
+                  style: GoogleFonts.poppins(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order))).then((_) => setState(() {})),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(
+                  'Accept Order',
+                  style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ),
+          ],
+        );
+      } else if (order.status == 'Preparing' || order.status == 'Ready' || order.status == 'Ready for Pickup') {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              order.customerArrived ? '🔔 Customer at Counter!' : 'Self Pickup Verification',
+              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order))).then((_) => setState(() {})),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: order.customerArrived ? Colors.orange : AppColors.primaryGreen,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              ),
+              child: Text(
+                order.customerArrived ? 'Verify OTP' : 'View / Handover',
+                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ],
+        );
+      } else {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(10)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Food Handed Over & Order Completed', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87)),
+              const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20),
+            ],
+          ),
+        );
+      }
+    }
+
     if (order.status == 'Placed') {
       return Row(
         children: [
@@ -1279,6 +1493,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       );
+    } else if (order.status == 'Cancelled') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF2F2),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                '❌ Cancelled (${order.cancellationReason ?? 'Full Refund'})',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.redAccent),
+              ),
+            ),
+            const Icon(Icons.cancel, color: Colors.redAccent, size: 18),
+          ],
+        ),
+      );
     }
     return const SizedBox.shrink();
   }
@@ -1295,6 +1532,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return const Color(0xFF8E44AD);
       case 'Delivered':
         return AppColors.primaryGreen;
+      case 'Cancelled':
+        return Colors.redAccent;
       default:
         return Colors.black;
     }

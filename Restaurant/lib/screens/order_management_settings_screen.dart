@@ -15,11 +15,23 @@ class _OrderManagementSettingsScreenState extends State<OrderManagementSettingsS
   final TextEditingController _customLimitController = TextEditingController(text: '50');
   final TextEditingController _prepTimeController = TextEditingController(text: '20 mins');
   bool _orderScheduling = false;
+  bool _selfPickupEnabled = true;
+  bool _autoReadyNotification = true;
+  final TextEditingController _prepBufferController = TextEditingController(text: '5 mins');
+  final TextEditingController _pickupSlotController = TextEditingController(text: '15 mins');
+  final TextEditingController _maxPickupCapacityController = TextEditingController(text: '20 orders/hr');
+  final TextEditingController _gracePeriodController = TextEditingController(text: '15 mins');
+  final TextEditingController _cancellationWindowController = TextEditingController(text: '5 mins');
 
   @override
   void dispose() {
     _customLimitController.dispose();
     _prepTimeController.dispose();
+    _prepBufferController.dispose();
+    _pickupSlotController.dispose();
+    _maxPickupCapacityController.dispose();
+    _gracePeriodController.dispose();
+    _cancellationWindowController.dispose();
     super.dispose();
   }
 
@@ -236,6 +248,93 @@ class _OrderManagementSettingsScreenState extends State<OrderManagementSettingsS
                       },
                     ),
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // Advanced Self Pickup Configuration Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.orange.withValues(alpha: 0.3), width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.orange.withValues(alpha: 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.storefront, color: Colors.orange, size: 22),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Self Pickup Settings',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Switch(
+                              value: _selfPickupEnabled,
+                              activeThumbColor: Colors.orange,
+                              activeTrackColor: Colors.orange.withValues(alpha: 0.4),
+                              onChanged: (val) => setState(() => _selfPickupEnabled = val),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'Configure store pickup slots, prep buffer & counter capacity.',
+                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                        const Divider(height: 24),
+                        if (_selfPickupEnabled) ...[
+                          _buildSubSettingRow('Preparation Buffer Time', _prepBufferController, 'e.g. 5 mins'),
+                          const SizedBox(height: 12),
+                          _buildSubSettingRow('Pickup Slot Duration', _pickupSlotController, 'e.g. 15 mins'),
+                          const SizedBox(height: 12),
+                          _buildSubSettingRow('Max Pickup Capacity', _maxPickupCapacityController, 'e.g. 20 orders/hr'),
+                          const SizedBox(height: 12),
+                          _buildSubSettingRow('Grace Period', _gracePeriodController, 'e.g. 15 mins'),
+                          const SizedBox(height: 12),
+                          _buildSubSettingRow('Cancellation Window', _cancellationWindowController, 'e.g. 5 mins'),
+                          const SizedBox(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Automatic "Ready" Notification', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold)),
+                                    Text('Trigger notification to customer when prep timer ends', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600])),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: _autoReadyNotification,
+                                activeThumbColor: AppColors.primaryGreen,
+                                activeTrackColor: AppColors.primaryGreen.withValues(alpha: 0.4),
+                                onChanged: (val) => setState(() => _autoReadyNotification = val),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -374,6 +473,40 @@ class _OrderManagementSettingsScreenState extends State<OrderManagementSettingsS
           trailing,
         ],
       ),
+    );
+  }
+
+  Widget _buildSubSettingRow(String label, TextEditingController controller, String hint) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: Text(
+            label,
+            style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black87),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: SizedBox(
+            height: 40,
+            child: TextField(
+              controller: controller,
+              style: GoogleFonts.poppins(fontSize: 12),
+              decoration: InputDecoration(
+                hintText: hint,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.orange, width: 1.5),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
