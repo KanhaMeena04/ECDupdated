@@ -29,6 +29,7 @@ import '../../providers/cart_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/wishlist_provider.dart';
+import '../../providers/order_provider.dart';
 import '../../services/socket_service.dart';
 
 import 'recommended_restaurants_page.dart';
@@ -204,6 +205,20 @@ class _HomeTabState extends State<_HomeTab> {
   Function(dynamic)? _restaurantSocketCallback;
   Timer? _shuffleTimer;
   int _shuffleSeed = 0;
+  double? _lastLat;
+  double? _lastLng;
+  int _fetchCounter = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final loc = context.watch<LocationProvider>();
+    if (_lastLat != loc.lat || _lastLng != loc.lng) {
+      _lastLat = loc.lat;
+      _lastLng = loc.lng;
+      _fetchRestaurants();
+    }
+  }
 
   @override
   void initState() {
@@ -212,7 +227,6 @@ class _HomeTabState extends State<_HomeTab> {
     _fetchBanners();
     _fetchCategories();
     _fetchPopularDishes();
-    _fetchRestaurants();
 
     // 10-second periodic shuffle for Recommended For You items/restaurants
     _shuffleTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
@@ -353,18 +367,40 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   Future<void> _fetchRestaurants({Map<String, String>? filters}) async {
-    try {
-      setState(() => _isLoadingRestaurants = true);
-      final restaurants = await RestaurantApiService.getRestaurants(filters: filters);
+    final currentFetchId = ++_fetchCounter;
+    final locProvider = context.read<LocationProvider>();
+    final reqLat = locProvider.lat;
+    final reqLng = locProvider.lng;
 
+    if (mounted) {
       setState(() {
-        _restaurants = restaurants;
-        _isLoadingRestaurants = false;
+        _restaurants = [];
+        _isLoadingRestaurants = true;
       });
+    }
+
+    try {
+      final restaurants = await RestaurantApiService.getRestaurants(
+        filters: filters,
+        lat: reqLat,
+        lng: reqLng,
+      );
+
+      if (currentFetchId == _fetchCounter && mounted) {
+        setState(() {
+          _restaurants = restaurants;
+          _isLoadingRestaurants = false;
+        });
+
+        debugPrint('RESTAURANT_PARSE_LOG\nbackend count = ${restaurants.length}\nparsed count = ${restaurants.length}\nstate count = ${_restaurants.length}\nUI count = ${_displayRestaurants.length}');
+      }
     } catch (e) {
-      setState(() {
-        _isLoadingRestaurants = false;
-      });
+      if (currentFetchId == _fetchCounter && mounted) {
+        setState(() {
+          _restaurants = [];
+          _isLoadingRestaurants = false;
+        });
+      }
     }
   }
 
@@ -539,8 +575,12 @@ class _HomeTabState extends State<_HomeTab> {
           ),
         );
       },
+    );
+  }
+
   Widget _buildServiceUnavailableCard(BuildContext context, bool isDark) {
     final locProvider = context.watch<LocationProvider>();
+    final currentLocationName = locProvider.location;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
       padding: const EdgeInsets.all(20),
@@ -575,7 +615,7 @@ class _HomeTabState extends State<_HomeTab> {
           ),
           const SizedBox(height: 14),
           Text(
-            'Service Unavailable in ${locProvider.location}',
+            'Service Currently Unavailable',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
@@ -585,7 +625,7 @@ class _HomeTabState extends State<_HomeTab> {
           ),
           const SizedBox(height: 6),
           Text(
-            'We currently operate active delivery services in Sohna, Haryana. Switch your delivery location to Sohna to explore live kitchens and products!',
+            'We are not delivering to $currentLocationName at the moment. Please select another delivery address or check back later!',
             style: TextStyle(
               fontSize: 12,
               color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
@@ -596,17 +636,12 @@ class _HomeTabState extends State<_HomeTab> {
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () {
-              context.read<LocationProvider>().updateLocation(
-                'Clock Tower Chowk, Sohna',
-                subAddress: 'Sohna, Haryana, India',
-                latitude: 28.248,
-                longitude: 77.081,
-              );
+              context.read<LocationProvider>().refreshLocation();
               _refreshData();
             },
             icon: const Icon(Icons.my_location_rounded, size: 18, color: Colors.white),
             label: const Text(
-              'Switch to Sohna, Haryana (Demo Area)',
+              'Use Live GPS Location',
               style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
             ),
             style: ElevatedButton.styleFrom(
@@ -2610,6 +2645,8 @@ class _RecentOrdersSection extends StatefulWidget {
 }
 
 class _RecentOrdersSectionState extends State<_RecentOrdersSection> {
+  int? _reorderSuccessIndex;
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -2675,6 +2712,7 @@ class _RecentOrdersSectionState extends State<_RecentOrdersSection> {
             final restName = order['restaurant']?['name'] ?? 'ECDKART Order';
             final totalAmt = order['totalAmount'] ?? 0;
             final statusStr = order['status'] ?? 'processing';
+            final isReordered = _reorderSuccessIndex == index;
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -2724,40 +2762,41 @@ class _RecentOrdersSectionState extends State<_RecentOrdersSection> {
                       ],
                     ),
                   ),
-                ],
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        );
-                        Future.delayed(const Duration(seconds: 2), () {
-                          if (mounted) setState(() => _reorderSuccessIndex = null);
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isReordered ? Colors.green : const Color(0xFF248C70),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _reorderSuccessIndex = index;
+                      });
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Reordered from $restName!'),
+                          duration: const Duration(seconds: 2),
+                          backgroundColor: const Color(0xFF248C70),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
+                      );
+                      Future.delayed(const Duration(seconds: 2), () {
+                        if (mounted) setState(() => _reorderSuccessIndex = null);
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isReordered ? Colors.green : const Color(0xFF248C70),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      icon: Icon(
-                        isReordered ? Icons.check_circle : Icons.replay_rounded,
-                        size: 16,
-                      ),
-                      label: Text(
-                        isReordered ? 'Added!' : 'Reorder',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
+                    ),
+                    icon: Icon(
+                      isReordered ? Icons.check_circle : Icons.replay_rounded,
+                      size: 16,
+                    ),
+                    label: Text(
+                      isReordered ? 'Added!' : 'Reorder',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],

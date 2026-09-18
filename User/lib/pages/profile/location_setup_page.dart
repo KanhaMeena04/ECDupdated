@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import '../../core/theme/app_colors.dart';
 import '../../providers/location_provider.dart';
 import '../../routes/app_routes.dart';
@@ -17,46 +20,77 @@ class LocationSetupPage extends StatefulWidget {
 class _LocationSetupPageState extends State<LocationSetupPage> {
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = false;
-
-  final List<Map<String, String>> _popularLocations = [
-    {
-      'title': 'Vijay Nagar, Indore',
-      'sub': 'Bhagora, Madhya Pradesh, India',
-    },
-    {
-      'title': 'Palasia, Indore',
-      'sub': 'Madhya Pradesh, India',
-    },
-    {
-      'title': 'MP Nagar, Bhopal',
-      'sub': 'Madhya Pradesh, India',
-    },
-    {
-      'title': 'Connaught Place, New Delhi',
-      'sub': 'Central Delhi, Delhi, India',
-    },
-    {
-      'title': 'Cyber City, Gurgaon',
-      'sub': 'Gurugram, Haryana, India',
-    },
-    {
-      'title': 'Sector 15, Faridabad',
-      'sub': 'Haryana, India',
-    },
-    {
-      'title': 'Marine Drive, Mumbai',
-      'sub': 'Maharashtra, India (Unserviceable Demo)',
-    },
-    {
-      'title': 'MG Road, Bengaluru',
-      'sub': 'Karnataka, India (Unserviceable Demo)',
-    },
-  ];
+  bool _isSearching = false;
+  Timer? _debounceTimer;
+  List<Map<String, dynamic>> _searchResults = [];
 
   @override
   void dispose() {
     _searchController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 400), () {
+      _searchLocation(query);
+    });
+  }
+
+  Future<void> _searchLocation(String query) async {
+    final q = query.trim();
+    if (q.length < 2) {
+      if (mounted) setState(() => _searchResults = []);
+      return;
+    }
+    setState(() => _isSearching = true);
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(q)}&format=json&addressdetails=1&limit=8',
+      );
+      final response = await http.get(url, headers: {'User-Agent': 'EcdkartUserApp/1.0'});
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        final results = data.map<Map<String, dynamic>>((item) {
+          final displayName = item['display_name'] ?? '';
+          final lat = double.tryParse(item['lat']?.toString() ?? '') ?? 0.0;
+          final lng = double.tryParse(item['lon']?.toString() ?? '') ?? 0.0;
+
+          final address = item['address'] ?? {};
+          final namePart = address['road'] ??
+              address['suburb'] ??
+              address['neighbourhood'] ??
+              address['city'] ??
+              address['town'] ??
+              address['county'] ??
+              displayName.split(',').first;
+          final statePart = [
+            address['city'] ?? address['town'] ?? address['state_district'],
+            address['state'],
+            address['country']
+          ].where((s) => s != null && s.toString().isNotEmpty).join(', ');
+
+          return {
+            'title': namePart.toString(),
+            'sub': statePart.isNotEmpty ? statePart : displayName.toString(),
+            'lat': lat,
+            'lng': lng,
+          };
+        }).toList();
+
+        if (mounted) {
+          setState(() {
+            _searchResults = results;
+            _isSearching = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isSearching = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isSearching = false);
+    }
   }
 
   // ── Fetch Current Device GPS Location ──────────────────────────────────────
@@ -88,175 +122,35 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
       }
 
       _handleLocationSelected(
-        realLoc.isNotEmpty ? realLoc : 'Vijay Nagar, Indore',
-        'Madhya Pradesh, India',
-        lat: pos?.latitude ?? 22.7196,
-        lng: pos?.longitude ?? 75.8577,
+        realLoc.isNotEmpty ? realLoc : 'Current Location',
+        'Live GPS Location',
+        lat: pos?.latitude,
+        lng: pos?.longitude,
       );
     } catch (_) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _handleLocationSelected('Vijay Nagar, Indore', 'Bhagora, Madhya Pradesh, India');
+        _handleLocationSelected('Current Location', 'Live GPS Location');
       }
     }
   }
 
-  // ── Handle Location Selection & Verification ───────────────────────────────
+  // ── Handle Location Selection & Transition ───────────────────────────────
   void _handleLocationSelected(
     String title,
     String subAddress, {
     double? lat,
     double? lng,
-    bool skipPopupCheck = false,
   }) async {
     final locProvider = context.read<LocationProvider>();
-
-    // Check serviceability
-    final fullAddr = '$title $subAddress';
-    final isServiceable = locProvider.isLocationServiceable(fullAddr);
-
-    if (!isServiceable) {
-      // Unserviceable Location -> Go to Screenshot 2 screen
-      await locProvider.updateLocation(title, subAddress: subAddress, latitude: lat, longitude: lng);
-      if (mounted) {
-        context.go('/unserviceable');
-      }
-      return;
-    }
-
-    // Serviceable Location -> Check if selected location is far from device GPS location (or demo popup)
-    if (!skipPopupCheck && (title.contains('Bhopal') || title.contains('Delhi') || title.contains('Gurgaon'))) {
-      _showLocationFarOffPopup(title, subAddress, lat, lng);
-      return;
-    }
-
-    // Serviceable & Confirmed -> Go to Home
     await locProvider.updateLocation(title, subAddress: subAddress, latitude: lat, longitude: lng);
     if (mounted) {
       context.go(AppRoutes.home);
     }
   }
 
-  // ── Screenshot 1 Dialog: "Are you sure of the selected location?" ─────────
-  void _showLocationFarOffPopup(String title, String subAddress, double? lat, double? lng) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          elevation: 0,
-          backgroundColor: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Green Circle with Exclamation Warning Icon (Matching Screenshot 1)
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF2E8B57), // Forest Green
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.error_outline_rounded,
-                      color: Colors.white,
-                      size: 38,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Title
-                const Text(
-                  'Are you sure of the\nselected location?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                    height: 1.25,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Body text
-                const Text(
-                  'Your selected location seems to be a little far off from the device location',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF555555),
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Button 1: "No, select another location" (Green rounded button matching Screenshot 1)
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF04873C), // Deep Green
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                    ),
-                    child: const Text(
-                      'No, select another location',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Button 2: "Yes, continue with this location" (Green text link matching Screenshot 1)
-                TextButton(
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    final locProvider = context.read<LocationProvider>();
-                    await locProvider.updateLocation(title, subAddress: subAddress, latitude: lat, longitude: lng);
-                    if (mounted) {
-                      context.go(AppRoutes.home);
-                    }
-                  },
-                  child: const Text(
-                    'Yes, continue with this location',
-                    style: TextStyle(
-                      color: Color(0xFF04873C),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final filtered = _popularLocations.where((loc) {
-      final query = _searchController.text.toLowerCase();
-      if (query.isEmpty) return true;
-      return loc['title']!.toLowerCase().contains(query) || loc['sub']!.toLowerCase().contains(query);
-    }).toList();
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -286,13 +180,34 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
                 ),
                 child: TextField(
                   controller: _searchController,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
+                  onChanged: _onSearchChanged,
+                  decoration: InputDecoration(
                     hintText: 'Search area, landmark or street...',
-                    hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-                    prefixIcon: Icon(Icons.search, color: Color(0xFF248C70)),
+                    hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+                    prefixIcon: const Icon(Icons.search, color: Color(0xFF248C70)),
+                    suffixIcon: _isSearching
+                        ? const Padding(
+                            padding: EdgeInsets.all(12.0),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF248C70)),
+                              ),
+                            ),
+                          )
+                        : (_searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, color: Color(0xFF9CA3AF)),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchResults = []);
+                                },
+                              )
+                            : null),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
               ),
@@ -355,57 +270,95 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
                 ),
               ),
 
-              const SizedBox(height: 28),
-              const Text(
-                'Available Service Cities (MP, Delhi, Haryana)',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF374151),
-                ),
-              ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 24),
 
-              // Popular Locations List
-              Expanded(
-                child: ListView.separated(
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF3F4F6)),
-                  itemBuilder: (context, index) {
-                    final item = filtered[index];
-                    final isUnserviceableDemo = item['sub']!.contains('Unserviceable');
-
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: isUnserviceableDemo ? Colors.red.shade50 : const Color(0xFFF3F4F6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isUnserviceableDemo ? Icons.location_off : Icons.location_on_outlined,
-                          color: isUnserviceableDemo ? Colors.red : const Color(0xFF248C70),
-                          size: 22,
-                        ),
-                      ),
-                      title: Text(
-                        item['title']!,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                      ),
-                      subtitle: Text(
-                        item['sub']!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isUnserviceableDemo ? Colors.red : const Color(0xFF6B7280),
-                        ),
-                      ),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF9CA3AF)),
-                      onTap: () => _handleLocationSelected(item['title']!, item['sub']!),
-                    );
-                  },
+              if (_searchResults.isNotEmpty) ...[
+                const Text(
+                  'Search Results',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF374151),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: _searchResults.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF3F4F6)),
+                    itemBuilder: (context, index) {
+                      final item = _searchResults[index];
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF3F4F6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.location_on_outlined,
+                            color: Color(0xFF248C70),
+                            size: 22,
+                          ),
+                        ),
+                        title: Text(
+                          item['title']!,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          item['sub']!,
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF9CA3AF)),
+                        onTap: () => _handleLocationSelected(
+                          item['title']!,
+                          item['sub']!,
+                          lat: item['lat'],
+                          lng: item['lng'],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ] else if (_searchController.text.trim().isNotEmpty && !_isSearching) ...[
+                const Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.location_off_rounded, size: 48, color: Color(0xFF9CA3AF)),
+                        SizedBox(height: 12),
+                        Text(
+                          'No locations found',
+                          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Try searching for another area, city or landmark',
+                          style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ] else ...[
+                const Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.map_outlined, size: 48, color: Color(0xFFD1D5DB)),
+                        SizedBox(height: 12),
+                        Text(
+                          'Search for any city or area',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

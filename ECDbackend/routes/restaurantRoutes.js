@@ -48,8 +48,10 @@ const {
   updateOwnerPromocode,
   deleteOwnerPromocode
 } = require('../controllers/promocodeController');
+const { getMenu } = require('../controllers/menuController');
 router.get('/', getAllRestaurants);
 router.get('/list', getAllRestaurants);
+router.get('/menu/:restaurantId', getMenu);
 router.post('/send-otp', vendorSendOtp);
 router.post('/verify-otp', vendorVerifyOtp);
 router.get('/profile', protect, restaurantOwner, getMyRestaurant);

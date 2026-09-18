@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Category = require("../models/Category");
 const Product = require("../models/Product");
 const Restaurant = require("../models/Restaurant");
@@ -159,9 +160,16 @@ exports.addFoodItem = async (req, res) => {
 exports.getMenu = async (req, res) => {
   try {
     const { restaurantId } = req.params;
-    const restaurant = await Restaurant.findById(restaurantId).select(
-      "restaurantApproved isActive menuApproved"
-    );
+    let restaurant;
+    if (mongoose.Types.ObjectId.isValid(restaurantId)) {
+      restaurant = await Restaurant.findById(restaurantId).select(
+        "restaurantApproved isActive menuApproved"
+      );
+    } else {
+      restaurant = await Restaurant.findOne({ slug: restaurantId }).select(
+        "restaurantApproved isActive menuApproved"
+      );
+    }
     if (!restaurant) {
       return res.status(404).json({ message: "Restaurant not found" });
     }
@@ -169,7 +177,7 @@ exports.getMenu = async (req, res) => {
       return res.status(403).json({ message: "Restaurant not available" });
     }
     const products = await Product.find({
-      restaurant: restaurantId,
+      restaurant: restaurant._id,
       isApproved: true,
       available: true,
       pendingUpdate: { $exists: false } // Exclude products with pending edits

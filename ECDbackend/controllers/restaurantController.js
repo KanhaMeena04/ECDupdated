@@ -263,7 +263,7 @@ exports.adminCreateRestaurant = async (req, res) => {
     const finalName = parsedName || (typeof name === "string" ? { en: name } : name) || { en: "New Restaurant" };
     const finalDescription = parsedDescription || (typeof description === "string" ? { en: description } : description) || { en: "Quality food and service" };
     const finalContact = contactNumber || ownerMobile || "9999999999";
-    const finalAddress = address || `${area || "Main Market"}, ${city || "Sohna"}`;
+    const finalAddress = address || `${area || "Central Market"}, ${city || "Indore"}`;
     const finalDeliveryTime = Number(deliveryTime) || 30;
 
     const [restaurant] = await Restaurant.create(
@@ -281,9 +281,9 @@ exports.adminCreateRestaurant = async (req, res) => {
           email: ownerEmail,
           contactNumber: finalContact,
           address: finalAddress,
-          city: city || "Sohna",
-          area: area || "Sohna Market",
-          location: parsedLocation || location || { type: "Point", coordinates: [77.081, 28.248] },
+          city: city || "Indore",
+          area: area || "Vijay Nagar",
+          location: parsedLocation || location || { type: "Point", coordinates: [75.8577, 22.7196] },
           deliveryTime: finalDeliveryTime,
           geofenceRadius: Number(geofenceRadius) || 10,
           deliveringZones,
@@ -810,6 +810,7 @@ exports.getRestaurantByIdAdmin = async (req, res) => {
       };
     });
     products.forEach((p) => {
+      if (!p || !p.category) return;
       const category = categories.find(
         (c) => c._id.toString() === p.category.toString(),
       );

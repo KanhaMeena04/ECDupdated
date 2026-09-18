@@ -1,10 +1,34 @@
-import React from 'react'
-import PageHeader from '../../components/PageHeader'
-import PayoutTable from '../components/PayoutTable'
-import { Button } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import PageHeader from '../../components/PageHeader';
+import PayoutTable from '../components/PayoutTable';
+import { Button, CircularProgress, Typography } from '@mui/material';
+import { API_BASE_URL } from '../../../utils/utils';
+
 function DriverPayout() {
-	const columns = [
-    { field: 'id', headerName: '', width: 50 },
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchPayouts = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get(`${API_BASE_URL}/api/admin/payouts/drivers`, {
+          withCredentials: true,
+        });
+        setRows(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        setError(err.response?.data?.message || err.message || 'Failed to fetch driver payouts');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPayouts();
+  }, []);
+
+  const columns = [
+    { field: 'id', headerName: '#', width: 60 },
     { field: 'driver', headerName: 'Driver', flex: 1 },
     { field: 'phone', headerName: 'Phone Number', flex: 1 },
     { field: 'totalOrders', headerName: 'Total Orders', flex: 1 },
@@ -26,23 +50,24 @@ function DriverPayout() {
     }
   ];
 
-  const rows = [
-    { id: 1, driver: 'Hoang Ly', phone: '**********', totalOrders: 58, totalToBePaid: 'RM -14565.00' },
-    { id: 2, driver: 'Canario', phone: '**********', totalOrders: 35, totalToBePaid: 'RM -46.00' },
-    // ... add more data
-  ];
   return (
-	<div className="p-6 bg-gray-50 min-h-screen">
-				   <PageHeader
-							title="Restaurant Transaction History"
-							breadcrumbs={[
-							  { label: "Transaction History" },
-							  { label: "History", active: true }
-							]}
-							/>
-				<PayoutTable data={rows} columns={columns} title="Driver Payout" />			 
-			</div>
-  )
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <PageHeader
+        title="Driver Payout List"
+        breadcrumbs={[
+          { label: "Driver Payout" },
+          { label: "Payout", active: true }
+        ]}
+      />
+      {loading ? (
+        <div className="flex justify-center p-8"><CircularProgress style={{ color: '#248C70' }} /></div>
+      ) : error ? (
+        <Typography color="error" className="p-4">{error}</Typography>
+      ) : (
+        <PayoutTable data={rows} columns={columns} title="Driver Payout" /> 
+      )}
+    </div>
+  );
 }
 
-export default DriverPayout
+export default DriverPayout;

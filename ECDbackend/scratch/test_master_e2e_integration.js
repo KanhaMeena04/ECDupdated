@@ -1,3 +1,5 @@
+const dns = require('dns');
+try { dns.setServers(['1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4']); } catch(e){}
 const axios = require('axios');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
@@ -24,7 +26,10 @@ async function runMasterE2ETests() {
   let createdPromocodeId = null;
 
   try {
-    await mongoose.connect(process.env.MONGO_URI || "mongodb+srv://admin:admin123@cluster0.kdybcms.mongodb.net/ecdkart");
+    await mongoose.connect(process.env.MONGO_URI || "mongodb+srv://admin:admin123@cluster0.kdybcms.mongodb.net/ecdkart", {
+      serverSelectionTimeoutMS: 15000,
+      family: 4
+    });
     const User = require('../models/User');
     const Restaurant = require('../models/Restaurant');
     const Product = require('../models/Product');

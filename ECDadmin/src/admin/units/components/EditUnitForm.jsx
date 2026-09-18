@@ -41,7 +41,6 @@ const EditUnitForm = () => {
             TabIndicatorProps={{ style: { backgroundColor: "#10b981" } }}
           >
             <Tab icon={<LanguageIcon />} iconPosition="start" label="English" />
-            <Tab icon={<LanguageIcon />} iconPosition="start" label="Arabic" />
           </Tabs>
         </Box>
 

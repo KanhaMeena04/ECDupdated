@@ -57,7 +57,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
 
   Future<void> _fetchMenu() async {
     try {
-      final menu = await RestaurantApiService.getRestaurantMenu(widget.restaurant.slug);
+      final identifier = widget.restaurant.id.isNotEmpty ? widget.restaurant.id : widget.restaurant.slug;
+      final menu = await RestaurantApiService.getRestaurantMenu(identifier);
       setState(() {
         _menu = menu;
         _isLoadingMenu = false;

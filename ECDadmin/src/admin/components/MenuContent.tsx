@@ -46,16 +46,6 @@ import Settings from "@mui/icons-material/Settings";
 export const menuItems = [
   { text: 'Dashboard', icon: <HomeRounded />, path: '/dashboard' },
 
-  // {
-  //   text: 'Support Chat',
-  //   icon: <Chat />,
-  //   children: [
-  //     { text: 'Chat', path: '/chat' },
-  //     { text: 'User & Store Chat', path: '/user-store-chat' },
-  //     { text: 'User & Driver Chat', path: '/user-driver-chat' }
-  //   ]
-  // },
-
   {
     text: 'Order Management',
     icon: <Assignment />,
@@ -78,72 +68,34 @@ export const menuItems = [
     children: [
       { text: 'Restaurants List', path: '/restaurants' },
       { text: 'Active Restaurants List', path: '/active-restaurants' },
-      // { text: 'Add Restaurant', path: '/add-restaurants' },
-       // { text: 'Eagles view', path: '/eagles-view' },
-      {text: 'Admin Create Restaurant ', path: '/admin-create-restaurant' },
-      // {text: 'Restaurant  Application', path: '/restaurant-application' },
-      {text: 'Pending Restaurants', path: '/pending-restaurants' },
-      {text: 'Approve Restaurants', path: '/approve-restaurant' },
-      
-
-
+      { text: 'Admin Create Restaurant', path: '/admin-create-restaurant' },
+      { text: 'Pending Restaurants', path: '/pending-restaurants' },
+      { text: 'Approve Restaurants', path: '/approve-restaurant' },
+      { text: 'Restaurant Documents', path: '/documents' },
+      { text: 'Menu Add-ons', path: '/addons' },
     ]
   },
 
   {
-    text: 'City Management',
+    text: 'City & Service Areas',
     icon: <LocationCity />,
     children: [
-      //  { text: 'Country List', path: '/country-list' },
-      //  { text: 'State List', path: '/state-list' },
-       { text: 'Add City', path: '/add-city' },
-       { text: 'City List', path: '/city-list' },
-       { text: 'Zones List', path: '/zones' },
-
+      { text: 'Add City', path: '/add-city' },
+      { text: 'City List', path: '/city-list' },
+      { text: 'Zones List', path: '/zones' },
     ]
   },
 
   {
-    text: 'Vehicle Management',
-    icon: <DirectionsCar />,
-    children: [
-      { text: 'Vehicle List', path: '/vehicle-list' },
-      { text: 'Add Vehicle', path: '/add-vehicle' },
-    ]
-  },
-
-  {
-    text: 'Brands',
-    icon: <LocalOffer />,
-    children: [
-      { text: 'Brand List', path: '/brands' },
-      { text: 'Add Brand', path: '/add-brands' },
-      { text: 'Brand Sort', path: '/sort-brands' },
-    ]
-  },
-
-  {
-    text: 'Driver Management',
+    text: 'Driver / Rider Management',
     icon: <DriveEta />,
     children: [
       { text: 'Driver List', path: '/driver-list' },
-      // { text: 'Pending Driver List', path: '/pending-driver-list' },
-      // { text: 'Add Drivers', path: '/add-driver' },
-      // { text: 'Riders', path: '/riders-in-map' },
       { text: 'Admin Add Rider', path: '/admin-create-driver' },
       { text: 'Pending Rider List', path: '/pending-driver-list' },
-      
+      { text: 'Rider Documents', path: '/documents' },
     ]
   }, 
- 
-  {
-    text: 'Document Management',
-    icon: <Description />,
-    children: [
-      { text: 'Document List', path: '/documents' },
-      { text: 'Add Document ', path: '/add-document' },
-    ]
-  },
 
   {
     text: 'Cancellation Reasons',
@@ -151,18 +103,15 @@ export const menuItems = [
     children: [
       { text: 'Reasons List', path: '/cancellation-reason' },
       { text: 'Add Reasons', path: '/add-reason' },
-
     ]
   },
 
   {
-    text: 'Promocodes',
+    text: 'Promocodes & Offers',
     icon: <Percent />,
     children: [
       { text: 'Promocode List', path: '/promocodes' },
-      { text: 'Add Promocode ', path: '/add-promocodes' },
-      // { text: 'Custom push', path: '/custom-push' },
-      // { text: 'Admin Custom Push', path: '/admin-custom-push' },
+      { text: 'Add Promocode', path: '/add-promocodes' },
     ]
   },
 
@@ -175,12 +124,10 @@ export const menuItems = [
     ]
   },
 
-
   {
     text: 'User Management',
     icon: <People />,
-    path:"/user-management"
-    
+    path: "/user-management"
   },
   {
     text: 'Categories',
@@ -189,132 +136,75 @@ export const menuItems = [
       { text: 'Category List', path: '/category' },
       { text: 'Add Category', path: '/add-category' },
       { text: 'Category Sort', path: '/sort-category' },
+      { text: 'Cuisines List', path: '/cuisine-list' },
+      { text: 'Tags List', path: '/tags' },
     ]
   },
+
   {
-    text: 'Units',
-    icon: <AcUnit/>,
+    text: "Payout & Settlements",
+    icon: <AccountBalanceWallet />,
     children: [
-      // { text: 'Unit Symbol List', path: '/unit-symbol-list' },
-      // { text: 'Add Unit Symbol', path: '/unit-symbol' },
-      { text: 'Unit List', path: '/unit-list' },
-      { text: 'Add Unit', path: '/add-unit' },
-
-    ]
+      { text: "Financial Overview", path: "/financial-overview" },
+      { text: "Rider Cash & Unfreeze", path: "/rider-cash-management" },
+      { text: "Restaurant Payout", path: "/restaurant-payout" },
+      { text: "Driver Payout", path: "/driver-payout" },
+      { text: "Restaurant Transaction History", path: "/restaurant-transaction-history" },
+      { text: "Driver Transaction History", path: "/driver-Transaction-history" },
+    ],
   },
+
   {
-    text: 'Tags',
-    icon: <TagFacesOutlined />,
+    text: "Reviews and Ratings",
+    icon: <RateReview />,
+    path: "/reviews-ratings",
+  },
+
+  {
+    text: "Content & Pricing Control",
+    icon: <Article />,
     children: [
-      { text: 'Tags', path: '/tags' },
-      { text: 'Add Tag', path: '/add-tags' },
-    ]
+      { text: "User App CMS Tower", path: "/user-app-cms" },
+      { text: "Catalog & Menu Control", path: "/catalog-master-control" },
+      { text: "Pricing & Fee Control", path: "/pricing-control" },
+      { text: "Privacy Policy", path: "/privacy-policy" },
+      { text: "Terms and Conditions", path: "/terms-condition" },
+      { text: "FAQ", path: "/faq" },
+      { text: "About Us", path: "/about-us" },
+      { text: "Contact", path: "/contact" },
+      { text: "Landing Page", path: "/landing-page" },
+    ],
+  },
 
-
-  },
   {
-    text: 'Cuisines',
-    icon: <FoodBank />,
-    path:"/cuisine-list"
-  },
-  {
-    text: 'Addons',
-    icon: <AddBoxRounded />,
-    path:"/addons"
-  },
-  {
-    text: 'Groups',
-    icon: <People />,
+    text: "Roles & Permissions",
+    icon: <Security />,
     children: [
-      { text: 'Group List', path: '/group-list' },
-      { text: 'Add Group ', path: '/add-group' },
-      { text: 'Group Tags List', path: '/group-tag-list' },
-      { text: 'Add Group Tag', path: '/add-group-tag' },
-    ]
+      { text: "Create Role", path: "/create-role" },
+      { text: "Role List", path: "/role" },
+      { text: "Create Staff", path: "/create-staff" },
+      { text: "Staff List", path: "/staff" },
+      { text: "Group List", path: "/group-list" },
+    ],
   },
- 
+
   {
-  text: "Filter",
-  icon: <FilterAlt />,
-  children: [
-    { text: "Filter Category List", path: "/filter-category" },
-    { text: "Filter Category Sort", path: "/filter-category-sort" },
-    { text: "Filter Subcategory List", path: "/filter-sub-category" },
-  ],
-},
+    text: "Reports & Analytics",
+    icon: <BarChart />,
+    children: [
+      { text: "Restaurant Reports", path: "/restaurant-report" },
+      { text: "Delivery People Reports", path: "/delivery-report" },
+      { text: "Order Reports", path: "/order-report" },
+      { text: "Top Users Reports", path: "/top-user-report" },
+      { text: "Wallet Reports", path: "/wallet-report" },
+    ],
+  },
 
-{
-  text: "Payout",
-  icon: <AccountBalanceWallet />,
-  children: [
-    { text: "Financial Overview", path: "/financial-overview" },
-    { text: "Rider Cash & Unfreeze", path: "/rider-cash-management" },
-    { text: "Restaurant Payout", path: "/restaurant-payout" },
-    { text: "Driver Payout", path: "/driver-payout" },
-    { text: "Restaurant Transaction History", path: "/restaurant-transaction-history" },
-    { text: "Driver Transaction History", path: "/driver-Transaction-history" },
-  ],
-},
-
-{
-  text: "Food Quantity",
-  icon: <RestaurantMenu />,
-  children: [
-    { text: "Food Quantity List", path: "/food-quantity-list" },
-    { text: "Add Food Quantity", path: "/add-food-quantity" },
-  ],
-},
-
-{
-  text: "Reviews and Ratings",
-  icon: <RateReview />,
-  path: "/reviews-ratings",
-},
-
-{
-  text: "Content Management",
-  icon: <Article />,
-  children: [
-    { text: "User App CMS Tower", path: "/user-app-cms" },
-    { text: "Catalog & Menu Control", path: "/catalog-master-control" },
-    { text: "Pricing & Fee Control", path: "/pricing-control" },
-    { text: "Privacy Policy", path: "/privacy-policy" },
-    { text: "Terms and Conditions", path: "/terms-condition" },
-    { text: "FAQ", path: "/faq" },
-    { text: "About", path: "/about-us" },
-    { text: "contact", path: "/contact" },
-    { text: "Landing Page", path: "/landing-page" },
-  ],
-},
-
-{
-  text: "Roles",
-  icon: <Security />,
-  children: [
-    { text: "Create Role", path: "/create-role" },
-    { text: "Role List", path: "/role" },
-    { text: "Create Staff", path: "/create-staff" },
-    { text: "Staff List", path: "/staff" },
-  ],
-},
-
-{
-  text: "Reports",
-  icon: <BarChart />,
-  children: [
-    { text: "Restaurant Reports", path: "/restaurant-report" },
-    { text: "Delivery People Reports", path: "/delivery-report" },
-    { text: "Order Reports", path: "/order-report" },
-    { text: "Top Users Reports", path: "/top-user-report" },
-    { text: "Wallet Reports", path: "/wallet-report" },
-],},
- {
+  {
     text: 'Settings',
-    icon: <SettingsApplications/>,
-    path:"/setting"
+    icon: <SettingsApplications />,
+    path: "/setting"
   },
-
-  
 ]
 
 export default function MenuContent() {

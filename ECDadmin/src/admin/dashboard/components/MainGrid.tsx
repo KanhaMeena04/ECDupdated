@@ -34,50 +34,34 @@ const MainGrid = () => {
   // Define default/initial fallback values if API returns empty data
   const rawDashboard = totals || {};
   const dashboard = {
-    totalUsers: rawDashboard.totalUsers || 142,
-    totalRiders: rawDashboard.totalRiders || 28,
-    totalRestaurants: rawDashboard.totalRestaurants || 18,
-    totalEarnings: rawDashboard.totalEarnings || 15420.50,
-    todayEarnings: rawDashboard.todayEarnings || 1850.00,
-    totalCommission: rawDashboard.totalCommission || 2310.00,
-    totalRestaurantCommission: rawDashboard.totalRestaurantCommission || 11560.50,
-    totalDeliveryCommission: rawDashboard.totalDeliveryCommission || 1550.00,
-    ordersDelivered: rawDashboard.ordersDelivered || 68,
-    ordersCancelled: rawDashboard.ordersCancelled || 4,
-    ordersFailed: rawDashboard.ordersFailed || 2,
-    salesSeries: (apiSalesSeries && apiSalesSeries.length > 0 && apiSalesSeries.some(s => Number(s.orders) > 0)) 
-      ? apiSalesSeries 
-      : [
-          { month: 'Jan', orders: 15 },
-          { month: 'Feb', orders: 28 },
-          { month: 'Mar', orders: 42 },
-          { month: 'Apr', orders: 35 },
-          { month: 'May', orders: 60 },
-          { month: 'Jun', orders: 74 },
-          { month: 'Jul', orders: 86 },
-          { month: 'Aug', orders: 95 },
-          { month: 'Sep', orders: 112 },
-          { month: 'Oct', orders: 128 },
-          { month: 'Nov', orders: 145 },
-          { month: 'Dec', orders: 172 }
-        ],
-    recentOrders: [
-      { id: '#ORD-9841', customerName: 'Rajesh Kumar', amount: '₹450', status: 'Delivered' },
-      { id: '#ORD-9842', customerName: 'Alice Smith', amount: '₹820', status: 'Processing' },
-      { id: '#ORD-9843', customerName: 'Marco Pierre', amount: '₹310', status: 'Delivered' },
-      { id: '#ORD-9844', customerName: 'Lakshyraj Singh', amount: '₹650', status: 'Delivered' }
-    ],
-    topRestaurants: [
-      { name: 'Royal Curry House', orders: 142, amount: '₹38,500' },
-      { name: 'Pizza Palace', orders: 115, amount: '₹31,200' },
-      { name: 'Tandoori Nights', orders: 89, amount: '₹22,400' }
-    ],
-    topUsers: [
-      { name: 'Lakshyraj Singh', orders: 38, amount: 'Active' },
-      { name: 'Rishi Solanki', orders: 31, amount: 'Active' },
-      { name: 'Khushi Rathore', orders: 25, amount: 'Active' },
-      { name: 'Dinesh Birla', orders: 19, amount: 'Active' }
-    ]
+    totalUsers: Number(rawDashboard.totalUsers ?? 0),
+    totalRiders: Number(rawDashboard.totalRiders ?? 0),
+    totalRestaurants: Number(rawDashboard.totalRestaurants ?? 0),
+    totalEarnings: Number(rawDashboard.totalEarnings ?? 0),
+    todayEarnings: Number(rawDashboard.todayEarnings ?? 0),
+    totalCommission: Number(rawDashboard.totalCommission ?? 0),
+    totalRestaurantCommission: Number(rawDashboard.totalRestaurantCommission ?? 0),
+    totalDeliveryCommission: Number(rawDashboard.totalDeliveryCommission ?? 0),
+    ordersDelivered: Number(rawDashboard.ordersDelivered ?? 0),
+    ordersCancelled: Number(rawDashboard.ordersCancelled ?? 0),
+    ordersFailed: Number(rawDashboard.ordersFailed ?? 0),
+    salesSeries: Array.isArray(apiSalesSeries) ? apiSalesSeries : [],
+    recentOrders: Array.isArray(rawDashboard.recentOrders) ? rawDashboard.recentOrders.map((o: any) => ({
+      id: `#ORD-${String(o.id).slice(-4).toUpperCase()}`,
+      customerName: o.customerName || 'Customer',
+      amount: `₹${o.amount}`,
+      status: o.status || 'Pending'
+    })) : [],
+    topRestaurants: Array.isArray(rawDashboard.topRestaurants) ? rawDashboard.topRestaurants.map((r: any) => ({
+      name: r.name || 'Restaurant',
+      orders: r.orders || 0,
+      amount: `₹${r.amount || '0.00'}`
+    })) : [],
+    topUsers: Array.isArray(rawDashboard.topUsers) ? rawDashboard.topUsers.map((u: any) => ({
+      name: u.name || 'User',
+      orders: u.orders || 0,
+      amount: `₹${u.amount || '0.00'}`
+    })) : []
   };
 
   const [timeframe, setTimeframe] = React.useState<'Daily' | 'Weekly' | 'Monthly' | 'Yearly'>('Monthly');

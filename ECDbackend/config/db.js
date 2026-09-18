@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
 const dns = require('dns');
-const primaryDNS = ['1.1.1.1', '1.0.0.1'];  // Cloudflare
-const fallbackDNS = ['8.8.4.4', '8.8.8.8']; // Google (backup)
-dns.setServers(primaryDNS);
-console.log('🔧 DNS configured: Primary: Cloudflare (1.1.1.1, 1.0.0.1)');
+try {
+  dns.setServers(['1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4']);
+  console.log('🔧 DNS configured: Primary: Cloudflare (1.1.1.1, 1.0.0.1)');
+} catch (e) {
+  console.log('ℹ️ Using default system DNS resolvers');
+}
 const connectDB = async () => {
   const maxRetries = 5;
   let retries = 0;

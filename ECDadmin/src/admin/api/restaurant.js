@@ -37,10 +37,10 @@ const useAdminCreateRestaurantForm = () => {
     email: "",
     contactNumber: "",
     address: "",
-    city: "Sohna",
-    area: "Sohna Central",
-    latitude: 28.248,
-    longitude: 77.081,
+    city: "Indore",
+    area: "Vijay Nagar",
+    latitude: 22.75,
+    longitude: 75.89,
 
     // SETTINGS
     deliveryTime: "",
