@@ -12,14 +12,10 @@ import {
 } from '@mui/material'
 import {
   HomeRounded,
-  Chat,
   Assignment,
   Store,
   LocationCity,
-  DirectionsCar,
-  LocalOffer,
   DriveEta,
-  Description,
   Cancel,
   Percent,
   Image,
@@ -27,184 +23,131 @@ import {
   ChevronRight,
   RadioButtonUnchecked,
   SettingsApplications,
-  AddBoxRounded,
-  FoodBank,
-  TagFacesOutlined,
-  AcUnit,
   Category,
-  
+  Map,
+  LocalShipping,
+  RestaurantMenu,
+  AttachMoney,
+  Campaign,
+  AccountBalance,
+  Storefront,
+  Tune,
+  Flag,
+  Schedule,
+  Warning,
+  ReceiptLong,
+  HealthAndSafety,
 } from '@mui/icons-material'
-import FilterAlt from "@mui/icons-material/FilterAlt";
 import AccountBalanceWallet from "@mui/icons-material/AccountBalanceWallet";
-import RestaurantMenu from "@mui/icons-material/RestaurantMenu";
 import RateReview from "@mui/icons-material/RateReview";
 import Article from "@mui/icons-material/Article";
 import Security from "@mui/icons-material/Security";
 import BarChart from "@mui/icons-material/BarChart";
-import Settings from "@mui/icons-material/Settings";
 
 export const menuItems = [
   { text: 'Dashboard', icon: <HomeRounded />, path: '/dashboard' },
-
-  {
-    text: 'Order Management',
-    icon: <Assignment />,
-    children: [
-      { text: 'Orders Dashboard', path: '/order-dashboard' },
-      { text: 'New Order', path: '/new-order' },
-      { text: 'Processing Order', path: '/processing-order' },
-      { text: 'Pickup Order', path: '/pick-up-order' },
-      { text: 'Delivered Order', path: '/delivered-order' },
-      { text: 'Cancelled Order', path: '/cancelled-order' },
-      { text: 'Failed Order', path: '/failed-order' },
-      { text: 'Abandon cart', path: '/abandon-cart' },
-      { text: 'Refund Order', path: '/order-refund' },
-    ]
-  },
+  { text: 'Live Orders', icon: <Assignment />, path: '/order-dashboard' },
+  { text: 'Live Map', icon: <Map />, path: '/eagles-view' },
+  { text: 'Customers', icon: <People />, path: '/user-management' },
 
   {
     text: 'Restaurants',
     icon: <Store />,
     children: [
-      { text: 'Restaurants List', path: '/restaurants' },
-      { text: 'Active Restaurants List', path: '/active-restaurants' },
-      { text: 'Admin Create Restaurant', path: '/admin-create-restaurant' },
-      { text: 'Pending Restaurants', path: '/pending-restaurants' },
-      { text: 'Approve Restaurants', path: '/approve-restaurant' },
-      { text: 'Restaurant Documents', path: '/documents' },
-      { text: 'Menu Add-ons', path: '/addons' },
+      { text: 'All Restaurants', path: '/restaurants' },
+      { text: 'Pending Approval', path: '/pending-restaurants' },
+      { text: 'Menu Approval', path: '/approve-restaurant' },
+      { text: 'Documents', path: '/documents' },
+      { text: 'Restaurant Controls', path: '/active-restaurants' },
     ]
   },
 
   {
-    text: 'City & Service Areas',
-    icon: <LocationCity />,
-    children: [
-      { text: 'Add City', path: '/add-city' },
-      { text: 'City List', path: '/city-list' },
-      { text: 'Zones List', path: '/zones' },
-    ]
-  },
-
-  {
-    text: 'Driver / Rider Management',
+    text: 'Riders',
     icon: <DriveEta />,
     children: [
-      { text: 'Driver List', path: '/driver-list' },
-      { text: 'Admin Add Rider', path: '/admin-create-driver' },
-      { text: 'Pending Rider List', path: '/pending-driver-list' },
-      { text: 'Rider Documents', path: '/documents' },
-    ]
-  }, 
-
-  {
-    text: 'Cancellation Reasons',
-    icon: <Cancel />,
-    children: [
-      { text: 'Reasons List', path: '/cancellation-reason' },
-      { text: 'Add Reasons', path: '/add-reason' },
+      { text: 'All Riders', path: '/driver-list' },
+      { text: 'Pending Verification', path: '/pending-driver-list' },
+      { text: 'Earnings', path: '/rider-earnings-control' },
+      { text: 'Incentives', path: '/promocodes' },
     ]
   },
 
+  { text: 'Orders', icon: <Assignment />, path: '/new-order' },
+  { text: 'Dispatch', icon: <LocalShipping />, path: '/driver-live-location/live' },
+
   {
-    text: 'Promocodes & Offers',
-    icon: <Percent />,
+    text: 'Menu',
+    icon: <RestaurantMenu />,
     children: [
-      { text: 'Promocode List', path: '/promocodes' },
-      { text: 'Add Promocode', path: '/add-promocodes' },
+      { text: 'Categories', path: '/category' },
+      { text: 'Subcategories', path: '/filter-category' },
+      { text: 'Products', path: '/catalog-master-control' },
+      { text: 'Approval', path: '/approve-restaurant' },
     ]
   },
 
   {
-    text: 'Restaurant Banner',
-    icon: <Image />,
+    text: 'Pricing',
+    icon: <AttachMoney />,
     children: [
-      { text: 'Restaurant Banners List', path: '/restaurant-banner' },
-      { text: 'Add Restaurant Banners', path: '/add-restaurant-banner' },
+      { text: 'Delivery Charges', path: '/pricing-control' },
+      { text: 'Commission', path: '/financial-overview' },
+      { text: 'Packaging', path: '/pricing-control' },
+      { text: 'Platform Fees', path: '/pricing-control' },
     ]
   },
 
   {
-    text: 'User Management',
-    icon: <People />,
-    path: "/user-management"
-  },
-  {
-    text: 'Categories',
-    icon: <Category />,
+    text: 'Marketing',
+    icon: <Campaign />,
     children: [
-      { text: 'Category List', path: '/category' },
-      { text: 'Add Category', path: '/add-category' },
-      { text: 'Category Sort', path: '/sort-category' },
-      { text: 'Cuisines List', path: '/cuisine-list' },
-      { text: 'Tags List', path: '/tags' },
+      { text: 'Coupons', path: '/promocodes' },
+      { text: 'Offers', path: '/add-promocodes' },
+      { text: 'Banners', path: '/restaurant-banner' },
+      { text: 'Notifications', path: '/custom-push' },
     ]
   },
 
   {
-    text: "Payout & Settlements",
-    icon: <AccountBalanceWallet />,
+    text: 'Finance',
+    icon: <AccountBalance />,
     children: [
-      { text: "Financial Overview", path: "/financial-overview" },
-      { text: "Rider Cash & Unfreeze", path: "/rider-cash-management" },
-      { text: "Restaurant Payout", path: "/restaurant-payout" },
-      { text: "Driver Payout", path: "/driver-payout" },
-      { text: "Restaurant Transaction History", path: "/restaurant-transaction-history" },
-      { text: "Driver Transaction History", path: "/driver-Transaction-history" },
-    ],
+      { text: 'Payments', path: '/financial-overview' },
+      { text: 'Refunds', path: '/order-refund' },
+      { text: 'Restaurant Settlement', path: '/restaurant-payout' },
+      { text: 'Rider Settlement', path: '/driver-payout' },
+      { text: 'Reconciliation', path: '/payment-reconciliation' },
+    ]
   },
 
-  {
-    text: "Reviews and Ratings",
-    icon: <RateReview />,
-    path: "/reviews-ratings",
-  },
+  { text: 'Service Areas', icon: <LocationCity />, path: '/service-areas' },
+  { text: 'Self Pickup', icon: <Storefront />, path: '/self-pickup-control' },
+  { text: 'CMS', icon: <Article />, path: '/user-app-cms' },
+  { text: 'Analytics', icon: <BarChart />, path: '/profit-loss-report' },
+  { text: 'Reports', icon: <BarChart />, path: '/order-report' },
+
+  { text: 'Rule Engine', icon: <Tune />, path: '/rule-engine' },
+  { text: 'Feature Flags', icon: <Flag />, path: '/feature-flags' },
+  { text: 'Scheduled Changes', icon: <Schedule />, path: '/scheduled-changes' },
 
   {
-    text: "Content & Pricing Control",
-    icon: <Article />,
-    children: [
-      { text: "User App CMS Tower", path: "/user-app-cms" },
-      { text: "Catalog & Menu Control", path: "/catalog-master-control" },
-      { text: "Pricing & Fee Control", path: "/pricing-control" },
-      { text: "Privacy Policy", path: "/privacy-policy" },
-      { text: "Terms and Conditions", path: "/terms-condition" },
-      { text: "FAQ", path: "/faq" },
-      { text: "About Us", path: "/about-us" },
-      { text: "Contact", path: "/contact" },
-      { text: "Landing Page", path: "/landing-page" },
-    ],
-  },
-
-  {
-    text: "Roles & Permissions",
-    icon: <Security />,
-    children: [
-      { text: "Create Role", path: "/create-role" },
-      { text: "Role List", path: "/role" },
-      { text: "Create Staff", path: "/create-staff" },
-      { text: "Staff List", path: "/staff" },
-      { text: "Group List", path: "/group-list" },
-    ],
-  },
-
-  {
-    text: "Reports & Analytics",
-    icon: <BarChart />,
-    children: [
-      { text: "Restaurant Reports", path: "/restaurant-report" },
-      { text: "Delivery People Reports", path: "/delivery-report" },
-      { text: "Order Reports", path: "/order-report" },
-      { text: "Top Users Reports", path: "/top-user-report" },
-      { text: "Wallet Reports", path: "/wallet-report" },
-    ],
-  },
-
-  {
-    text: 'Settings',
+    text: 'Master Settings',
     icon: <SettingsApplications />,
-    path: "/setting"
+    children: [
+      { text: 'Order Rules', path: '/setting' },
+      { text: 'Delivery Rules', path: '/pricing-control' },
+      { text: 'Rider Rules', path: '/setting' },
+      { text: 'Restaurant Rules', path: '/setting' },
+      { text: 'Cancellation Rules', path: '/cancellation-reason' },
+      { text: 'Refund Rules', path: '/setting' },
+    ]
   },
+
+  { text: 'Roles & Permissions', icon: <Security />, path: '/role' },
+  { text: 'Audit Logs', icon: <ReceiptLong />, path: '/audit-logs' },
+  { text: 'Emergency Controls', icon: <Warning />, path: '/emergency-controls' },
+  { text: 'System Health', icon: <HealthAndSafety />, path: '/dashboard' },
 ]
 
 export default function MenuContent() {
@@ -213,97 +156,97 @@ export default function MenuContent() {
   const [open, setOpen] = React.useState<string | null>(null);
 
   return (
-   <Stack
-  sx={{
-    width: '100%',
-    position: 'relative',
-    top: 0,
-    left: 0,
-    height: 'auto',
-    bgcolor: 'background.paper',
-    boxShadow: 'none',
-    overflowY: 'auto',
-    scrollbarWidth: 'none',
-    '&::-webkit-scrollbar': { display: 'none' },
-  }}
->
-  <List sx={{ pt: 2 }}>
-    {menuItems.map((item) => (
-      <React.Fragment key={item.text}>
-        <ListItem disablePadding sx={{ mb: 0.5 }}>
-          <ListItemButton
-            onClick={() =>
-              item.children
-                ? setOpen(open === item.text ? null : item.text)
-                : navigate(item.path!)
-            }
-            sx={{
-              px: 2,
-              py: 1,
-              borderRadius: 1,
-              mx: 1, // Adds a little gap from the sidebar edges
-              backgroundColor: location.pathname === item.path ? 'rgba(36, 140, 112, 0.12)' : 'transparent',
-              color: location.pathname === item.path ? '#248C70' : '#2C2C2C',
-              '&:hover': { bgcolor: 'rgba(36, 140, 112, 0.08)' }
-            }}
-          >
-            <ListItemIcon sx={{ 
-              minWidth: 36, 
-              color: location.pathname === item.path ? '#248C70' : '#2C2C2C' 
-            }}>
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText primary={item.text} primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: location.pathname === item.path ? 600 : 500 }} />
-            {item.children && (
-              <Box
+    <Stack
+      sx={{
+        width: '100%',
+        position: 'relative',
+        top: 0,
+        left: 0,
+        height: 'auto',
+        bgcolor: 'background.paper',
+        boxShadow: 'none',
+        overflowY: 'auto',
+        scrollbarWidth: 'none',
+        '&::-webkit-scrollbar': { display: 'none' },
+      }}
+    >
+      <List sx={{ pt: 2 }}>
+        {menuItems.map((item) => (
+          <React.Fragment key={item.text}>
+            <ListItem disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                onClick={() =>
+                  item.children
+                    ? setOpen(open === item.text ? null : item.text)
+                    : navigate(item.path!)
+                }
                 sx={{
-                  ml: 'auto',
-                  transform: open === item.text ? 'rotate(90deg)' : 'rotate(0deg)',
-                  transition: '0.2s',
-                  display: 'flex',
-                  color: open === item.text ? '#248C70' : '#2C2C2C'
+                  px: 2,
+                  py: 1,
+                  borderRadius: 1,
+                  mx: 1,
+                  backgroundColor: location.pathname === item.path ? 'rgba(36, 140, 112, 0.12)' : 'transparent',
+                  color: location.pathname === item.path ? '#248C70' : '#2C2C2C',
+                  '&:hover': { bgcolor: 'rgba(36, 140, 112, 0.08)' }
                 }}
               >
-                <ChevronRight fontSize="small" />
-              </Box>
-            )}
-          </ListItemButton>
-        </ListItem>
-
-        {item.children && (
-          <Collapse in={open === item.text} timeout="auto" unmountOnExit>
-            <List sx={{ pl: 4, mt: 0.5 }}>
-              {item.children.map((sub) => (
-                <ListItem key={sub.text} disablePadding sx={{ mb: 0.3 }}>
-                  <ListItemButton
-                    onClick={() => navigate(sub.path)}
+                <ListItemIcon sx={{ 
+                  minWidth: 36, 
+                  color: location.pathname === item.path ? '#248C70' : '#2C2C2C' 
+                }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText primary={item.text} primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: location.pathname === item.path ? 600 : 500 }} />
+                {item.children && (
+                  <Box
                     sx={{
-                      px: 2,
-                      py: 0.7,
-                      borderRadius: 1,
-                      mr: 1,
-                      backgroundColor: location.pathname === sub.path ? 'rgba(232, 157, 30, 0.15)' : 'transparent',
-                      color: location.pathname === sub.path ? '#E89D1E' : '#2C2C2C',
-                      '&:hover': {
-                        backgroundColor: '#248C70',
-                        color: '#fff',
-                        '& .MuiListItemIcon-root': { color: '#fff' }
-                      },
+                      ml: 'auto',
+                      transform: open === item.text ? 'rotate(90deg)' : 'rotate(0deg)',
+                      transition: '0.2s',
+                      display: 'flex',
+                      color: open === item.text ? '#248C70' : '#2C2C2C'
                     }}
                   >
-                    <ListItemIcon sx={{ minWidth: 28, color: location.pathname === sub.path ? '#E89D1E' : '#94B2AA' }}>
-                      <RadioButtonUnchecked sx={{ fontSize: 10 }} />
-                    </ListItemIcon>
-                    <ListItemText primary={sub.text} primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: location.pathname === sub.path ? 600 : 400 }} />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-            </List>
-          </Collapse>
-        )}
-      </React.Fragment>
-    ))}
-  </List>
-</Stack>
+                    <ChevronRight fontSize="small" />
+                  </Box>
+                )}
+              </ListItemButton>
+            </ListItem>
+
+            {item.children && (
+              <Collapse in={open === item.text} timeout="auto" unmountOnExit>
+                <List sx={{ pl: 4, mt: 0.5 }}>
+                  {item.children.map((sub) => (
+                    <ListItem key={sub.text} disablePadding sx={{ mb: 0.3 }}>
+                      <ListItemButton
+                        onClick={() => navigate(sub.path)}
+                        sx={{
+                          px: 2,
+                          py: 0.7,
+                          borderRadius: 1,
+                          mr: 1,
+                          backgroundColor: location.pathname === sub.path ? 'rgba(232, 157, 30, 0.15)' : 'transparent',
+                          color: location.pathname === sub.path ? '#E89D1E' : '#2C2C2C',
+                          '&:hover': {
+                            backgroundColor: '#248C70',
+                            color: '#fff',
+                            '& .MuiListItemIcon-root': { color: '#fff' }
+                          },
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 28, color: location.pathname === sub.path ? '#E89D1E' : '#94B2AA' }}>
+                          <RadioButtonUnchecked sx={{ fontSize: 10 }} />
+                        </ListItemIcon>
+                        <ListItemText primary={sub.text} primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: location.pathname === sub.path ? 600 : 400 }} />
+                      </ListItemButton>
+                    </ListItem>
+                  ))}
+                </List>
+              </Collapse>
+            )}
+          </React.Fragment>
+        ))}
+      </List>
+    </Stack>
   );
 }

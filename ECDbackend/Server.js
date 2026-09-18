@@ -164,6 +164,26 @@ app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/cms', cmsRoutes);
 app.use('/api/v1/cms', cmsRoutes);
 
+const ruleEngineRoutes = require('./routes/ruleEngineRoutes');
+const emergencyRoutes = require('./routes/emergencyRoutes');
+const featureFlagRoutes = require('./routes/featureFlagRoutes');
+const scheduledChangeRoutes = require('./routes/scheduledChangeRoutes');
+const serviceAreaRoutes = require('./routes/serviceAreaRoutes');
+const reconciliationRoutes = require('./routes/reconciliationRoutes');
+
+app.use('/api/rules', ruleEngineRoutes);
+app.use('/api/v1/rules', ruleEngineRoutes);
+app.use('/api/emergency', emergencyRoutes);
+app.use('/api/v1/emergency', emergencyRoutes);
+app.use('/api/feature-flags', featureFlagRoutes);
+app.use('/api/v1/feature-flags', featureFlagRoutes);
+app.use('/api/scheduled-changes', scheduledChangeRoutes);
+app.use('/api/v1/scheduled-changes', scheduledChangeRoutes);
+app.use('/api/service-areas', serviceAreaRoutes);
+app.use('/api/v1/service-areas', serviceAreaRoutes);
+app.use('/api/reconciliations', reconciliationRoutes);
+app.use('/api/v1/reconciliations', reconciliationRoutes);
+
 app.use('/api/training', trainingRoutes);
 app.use('/api/v1/training', trainingRoutes);
 const path = require('path');
@@ -177,8 +197,8 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 const HOST = "0.0.0.0";
 
-server.listen(PORT, HOST, () => {
-  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+server.listen(PORT, '127.0.0.1', () => {
+  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on http://127.0.0.1:${PORT}`);
   console.log(`Socket.IO server ready for real-time connections`);
 });
 

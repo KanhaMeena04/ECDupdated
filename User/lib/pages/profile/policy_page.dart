@@ -271,7 +271,7 @@ class SupportPage extends StatelessWidget {
   const SupportPage({super.key});
 
   Future<void> _makeCall() async {
-    final Uri callUri = Uri(scheme: 'tel', path: '+919876543210');
+    final Uri callUri = Uri(scheme: 'tel', path: '8950605676');
     if (await canLaunchUrl(callUri)) {
       await launchUrl(callUri);
     }
@@ -360,7 +360,7 @@ class SupportPage extends StatelessWidget {
         ),
         PolicySection(
           heading: 'Contact Details',
-          content: 'Email: support@ecdkart.in\nPhone: +91 98765 43210\n\nFeel free to reach out to us anytime.',
+          content: 'Email: support@ecdkart.co.in\nPhone: +91 89506 05676\n\nFeel free to reach out to us anytime.',
           customWidget: actionButtons,
         ),
       ],
@@ -496,7 +496,7 @@ class PrivacyPolicyPage extends StatelessWidget {
   }
 }
 
-// â”€â”€ Refund Policy Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Refund Policy Page ───────────────────────────────────────────────────────
 
 class RefundPolicyPage extends StatelessWidget {
   const RefundPolicyPage({super.key});
@@ -505,7 +505,7 @@ class RefundPolicyPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return const PolicyPage(
       title: 'Refund Policy',
-      emoji: 'ðŸ’°',
+      emoji: '💰',
       sections: [
         PolicySection(
           heading: 'Refund Eligibility',
@@ -533,7 +533,7 @@ class RefundPolicyPage extends StatelessWidget {
           content:
               'To initiate a refund, go to My Orders in the app, select the relevant order, and '
               'tap "Report an Issue". Describe the problem and attach photos if applicable. '
-              'Alternatively, contact our support team at support@ecdkart.in or call +91 98765 43210. '
+              'Alternatively, contact our support team at support@ecdkart.co.in or call +91 89506 05676. '
               'Our team will review your request within 24–48 hours. If approved, the refund will '
               'be processed to your original payment method. For cash-on-delivery orders, refunds '
               'will be credited as ECDKART wallet balance.',
@@ -563,8 +563,8 @@ class RefundPolicyPage extends StatelessWidget {
           heading: 'Contact for Refunds',
           content:
               'For any refund-related queries or disputes, please contact us:\n\n'
-              'Email: refunds@ecdkart.in\n'
-              'Phone: +91 98765 43210 (Mon–Sat, 9 AM – 9 PM)\n'
+              'Email: support@ecdkart.co.in\n'
+              'Phone: +91 89506 05676 (Mon–Sat, 9 AM – 9 PM)\n'
               'In-App: My Orders → Select Order → Report an Issue\n'
               'Address: ECDKART Technologies Pvt. Ltd., 42 MG Road, Indore, Madhya Pradesh – 452001, India\n\n'
               'We are committed to resolving all refund disputes fairly and promptly.',
@@ -574,7 +574,7 @@ class RefundPolicyPage extends StatelessWidget {
   }
 }
 
-// â”€â”€ Terms & Conditions Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Terms & Conditions Page ──────────────────────────────────────────────────
 
 class TermsConditionsPage extends StatelessWidget {
   const TermsConditionsPage({super.key});
@@ -583,7 +583,7 @@ class TermsConditionsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return const PolicyPage(
       title: 'Terms & Conditions',
-      emoji: 'ðŸ“„',
+      emoji: '📄',
       sections: [
         PolicySection(
           heading: '1. Introduction & Definitions',
@@ -618,7 +618,7 @@ class TermsConditionsPage extends StatelessWidget {
   }
 }
 
-// â”€â”€ Shipping Policy Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shipping Policy Page ─────────────────────────────────────────────────────
 
 class ShippingPolicyPage extends StatelessWidget {
   const ShippingPolicyPage({super.key});
@@ -627,7 +627,7 @@ class ShippingPolicyPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return const PolicyPage(
       title: 'Shipping Policy',
-      emoji: 'ðŸšš',
+      emoji: '🚚',
       sections: [
         PolicySection(
           heading: 'Delivery Coverage',
@@ -691,8 +691,8 @@ class ShippingPolicyPage extends StatelessWidget {
               'view the live tracking map. You will see status updates including: Order Confirmed, '
               'Preparing, Out for Delivery, and Delivered. Push notifications are sent at each '
               'stage. If you experience any issues with tracking or your order status appears '
-              'stuck, please contact our support team at support@ecdkart.in or call '
-              '+91 98765 43210.',
+              'stuck, please contact our support team at support@ecdkart.co.in or call '
+              '+91 89506 05676.',
         ),
       ],
     );

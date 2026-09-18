@@ -226,15 +226,28 @@ class CartProvider with ChangeNotifier {
   void clear() async {
     _items.clear();
     _clearRestaurantInfo();
+    resetSchedule();
     notifyListeners();
     
     await CartApiService.clearCart();
+  }
+
+  void resetSchedule() {
+    _orderType = 'delivery';
+    _pickupDate = 'Today, Sep 14';
+    _pickupTimeSlot = '9:30 AM - 9:45 AM';
+    _pickupTime = null;
+    notifyListeners();
   }
 
   void _clearRestaurantInfo() {
     _restaurantId = null;
     _restaurantName = null;
     _restaurantImageUrl = null;
+    _orderType = 'delivery';
+    _pickupDate = 'Today, Sep 14';
+    _pickupTimeSlot = '9:30 AM - 9:45 AM';
+    _pickupTime = null;
     removeCoupon();
   }
 

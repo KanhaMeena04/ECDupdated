@@ -16,6 +16,7 @@ const initPaymentCronJobs = () => {
   //   }
   // });
   cron.schedule('*/30 * * * *', async () => {
+    if (require('mongoose').connection.readyState !== 1) return;
     try {
       const RiderWallet = require('../models/RiderWallet');
       const nearLimitWallets = await RiderWallet.find({

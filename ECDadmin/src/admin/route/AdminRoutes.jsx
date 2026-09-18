@@ -148,6 +148,15 @@ const AddZone=lazy(()=>import("../citymanagment/pages/AddZone"))
 const EditGroupTag=lazy(()=>import("../groups/pages/EditGroupTag"))
 const EditFoodQuantity=lazy(()=>import("../food/pages/EditFoodQuantity"))
 
+const RuleEnginePage=lazy(()=>import("../pages/RuleEnginePage"))
+const FeatureFlagsPage=lazy(()=>import("../pages/FeatureFlagsPage"))
+const ScheduledChangesPage=lazy(()=>import("../pages/ScheduledChangesPage"))
+const EmergencyControlsPage=lazy(()=>import("../pages/EmergencyControlsPage"))
+const ServiceAreasPage=lazy(()=>import("../pages/ServiceAreasPage"))
+const SelfPickupControlPage=lazy(()=>import("../pages/SelfPickupControlPage"))
+const PaymentReconciliationPage=lazy(()=>import("../pages/PaymentReconciliationPage"))
+const RiderEarningsControlPage=lazy(()=>import("../pages/RiderEarningsControlPage"))
+const AuditLogsPage=lazy(()=>import("../pages/AuditLogsPage"))
 
 const AdminRoutes = () => {
   return (
@@ -317,7 +326,16 @@ const AdminRoutes = () => {
 				 <Route path="/edit-city/:id" element={<EditCity/>} />
 				 <Route path="/add-zone" element={<AddZone/>} />
 
-	 
+				 <Route path="/rule-engine" element={<RuleEnginePage/>} />
+				 <Route path="/feature-flags" element={<FeatureFlagsPage/>} />
+				 <Route path="/scheduled-changes" element={<ScheduledChangesPage/>} />
+				 <Route path="/emergency-controls" element={<EmergencyControlsPage/>} />
+				 <Route path="/service-areas" element={<ServiceAreasPage/>} />
+				 <Route path="/self-pickup-control" element={<SelfPickupControlPage/>} />
+				 <Route path="/payment-reconciliation" element={<PaymentReconciliationPage/>} />
+				 <Route path="/rider-earnings-control" element={<RiderEarningsControlPage/>} />
+				 <Route path="/audit-logs" element={<AuditLogsPage/>} />
+
 			 </Route>
     </Routes>
   );

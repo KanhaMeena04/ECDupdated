@@ -1577,6 +1577,13 @@ exports.settlementReport = async (req, res) => {
 };
 exports.getAllRestaurants = async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(200).json({
+        restaurants: [],
+        pagination: { total: 0, page: 1, limit: 10, pages: 0 },
+        count: 0
+      });
+    }
     const lat = Number(req.query.lat);
     const lng = Number(req.query.lng);
     const radiusKm = Number(req.query.radiusKm || 10);

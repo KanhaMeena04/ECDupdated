@@ -1,44 +1,37 @@
 const mongoose = require('mongoose');
 const dns = require('dns');
 try {
-  dns.setServers(['1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4']);
-  console.log('🔧 DNS configured: Primary: Cloudflare (1.1.1.1, 1.0.0.1)');
-} catch (e) {
-  console.log('ℹ️ Using default system DNS resolvers');
-}
+  dns.setDefaultResultOrder('ipv4first');
+} catch (e) {}
+mongoose.set('bufferCommands', false);
 const connectDB = async () => {
-  const maxRetries = 5;
-  let retries = 0;
-  while (retries < maxRetries) {
+  let mongoURI = process.env.MONGO_URI || "mongodb+srv://rishi_solanki:Indore%40123@rishiserver.kdybcms.mongodb.net/Check";
+  try {
+    const conn = await mongoose.connect(mongoURI, {
+      serverSelectionTimeoutMS: 3000,
+      connectTimeoutMS: 3000
+    });
+    console.log(`✅ MongoDB Atlas Connected: ${conn.connection.host}`);
+    await ensureAdminUser();
+    await ensureSeededData();
+    return;
+  } catch (error) {
+    console.error(`⚠️ MongoDB Atlas Connection Error: ${error.message}`);
+    console.log('🔄 Retrying with local MongoDB instance (mongodb://127.0.0.1:27017/ecdkart)...');
     try {
-      let mongoURI = process.env.MONGO_URI;
-      if (!mongoURI) {
-        mongoURI = "mongodb+srv://rishi_solanki:Indore%40123@rishiserver.kdybcms.mongodb.net/Check";
-      }
-      const options = {
-        serverSelectionTimeoutMS: 15000,
-        socketTimeoutMS: 45000,
-        connectTimeoutMS: 15000,
-        maxPoolSize: 10,
-        minPoolSize: 2,
-      };
-      const conn = await mongoose.connect(mongoURI, options);
-      console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+      const conn = await mongoose.connect('mongodb://127.0.0.1:27017/ecdkart', {
+        serverSelectionTimeoutMS: 3000
+      });
+      console.log(`✅ Connected to local MongoDB fallback: ${conn.connection.host}`);
       await ensureAdminUser();
       await ensureSeededData();
       return;
-    } catch (error) {
-      retries++;
-      console.error(`❌ MongoDB Connection Error (Attempt ${retries}/${maxRetries}): ${error.message}`);
-      if (retries < maxRetries) {
-        const waitTime = Math.min(1000 * Math.pow(2, retries - 1), 15000);
-        console.log(`⏳ Retrying in ${waitTime}ms...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-      }
+    } catch (localErr) {
+      console.error('❌ Local MongoDB fallback failed:', localErr.message);
+      console.log('⚠️ Running in standalone API mode. Database calls will use fallback responses.');
+      return;
     }
   }
-  console.error('❌ Failed to connect to MongoDB after maximum retries');
-  process.exit(1);
 };
 
 async function ensureAdminUser() {
