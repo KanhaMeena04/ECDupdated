@@ -1346,31 +1346,37 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  InkWell(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const RiderWalletScreen()),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(12),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const RiderWalletScreen()),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: _buildProgressItem(
+                        icon: Icons.account_balance_wallet_rounded,
+                        label: 'Earnings',
+                        value: earnings,
+                        color: primaryGreen,
+                      ),
+                    ),
+                  ),
+                  Expanded(
                     child: _buildProgressItem(
-                      icon: Icons.account_balance_wallet_rounded,
-                      label: 'Earnings',
-                      value: earnings,
+                      icon: Icons.shopping_bag_rounded,
+                      label: 'Today Order',
+                      value: orders,
                       color: primaryGreen,
                     ),
                   ),
-                  _buildProgressItem(
-                    icon: Icons.shopping_bag_rounded,
-                    label: 'Today Order',
-                    value: orders,
-                    color: primaryGreen,
-                  ),
-                  _buildProgressItem(
-                    icon: Icons.timer_rounded,
-                    label: 'Today Hours',
-                    value: hours,
-                    color: Colors.orange[700]!,
+                  Expanded(
+                    child: _buildProgressItem(
+                      icon: Icons.timer_rounded,
+                      label: 'Today Hours',
+                      value: hours,
+                      color: Colors.orange[700]!,
+                    ),
                   ),
                 ],
               ),
@@ -1387,38 +1393,37 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     required String value,
     required Color color,
   }) {
-    return Expanded(
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 22),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 14.5,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 14.5,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: 11,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            fontSize: 11,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
