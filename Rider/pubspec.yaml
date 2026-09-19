@@ -95,6 +95,10 @@ flutter:
     - splash_logo.png
     - rider_login_header.jpg
     - rider_top_header.jpg
+    - rider_home_banner.jpg
+    - rider_hero_header.jpg
+    - rider_partner_hero.jpg
+    - rider_profile_header.jpg
     - reg_header.jpg
     - otp_header.jpg
     - selfie_header.jpg
@@ -105,6 +109,10 @@ flutter:
     - assets/onboarding_illustration.jpg
     - assets/rider_login_header.jpg
     - assets/rider_top_header.jpg
+    - assets/rider_home_banner.jpg
+    - assets/rider_hero_header.jpg
+    - assets/rider_partner_hero.jpg
+    - assets/rider_profile_header.jpg
     - assets/reg_header.jpg
     - assets/otp_header.jpg
     - assets/selfie_header.jpg

@@ -1,14 +1,17 @@
-name: Build Flutter APK
+name: Build Flutter APKs (Restaurant & Rider)
 
 on:
   push:
     branches:
       - Resturant-app-updated
       - main
+      - master
+      - rider-app-updated
   workflow_dispatch:
 
 jobs:
-  build:
+  build-restaurant:
+    name: Build Restaurant App APK
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -33,11 +36,46 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build Restaurant APK
         run: flutter build apk --release --no-tree-shake-icons --android-skip-build-dependency-validation
 
-      - name: Upload APK
+      - name: Upload Restaurant APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: restaurant-app-release
           path: Restaurant/build/app/outputs/flutter-apk/app-release.apk
+
+  build-rider:
+    name: Build Rider App APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Rider
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Rider APK
+        run: flutter build apk --release --no-tree-shake-icons --android-skip-build-dependency-validation
+
+      - name: Upload Rider APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rider-app-release
+          path: Rider/build/app/outputs/flutter-apk/app-release.apk

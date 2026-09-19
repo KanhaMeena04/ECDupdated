@@ -26,6 +26,29 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     _currentOrder = widget.order;
   }
 
+  String _parseAddressToString(dynamic raw) {
+    if (raw == null) return '';
+    if (raw is String) return raw.trim();
+    if (raw is List) {
+      if (raw.isEmpty) return '';
+      return _parseAddressToString(raw.first);
+    }
+    if (raw is Map) {
+      final line = raw['fullAddress'] ?? raw['address'] ?? raw['addressLine'] ?? raw['street'] ?? '';
+      final city = raw['city'] ?? raw['cityName'] ?? '';
+      final lineStr = _parseAddressToString(line);
+      final cityStr = _parseAddressToString(city);
+      if (lineStr.isNotEmpty) {
+        if (cityStr.isNotEmpty && !lineStr.toLowerCase().contains(cityStr.toLowerCase())) {
+          return "$lineStr, $cityStr";
+        }
+        return lineStr;
+      }
+      if (cityStr.isNotEmpty) return cityStr;
+    }
+    return raw.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     final customer = _currentOrder['customer'] ?? {};
@@ -221,7 +244,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         _buildDetailRow(
                           Icons.location_on_outlined,
                           'Delivery Address',
-                          (address is String) ? address : (address?['fullAddress'] ?? '${address?['addressLine'] ?? ''}, ${address?['city'] ?? ''}'),
+                          _parseAddressToString(address).isNotEmpty ? _parseAddressToString(address) : 'N/A',
                         ),
                       ],
                     ),

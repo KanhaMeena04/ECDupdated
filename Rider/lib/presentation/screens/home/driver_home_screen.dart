@@ -35,9 +35,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   late AnimationController _timerController;
   Timer? _pollingTimer;
 
-  // Blinkit-style colors
+  // ECD Kart brand colors
   static const Color primaryGreen = Color(0xFF248C70);
   static const Color lightGreen = Color(0xFFE8F5E9);
+  static const Color darkBlack = Color(0xFF1E2022);
 
   @override
   void initState() {
@@ -83,8 +84,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     });
   }
 
-
-
   void _initializeDriverStatus() {
     final authState = context.read<AuthBloc>().state;
     if (authState is Authenticated) {
@@ -110,19 +109,19 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.location_on, color: primaryGreen, size: 28),
+            const Icon(Icons.location_on, color: primaryGreen, size: 28),
             const SizedBox(width: 12),
-            const Expanded(child: Text('Location Required')),
+            Text('Location Required', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
-        content: const Text(
+        content: Text(
           'Enable location to receive and deliver orders. Your location helps us assign nearby orders.',
-          style: TextStyle(fontSize: 15),
+          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[700]),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Later', style: TextStyle(color: Colors.grey)),
+            child: Text('Later', style: GoogleFonts.poppins(color: Colors.grey[600])),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -133,10 +132,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               backgroundColor: primaryGreen,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
+              elevation: 0,
             ),
-            child: const Text('Enable'),
+            child: Text('Enable', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -226,7 +226,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             if (state is OnlineStatusUpdated) {
               setState(() => _isOnline = state.isOnline);
 
-              // âœ… Update AuthBloc with new user data
+              // Update AuthBloc with new user data
               if (state.updatedUser != null) {
                 context.read<AuthBloc>().add(
                   UpdateUserData(user: state.updatedUser!),
@@ -239,12 +239,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     children: [
                       Icon(
                         state.isOnline
-                            ? Icons.check_circle
-                            : Icons.pause_circle,
+                            ? Icons.check_circle_rounded
+                            : Icons.pause_circle_filled_rounded,
                         color: Colors.white,
                       ),
                       const SizedBox(width: 12),
-                      Expanded(child: Text(state.message)),
+                      Expanded(child: Text(state.message, style: GoogleFonts.poppins(fontWeight: FontWeight.w600))),
                     ],
                   ),
                   backgroundColor: state.isOnline
@@ -252,14 +252,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                       : Colors.orange[700],
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               );
             } else if (state is ReachedStoreConfirmed) {
               setState(() => _isReturning = false);
 
-              // âœ… Update AuthBloc with new user data
               if (state.updatedUser != null) {
                 context.read<AuthBloc>().add(
                   UpdateUserData(user: state.updatedUser!),
@@ -270,15 +269,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 SnackBar(
                   content: Row(
                     children: [
-                      const Icon(Icons.store, color: Colors.white),
+                      const Icon(Icons.storefront_rounded, color: Colors.white),
                       const SizedBox(width: 12),
-                      Expanded(child: Text(state.message)),
+                      Expanded(child: Text(state.message, style: GoogleFonts.poppins(fontWeight: FontWeight.w600))),
                     ],
                   ),
                   backgroundColor: primaryGreen,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               );
@@ -287,15 +286,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 SnackBar(
                   content: Row(
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.white),
+                      const Icon(Icons.error_outline_rounded, color: Colors.white),
                       const SizedBox(width: 12),
-                      Expanded(child: Text(state.message)),
+                      Expanded(child: Text(state.message, style: GoogleFonts.poppins(fontSize: 12))),
                     ],
                   ),
                   backgroundColor: Colors.red[700],
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               );
@@ -314,129 +313,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         ),
       ],
       child: Scaffold(
-        backgroundColor: Colors.grey[50],
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF9EF01A),
-          foregroundColor: Colors.black,
-          elevation: 2,
-          shadowColor: Colors.black45,
-          titleSpacing: 8,
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: Image.asset(
-                    'splash_logo.png',
-                    width: 28,
-                    height: 28,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.local_shipping,
-                      color: primaryGreen,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'ECD KART',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 17,
-                          letterSpacing: 0.5,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'RIDER',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 9,
-                          letterSpacing: 1.5,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            Container(
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: _isOnline ? const Color(0xFF248C70) : Colors.redAccent.withValues(alpha: 0.8),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: _isOnline ? Colors.white : Colors.white70,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _isOnline ? 'ONLINE' : 'OFFLINE',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: IconButton(
-                icon: const Icon(Icons.notifications_outlined, color: Colors.black87),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('No new notifications')),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+        backgroundColor: const Color(0xFFF8F9FA),
         body: BlocBuilder<AuthBloc, AuthState>(
           builder: (context, authState) {
             if (authState is! Authenticated) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(child: CircularProgressIndicator(color: primaryGreen));
             }
 
             return Stack(
@@ -449,16 +330,37 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Frosted Header Banner with Generated Rider Image
+                        _buildRiderHeaderBanner(authState.user),
+
+                        const SizedBox(height: 14),
+
+                        // Profile Card
                         _buildProfileSection(authState.user),
-                        const SizedBox(height: 16),
+
+                        const SizedBox(height: 14),
+
+                        // Go Online / Offline Action Button
                         _buildActionButtons(),
-                        const SizedBox(height: 16),
+
+                        const SizedBox(height: 14),
+
+                        // Location & Status Stats Cards
                         _buildStatsCards(),
-                        const SizedBox(height: 16),
+
+                        const SizedBox(height: 14),
+
+                        // Today Progress Section
                         _buildTodayProgressSection(),
-                        const SizedBox(height: 20),
+
+                        const SizedBox(height: 18),
+
+                        // Orders Section (Active, Complete, Cancel tabs)
                         _buildOrdersSection(),
+
+                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
@@ -475,15 +377,307 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     );
   }
 
+  // Clear & Premium Header Banner with Rider Hero Image
+  Widget _buildRiderHeaderBanner(dynamic user) {
+    return SizedBox(
+      width: double.infinity,
+      height: 230,
+      child: Stack(
+        children: [
+          // Crisp Background Rider Hero Image (No aggressive blur!)
+          Positioned.fill(
+            child: Image.asset(
+              'rider_partner_hero.jpg',
+              fit: BoxFit.cover,
+              alignment: const Alignment(0.15, -0.15),
+              filterQuality: FilterQuality.high,
+              errorBuilder: (context, error, stackTrace) => Image.asset(
+                'assets/rider_partner_hero.jpg',
+                fit: BoxFit.cover,
+                alignment: const Alignment(0.15, -0.15),
+                filterQuality: FilterQuality.high,
+                errorBuilder: (context, error, stackTrace) => Image.asset(
+                  'rider_hero_header.jpg',
+                  fit: BoxFit.cover,
+                  alignment: const Alignment(0.15, -0.15),
+                  filterQuality: FilterQuality.high,
+                  errorBuilder: (context, error, stackTrace) => Image.asset(
+                    'assets/rider_hero_header.jpg',
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: primaryGreen,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Subtle Top & Bottom Gradient to ensure text contrast while keeping rider 100% visible
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.60),
+                    Colors.transparent,
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.30),
+                    const Color(0xFFF8F9FA),
+                  ],
+                  stops: const [0.0, 0.30, 0.70, 0.88, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // Header Content
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Top Row: Brand capsule + Status Pill + Notification
+                  Row(
+                    children: [
+                      // Brand Pill Container
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.asset(
+                                'splash_logo.png',
+                                width: 22,
+                                height: 22,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) => Image.asset(
+                                  'assets/splash_logo.png',
+                                  width: 22,
+                                  height: 22,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(
+                                    Icons.delivery_dining_rounded,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'ECD KART',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: Colors.white,
+                                    height: 1.1,
+                                  ),
+                                ),
+                                Text(
+                                  'RIDER PARTNER',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 8,
+                                    letterSpacing: 1.2,
+                                    color: const Color(0xFF70E000),
+                                    height: 1.1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+
+                      // Online / Offline Status Badge
+                      GestureDetector(
+                        onTap: _toggleOnlineStatus,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: _isOnline ? primaryGreen : Colors.redAccent.withValues(alpha: 0.95),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (_isOnline ? primaryGreen : Colors.redAccent).withValues(alpha: 0.45),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _isOnline ? 'ONLINE' : 'OFFLINE',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 11,
+                                  color: Colors.white,
+                                  letterSpacing: 0.6,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Notifications Button
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.45),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 20),
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(),
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('No new notifications'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Bottom Welcome Floating Card
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.60),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.25),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                                Text(
+                                  'Hello, ${(user.name != null && user.name.toString().trim().isNotEmpty && user.name.toString().trim() != 'Rider Partner') ? user.name : 'Rohit'} 👋',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _isOnline
+                                    ? '🟢 You are online & ready to receive orders'
+                                    : '🔴 You are offline. Tap Go Online to start',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  color: _isOnline ? const Color(0xFF9EF01A) : Colors.white70,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _parseAddressToString(dynamic raw) {
+    if (raw == null) return '';
+    if (raw is String) return raw.trim();
+    if (raw is List) {
+      if (raw.isEmpty) return '';
+      return _parseAddressToString(raw.first);
+    }
+    if (raw is Map) {
+      final line = raw['fullAddress'] ?? raw['address'] ?? raw['addressLine'] ?? raw['street'] ?? '';
+      final city = raw['city'] ?? raw['cityName'] ?? '';
+      final lineStr = _parseAddressToString(line);
+      final cityStr = _parseAddressToString(city);
+      if (lineStr.isNotEmpty) {
+        if (cityStr.isNotEmpty && !lineStr.toLowerCase().contains(cityStr.toLowerCase())) {
+          return "$lineStr, $cityStr";
+        }
+        return lineStr;
+      }
+      if (cityStr.isNotEmpty) return cityStr;
+    }
+    return raw.toString();
+  }
+
   Widget _buildIncomingOrderPopup() {
     return BlocBuilder<DriverBloc, DriverState>(
       builder: (context, state) {
         final activeOrder = state.orders.isNotEmpty ? state.orders.first : null;
         if (activeOrder == null) return const SizedBox.shrink();
 
-        final storeName = activeOrder['store']?['name'] ?? 'Restaurant';
-        final storeAddress = (activeOrder['store']?['address'] is String) ? activeOrder['store']['address'] : (activeOrder['store']?['address']?['fullAddress'] ?? 'Store Location');
-        final deliveryAddress = (activeOrder['customer']?['address'] is String) ? activeOrder['customer']['address'] : ((activeOrder['address'] is String) ? activeOrder['address'] : (activeOrder['address']?['fullAddress'] ?? 'Customer Location'));
+        final storeName = activeOrder['store']?['name'] ?? activeOrder['restaurant']?['name'] ?? 'FreshNow Store';
+        final rawStoreAddr = _parseAddressToString(activeOrder['store']?['address'] ?? activeOrder['restaurant']?['address']);
+        final storeAddress = rawStoreAddr.isNotEmpty ? rawStoreAddr : 'Store Location';
+
+        final rawDeliveryAddr = _parseAddressToString(
+          activeOrder['deliveryAddress'] ?? activeOrder['address'] ?? activeOrder['customer']?['address']
+        );
+        final deliveryAddress = rawDeliveryAddr.isNotEmpty ? rawDeliveryAddr : 'Customer Location';
         final earnings = (activeOrder['driverEarnings'] ?? activeOrder['deliveryCharge'] ?? 50.0).toStringAsFixed(2);
         final orderAmount = (activeOrder['payableAmount'] ?? activeOrder['totalAmount'] ?? 0.0).toStringAsFixed(2);
         final customerName = activeOrder['customer']?['name'] ?? 'Customer';
@@ -548,7 +742,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                                   FittedBox(
                                     child: Text(
                                       "ACCEPT ORDER",
-                                      style: TextStyle(
+                                      style: GoogleFonts.poppins(
                                         fontSize: 18,
                                         fontWeight: FontWeight.w900,
                                         letterSpacing: 1.0,
@@ -559,7 +753,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                                   const SizedBox(height: 4),
                                   Text(
                                     "Assignment expires in ${(15 * (1.0 - _timerController.value)).ceil()}s",
-                                    style: TextStyle(
+                                    style: GoogleFonts.poppins(
                                       fontSize: 11,
                                       color: Colors.grey[500],
                                       fontWeight: FontWeight.bold,
@@ -573,9 +767,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                       },
                     ),
                     const SizedBox(height: 20),
-                    const Text(
+                    Text(
                       "New Delivery Assigned!",
-                      style: TextStyle(
+                      style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.black54,
@@ -632,16 +826,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           "Total Order Amount:",
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
+                          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
                         ),
                         Row(
                           children: [
                             Text(
-                              "â‚¹$orderAmount",
-                              style: const TextStyle(
-                                fontSize: 20,
+                              "₹$orderAmount",
+                              style: GoogleFonts.poppins(
+                                fontSize: 19,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black87,
                               ),
@@ -656,7 +850,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                               ),
                               child: Text(
                                 paymentMode,
-                                style: TextStyle(
+                                style: GoogleFonts.poppins(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   color: paymentMode == 'Cash on Delivery' ? Colors.green[800] : Colors.blue[800],
@@ -670,14 +864,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text(
+                        Text(
                           "Your Earnings:",
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
+                          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
                         ),
                         Text(
-                          "â‚¹$earnings",
-                          style: const TextStyle(
-                            fontSize: 24,
+                          "₹$earnings",
+                          style: GoogleFonts.poppins(
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: primaryGreen,
                           ),
@@ -722,11 +916,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             children: [
               Text(
                 title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15),
               ),
               Text(
                 subtitle,
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 12),
               ),
             ],
           ),
@@ -762,11 +956,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       ),
       child: Stack(
         children: [
-          const Center(
+          Center(
             child: FittedBox(
               child: Text(
                 "Slide Right: Accept | Left: Deny",
-                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                style: GoogleFonts.poppins(color: Colors.grey[600], fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
           ),
@@ -819,104 +1013,113 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   }
 
   Widget _buildProfileSection(dynamic user) {
-    return InkWell(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ProfileScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(16),
-              image: user.avatar != null && user.avatar!.isNotEmpty
-                  ? DecorationImage(
-                      image: (user.avatar!.startsWith('http') || kIsWeb)
-                          ? NetworkImage(user.avatar!)
-                          : FileImage(File(user.avatar!)) as ImageProvider,
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
-            child: user.avatar == null || user.avatar!.isEmpty
-                ? Icon(Icons.person, size: 28, color: Colors.grey[400])
-                : null,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user.name ?? 'Driver',
-                  style: GoogleFonts.poppins(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF2C2C2C),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user.phone,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-                if (user.upi != null && user.upi!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.payment, size: 14, color: primaryGreen.withValues(alpha: 0.8)),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'UPI ID: ${user.upi}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: lightGreen,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              user.riderId ?? 'DRIVER',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: primaryGreen,
-                letterSpacing: 0.5,
-              ),
-            ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-    ),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: lightGreen,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: primaryGreen.withValues(alpha: 0.2)),
+                image: user.avatar != null && user.avatar!.isNotEmpty
+                    ? DecorationImage(
+                        image: (user.avatar!.startsWith('http') || kIsWeb)
+                            ? NetworkImage(user.avatar!)
+                            : FileImage(File(user.avatar!)) as ImageProvider,
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: user.avatar == null || user.avatar!.isEmpty
+                  ? const Icon(Icons.person_rounded, size: 28, color: primaryGreen)
+                  : null,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    (user.name != null && user.name.toString().trim().isNotEmpty && user.name.toString().trim() != 'Rider Partner') ? user.name : 'Rohit',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF2C2C2C),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(Icons.phone_iphone_rounded, size: 13, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        user.phone ?? '',
+                        style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                  if (user.upi != null && user.upi!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(Icons.account_balance_wallet_outlined, size: 13, color: primaryGreen),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'UPI: ${user.upi}',
+                            style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[700], fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: lightGreen,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: primaryGreen.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                user.riderId ?? 'RIDER',
+                style: GoogleFonts.poppins(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: primaryGreen,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -931,18 +1134,19 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
 
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
-                height: 56,
+                height: 52,
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: isLoading ? null : _toggleOnlineStatus,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isOnline
                         ? Colors.orange[700]
-                        : const Color(0xFF2C2C2C),
+                        : darkBlack,
                     foregroundColor: Colors.white,
-                    elevation: 0,
+                    elevation: 2,
+                    shadowColor: (_isOnline ? Colors.orange : darkBlack).withValues(alpha: 0.3),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     disabledBackgroundColor: Colors.grey[300],
                   ),
@@ -960,17 +1164,19 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                           children: [
                             Icon(
                               _isOnline
-                                  ? Icons.pause_circle
-                                  : Icons.play_circle_filled,
+                                  ? Icons.pause_circle_filled_rounded
+                                  : Icons.play_circle_fill_rounded,
                               size: 22,
+                              color: Colors.white,
                             ),
                             const SizedBox(width: 10),
                             Text(
                               _isOnline ? 'Go Offline' : 'Go Online',
-                              style: const TextStyle(
-                                fontSize: 16,
+                              style: GoogleFonts.poppins(
+                                fontSize: 15,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.5,
+                                color: Colors.white,
                               ),
                             ),
                           ],
@@ -980,22 +1186,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             },
           ),
           if (_isReturning) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             BlocBuilder<DriverBloc, DriverState>(
               builder: (context, state) {
                 final isLoading = state is DriverLoading;
 
                 return SizedBox(
-                  height: 56,
+                  height: 52,
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: isLoading ? null : _markReachedStore,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[600],
+                      backgroundColor: primaryGreen,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       disabledBackgroundColor: Colors.grey[300],
                     ),
@@ -1010,13 +1216,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                           )
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.store_outlined, size: 22),
-                              SizedBox(width: 10),
+                            children: [
+                              const Icon(Icons.storefront_rounded, size: 20),
+                              const SizedBox(width: 10),
                               Text(
                                 'I Reached Store',
-                                style: TextStyle(
-                                  fontSize: 16,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 15,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.5,
                                 ),
@@ -1070,18 +1276,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         final ordersVal = summary?['orders_completed'] ?? 0;
         final secondsVal = summary?['ride_time_seconds'] ?? 0;
 
-        final String earnings = 'â‚¹${earningsVal.toStringAsFixed(2)}';
+        final String earnings = '₹${(earningsVal as num).toDouble().toStringAsFixed(2)}';
         final String orders = ordersVal.toString();
-        final double hoursVal = secondsVal / 3600.0;
+        final double hoursVal = (secondsVal as num) / 3600.0;
         final String hours = '${hoursVal.toStringAsFixed(1)}h';
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: lightGreen.withValues(alpha: 0.5), // More green themed
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: primaryGreen.withValues(alpha: 0.2)),
+            border: Border.all(color: primaryGreen.withValues(alpha: 0.25), width: 1.2),
             boxShadow: [
               BoxShadow(
                 color: primaryGreen.withValues(alpha: 0.05),
@@ -1096,10 +1302,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Today Progress',
-                    style: TextStyle(
-                      fontSize: 16,
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
@@ -1109,19 +1315,34 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     decoration: BoxDecoration(
                       color: lightGreen,
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: primaryGreen.withValues(alpha: 0.3)),
                     ),
-                    child: Text(
-                      'Live',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: primaryGreen,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: primaryGreen,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Live',
+                          style: GoogleFonts.poppins(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: primaryGreen,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1136,7 +1357,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                       icon: Icons.account_balance_wallet_rounded,
                       label: 'Earnings',
                       value: earnings,
-                      color: Colors.green,
+                      color: primaryGreen,
                     ),
                   ),
                   _buildProgressItem(
@@ -1175,22 +1396,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: 22),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 15,
+            style: GoogleFonts.poppins(
+              fontSize: 14.5,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: GoogleFonts.poppins(
               fontSize: 11,
               color: Colors.grey[600],
               fontWeight: FontWeight.w500,
@@ -1209,14 +1430,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     required Color bgColor,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
@@ -1224,24 +1446,24 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
-            child: Icon(icon, size: 24, color: color),
+            child: Icon(icon, size: 22, color: color),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 12,
+            style: GoogleFonts.poppins(
+              fontSize: 11.5,
               color: Colors.grey[600],
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 14,
+            style: GoogleFonts.poppins(
+              fontSize: 13.5,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -1259,34 +1481,46 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: const Text(
+            child: Text(
               'Orders',
-              style: TextStyle(
-                fontSize: 18,
+              style: GoogleFonts.poppins(
+                fontSize: 17,
                 fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           
           // Tab Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TabBar(
-              isScrollable: false,
-              labelColor: primaryGreen,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: primaryGreen,
-              indicatorSize: TabBarIndicatorSize.label,
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              tabs: const [
-                Tab(text: 'Active'),
-                Tab(text: 'Complete'),
-                Tab(text: 'Cancel'),
-              ],
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F3F5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.all(3),
+              child: TabBar(
+                isScrollable: false,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.grey[700],
+                indicator: BoxDecoration(
+                  color: primaryGreen,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12),
+                unselectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 12),
+                tabs: const [
+                  Tab(text: 'Active'),
+                  Tab(text: 'Complete'),
+                  Tab(text: 'Cancel'),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           BlocBuilder<DriverBloc, DriverState>(
             builder: (context, state) {
@@ -1321,7 +1555,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
 
               // Default: No orders
               return Padding(
-                padding: const EdgeInsets.only(top: 40),
+                padding: const EdgeInsets.only(top: 20),
                 child: _buildNoOrdersWidget(),
               );
             },
@@ -1334,33 +1568,33 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   Widget _buildNoOrdersWidget({String? title}) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 60),
+        padding: const EdgeInsets.symmetric(vertical: 40),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.grey[100],
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.inbox_outlined, size: 48, color: Colors.grey[400]),
+              child: Icon(Icons.inbox_outlined, size: 40, color: Colors.grey[400]),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
             Text(
-              title ?? (_isOnline ? 'No active orders' : 'Go online to receive orders'),
+              title ?? (_isOnline ? 'No active orders right now' : 'Go online to receive nearby orders'),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
               ),
             ),
             if (!_isOnline && title == null) ...[
-              const SizedBox(height: 8),
-              const Text(
+              const SizedBox(height: 6),
+              Text(
                 'You are currently offline',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[400]),
               ),
             ],
           ],
@@ -1380,7 +1614,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 250),
+      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
       shrinkWrap: true,
       physics: const BouncingScrollPhysics(),
       itemCount: orders.length,
@@ -1392,18 +1626,24 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   }
 
   Widget _buildOrderCard(Map<String, dynamic> order, {bool isHistorical = false}) {
+    final storeName = order['store']?['name'] ?? order['restaurant']?['name'] ?? 'FreshNow Store';
+    final rawCustAddr = _parseAddressToString(
+      order['deliveryAddress'] ?? order['address'] ?? order['customer']?['address']
+    );
+    final customerAddress = rawCustAddr.isNotEmpty ? rawCustAddr : 'Customer Address';
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -1416,146 +1656,79 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             children: [
               Expanded(
                 child: Text(
-                  "Order #${order['orderNumber'] ?? 'N/A'}",
-                  style: const TextStyle(
-                    fontSize: 12,
+                  "Order #${order['orderNumber'] ?? order['orderId'] ?? order['_id'] ?? 'N/A'}",
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Removed QR Code for Payments as requested
               _buildStatusBadge(order['deliveryStatus'] ?? 'PENDING'),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           const Divider(height: 1),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Restaurant Pick-up and Amount
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.storefront_outlined, size: 20, color: Colors.grey[600]),
-                  const SizedBox(width: 12),
-                  Text(
-                    order['restaurant']?['name'] ?? 'FreshNow Store',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[50],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${order['restaurant']?['distance_km'] ?? order['store']?['distance_km'] ?? order['distanceKm'] ?? '--'} km',
-                      style: TextStyle(fontSize: 10, color: Colors.orange[800], fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-              if (!isHistorical)
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => OrderTrackingScreen(order: order, isToRestaurant: true),
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.storefront_outlined, size: 20, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        storeName,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange[700],
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                    minimumSize: const Size(0, 28),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
                     ),
-                  ),
-                  child: const Text(
-                    "Track Pick-up",
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Customer
-          Row(
-            children: [
-              Icon(Icons.person_outline, size: 20, color: Colors.grey[600]),
-              const SizedBox(width: 12),
-              Text(
-                order['customer']?['name'] ?? 'N/A',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
+                  ],
                 ),
               ),
-              const Spacer(),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    "Total: â‚¹${order['payableAmount'] ?? order['totalAmount'] ?? '0.00'}",
-                    style: const TextStyle(
-                      fontSize: 14,
+                    "Total: ₹${order['payableAmount'] ?? order['totalAmount'] ?? '0.00'}",
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 2),
                   Text(
-                    "Earn: â‚¹${(order['driverEarnings'] ?? order['deliveryCharge'] ?? 50.0).toStringAsFixed(2)}",
-                    style: const TextStyle(
-                      fontSize: 14,
+                    "Earn: ₹${(order['driverEarnings'] ?? order['deliveryCharge'] ?? 50.0).toStringAsFixed(2)}",
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: primaryGreen,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: ((order['paymentTransaction'] != null && (order['paymentTransaction']['provider'] == 'cod' || order['paymentTransaction']['provider'] == 'Cash on Delivery')) || order['paymentMethod'] == 'Cash on Delivery' || order['paymentMethod'] == 'COD') ? Colors.green[50] : Colors.blue[50],
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: ((order['paymentTransaction'] != null && (order['paymentTransaction']['provider'] == 'cod' || order['paymentTransaction']['provider'] == 'Cash on Delivery')) || order['paymentMethod'] == 'Cash on Delivery' || order['paymentMethod'] == 'COD') ? Colors.green[200]! : Colors.blue[200]!),
-                    ),
-                    child: Text(
-                      (order['paymentTransaction'] != null && (order['paymentTransaction']['provider'] == 'cod' || order['paymentTransaction']['provider'] == 'Cash on Delivery')) || order['paymentMethod'] == 'Cash on Delivery' || order['paymentMethod'] == 'COD' ? 'Cash on Delivery' : 'Online / UPI',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: ((order['paymentTransaction'] != null && (order['paymentTransaction']['provider'] == 'cod' || order['paymentTransaction']['provider'] == 'Cash on Delivery')) || order['paymentMethod'] == 'Cash on Delivery' || order['paymentMethod'] == 'COD') ? Colors.green[800] : Colors.blue[800],
-                      ),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
           // Address and Tracking
           Row(
             children: [
               Icon(Icons.location_on_outlined, size: 20, color: Colors.grey[600]),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  "${order['deliveryAddress']?['addressLine'] ?? ''}, ${order['deliveryAddress']?['city'] ?? ''}".trim() == ","
-                      ? ((order['customer']?['address'] is String) ? order['customer']['address'] : ((order['address'] is String) ? order['address'] : (order['address']?['fullAddress'] ?? 'N/A')))
-                      : "${order['deliveryAddress']?['addressLine'] ?? ''}, ${order['deliveryAddress']?['city'] ?? ''}",
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  customerAddress,
+                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1573,22 +1746,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryGreen,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                    minimumSize: const Size(0, 32),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+                    minimumSize: const Size(0, 30),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
-                    "Track Delivery",
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  child: Text(
+                    "Track",
+                    style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Footer: Estimate and Details
           Row(
@@ -1598,25 +1771,41 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 children: [
                   Icon(
                     isHistorical ? Icons.history : Icons.access_time,
-                    size: 18,
+                    size: 16,
                     color: isHistorical ? Colors.grey : Colors.blue,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Text(
-                    isHistorical ? "Completed" : "Estimate: 8 mins",
-                    style: TextStyle(
-                      fontSize: 13,
+                    isHistorical ? "Delivered" : "Estimate: 8-15 mins",
+                    style: GoogleFonts.poppins(
+                      fontSize: 11.5,
                       color: isHistorical ? Colors.grey : Colors.blue[700],
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: ((order['paymentTransaction'] != null && (order['paymentTransaction']['provider'] == 'cod' || order['paymentTransaction']['provider'] == 'Cash on Delivery')) || order['paymentMethod'] == 'Cash on Delivery' || order['paymentMethod'] == 'COD') ? Colors.green[50] : Colors.blue[50],
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: ((order['paymentTransaction'] != null && (order['paymentTransaction']['provider'] == 'cod' || order['paymentTransaction']['provider'] == 'Cash on Delivery')) || order['paymentMethod'] == 'Cash on Delivery' || order['paymentMethod'] == 'COD') ? Colors.green[200]! : Colors.blue[200]!),
+                ),
+                child: Text(
+                  (order['paymentTransaction'] != null && (order['paymentTransaction']['provider'] == 'cod' || order['paymentTransaction']['provider'] == 'Cash on Delivery')) || order['paymentMethod'] == 'Cash on Delivery' || order['paymentMethod'] == 'COD' ? 'Cash on Delivery' : 'Online / UPI',
+                  style: GoogleFonts.poppins(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.bold,
+                    color: ((order['paymentTransaction'] != null && (order['paymentTransaction']['provider'] == 'cod' || order['paymentTransaction']['provider'] == 'Cash on Delivery')) || order['paymentMethod'] == 'Cash on Delivery' || order['paymentMethod'] == 'COD') ? Colors.green[800] : Colors.blue[800],
+                  ),
+                ),
+              ),
             ],
           ),
           
           if (!isHistorical && (order['deliveryStatus'] == 'picked_up' || order['deliveryStatus'] == 'out_for_delivery')) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             InlineDeliveryOtpForm(order: order),
           ],
         ],
@@ -1645,15 +1834,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         status.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
+        style: GoogleFonts.poppins(
+          fontSize: 10,
           fontWeight: FontWeight.bold,
           color: textColor,
         ),
@@ -1663,29 +1852,32 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
 
   Widget _buildErrorWidget(String message) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          const Icon(
-            Icons.error_outline,
-            size: 60,
-            color: Colors.red,
+          Icon(
+            Icons.error_outline_rounded,
+            size: 48,
+            color: Colors.red[400],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.red, fontSize: 16),
+            style: GoogleFonts.poppins(color: Colors.red[700], fontSize: 13),
           ),
-          const SizedBox(height: 16),
-          ElevatedButton(
+          const SizedBox(height: 14),
+          ElevatedButton.icon(
             onPressed: () => context.read<DriverBloc>().add(
               const LoadActiveOrders(),
             ),
+            icon: const Icon(Icons.refresh_rounded, size: 16, color: Colors.white),
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryGreen,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text("Retry"),
+            label: Text("Retry", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

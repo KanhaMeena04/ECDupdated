@@ -165,46 +165,65 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
 
       if (activeResponse['success'] == true && activeResponse['data'] != null) {
         final data = activeResponse['data'];
-        if (data['order'] != null) {
-           final Map<String, dynamic> orderObj = Map<String, dynamic>.from(data['order']);
-           if (data['restaurant'] != null) {
-             orderObj['restaurant'] = data['restaurant'];
-           }
-           if (data['customer'] != null) {
-             orderObj['customer'] = data['customer'];
-           }
-           newActiveOrders.add(orderObj);
+        if (data is List) {
+          for (var item in data) {
+            if (item is Map) {
+              newActiveOrders.add(Map<String, dynamic>.from(item));
+            }
+          }
+        } else if (data is Map) {
+          if (data['order'] != null && data['order'] is Map) {
+            final Map<String, dynamic> orderObj = Map<String, dynamic>.from(data['order']);
+            if (data['restaurant'] != null) {
+              orderObj['restaurant'] = data['restaurant'];
+            }
+            if (data['customer'] != null) {
+              orderObj['customer'] = data['customer'];
+            }
+            newActiveOrders.add(orderObj);
+          } else if (data['orders'] != null && data['orders'] is List) {
+            for (var item in (data['orders'] as List)) {
+              if (item is Map) {
+                newActiveOrders.add(Map<String, dynamic>.from(item));
+              }
+            }
+          }
         }
       }
 
       if (historyResponse['success'] == true && historyResponse['data'] != null) {
         final data = historyResponse['data'];
-        if (data['orders'] != null && data['orders'] is List) {
-          final List<dynamic> rawOrders = data['orders'] as List;
-          final List<dynamic> normalizedOrders = [];
-          
-          for (var o in rawOrders) {
-            final Map<String, dynamic> normalized = Map<String, dynamic>.from(o);
-            // Normalize status and active flags
-            normalized['deliveryStatus'] = o['status'] ?? 'delivered';
-            normalized['_id'] = o['orderId'] ?? o['_id'] ?? '';
-            
-            // Normalize amounts
-            final amount = o['customer']?['payableAmount'] ?? o['payableAmount'] ?? o['totalAmount'] ?? 0.0;
-            normalized['totalAmount'] = amount;
-            normalized['payableAmount'] = amount;
-            
-            // Normalize address object
-            normalized['deliveryAddress'] = {
-              'addressLine': o['customer']?['address'] ?? '',
-              'city': o['customer']?['city'] ?? 'Indore',
-            };
-            normalizedOrders.add(normalized);
-          }
-          
-          newCompletedOrders = normalizedOrders.where((o) => o['deliveryStatus'] == 'delivered').toList();
-          newCancelledOrders = normalizedOrders.where((o) => o['deliveryStatus'] == 'cancelled' || o['deliveryStatus'] == 'failed').toList();
+        List<dynamic> rawOrders = [];
+        if (data is List) {
+          rawOrders = data;
+        } else if (data is Map && data['orders'] != null && data['orders'] is List) {
+          rawOrders = data['orders'] as List;
         }
+
+        final List<dynamic> normalizedOrders = [];
+        for (var o in rawOrders) {
+          if (o is! Map) continue;
+          final Map<String, dynamic> normalized = Map<String, dynamic>.from(o);
+          // Normalize status and active flags
+          final status = (o['status'] ?? o['deliveryStatus'] ?? 'delivered').toString().toLowerCase();
+          normalized['deliveryStatus'] = status;
+          normalized['_id'] = o['orderId'] ?? o['_id'] ?? '';
+          
+          // Normalize amounts
+          final amount = (o['customer'] is Map ? o['customer']['payableAmount'] : null) ?? o['payableAmount'] ?? o['totalAmount'] ?? 0.0;
+          normalized['totalAmount'] = amount;
+          normalized['payableAmount'] = amount;
+          
+          // Normalize address object
+          normalized['deliveryAddress'] = {
+            'addressLine': (o['customer'] is Map ? o['customer']['address'] : null) ?? o['deliveryAddress'] ?? '',
+            'city': (o['customer'] is Map ? o['customer']['city'] : null) ?? 'Indore',
+          };
+          normalizedOrders.add(normalized);
+        }
+        
+        newCompletedOrders = normalizedOrders.where((o) => o['deliveryStatus'] == 'delivered' || o['deliveryStatus'] == 'completed').toList();
+        newCancelledOrders = normalizedOrders.where((o) => o['deliveryStatus'] == 'cancelled' || o['deliveryStatus'] == 'failed').toList();
       }
 
       if (summaryResponse['success'] == true && summaryResponse['data'] != null) {

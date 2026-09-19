@@ -50,6 +50,29 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     super.dispose();
   }
 
+  String _parseAddressToString(dynamic raw) {
+    if (raw == null) return '';
+    if (raw is String) return raw.trim();
+    if (raw is List) {
+      if (raw.isEmpty) return '';
+      return _parseAddressToString(raw.first);
+    }
+    if (raw is Map) {
+      final line = raw['fullAddress'] ?? raw['address'] ?? raw['addressLine'] ?? raw['street'] ?? '';
+      final city = raw['city'] ?? raw['cityName'] ?? '';
+      final lineStr = _parseAddressToString(line);
+      final cityStr = _parseAddressToString(city);
+      if (lineStr.isNotEmpty) {
+        if (cityStr.isNotEmpty && !lineStr.toLowerCase().contains(cityStr.toLowerCase())) {
+          return "$lineStr, $cityStr";
+        }
+        return lineStr;
+      }
+      if (cityStr.isNotEmpty) return cityStr;
+    }
+    return raw.toString();
+  }
+
   Future<void> _determineInitialPosition() async {
     try {
       final hasPermission = await Geolocator.checkPermission();
@@ -427,11 +450,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                Text(
-                                  widget.isToRestaurant
-                                      ? (restaurant['address'] ?? 'Store Location')
-                                      : ((customer['address'] is String) ? customer['address'] : ((address is String) ? address : (address?['fullAddress'] ?? 'Customer Location'))),
-                                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                                  Text(
+                                    widget.isToRestaurant
+                                        ? (_parseAddressToString(restaurant['address']).isNotEmpty ? _parseAddressToString(restaurant['address']) : 'Store Location')
+                                        : (_parseAddressToString(address).isNotEmpty ? _parseAddressToString(address) : (_parseAddressToString(customer['address']).isNotEmpty ? _parseAddressToString(customer['address']) : 'Customer Location')),
+                                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),

@@ -76,7 +76,7 @@ class ApiService {
         "refreshToken": "mock_refresh_token_12345",
         "user": {
           "id": "RIDER_001",
-          "name": "Rider Partner",
+          "name": "Rohit",
           "phone": "+91$phone",
           "role": "driver",
           "isVerified": true,
@@ -99,7 +99,7 @@ class ApiService {
         "refreshToken": "mock_refresh_token_12345",
         "user": {
           "id": "RIDER_001",
-          "name": "Rider Partner",
+          "name": "Rohit",
           "phone": "+91$phone",
           "role": "driver",
           "isVerified": true,
@@ -114,7 +114,7 @@ class ApiService {
       "success": true,
       "data": {
         "id": "RIDER_001",
-        "name": "Rider Partner",
+        "name": "Rohit",
         "phone": "+919876543210",
         "email": "rider@ecd.com",
         "isOnline": true,
