@@ -232,6 +232,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               'splash_logo.png',
                               height: 120,
                               fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => Image.asset(
+                                'assets/images/splash_logo.png',
+                                height: 120,
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
                         ),

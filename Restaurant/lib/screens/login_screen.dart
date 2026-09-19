@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api_constants.dart';
 import '../theme/app_theme.dart';
+import '../widgets/ecdkart_logo.dart';
 import 'dashboard_screen.dart';
 import 'terms_conditions_screen.dart';
 import 'privacy_policy_screen.dart';
@@ -20,11 +21,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   late AuthMode _currentMode;
 
-  // Login Controllers
-  final _emailPhoneController = TextEditingController(text: 'khalid_ai@gmail.com');
-  final _passwordController = TextEditingController(text: '12345678');
+  // Login Controller
   final _mobileController = TextEditingController();
-  final _otpController = TextEditingController();
 
   // Register Controllers
   final _firstNameController = TextEditingController();
@@ -38,21 +36,45 @@ class _LoginScreenState extends State<LoginScreen> {
   final List<TextEditingController> _regOtpControllers = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _regOtpFocusNodes = List.generate(6, (_) => FocusNode());
 
+  // 6-digit Login OTP Controllers & Focus Nodes
+  final List<TextEditingController> _loginOtpControllers = List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _loginOtpFocusNodes = List.generate(6, (_) => FocusNode());
+
+  // Known registered demo restaurant phone numbers for instant login
+  static final Set<String> _knownRestaurantPhones = {
+    '9876543210',
+    '9999999999',
+    '8888888888',
+    '7777777777',
+    '9123456789',
+    '9811122233',
+    '1234567890',
+  };
+
+  Future<bool> _isExistingRestaurant(String phone) async {
+    final cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
+    if (_knownRestaurantPhones.contains(cleanPhone)) return true;
+    final prefs = await SharedPreferences.getInstance();
+    final registeredList = prefs.getStringList('registered_restaurant_phones') ?? [];
+    return registeredList.contains(cleanPhone);
+  }
+
   // Restaurant Details Controllers
   final _tradeNameController = TextEditingController();
-  final _restaurantTypeController = TextEditingController();
-  final _cuisineTypeController = TextEditingController();
+  String _selectedRestaurantType = 'Both (Veg & Non-Veg)';
   final _aboutRestaurantController = TextEditingController();
 
   // Location Controllers
   final _addressController = TextEditingController(text: 'Shop 12, Main Market, Subhash Chowk');
   final _areaController = TextEditingController(text: 'Subhash Chowk');
   final _cityController = TextEditingController(text: 'Sohna, Gurugram');
+  final _latitudeController = TextEditingController(text: '28.2478');
+  final _longitudeController = TextEditingController(text: '77.0624');
 
-  // Documents Controllers (GST replaces VAT per user request)
-  final _tradeLicenseController = TextEditingController(text: 'TRD-SO-2026-88492');
-  final _gstNumberController = TextEditingController(text: '07AAAAA0000A1Z5');
-  String? _uploadedTradeLicenseDoc;
+  // Documents Controllers (Food License & GST - Optional)
+  final _foodLicenseController = TextEditingController();
+  final _gstNumberController = TextEditingController();
+  String? _uploadedFoodLicenseDoc;
   String? _uploadedGstDoc;
 
   // Bank Details Controllers
@@ -60,6 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _bankNameController = TextEditingController(text: 'HDFC Bank');
   final _accountNumberController = TextEditingController(text: '50100294819482');
   final _ifscCodeController = TextEditingController(text: 'HDFC0001294');
+  final _upiIdController = TextEditingController();
 
   // Operational Details State Variables (Step 5)
   bool _masterHoursEnabled = true;
@@ -82,41 +105,37 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _uploadedMenuItemImage;
   final List<String> _flavourVariants = ['Paneer Tikka Special', 'Garlic Butter'];
   final List<String> _addOnsList = ['Extra Mint Chutney'];
+  final List<Map<String, dynamic>> _addedMenuItems = [];
 
-  final List<String> _restaurantImages = [
-    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500',
-    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500',
-    'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=500',
-    'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=500',
-    'https://images.unsplash.com/photo-1537047902294-62a40c20a6ae?w=500',
-  ];
+  final List<String> _restaurantImages = [];
 
-  bool _isPasswordObscured = true;
   bool _isRegPasswordObscured = true;
   bool _isRegConfirmPasswordObscured = true;
   bool _isLoading = false;
+  bool _termsAccepted = false;
 
   @override
   void initState() {
     super.initState();
-    _currentMode = widget.isLoggedOut ? AuthMode.welcomeBack : AuthMode.welcome;
+    _currentMode = widget.isLoggedOut ? AuthMode.welcomeBack : AuthMode.phone;
   }
 
   @override
   void dispose() {
     _tradeNameController.dispose();
-    _restaurantTypeController.dispose();
-    _cuisineTypeController.dispose();
     _aboutRestaurantController.dispose();
     _addressController.dispose();
     _areaController.dispose();
     _cityController.dispose();
-    _tradeLicenseController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
+    _foodLicenseController.dispose();
     _gstNumberController.dispose();
     _accountHolderController.dispose();
     _bankNameController.dispose();
     _accountNumberController.dispose();
     _ifscCodeController.dispose();
+    _upiIdController.dispose();
     _menuItemNameController.dispose();
     _menuBasePriceController.dispose();
     _menuDescriptionController.dispose();
@@ -126,47 +145,13 @@ class _LoginScreenState extends State<LoginScreen> {
     for (var f in _regOtpFocusNodes) {
       f.dispose();
     }
+    for (var c in _loginOtpControllers) {
+      c.dispose();
+    }
+    for (var f in _loginOtpFocusNodes) {
+      f.dispose();
+    }
     super.dispose();
-  }
-
-  Future<void> _handlePasswordLogin() async {
-    final emailPhone = _emailPhoneController.text.trim();
-    if (emailPhone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email or phone number'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    if (_passwordController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your password'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 400));
-
-    const restaurantId = "mock_restaurant_123";
-    const token = "mock_token_123";
-
-    ApiConstants.setAuthenticatedSession(
-      restaurantId: restaurantId,
-      authToken: token,
-    );
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('restaurantId', restaurantId);
-    await prefs.setString('token', token);
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
-      );
-    }
   }
 
   Future<void> _handleRegister() async {
@@ -208,6 +193,16 @@ class _LoginScreenState extends State<LoginScreen> {
     if (password != confirmPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Passwords do not match'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (!_termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept the Terms & Conditions and Privacy Policy to continue.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -254,7 +249,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final tradeName = _tradeNameController.text.trim();
     if (tradeName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your Restaurant Trade Name'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Please enter your Restaurant Name'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -297,23 +292,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleSaveRestaurantDocuments() async {
-    final tradeLicense = _tradeLicenseController.text.trim();
-    final gst = _gstNumberController.text.trim();
-
-    if (tradeLicense.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your Trade License Number'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    if (gst.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your GST Registration Number'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 300));
 
@@ -323,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _currentMode = AuthMode.restaurantBankDetails;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Documents Saved! Step 4: Please enter your Bank Details.'), backgroundColor: AppTheme.primaryGreen),
+        const SnackBar(content: Text('Step 3 Saved! Step 4: Please enter your Bank Details.'), backgroundColor: AppTheme.primaryGreen),
       );
     }
   }
@@ -370,13 +348,69 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _handleSaveRestaurantAddMenu() async {
+  void _addItemToMenuList() {
     final itemName = _menuItemNameController.text.trim();
     final price = _menuBasePriceController.text.trim();
 
     if (itemName.isEmpty || price.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter Item Name and Price'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Please enter Item Name and Base Price to add this item.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _addedMenuItems.add({
+        'name': itemName,
+        'category': _selectedMenuCategory,
+        'foodType': _selectedFoodType,
+        'price': price,
+        'description': _menuDescriptionController.text.trim(),
+        'image': _uploadedMenuItemImage,
+        'flavours': List<String>.from(_flavourVariants),
+        'addOns': List<String>.from(_addOnsList),
+      });
+
+      // Clear fields for the next dish
+      _menuItemNameController.clear();
+      _menuBasePriceController.clear();
+      _menuDescriptionController.clear();
+      _uploadedMenuItemImage = null;
+      _flavourVariants.clear();
+      _addOnsList.clear();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('"$itemName" added to Menu! (${_addedMenuItems.length} total) Add more items or tap Submit.'),
+        backgroundColor: AppTheme.primaryGreen,
+      ),
+    );
+  }
+
+  Future<void> _handleSaveRestaurantAddMenu() async {
+    // If user filled in the form but didn't tap '+ Add Item', auto-include it
+    final itemName = _menuItemNameController.text.trim();
+    final price = _menuBasePriceController.text.trim();
+    if (itemName.isNotEmpty && price.isNotEmpty) {
+      _addedMenuItems.add({
+        'name': itemName,
+        'category': _selectedMenuCategory,
+        'foodType': _selectedFoodType,
+        'price': price,
+        'description': _menuDescriptionController.text.trim(),
+        'image': _uploadedMenuItemImage,
+        'flavours': List<String>.from(_flavourVariants),
+        'addOns': List<String>.from(_addOnsList),
+      });
+    }
+
+    if (_addedMenuItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least 1 menu item to complete registration'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -396,10 +430,20 @@ class _LoginScreenState extends State<LoginScreen> {
     await prefs.setString('restaurantId', restaurantId);
     await prefs.setString('token', token);
 
+    // Persist this newly registered phone so subsequent logins go straight to Dashboard
+    final phone = _mobileController.text.trim().replaceAll(RegExp(r'\D'), '');
+    if (phone.isNotEmpty) {
+      final registeredList = prefs.getStringList('registered_restaurant_phones') ?? [];
+      if (!registeredList.contains(phone)) {
+        registeredList.add(phone);
+        await prefs.setStringList('registered_restaurant_phones', registeredList);
+      }
+    }
+
     if (mounted) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Menu Item Added & Registration Completed Successfully! Welcome to ECDKART Partner.'), backgroundColor: AppTheme.primaryGreen),
+        const SnackBar(content: Text('Restaurant Registration Completed! Welcome to ECDKART Partner.'), backgroundColor: AppTheme.primaryGreen),
       );
       Navigator.pushReplacement(
         context,
@@ -409,32 +453,54 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleSendOtp() async {
-    final phone = _mobileController.text.trim();
+    final phone = _mobileController.text.trim().replaceAll(RegExp(r'\D'), '');
     if (phone.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Phone number must be exactly 10 digits'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Please enter a valid 10-digit phone number'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (!_termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept the Terms & Conditions and Privacy Policy to continue.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 300));
+    
+    // Clear and fill demo 6-digit OTP
+    for (var c in _loginOtpControllers) {
+      c.clear();
+    }
+    _loginOtpControllers[0].text = '1';
+    _loginOtpControllers[1].text = '2';
+    _loginOtpControllers[2].text = '3';
+    _loginOtpControllers[3].text = '4';
+    _loginOtpControllers[4].text = '5';
+    _loginOtpControllers[5].text = '6';
+
     if (mounted) {
       setState(() {
         _isLoading = false;
         _currentMode = AuthMode.otp;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP sent successfully! (Mock OTP: 123456)'), backgroundColor: AppTheme.primaryGreen),
+        const SnackBar(content: Text('OTP sent successfully! Demo OTP: 123456'), backgroundColor: AppTheme.primaryGreen),
       );
     }
   }
 
   Future<void> _handleVerifyOtp() async {
-    final otp = _otpController.text.trim();
-    if (otp.isEmpty) {
+    final otpCode = _loginOtpControllers.map((c) => c.text.trim()).join();
+    if (otpCode.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the OTP'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Please enter the full 6-digit OTP code'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -442,92 +508,58 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 400));
 
-    const restaurantId = "mock_restaurant_123";
-    const token = "mock_token_123";
+    final phone = _mobileController.text.trim().replaceAll(RegExp(r'\D'), '');
+    final isExisting = await _isExistingRestaurant(phone);
 
-    ApiConstants.setAuthenticatedSession(
-      restaurantId: restaurantId,
-      authToken: token,
-    );
+    if (isExisting) {
+      // Existing Restaurant Partner -> Direct Login to Home
+      const restaurantId = "mock_restaurant_123";
+      const token = "mock_token_123";
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('restaurantId', restaurantId);
-    await prefs.setString('token', token);
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+      ApiConstants.setAuthenticatedSession(
+        restaurantId: restaurantId,
+        authToken: token,
       );
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('restaurantId', restaurantId);
+      await prefs.setString('token', token);
+      await prefs.setString('userPhone', phone);
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Welcome back, Partner! Logged in successfully.'),
+            backgroundColor: AppTheme.primaryGreen,
+          ),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        );
+      }
+    } else {
+      // New Partner -> Transition to 6-Step Registration Onboarding Flow
+      _regMobileController.text = phone;
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _currentMode = AuthMode.restaurantDetails;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mobile verified! Please complete your restaurant registration.'),
+            backgroundColor: AppTheme.primaryGreen,
+          ),
+        );
+      }
     }
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 400));
-    const restaurantId = "mock_restaurant_google";
-    const token = "mock_token_google";
 
-    ApiConstants.setAuthenticatedSession(
-      restaurantId: restaurantId,
-      authToken: token,
-    );
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('restaurantId', restaurantId);
-    await prefs.setString('token', token);
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
-      );
-    }
-  }
-
-  void _showForgotPasswordDialog() {
-    final forgotController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Reset Password', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Enter your registered email or phone number to receive a password reset link.', style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[700])),
-            const SizedBox(height: 16),
-            TextField(
-              controller: forgotController,
-              decoration: InputDecoration(
-                hintText: 'Enter email or phone...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Password reset link sent!'), backgroundColor: AppTheme.primaryGreen),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen),
-            child: const Text('Send Link', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showImageSourceDialog() {
     if (_restaurantImages.length >= 6) {
@@ -1535,7 +1567,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.darkBlack, size: 20),
                               onPressed: () {
                                 setState(() {
-                                  _currentMode = AuthMode.registerOtp;
+                                  _currentMode = AuthMode.phone;
                                 });
                               },
                             ),
@@ -1748,8 +1780,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  // Back Button
-                  if (_currentMode == AuthMode.phone || _currentMode == AuthMode.otp || _currentMode == AuthMode.register)
+                  // Back Button (for OTP screen to return to Phone screen)
+                  if (_currentMode == AuthMode.otp)
                     Positioned(
                       top: 40,
                       left: 16,
@@ -1759,13 +1791,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.darkBlack),
                           onPressed: () {
                             setState(() {
-                              if (_currentMode == AuthMode.otp) {
-                                _currentMode = AuthMode.phone;
-                                _otpController.clear();
-                              } else if (_currentMode == AuthMode.register) {
-                                _currentMode = AuthMode.welcomeBack;
-                              } else {
-                                _currentMode = AuthMode.welcome;
+                              _currentMode = AuthMode.phone;
+                              for (var c in _loginOtpControllers) {
+                                c.clear();
                               }
                             });
                           },
@@ -2083,9 +2111,210 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
 
+                     const SizedBox(height: 24),
+
+                    // + Add Item Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        onPressed: _addItemToMenuList,
+                        icon: const Icon(Icons.add_circle_outline_rounded, color: AppTheme.primaryGreen, size: 20),
+                        label: Text(
+                          '+ Add Item',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryGreen,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF0FDF4),
+                          side: const BorderSide(color: AppTheme.primaryGreen, width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Added Menu Items List
+                    if (_addedMenuItems.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Added Menu Items (${_addedMenuItems.length})',
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.darkBlack,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${_addedMenuItems.length} Items Added',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryGreen,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _addedMenuItems.length,
+                        itemBuilder: (context, index) {
+                          final item = _addedMenuItems[index];
+                          final isVeg = item['foodType'] == 'Veg';
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.grey[200]!, width: 1.2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.03),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Veg / Non-Veg Indicator Icon Box
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: isVeg ? Colors.green : Colors.red,
+                                      width: 1.5,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Icon(
+                                    Icons.circle,
+                                    size: 10,
+                                    color: isVeg ? Colors.green : Colors.red,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // Item details
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              item['name'] ?? '',
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppTheme.darkBlack,
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            '₹${item['price'] ?? '0'}',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppTheme.primaryGreen,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Category: ${item['category'] ?? ''}',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      if ((item['description'] ?? '').toString().isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          item['description'],
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 11,
+                                            color: Colors.grey[500],
+                                          ),
+                                        ),
+                                      ],
+                                      if ((item['flavours'] as List<String>?)?.isNotEmpty == true || (item['addOns'] as List<String>?)?.isNotEmpty == true) ...[
+                                        const SizedBox(height: 6),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          children: [
+                                            ...?((item['flavours'] as List<String>?)?.map((f) => Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey[100],
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(f, style: GoogleFonts.poppins(fontSize: 9, color: Colors.grey[700])),
+                                            ))),
+                                            ...?((item['addOns'] as List<String>?)?.map((a) => Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.primaryGreen.withValues(alpha: 0.08),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(a, style: GoogleFonts.poppins(fontSize: 9, color: AppTheme.primaryGreen)),
+                                            ))),
+                                          ],
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(width: 8),
+
+                                // Delete Button
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+                                  onPressed: () {
+                                    setState(() {
+                                      _addedMenuItems.removeAt(index);
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+
                     const SizedBox(height: 28),
 
-                    // Next Primary CTA Button
+                    // Submit Registration Primary CTA Button
                     SizedBox(
                       width: double.infinity,
                       height: 52,
@@ -2102,7 +2331,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: _isLoading
                             ? const CircularProgressIndicator(color: Colors.white)
                             : Text(
-                                'Next',
+                                _addedMenuItems.isEmpty ? 'Submit Registration' : 'Submit Registration (${_addedMenuItems.length} Items)',
                                 style: GoogleFonts.poppins(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -2394,6 +2623,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       hintText: 'Enter IFSC Code (e.g. HDFC0001294)',
                     ),
 
+                    const SizedBox(height: 16),
+
+                    // UPI ID (Optional)
+                    _buildFormLabel('UPI ID (Optional)'),
+                    const SizedBox(height: 6),
+                    _buildCustomTextField(
+                      controller: _upiIdController,
+                      hintText: 'Enter UPI ID (e.g. restaurant@upi) (Optional)',
+                    ),
+
                     const SizedBox(height: 32),
 
                     // Next Primary CTA Button
@@ -2425,24 +2664,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // MODE 9: RESTAURANT ONBOARDING STEP 3 - DOCUMENTS (MATCHING REFERENCE UI)
                   else if (_currentMode == AuthMode.restaurantDocuments) ...[
-                    // Trade License Number
-                    _buildFormLabel('Trade License Number'),
+                    // Food License Number (Optional)
+                    _buildFormLabel('Food License Number (Optional)'),
                     const SizedBox(height: 6),
                     _buildCustomTextField(
-                      controller: _tradeLicenseController,
-                      hintText: 'Enter Trade License Number',
+                      controller: _foodLicenseController,
+                      hintText: 'Enter Food License Number (Optional)',
                     ),
 
                     const SizedBox(height: 12),
 
-                    // Upload Trade License Document Card
+                    // Upload Food License Document Card (Optional)
                     GestureDetector(
                       onTap: () {
                         setState(() {
-                          _uploadedTradeLicenseDoc = 'trade_license_doc.pdf';
+                          _uploadedFoodLicenseDoc = 'food_license_doc.pdf';
                         });
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Trade License Document Uploaded Successfully!'), backgroundColor: AppTheme.primaryGreen),
+                          const SnackBar(content: Text('Food License Document Uploaded Successfully!'), backgroundColor: AppTheme.primaryGreen),
                         );
                       },
                       child: Container(
@@ -2452,7 +2691,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: const Color(0xFFF9FAFB),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: _uploadedTradeLicenseDoc != null ? AppTheme.primaryGreen : Colors.grey[350]!,
+                            color: _uploadedFoodLicenseDoc != null ? AppTheme.primaryGreen : Colors.grey[350]!,
                             width: 1.5,
                           ),
                         ),
@@ -2460,17 +2699,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              _uploadedTradeLicenseDoc != null ? Icons.check_circle_rounded : Icons.upload_file_rounded,
+                              _uploadedFoodLicenseDoc != null ? Icons.check_circle_rounded : Icons.upload_file_rounded,
                               color: AppTheme.primaryGreen,
                               size: 26,
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              _uploadedTradeLicenseDoc != null ? 'Trade License Uploaded: $_uploadedTradeLicenseDoc' : 'Upload Trade Licence Document',
+                              _uploadedFoodLicenseDoc != null ? 'Food License Uploaded: $_uploadedFoodLicenseDoc' : 'Upload Food License Document (Optional)',
                               style: GoogleFonts.poppins(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: _uploadedTradeLicenseDoc != null ? AppTheme.primaryGreen : Colors.grey[700],
+                                color: _uploadedFoodLicenseDoc != null ? AppTheme.primaryGreen : Colors.grey[700],
                               ),
                             ),
                           ],
@@ -2480,17 +2719,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 20),
 
-                    // GST Registration Number (Replaces VAT Number per user request!)
-                    _buildFormLabel('GST Registration Number'),
+                    // GST Registration Number (Optional)
+                    _buildFormLabel('GST Registration Number (Optional)'),
                     const SizedBox(height: 6),
                     _buildCustomTextField(
                       controller: _gstNumberController,
-                      hintText: 'Enter GST Number (e.g. 07AAAAA0000A1Z5)',
+                      hintText: 'Enter GST Number (Optional)',
                     ),
 
                     const SizedBox(height: 12),
 
-                    // Upload GST Document Card
+                    // Upload GST Document Card (Optional)
                     GestureDetector(
                       onTap: () {
                         setState(() {
@@ -2521,7 +2760,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              _uploadedGstDoc != null ? 'GST Certificate Uploaded: $_uploadedGstDoc' : 'Upload GST Certificate Document',
+                              _uploadedGstDoc != null ? 'GST Certificate Uploaded: $_uploadedGstDoc' : 'Upload GST Certificate Document (Optional)',
                               style: GoogleFonts.poppins(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -2590,6 +2829,43 @@ class _LoginScreenState extends State<LoginScreen> {
                     _buildCustomTextField(
                       controller: _cityController,
                       hintText: 'Enter Name',
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Latitude & Longitude Fields
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildFormLabel('Latitude'),
+                              const SizedBox(height: 6),
+                              _buildCustomTextField(
+                                controller: _latitudeController,
+                                hintText: 'e.g. 28.2478',
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildFormLabel('Longitude'),
+                              const SizedBox(height: 6),
+                              _buildCustomTextField(
+                                controller: _longitudeController,
+                                hintText: 'e.g. 77.0624',
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
 
                     const SizedBox(height: 20),
@@ -2667,6 +2943,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               right: 12,
                               child: ElevatedButton.icon(
                                 onPressed: () {
+                                  setState(() {
+                                    _latitudeController.text = '28.2478';
+                                    _longitudeController.text = '77.0624';
+                                  });
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text('Pin Updated! Lat: 28.2478° N, Long: 77.0624° E'),
@@ -2722,8 +3002,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // MODE 7: RESTAURANT ONBOARDING STEP 1 - RESTAURANT DETAILS (MATCHING REFERENCE UI)
                   else if (_currentMode == AuthMode.restaurantDetails) ...[
-                    // Restaurant Trade Name
-                    _buildFormLabel('Restaurant Trade Name'),
+                    // Restaurant Name
+                    _buildFormLabel('Restaurant Name'),
                     const SizedBox(height: 6),
                     _buildCustomTextField(
                       controller: _tradeNameController,
@@ -2733,22 +3013,34 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 16),
 
-                    // Restaurant Type
+                    // Restaurant Type (Dropdown: Veg, Non-Veg, Both Non-Veg and Veg)
                     _buildFormLabel('Restaurant Type'),
                     const SizedBox(height: 6),
-                    _buildCustomTextField(
-                      controller: _restaurantTypeController,
-                      hintText: 'Enter Name',
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Cuisine Type
-                    _buildFormLabel('Cuisine Type'),
-                    const SizedBox(height: 6),
-                    _buildCustomTextField(
-                      controller: _cuisineTypeController,
-                      hintText: 'Enter Name',
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedRestaurantType,
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.darkBlack),
+                          items: ['Veg', 'Non-Veg', 'Both (Veg & Non-Veg)'].map((String type) {
+                            return DropdownMenuItem<String>(
+                              value: type,
+                              child: Text(type, style: GoogleFonts.poppins(fontSize: 14, color: AppTheme.darkBlack)),
+                            );
+                          }).toList(),
+                          onChanged: (String? val) {
+                            if (val != null) {
+                              setState(() => _selectedRestaurantType = val);
+                            }
+                          },
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 16),
@@ -3226,40 +3518,87 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
 
-                    // Terms & Conditions and Privacy Policy line
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          'I agree to the ',
-                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                    // Interactive Terms & Conditions Checkbox
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _termsAccepted = !_termsAccepted;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: Checkbox(
+                                value: _termsAccepted,
+                                activeColor: AppTheme.primaryGreen,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                                side: BorderSide(
+                                  color: _termsAccepted ? AppTheme.primaryGreen : Colors.grey[400]!,
+                                  width: 1.5,
+                                ),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _termsAccepted = val ?? false;
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    'I agree to the ',
+                                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w500),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsConditionsScreen()));
+                                    },
+                                    child: Text(
+                                      'Terms & Conditions',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryGreen,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    ' and ',
+                                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()));
+                                    },
+                                    child: Text(
+                                      'Privacy Policy',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryGreen,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsConditionsScreen()));
-                          },
-                          child: Text(
-                            'Terms & Conditions',
-                            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
-                          ),
-                        ),
-                        Text(
-                          ' and ',
-                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()));
-                          },
-                          child: Text(
-                            'Privacy Policy',
-                            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
 
                     const SizedBox(height: 20),
@@ -3283,168 +3622,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ]
 
-                  // MODE 1: WELCOME SCREEN (INITIAL LANDING)
-                  else if (_currentMode == AuthMode.welcome) ...[
-                    Text(
-                      'Welcome',
-                      style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.w800, color: AppTheme.darkBlack),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Sohna\'s premier online food ordering & restaurant partner platform.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500, color: AppTheme.lightGreen, height: 1.4),
-                    ),
-                    const SizedBox(height: 24),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: () => setState(() => _currentMode = AuthMode.welcomeBack),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryGreen,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        child: Text('Get Started', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () => setState(() => _currentMode = AuthMode.welcomeBack),
-                      child: Text(
-                        'Already have an account? Log In',
-                        style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.primaryGreen),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // Website Feature Cards
-                    Row(
-                      children: [
-                        const Expanded(child: Divider(color: AppTheme.creamAccent, thickness: 1.5)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text(
-                            'WHY PARTNER WITH ECD KART',
-                            style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen, letterSpacing: 1.2),
-                          ),
-                        ),
-                        const Expanded(child: Divider(color: AppTheme.creamAccent, thickness: 1.5)),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    _buildFeatureCard(
-                      icon: Icons.electric_bolt_rounded,
-                      title: 'Superfast Local Delivery',
-                      description: 'Deliver hot & fresh meals across Sohna with our rider fleet.',
-                    ),
-                    const SizedBox(height: 10),
-                    _buildFeatureCard(
-                      icon: Icons.account_balance_wallet_rounded,
-                      title: 'Transparent Weekly Payouts',
-                      description: 'Automated Sunday payouts directly into your bank account.',
-                    ),
-                    const SizedBox(height: 10),
-                    _buildFeatureCard(
-                      icon: Icons.speed_rounded,
-                      title: 'Real-time Order Control',
-                      description: 'Live order notifications, preparation status and menu controls.',
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'www.ecdkart.co.in • Sohna, Haryana',
-                      style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.lightGreen),
-                    ),
-                  ]
-
-                  // MODE 2: PHONE NUMBER ENTRY
-                  else if (_currentMode == AuthMode.phone) ...[
-                    Text(
-                      'Get Started',
-                      style: GoogleFonts.poppins(fontSize: 26, fontWeight: FontWeight.w800, color: AppTheme.darkBlack),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Add your restaurant details and mobile number to begin accepting orders.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500, color: AppTheme.lightGreen),
-                    ),
-                    const SizedBox(height: 24),
-
-                    TextField(
-                      controller: _mobileController,
-                      keyboardType: TextInputType.phone,
-                      maxLength: 10,
-                      decoration: InputDecoration(
-                        labelText: 'Phone Number',
-                        hintText: 'Enter 10-digit mobile number',
-                        prefixIcon: const Icon(Icons.phone_android_rounded, color: AppTheme.primaryGreen),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2)),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handleSendOtp,
-                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                        child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text('Send OTP', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                      ),
-                    ),
-                  ]
-
-                  // MODE 3: OTP VERIFICATION
-                  else if (_currentMode == AuthMode.otp) ...[
-                    Text(
-                      'Enter OTP',
-                      style: GoogleFonts.poppins(fontSize: 26, fontWeight: FontWeight.w800, color: AppTheme.darkBlack),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Enter 6-digit verification code sent to your phone number.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500, color: AppTheme.lightGreen),
-                    ),
-                    const SizedBox(height: 24),
-
-                    TextField(
-                      controller: _otpController,
-                      keyboardType: TextInputType.number,
-                      maxLength: 6,
-                      style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 6),
-                      textAlign: TextAlign.center,
-                      decoration: InputDecoration(
-                        hintText: '123456',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2)),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handleVerifyOtp,
-                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                        child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text('Verify & Login', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextButton(
-                      onPressed: () => setState(() => _currentMode = AuthMode.phone),
-                      child: Text('Change Phone Number', style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.primaryGreen)),
-                    ),
-                  ]
-
-                  // MODE 4: WELCOME BACK SCREEN (MATCHING REFERENCE IMAGE)
-                  else if (_currentMode == AuthMode.welcomeBack) ...[
+                  // MODE 1: PHONE NUMBER ENTRY (PRIMARY & EXCLUSIVE LOGIN SCREEN)
+                  else if (_currentMode == AuthMode.phone || _currentMode == AuthMode.welcome || _currentMode == AuthMode.welcomeBack || _currentMode == AuthMode.register) ...[
                     Text(
                       'Welcome Back!',
                       style: GoogleFonts.poppins(
@@ -3456,7 +3635,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Log in to continue your meal journey',
+                      'Enter your mobile number to get started',
                       style: GoogleFonts.poppins(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -3466,141 +3645,383 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 28),
 
-                    // Email Input
-                    _buildFormLabel('Email'),
+                    // Phone Number Input Label
+                    _buildFormLabel('Phone Number'),
                     const SizedBox(height: 6),
-                    _buildCustomTextField(
-                      controller: _emailPhoneController,
-                      hintText: 'khalid_ai@gmail.com',
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    // Password Input
-                    _buildFormLabel('Password'),
-                    const SizedBox(height: 6),
-                    _buildCustomTextField(
-                      controller: _passwordController,
-                      hintText: '.........',
-                      obscureText: _isPasswordObscured,
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                          color: Colors.grey[500],
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _isPasswordObscured = !_isPasswordObscured;
-                          });
-                        },
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[300]!, width: 1.2),
+                      ),
+                      child: Row(
+                        children: [
+                          // +91 Country Code Badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(11),
+                                bottomLeft: Radius.circular(11),
+                              ),
+                              border: Border(right: BorderSide(color: Colors.grey[300]!, width: 1)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Text('🇮🇳', style: TextStyle(fontSize: 18)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '+91',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.darkBlack,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: TextField(
+                              controller: _mobileController,
+                              keyboardType: TextInputType.phone,
+                              maxLength: 10,
+                              style: GoogleFonts.poppins(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.darkBlack,
+                                letterSpacing: 1.5,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Enter 10-digit number',
+                                hintStyle: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.normal,
+                                  color: Colors.grey[400],
+                                  letterSpacing: 0,
+                                ),
+                                counterText: '',
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                border: InputBorder.none,
+                                suffixIcon: _mobileController.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear_rounded, size: 18, color: Colors.grey),
+                                        onPressed: () => setState(() => _mobileController.clear()),
+                                      )
+                                    : null,
+                              ),
+                              onChanged: (val) {
+                                setState(() {});
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 
-                    // Forgot Password
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _showForgotPasswordDialog,
-                        style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 4), minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                        child: Text('Forgot password?', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.darkBlack)),
-                      ),
-                    ),
+                    const SizedBox(height: 16),
 
-                    const SizedBox(height: 20),
-
-                    // Get Started Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handlePasswordLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryGreen,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text('Get Started', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-
-                    const SizedBox(height: 22),
-
-                    // - or -
-                    Row(
-                      children: [
-                        Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          child: Text('or', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[500])),
-                        ),
-                        Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
-                      ],
-                    ),
-
-                    const SizedBox(height: 22),
-
-                    // Continue with Google
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: OutlinedButton(
-                        onPressed: _isLoading ? null : _handleGoogleSignIn,
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          side: BorderSide(color: Colors.grey[300]!, width: 1.2),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
+                    // Interactive Terms & Conditions Checkbox
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _termsAccepted = !_termsAccepted;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Container(
-                              width: 20,
-                              height: 20,
-                              decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-                              child: Center(
-                                child: Text('G', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blue[600])),
+                            SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: Checkbox(
+                                value: _termsAccepted,
+                                activeColor: AppTheme.primaryGreen,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                                side: BorderSide(
+                                  color: _termsAccepted ? AppTheme.primaryGreen : Colors.grey[400]!,
+                                  width: 1.5,
+                                ),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _termsAccepted = val ?? false;
+                                  });
+                                },
                               ),
                             ),
                             const SizedBox(width: 10),
-                            Text('Continue with Google', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700])),
+                            Expanded(
+                              child: Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    'I agree to the ',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: Colors.grey[700],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsConditionsScreen()));
+                                    },
+                                    child: Text(
+                                      'Terms of Service',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryGreen,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    ' & ',
+                                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()));
+                                    },
+                                    child: Text(
+                                      'Privacy Policy',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryGreen,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 20),
 
-                    // Login with Phone Number Button
+                    // Primary Get Started Button
                     SizedBox(
                       width: double.infinity,
-                      height: 50,
-                      child: OutlinedButton.icon(
-                        onPressed: () => setState(() => _currentMode = AuthMode.phone),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          side: const BorderSide(color: AppTheme.primaryGreen, width: 1.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _handleSendOtp,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryGreen,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
-                        icon: const Icon(Icons.phone_android_rounded, color: AppTheme.primaryGreen, size: 20),
-                        label: Text(
-                          'Login with Phone Number',
-                          style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.primaryGreen),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Get Started',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.arrow_forward_rounded, size: 18),
+                                ],
+                              ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // ECDKART Restaurant Partner Value Proposition & Features
+                    _buildRestaurantPartnerContent(),
+
+                    const SizedBox(height: 28),
+
+                    // Terms & Conditions and Privacy Policy line
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          'By continuing, you agree to our ',
+                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsConditionsScreen()));
+                          },
+                          child: Text(
+                            'Terms of Service',
+                            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                          ),
+                        ),
+                        Text(
+                          ' & ',
+                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()));
+                          },
+                          child: Text(
+                            'Privacy Policy',
+                            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ]
+
+                  // MODE 2: OTP VERIFICATION (6-BOX OTP VERIFY)
+                  else if (_currentMode == AuthMode.otp) ...[
+                    Text(
+                      'OTP Verification',
+                      style: GoogleFonts.poppins(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.darkBlack,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600], height: 1.4),
+                        children: [
+                          const TextSpan(text: 'We sent a 6-digit verification code to '),
+                          TextSpan(
+                            text: '+91 ${_mobileController.text.trim()} ',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.darkBlack),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() => _currentMode = AuthMode.phone);
+                      },
+                      child: Text(
+                        'Change Phone Number',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryGreen,
                         ),
                       ),
                     ),
 
                     const SizedBox(height: 28),
 
-                    // Footer Link -> Register Now
+                    // 6 Individual Square OTP Input Boxes
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(6, (index) {
+                        return SizedBox(
+                          width: 44,
+                          height: 52,
+                          child: TextField(
+                            controller: _loginOtpControllers[index],
+                            focusNode: _loginOtpFocusNodes[index],
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            maxLength: 1,
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.primaryGreen,
+                            ),
+                            decoration: InputDecoration(
+                              counterText: '',
+                              contentPadding: EdgeInsets.zero,
+                              filled: true,
+                              fillColor: const Color(0xFFF9FAFB),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                  width: 1,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                  width: 1,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2),
+                              ),
+                            ),
+                            onChanged: (val) {
+                              if (val.isNotEmpty && index < 5) {
+                                FocusScope.of(context).requestFocus(_loginOtpFocusNodes[index + 1]);
+                              } else if (val.isEmpty && index > 0) {
+                                FocusScope.of(context).requestFocus(_loginOtpFocusNodes[index - 1]);
+                              }
+                            },
+                          ),
+                        );
+                      }),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // Verify & Continue Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _handleVerifyOtp,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryGreen,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : Text(
+                                'Verify & Continue',
+                                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Resend OTP Action
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Don\'t have an account? ', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[600])),
+                        Text(
+                          'Didn\'t receive the code? ',
+                          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
+                        ),
                         GestureDetector(
-                          onTap: () => setState(() => _currentMode = AuthMode.register),
-                          child: Text('Register Now', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen)),
+                          onTap: _handleSendOtp,
+                          child: Text(
+                            'Resend OTP',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -3670,48 +4091,213 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildFeatureCard({
+  Widget _buildRestaurantPartnerContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Subtle Divider with center text
+        Row(
+          children: [
+            Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'WHY PARTNER WITH ECD KART',
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+            Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Hero value badge
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.primaryGreen.withValues(alpha: 0.1),
+                AppTheme.primaryGreen.withValues(alpha: 0.03),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGreen,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.rocket_launch_rounded, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Grow Your Kitchen Sales in Sohna',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.darkBlack,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Direct orders, fast delivery & 0% setup fee for local restaurants.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // 3 Key Benefit Feature Cards
+        _buildPartnerFeatureRow(
+          icon: Icons.delivery_dining_rounded,
+          iconColor: const Color(0xFF248C70),
+          title: 'Hyperlocal Sohna Fleet',
+          subtitle: 'Dedicated rider network ensuring speedy 25-30 min door-to-door delivery.',
+        ),
+        const SizedBox(height: 10),
+        _buildPartnerFeatureRow(
+          icon: Icons.account_balance_wallet_rounded,
+          iconColor: const Color(0xFF2E7D32),
+          title: 'Direct Weekly Settlements',
+          subtitle: 'Transparent payouts transferred straight to your bank with zero hidden cuts.',
+        ),
+        const SizedBox(height: 10),
+        _buildPartnerFeatureRow(
+          icon: Icons.storefront_rounded,
+          iconColor: const Color(0xFFE65100),
+          title: 'Live Order & Menu Control',
+          subtitle: 'Real-time loud audio alerts, instant item toggle & live price management.',
+        ),
+        const SizedBox(height: 16),
+
+        // Stats ribbon (50+ Partners • 10K+ Orders • 25 Min Delivery)
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem('50+', 'Local Partners'),
+              Container(width: 1, height: 24, color: Colors.grey[300]),
+              _buildStatItem('25 Min', 'Avg Delivery'),
+              Container(width: 1, height: 24, color: Colors.grey[300]),
+              _buildStatItem('100%', 'Safe Payouts'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Official Website Trust Badge
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.language_rounded, size: 13, color: Colors.grey),
+                const SizedBox(width: 5),
+                Text(
+                  'ecdkart.co.in • Sohna, Gurugram (122103)',
+                  style: GoogleFonts.poppins(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPartnerFeatureRow({
     required IconData icon,
+    required Color iconColor,
     required String title,
-    required String description,
+    required String subtitle,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.creamAccent, width: 1.5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.darkBlack.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: AppTheme.primaryGreen.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: AppTheme.primaryGreen, size: 24),
+            child: Icon(icon, color: iconColor, size: 18),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.darkBlack),
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.darkBlack,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  description,
-                  style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.lightGreen, height: 1.3),
+                  subtitle,
+                  style: GoogleFonts.poppins(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.normal,
+                    color: Colors.grey[600],
+                    height: 1.3,
+                  ),
                 ),
               ],
             ),
@@ -3721,34 +4307,34 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildEcdkartLogoText({double fontSize = 22}) {
-    return RichText(
-      textAlign: TextAlign.center,
-      text: TextSpan(
-        style: GoogleFonts.poppins(
-          fontSize: fontSize,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 1.0,
+  Widget _buildStatItem(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.primaryGreen,
+          ),
         ),
-        children: const [
-          TextSpan(
-            text: 'ECD',
-            style: TextStyle(color: Color(0xFF2C2C2C)),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 9.5,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[600],
           ),
-          TextSpan(
-            text: 'K',
-            style: TextStyle(color: Color(0xFF248C70)),
-          ),
-          TextSpan(
-            text: 'A',
-            style: TextStyle(color: Color(0xFFE89D1E)),
-          ),
-          TextSpan(
-            text: 'RT',
-            style: TextStyle(color: Color(0xFF2C2C2C)),
-          ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEcdkartLogoText({double fontSize = 22}) {
+    return EcdkartLogo(
+      height: fontSize * 1.5,
+      fit: BoxFit.contain,
     );
   }
 }

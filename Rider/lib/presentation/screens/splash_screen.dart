@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:vegbox_driver_app/presentation/screens/auth/login_screen.dart';
 import 'package:vegbox_driver_app/presentation/screens/home/driver_home_screen.dart';
+import 'package:vegbox_driver_app/presentation/screens/onboarding_screen.dart';
 import '../../../logic/blocs/auth/auth_bloc.dart';
 import '../../../logic/blocs/auth/auth_event.dart';
 import '../../../logic/blocs/auth/auth_state.dart';
@@ -86,7 +86,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
         );
       } else if (_pendingState is Unauthenticated || _pendingState is AuthError) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
         );
       }
     }
@@ -131,7 +131,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                 height: 140,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: const Color(0xFF248C70).withOpacity(0.1),
+                                  color: const Color(0xFF248C70).withValues(alpha: 0.1),
                                 ),
                               ),
                             ),
@@ -143,7 +143,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                 height: 140,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: const Color(0xFF248C70).withOpacity(0.2),
+                                  color: const Color(0xFF248C70).withValues(alpha: 0.2),
                                 ),
                               ),
                             ),
@@ -155,7 +155,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF248C70).withOpacity(0.2),
+                                    color: const Color(0xFF248C70).withValues(alpha: 0.2),
                                     blurRadius: 30,
                                     spreadRadius: 5,
                                   )
@@ -263,7 +263,7 @@ class _DotLoadingIndicatorState extends State<_DotLoadingIndicator> with SingleT
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.3),
+                  color: color.withValues(alpha: 0.3),
                   blurRadius: 6,
                   offset: const Offset(0, 4),
                 )

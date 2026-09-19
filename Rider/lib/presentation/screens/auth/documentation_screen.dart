@@ -218,7 +218,7 @@ class _DocumentationScreenState extends State<DocumentationScreen> {
                               barrierDismissible: false,
                               builder: (context) => const Center(
                                 child: CircularProgressIndicator(
-                                  color: const Color(0xFF248C70),
+                                  color: Color(0xFF248C70),
                                 ),
                               ),
                             );
@@ -247,7 +247,9 @@ class _DocumentationScreenState extends State<DocumentationScreen> {
                                   if (responseUserJson != null) {
                                     // Decode the updated UserModel returned by backend
                                     final updatedUser = UserModel.fromJson(responseUserJson);
-                                    context.read<AuthBloc>().add(UpdateUserData(user: updatedUser));
+                                    if (context.mounted) {
+                                      context.read<AuthBloc>().add(UpdateUserData(user: updatedUser));
+                                    }
                                   }
 
                                   if (context.mounted) {

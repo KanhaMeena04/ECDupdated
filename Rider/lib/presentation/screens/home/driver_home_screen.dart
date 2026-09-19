@@ -12,7 +12,7 @@ import '../../../logic/blocs/driver/driver_bloc.dart';
 import '../../../logic/blocs/driver/driver_event.dart';
 import '../../../logic/blocs/driver/driver_state.dart';
 import '../../../data/services/location_service.dart';
-import '../auth/login_screen.dart';
+import '../auth/rider_relogin_screen.dart';
 import '../auth/profile_screen.dart';
 import '../order/order_tracking_screen.dart';
 import '../wallet/rider_wallet_screen.dart';
@@ -33,6 +33,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   final Set<String> _processedOrders = {};
 
   late AnimationController _timerController;
+  Timer? _pollingTimer;
 
   // Blinkit-style colors
   static const Color primaryGreen = Color(0xFF248C70);
@@ -156,6 +157,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       await _stopLocationTracking();
     }
 
+    if (!mounted) return;
     final authState = context.read<AuthBloc>().state;
     if (authState is Authenticated) {
       context.read<DriverBloc>().add(
@@ -201,6 +203,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   void dispose() {
     _stopLocationTracking();
     _timerController.dispose();
+    _pollingTimer?.cancel();
     super.dispose();
   }
 
@@ -212,7 +215,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
           listener: (context, state) {
             if (state is Unauthenticated) {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                MaterialPageRoute(builder: (_) => const RiderReloginScreen()),
                 (route) => false,
               );
             }
@@ -327,7 +330,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -390,7 +393,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: _isOnline ? const Color(0xFF248C70) : Colors.redAccent.withOpacity(0.8),
+                color: _isOnline ? const Color(0xFF248C70) : Colors.redAccent.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -521,12 +524,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                           height: 80,
                           decoration: BoxDecoration(
                             color: _timerController.value > 0.8 
-                                ? Colors.red.withOpacity(0.05) 
+                                ? Colors.red.withValues(alpha: 0.05) 
                                 : Colors.white,
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: 15,
                                 offset: const Offset(0, 5),
                               ),
@@ -707,7 +710,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: color, size: 20),
@@ -815,7 +818,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildProfileSection(user) {
+  Widget _buildProfileSection(dynamic user) {
     return InkWell(
       onTap: () {
         Navigator.of(context).push(
@@ -831,7 +834,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -880,7 +883,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.payment, size: 14, color: primaryGreen.withOpacity(0.8)),
+                      Icon(Icons.payment, size: 14, color: primaryGreen.withValues(alpha: 0.8)),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -982,7 +985,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               builder: (context, state) {
                 final isLoading = state is DriverLoading;
 
-                return Container(
+                return SizedBox(
                   height: 56,
                   width: double.infinity,
                   child: ElevatedButton(
@@ -1076,12 +1079,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
           margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: lightGreen.withOpacity(0.5), // More green themed
+            color: lightGreen.withValues(alpha: 0.5), // More green themed
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: primaryGreen.withOpacity(0.2)),
+            border: Border.all(color: primaryGreen.withValues(alpha: 0.2)),
             boxShadow: [
               BoxShadow(
-                color: primaryGreen.withOpacity(0.05),
+                color: primaryGreen.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -1169,7 +1172,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 24),
@@ -1212,7 +1215,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -1398,7 +1401,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

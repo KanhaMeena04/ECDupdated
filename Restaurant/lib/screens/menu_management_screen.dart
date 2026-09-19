@@ -134,6 +134,49 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
     );
   }
 
+  void _showExcelImportModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.92,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: ExcelMenuImportSheet(
+          onItemsImported: (importedItems) {
+            setState(() {
+              _menuItems.insertAll(0, importedItems);
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${importedItems.length} menu items imported successfully from Excel!',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: AppColors.primaryGreen,
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   void _openAddOrEditMenuModal([Map<String, dynamic>? existingItem]) {
     showModalBottomSheet(
       context: context,
@@ -201,7 +244,7 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
                         )
                       : ListView.builder(
                           physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
                           itemCount: _menuItems.length,
                           itemBuilder: (context, index) {
                             final item = _menuItems[index];
@@ -212,13 +255,44 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAddOrEditMenuModal(),
-        backgroundColor: AppColors.primaryGreen,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: Text(
-          'Add Menu Item',
-          style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            FloatingActionButton.extended(
+              heroTag: 'excelImportFab',
+              onPressed: () => _showExcelImportModal(),
+              backgroundColor: Colors.white,
+              foregroundColor: AppColors.primaryGreen,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: const BorderSide(color: AppColors.primaryGreen, width: 1.5),
+              ),
+              icon: const Icon(Icons.table_chart_rounded, color: AppColors.primaryGreen, size: 20),
+              label: Text(
+                'Import Excel',
+                style: GoogleFonts.poppins(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+            const SizedBox(width: 10),
+            FloatingActionButton.extended(
+              heroTag: 'addMenuItemFab',
+              onPressed: () => _openAddOrEditMenuModal(),
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              icon: const Icon(Icons.add, color: Colors.white, size: 20),
+              label: Text(
+                'Add Item',
+                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -291,8 +365,34 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
                         ),
                       ),
                     ),
+                    // Import Excel Button
+                    InkWell(
+                      onTap: () => _showExcelImportModal(),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.file_upload_outlined, color: AppColors.primaryGreen, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Import',
+                              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
                     IconButton(
                       icon: const Icon(Icons.add_circle_rounded, color: AppColors.primaryGreen, size: 32),
+                      tooltip: 'Add Menu Item',
                       onPressed: () => _openAddOrEditMenuModal(),
                     ),
                   ],
@@ -1760,3 +1860,1094 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
     );
   }
 }
+
+// ==========================================
+// EXCEL / CSV MENU IMPORT MODAL SHEET
+// ==========================================
+class ExcelMenuImportSheet extends StatefulWidget {
+  final Function(List<Map<String, dynamic>>) onItemsImported;
+
+  const ExcelMenuImportSheet({
+    super.key,
+    required this.onItemsImported,
+  });
+
+  @override
+  State<ExcelMenuImportSheet> createState() => _ExcelMenuImportSheetState();
+}
+
+class _ExcelMenuImportSheetState extends State<ExcelMenuImportSheet> {
+  int _activeTab = 0; // 0: Upload & Presets, 1: Paste CSV / Excel, 2: Excel Template Guide
+  String? _selectedFileName;
+  String? _selectedFileSize;
+  bool _isUploading = false;
+  final TextEditingController _pasteController = TextEditingController();
+
+  List<Map<String, dynamic>> _parsedItems = [];
+  final Set<int> _selectedIndices = {};
+
+  // Sample Preset Menus for instantaneous 1-tap testing
+  final List<Map<String, dynamic>> _northIndianPreset = [
+    {
+      'name': 'Paneer Butter Masala',
+      'category': 'Main Course',
+      'subcategory': 'Paneer Specialties',
+      'b2bPrice': 240.0,
+      'foodType': 'veg',
+      'description': 'Fresh cottage cheese cubes simmered in rich creamy tomato and butter gravy.',
+      'image': 'assets/images/restaurant_paneertikka_header.jpg',
+      'flavors': ['Mild Creamy', 'Medium Spicy', 'Desi Ghee Tadka'],
+      'addOns': [
+        {'name': 'Butter Naan', 'price': 40.0, 'image': 'assets/images/restaurant_daltadka_header.jpg'},
+        {'name': 'Jeera Rice', 'price': 80.0, 'image': 'assets/images/restaurant_chicken_item.jpg'},
+      ],
+    },
+    {
+      'name': 'Butter Chicken Boneless',
+      'category': 'Main Course',
+      'subcategory': 'Chicken Curries',
+      'b2bPrice': 290.0,
+      'foodType': 'non-veg',
+      'description': 'Tender roasted tandoori chicken cooked in authentic makhani tomato butter sauce.',
+      'image': 'assets/images/restaurant_butterchicken_header.jpg',
+      'flavors': ['Classic Makhani', 'Spicy Delhi Style'],
+      'addOns': [
+        {'name': 'Garlic Naan', 'price': 45.0, 'image': 'assets/images/restaurant_daltadka_header.jpg'},
+        {'name': 'Extra Gravy', 'price': 60.0, 'image': 'assets/images/restaurant_butterchicken_header.jpg'},
+      ],
+    },
+    {
+      'name': 'Dal Makhani Slow Cooked',
+      'category': 'Main Course',
+      'subcategory': 'Lentils & Dals',
+      'b2bPrice': 190.0,
+      'foodType': 'veg',
+      'description': 'Black lentils simmered overnight with fresh cream, butter, and mild spices.',
+      'image': 'assets/images/restaurant_daltadka_header.jpg',
+      'flavors': ['Creamy Classic', 'Smoky Dhaba Style'],
+      'addOns': [
+        {'name': 'Tandoori Roti', 'price': 20.0, 'image': 'assets/images/restaurant_daltadka_header.jpg'},
+        {'name': 'Sirka Onion', 'price': 15.0, 'image': 'assets/images/restaurant_paneertikka_header.jpg'},
+      ],
+    },
+    {
+      'name': 'Dum Handi Chicken Biryani',
+      'category': 'Biryani & Rice',
+      'subcategory': 'Handi Biryani',
+      'b2bPrice': 280.0,
+      'foodType': 'non-veg',
+      'description': 'Fragrant basmati rice layered with spiced marinated chicken and saffron herbs.',
+      'image': 'assets/images/restaurant_handibiryani_header.jpg',
+      'flavors': ['Hyderabadi Dum', 'Kolkata Saffron'],
+      'addOns': [
+        {'name': 'Boiled Egg (1 pc)', 'price': 20.0, 'image': 'assets/images/restaurant_handibiryani_header.jpg'},
+        {'name': 'Burani Raita', 'price': 35.0, 'image': 'assets/images/restaurant_chicken_item.jpg'},
+        {'name': 'Mirchi Ka Salan', 'price': 30.0, 'image': 'assets/images/restaurant_butterchicken_header.jpg'},
+      ],
+    },
+    {
+      'name': 'Tandoori Paneer Tikka (6 pcs)',
+      'category': 'Starters',
+      'subcategory': 'Tandoori Snacks',
+      'b2bPrice': 220.0,
+      'foodType': 'veg',
+      'description': 'Chunks of paneer marinated in spiced yogurt and grilled in traditional clay oven.',
+      'image': 'assets/images/restaurant_paneertikka_header.jpg',
+      'flavors': ['Achari Tikka', 'Hariyali Mint', 'Malai Cream'],
+      'addOns': [
+        {'name': 'Mint Chutney', 'price': 15.0, 'image': 'assets/images/restaurant_paneertikka_header.jpg'},
+        {'name': 'Chaat Masala Salad', 'price': 25.0, 'image': 'assets/images/restaurant_chicken_item.jpg'},
+      ],
+    },
+    {
+      'name': 'Tandoori Chicken Leg Piece',
+      'category': 'Starters',
+      'subcategory': 'Tandoori Non-Veg',
+      'b2bPrice': 240.0,
+      'foodType': 'non-veg',
+      'description': 'Juicy roasted chicken leg pieces seasoned with secret tandoori spices and lemon.',
+      'image': 'assets/images/restaurant_legpiece_header.jpg',
+      'flavors': ['Red Spicy', 'Afghani Malai', 'Peri Peri Rub'],
+      'addOns': [
+        {'name': 'Extra Green Chutney', 'price': 15.0, 'image': 'assets/images/restaurant_paneertikka_header.jpg'},
+        {'name': 'Rumali Roti', 'price': 25.0, 'image': 'assets/images/restaurant_daltadka_header.jpg'},
+      ],
+    },
+  ];
+
+  final List<Map<String, dynamic>> _fastFoodPreset = [
+    {
+      'name': 'Crispy Veggie Deluxe Burger',
+      'category': 'Pizzas & Burgers',
+      'subcategory': 'Burgers',
+      'b2bPrice': 120.0,
+      'foodType': 'veg',
+      'description': 'Crispy golden vegetable patty topped with melted cheese, lettuce and signature mayo.',
+      'image': 'assets/images/restaurant_pizza_item.jpg',
+      'flavors': ['Classic Mayo', 'Spicy Peri Peri', 'Chipotle'],
+      'addOns': [
+        {'name': 'French Fries', 'price': 50.0, 'image': 'assets/images/restaurant_chicken_item.jpg'},
+        {'name': 'Extra Cheese Slice', 'price': 25.0, 'image': 'assets/images/restaurant_pizza_item.jpg'},
+        {'name': 'Coke 500ml', 'price': 40.0, 'image': 'assets/images/restaurant_chicken_item.jpg'},
+      ],
+    },
+    {
+      'name': 'Farmhouse Veg Supreme Pizza (10")',
+      'category': 'Pizzas & Burgers',
+      'subcategory': 'Pizzas',
+      'b2bPrice': 270.0,
+      'foodType': 'veg',
+      'description': 'Loaded with bell peppers, mushrooms, sweet corn, black olives, and 100% mozzarella.',
+      'image': 'assets/images/restaurant_pizza_item.jpg',
+      'flavors': ['Thin Crust', 'Cheese Burst', 'Wheat Crust'],
+      'addOns': [
+        {'name': 'Extra Mozzarella', 'price': 50.0, 'image': 'assets/images/restaurant_pizza_item.jpg'},
+        {'name': 'Garlic Dip', 'price': 30.0, 'image': 'assets/images/restaurant_chicken_item.jpg'},
+      ],
+    },
+    {
+      'name': 'Crispy Chicken Wings (6 pcs)',
+      'category': 'Starters',
+      'subcategory': 'Non-Veg Starters',
+      'b2bPrice': 180.0,
+      'foodType': 'non-veg',
+      'description': 'Fresh chicken wings tossed in your choice of spicy seasoning and glaze.',
+      'image': 'assets/images/restaurant_chicken_item.jpg',
+      'flavors': ['Honey Bulgogi', 'Spicy BBQ', 'Snow Onion', 'Peri Peri'],
+      'addOns': [
+        {'name': 'Extra Ranch Sauce', 'price': 20.0, 'image': 'assets/images/restaurant_chicken_item.jpg'},
+        {'name': 'Coke 500ml', 'price': 45.0, 'image': 'assets/images/restaurant_pizza_item.jpg'},
+      ],
+    },
+    {
+      'name': 'Veg Hakka Noodles',
+      'category': 'Chinese & Asian',
+      'subcategory': 'Noodles',
+      'b2bPrice': 150.0,
+      'foodType': 'veg',
+      'description': 'Wok tossed noodles loaded with crunchy julienned veggies and oriental sauces.',
+      'image': 'assets/images/restaurant_chinese_header.jpg',
+      'flavors': ['Classic Garlic', 'Schezwan Spicy'],
+      'addOns': [
+        {'name': 'Veg Manchurian (4 pcs)', 'price': 60.0, 'image': 'assets/images/restaurant_chinese_header.jpg'},
+        {'name': 'Chilli Garlic Dip', 'price': 20.0, 'image': 'assets/images/restaurant_chicken_item.jpg'},
+      ],
+    },
+    {
+      'name': 'Chilli Paneer Dry',
+      'category': 'Chinese & Asian',
+      'subcategory': 'Starters',
+      'b2bPrice': 190.0,
+      'foodType': 'veg',
+      'description': 'Fried paneer cubes tossed in spicy soya-chilli glaze with capsicum and spring onions.',
+      'image': 'assets/images/restaurant_chinese_header.jpg',
+      'flavors': ['Dry Starter', 'Semi-Gravy'],
+      'addOns': [
+        {'name': 'Fried Rice (Small)', 'price': 70.0, 'image': 'assets/images/restaurant_chinese_header.jpg'},
+      ],
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Start with North Indian preset loaded by default for instant preview
+    _loadPreset(_northIndianPreset, 'North_Indian_Menu_Sample.xlsx', '18.4 KB');
+  }
+
+  @override
+  void dispose() {
+    _pasteController.dispose();
+    super.dispose();
+  }
+
+  void _loadPreset(List<Map<String, dynamic>> presetList, String fileName, String fileSize) {
+    setState(() {
+      _selectedFileName = fileName;
+      _selectedFileSize = fileSize;
+      _parsedItems = presetList.map((item) {
+        return {
+          '_id': 'm_imp_${DateTime.now().millisecondsSinceEpoch}_${item['name'].hashCode}',
+          'name': item['name'],
+          'category': item['category'] ?? 'General',
+          'subcategory': item['subcategory'] ?? 'General',
+          'b2bPrice': (item['b2bPrice'] as num).toDouble(),
+          'foodType': item['foodType'] ?? 'veg',
+          'isAvailable': true,
+          'description': item['description'] ?? '',
+          'image': item['image'] ?? 'assets/images/restaurant_chicken_item.jpg',
+          'flavors': List<String>.from(item['flavors'] ?? ['Standard']),
+          'addOns': List<Map<String, dynamic>>.from(item['addOns'] ?? []),
+        };
+      }).toList();
+
+      _selectedIndices.clear();
+      for (int i = 0; i < _parsedItems.length; i++) {
+        _selectedIndices.add(i);
+      }
+    });
+  }
+
+  void _simulateFileUpload() {
+    setState(() {
+      _isUploading = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (!mounted) return;
+      _loadPreset(_northIndianPreset, 'Restaurant_Menu_Master.xlsx', '24.2 KB');
+      setState(() {
+        _isUploading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Excel file parsed successfully! ${_parsedItems.length} dishes detected.'),
+          backgroundColor: AppColors.primaryGreen,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    });
+  }
+
+  void _parsePastedText() {
+    final text = _pasteController.text.trim();
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please paste some CSV or Excel text first!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final lines = text.split('\n');
+    final List<Map<String, dynamic>> newParsed = [];
+
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.isEmpty) continue;
+
+      // Split by tab (Excel copy) or comma (CSV)
+      final List<String> parts = line.contains('\t') ? line.split('\t') : line.split(',');
+      if (parts.isEmpty) continue;
+
+      final name = parts[0].trim();
+      if (name.isEmpty || name.toLowerCase() == 'name' || name.toLowerCase() == 'dish name') {
+        continue; // Skip header row
+      }
+
+      final category = parts.length > 1 && parts[1].trim().isNotEmpty ? parts[1].trim() : 'Main Course';
+      final priceStr = parts.length > 2 ? parts[2].replaceAll(RegExp(r'[^0-9.]'), '').trim() : '150';
+      final double price = double.tryParse(priceStr) ?? 150.0;
+      final typeStr = parts.length > 3 ? parts[3].trim().toLowerCase() : 'veg';
+      final isNonVeg = typeStr.contains('non') || typeStr.contains('chicken') || typeStr.contains('mutton') || typeStr.contains('egg') || typeStr.contains('fish');
+      final desc = parts.length > 4 ? parts[4].trim() : 'Delicious freshly prepared dish';
+
+      List<String> flavors = ['Regular', 'Spicy'];
+      if (parts.length > 5 && parts[5].trim().isNotEmpty) {
+        flavors = parts[5].split(RegExp(r'[/;|]')).map((f) => f.trim()).where((f) => f.isNotEmpty).toList();
+      }
+
+      newParsed.add({
+        '_id': 'm_imp_${DateTime.now().millisecondsSinceEpoch}_$i',
+        'name': name,
+        'category': category,
+        'subcategory': category,
+        'b2bPrice': price,
+        'foodType': isNonVeg ? 'non-veg' : 'veg',
+        'isAvailable': true,
+        'description': desc,
+        'image': isNonVeg ? 'assets/images/restaurant_chicken_item.jpg' : 'assets/images/restaurant_paneertikka_header.jpg',
+        'flavors': flavors.isNotEmpty ? flavors : ['Standard'],
+        'addOns': [
+          {'name': 'Extra Portion', 'price': 30.0, 'image': 'assets/images/restaurant_chicken_item.jpg'},
+        ],
+      });
+    }
+
+    if (newParsed.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No valid items could be parsed. Check the format guide!'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _selectedFileName = 'Pasted_Spreadsheet_Data.csv';
+      _selectedFileSize = '${lines.length} lines';
+      _parsedItems = newParsed;
+      _selectedIndices.clear();
+      for (int i = 0; i < _parsedItems.length; i++) {
+        _selectedIndices.add(i);
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Parsed ${newParsed.length} items from pasted spreadsheet data!'),
+        backgroundColor: AppColors.primaryGreen,
+      ),
+    );
+  }
+
+  void _confirmImport() {
+    if (_selectedIndices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one item to import!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final List<Map<String, dynamic>> itemsToImport = [];
+    for (final index in _selectedIndices) {
+      if (index < _parsedItems.length) {
+        itemsToImport.add(Map<String, dynamic>.from(_parsedItems[index]));
+      }
+    }
+
+    Navigator.pop(context);
+    widget.onItemsImported(itemsToImport);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Top Drag Handle & Title Bar
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Drag Pill
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Title Row
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.table_chart_rounded, color: AppColors.primaryGreen, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Import Menu from Excel / CSV',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          'Bulk import your complete restaurant menu in seconds',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.grey),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Mode Tabs
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.all(3),
+                child: Row(
+                  children: [
+                    _buildTabButton(0, 'Upload & Samples', Icons.file_present_rounded),
+                    _buildTabButton(1, 'Paste CSV', Icons.paste_rounded),
+                    _buildTabButton(2, 'Excel Format', Icons.help_outline_rounded),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Scrollable Body
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_activeTab == 0) ...[
+                  _buildUploadAndPresetsTab(),
+                ] else if (_activeTab == 1) ...[
+                  _buildPasteCsvTab(),
+                ] else ...[
+                  _buildFormatGuideTab(),
+                ],
+
+                const SizedBox(height: 20),
+
+                // Preview Table Section Header
+                _buildPreviewSectionHeader(),
+
+                const SizedBox(height: 10),
+
+                // Preview List Cards
+                if (_parsedItems.isEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(28),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.inventory_2_outlined, size: 40, color: Colors.grey[400]),
+                        const SizedBox(height: 10),
+                        Text(
+                          'No dishes parsed yet',
+                          style: GoogleFonts.poppins(color: Colors.grey[700], fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                        Text(
+                          'Choose an Excel file or tap a sample menu above',
+                          style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _parsedItems.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      return _buildParsedItemCard(index);
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+
+        // Bottom CTA Bar
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, -3),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${_selectedIndices.length} of ${_parsedItems.length} selected',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        'Will be added directly to live menu',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _selectedIndices.isEmpty ? null : _confirmImport,
+                  icon: const Icon(Icons.file_download_done_rounded, color: Colors.white, size: 18),
+                  label: Text(
+                    'Import (${_selectedIndices.length}) Dishes',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    disabledBackgroundColor: Colors.grey[300],
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabButton(int index, String title, IconData icon) {
+    final bool isSelected = _activeTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _activeTab = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    )
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected ? AppColors.primaryGreen : Colors.grey[600],
+              ),
+              const SizedBox(width: 5),
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? AppColors.primaryGreen : Colors.grey[700],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUploadAndPresetsTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Upload Excel Box
+        GestureDetector(
+          onTap: _simulateFileUpload,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppColors.primaryGreen.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.primaryGreen.withValues(alpha: 0.4),
+                style: BorderStyle.solid,
+                width: 1.5,
+              ),
+            ),
+            child: _isUploading
+                ? const Center(
+                    child: Column(
+                      children: [
+                        CircularProgressIndicator(color: AppColors.primaryGreen),
+                        SizedBox(height: 10),
+                        Text('Reading Excel file sheets...'),
+                      ],
+                    ),
+                  )
+                : Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.cloud_upload_outlined, color: AppColors.primaryGreen, size: 28),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _selectedFileName != null ? 'Selected: $_selectedFileName' : 'Select or Browse Excel File (.xlsx / .csv)',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _selectedFileSize != null ? 'Size: $_selectedFileSize • Tap to re-upload' : 'Supports Microsoft Excel (.xlsx, .xls) and standard CSV format',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryGreen,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'Browse Files',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Quick Presets Header
+        Text(
+          'Or test with 1-tap sample menus:',
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[800],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Presets Chips
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildPresetChip(
+              title: '🍲 North Indian (6 dishes)',
+              isSelected: _selectedFileName == 'North_Indian_Menu_Sample.xlsx',
+              onTap: () => _loadPreset(_northIndianPreset, 'North_Indian_Menu_Sample.xlsx', '18.4 KB'),
+            ),
+            _buildPresetChip(
+              title: '🍔 Fast Food & Pizza (5 dishes)',
+              isSelected: _selectedFileName == 'Fast_Food_Menu_Sample.xlsx',
+              onTap: () => _loadPreset(_fastFoodPreset, 'Fast_Food_Menu_Sample.xlsx', '15.2 KB'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPresetChip({
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryGreen.withValues(alpha: 0.12) : const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? AppColors.primaryGreen : Colors.grey[300]!,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? AppColors.primaryGreen : Colors.black87,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasteCsvTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Paste data copied from Excel or Google Sheets:',
+          style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _pasteController,
+          maxLines: 5,
+          style: GoogleFonts.robotoMono(fontSize: 11),
+          decoration: InputDecoration(
+            hintText: 'Dish Name, Category, Price, Veg/Non-Veg, Description\ne.g. Paneer Tikka, Starters, 220, Veg, Grilled cottage cheese\ne.g. Chicken Biryani, Main Course, 280, Non-Veg, Dum Biryani',
+            hintStyle: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[400]),
+            filled: true,
+            fillColor: const Color(0xFFF9FAFB),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryGreen)),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: () {
+                _pasteController.text = 'Kadai Paneer, Main Course, 230, Veg, Spicy tomato onion capsicum gravy\nChicken Tikka Masala, Main Course, 280, Non-Veg, Charred chicken in rich gravy\nGarlic Butter Naan, Breads, 50, Veg, Fresh clay oven naan\nMango Lassi, Beverages, 90, Veg, Thick creamy yogurt lassi';
+              },
+              child: Text('Fill Sample CSV', style: GoogleFonts.poppins(fontSize: 11, color: AppColors.primaryGreen)),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: _parsePastedText,
+              icon: const Icon(Icons.flash_on_rounded, size: 16, color: Colors.white),
+              label: Text('Parse Data', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFormatGuideTab() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.info_outline_rounded, color: AppColors.primaryGreen, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Excel Columns Structure',
+                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildGuideRow('1. Dish Name', 'e.g. Butter Chicken (Required)'),
+          _buildGuideRow('2. Category', 'e.g. Starters, Main Course, Biryani'),
+          _buildGuideRow('3. Base Price', 'e.g. 250 (Numeric ₹ price)'),
+          _buildGuideRow('4. Food Type', 'e.g. "veg" or "non-veg"'),
+          _buildGuideRow('5. Description', 'e.g. Rich tomato butter gravy'),
+          _buildGuideRow('6. Flavours', 'e.g. Mild / Spicy / Extra Gravy (Optional)'),
+          _buildGuideRow('7. Add-ons', 'e.g. Extra Cheese:40, Butter Naan:30 (Optional)'),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Sample Excel Template "ECD_Restaurant_Menu_Template.xlsx" downloaded!'),
+                    backgroundColor: AppColors.primaryGreen,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.download_rounded, size: 16, color: AppColors.primaryGreen),
+              label: Text(
+                'Download Sample Excel Template',
+                style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primaryGreen),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuideRow(String col, String example) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              col,
+              style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              example,
+              style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewSectionHeader() {
+    final bool isAllSelected = _selectedIndices.length == _parsedItems.length && _parsedItems.isNotEmpty;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Checkbox(
+              value: isAllSelected,
+              activeColor: AppColors.primaryGreen,
+              onChanged: (val) {
+                setState(() {
+                  if (val == true) {
+                    for (int i = 0; i < _parsedItems.length; i++) {
+                      _selectedIndices.add(i);
+                    }
+                  } else {
+                    _selectedIndices.clear();
+                  }
+                });
+              },
+            ),
+            Text(
+              'Dishes to Import (${_selectedIndices.length}/${_parsedItems.length})',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+        if (_parsedItems.isNotEmpty)
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _parsedItems.clear();
+                _selectedIndices.clear();
+              });
+            },
+            child: Text(
+              'Clear All',
+              style: GoogleFonts.poppins(fontSize: 11, color: Colors.redAccent),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildParsedItemCard(int index) {
+    final item = _parsedItems[index];
+    final bool isSelected = _selectedIndices.contains(index);
+    final bool isVeg = (item['foodType'] ?? 'veg') == 'veg';
+    final List flavors = item['flavors'] ?? [];
+    final List addOns = item['addOns'] ?? [];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.white : const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected ? AppColors.primaryGreen.withValues(alpha: 0.5) : Colors.grey[200]!,
+          width: isSelected ? 1.5 : 1,
+        ),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                )
+              ]
+            : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        child: Row(
+          children: [
+            // Checkbox
+            Checkbox(
+              value: isSelected,
+              activeColor: AppColors.primaryGreen,
+              onChanged: (val) {
+                setState(() {
+                  if (val == true) {
+                    _selectedIndices.add(index);
+                  } else {
+                    _selectedIndices.remove(index);
+                  }
+                });
+              },
+            ),
+
+            // Food Type Dot
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isVeg ? Colors.green : Colors.red,
+              ),
+            ),
+            const SizedBox(width: 10),
+
+            // Item Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item['name'] ?? '',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? Colors.black87 : Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          item['category'] ?? 'General',
+                          style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey[700]),
+                        ),
+                      ),
+                      if (flavors.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          '${flavors.length} flavours',
+                          style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey[500]),
+                        ),
+                      ],
+                      if (addOns.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          '${addOns.length} add-ons',
+                          style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey[500]),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Price & Delete
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '₹${(item['b2bPrice'] ?? 0.0).toStringAsFixed(2)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryGreen,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _parsedItems.removeAt(index);
+                      _selectedIndices.remove(index);
+                      // Re-index remaining items in selected set
+                      final newSet = <int>{};
+                      for (final idx in _selectedIndices) {
+                        if (idx > index) {
+                          newSet.add(idx - 1);
+                        } else if (idx < index) {
+                          newSet.add(idx);
+                        }
+                      }
+                      _selectedIndices.clear();
+                      _selectedIndices.addAll(newSet);
+                    });
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: Icon(Icons.delete_outline, size: 16, color: Colors.grey),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

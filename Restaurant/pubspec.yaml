@@ -37,8 +37,14 @@ flutter:
   uses-material-design: true
   assets:
     - splash_logo.png
+    - image.png
+    - ecdkart_logo.png
     - assets/audio/
     - assets/images/
+    - assets/images/image.png
+    - assets/images/splash_logo.png
+    - assets/images/ecdkart_logo.png
+    - assets/images/ecdkart_pill_logo.png
     - assets/images/restaurant_butterchicken_header.jpg
     - assets/images/restaurant_chicken_item.jpg
     - assets/images/restaurant_chinese_header.jpg

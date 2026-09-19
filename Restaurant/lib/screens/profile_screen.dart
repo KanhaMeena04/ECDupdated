@@ -14,7 +14,7 @@ import 'payment_policy_screen.dart';
 import 'help_support_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api_constants.dart';
-import 'login_screen.dart';
+import 'restaurant_relogin_screen.dart';
 import 'restaurant_wallet_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -39,7 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen(isLoggedOut: true)),
+        MaterialPageRoute(builder: (context) => const RestaurantReloginScreen()),
         (Route<dynamic> route) => false,
       );
     }

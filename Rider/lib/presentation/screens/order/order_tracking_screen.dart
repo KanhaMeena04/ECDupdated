@@ -387,7 +387,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
-                              color: (widget.isToRestaurant ? Colors.orange[700] : primaryGreen)!.withOpacity(0.1),
+                              color: (widget.isToRestaurant ? Colors.orange[700] : primaryGreen)!.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
@@ -455,7 +455,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                             icon: const Icon(Icons.phone),
                             color: widget.isToRestaurant ? Colors.orange[700] : primaryGreen,
                             style: IconButton.styleFrom(
-                              backgroundColor: (widget.isToRestaurant ? Colors.orange[700] : primaryGreen)!.withOpacity(0.1),
+                              backgroundColor: (widget.isToRestaurant ? Colors.orange[700] : primaryGreen)!.withValues(alpha: 0.1),
                               padding: const EdgeInsets.all(8),
                             ),
                           ),

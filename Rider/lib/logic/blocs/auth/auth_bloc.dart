@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/services/api_service.dart';
 import '../../../data/services/auth_service.dart';
@@ -62,10 +63,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         // ✅ FIX: If we provided a PIN, we definitely have a PIN set
         final hasPinSet = event.pin != null && event.pin!.isNotEmpty;
 
-        print("🔐 Saving tokens after OTP verification:");
-        print("   PIN provided in request: ${event.pin != null}");
-        print("   PIN value: ${event.pin}");
-        print("   Setting hasPin to: $hasPinSet");
+        debugPrint("🔐 Saving tokens after OTP verification:");
+        debugPrint("   PIN provided in request: ${event.pin != null}");
+        debugPrint("   PIN value: ${event.pin}");
+        debugPrint("   Setting hasPin to: $hasPinSet");
 
         // Save tokens
         await AuthService.saveTokens(
@@ -86,7 +87,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthError(message: message));
       }
     } catch (e) {
-      print("❌ OTP Verification Error: $e");
+      debugPrint("❌ OTP Verification Error: $e");
       emit(AuthError(message: 'Verification failed: $e'));
     }
   }

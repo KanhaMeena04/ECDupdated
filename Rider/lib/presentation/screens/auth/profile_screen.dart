@@ -9,6 +9,7 @@ import '../../../logic/blocs/auth/auth_state.dart';
 import '../../../data/services/api_service.dart';
 import '../../../core/services/cod_payment_service.dart';
 import 'help_support_screen.dart';
+import 'rider_relogin_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -115,10 +116,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final result = await ApiService.requestWithdrawal(amount);
+      if (!mounted) return;
       if (result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Withdrawal request of â‚¹${amount.toStringAsFixed(0)} submitted successfully!'),
+            content: Text('Withdrawal request of ₹${amount.toStringAsFixed(0)} submitted successfully!'),
             backgroundColor: primaryGreen,
           ),
         );
@@ -133,6 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
@@ -162,7 +165,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Avatar
                 CircleAvatar(
                   radius: 50,
-                  backgroundColor: primaryGreen.withOpacity(0.1),
+                  backgroundColor: primaryGreen.withValues(alpha: 0.1),
                   child: user.avatar != null && user.avatar!.isNotEmpty
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(50),
@@ -259,14 +262,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildEarningStat('Wallet Balance', 'â‚¹${_walletBalance.toStringAsFixed(0)}', const Color(0xFF248C70)),
+                      child: _buildEarningStat('Wallet Balance', '₹${_walletBalance.toStringAsFixed(0)}', const Color(0xFF248C70)),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: _buildEarningStat("Today's Orders", '$_todayOrders', Colors.orange),
                     ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildEarningStat("Hours", '$_workHours hrs', Colors.blue),
+                    ),
                   ],
                 ),
+                if (_recentRequests.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Recent Payout Requests: ${_recentRequests.length}',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                ],
                 const SizedBox(height: 24),
 
                 // Withdrawal Form
@@ -277,7 +291,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 15,
                         offset: const Offset(0, 5),
                       ),
@@ -291,7 +305,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: primaryGreen.withOpacity(0.1),
+                              color: primaryGreen.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.account_balance, color: primaryGreen, size: 22),
@@ -369,7 +383,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: TextButton.icon(
                     onPressed: () {
                       context.read<AuthBloc>().add(const LogoutRequested());
-                      Navigator.pop(context);
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const RiderReloginScreen()),
+                        (route) => false,
+                      );
                     },
                     icon: const Icon(Icons.logout, color: Colors.redAccent),
                     label: const Text('Logout Securely', style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -452,7 +469,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               if (context.mounted) {
                                 Navigator.pop(dialogContext); // Close dialog
                                 context.read<AuthBloc>().add(const LogoutRequested());
-                                Navigator.pop(context); // Close profile screen
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (_) => const RiderReloginScreen()),
+                                  (route) => false,
+                                );
                               }
                             } else {
                               if (context.mounted) {
@@ -501,12 +521,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.15),
+            color: color.withValues(alpha: 0.15),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -516,7 +536,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -556,7 +576,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: primaryGreen.withOpacity(0.1),
+              color: primaryGreen.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: primaryGreen, size: 20),
@@ -592,7 +612,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: primaryGreen.withOpacity(0.1),
+                color: primaryGreen.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: primaryGreen, size: 20),
@@ -671,7 +691,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: primaryGreen.withOpacity(0.1), shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: primaryGreen.withValues(alpha: 0.1), shape: BoxShape.circle),
                     child: Icon(title == 'Privacy Policy' ? Icons.privacy_tip : (title == 'Terms & Conditions' ? Icons.article : Icons.payments), color: primaryGreen),
                   ),
                   const SizedBox(width: 16),

@@ -110,7 +110,7 @@ class _RiderWalletScreenState extends State<RiderWalletScreen> {
                           color: Colors.red.shade600,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
-                            BoxShadow(color: Colors.red.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))
+                            BoxShadow(color: Colors.red.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))
                           ],
                         ),
                         child: Row(
@@ -173,7 +173,7 @@ class _RiderWalletScreenState extends State<RiderWalletScreen> {
                         ),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
-                          BoxShadow(color: Colors.green.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4)),
+                          BoxShadow(color: Colors.green.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 4)),
                         ],
                       ),
                       padding: const EdgeInsets.all(20),
@@ -297,7 +297,7 @@ class _RiderWalletScreenState extends State<RiderWalletScreen> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 child: ListTile(
                                   leading: CircleAvatar(
-                                    backgroundColor: iconColor.withOpacity(0.1),
+                                    backgroundColor: iconColor.withValues(alpha: 0.1),
                                     child: Icon(icon, color: iconColor, size: 20),
                                   ),
                                   title: Text(
