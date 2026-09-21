@@ -6,6 +6,7 @@ import '../../../logic/blocs/auth/auth_event.dart';
 import 'otp_verification_screen.dart';
 import 'pin_login_screen.dart';
 import 'register_screen.dart';
+import '../../widgets/welcome_back_logo.dart';
 
 class RiderReloginScreen extends StatefulWidget {
   final String? initialPhone;
@@ -218,15 +219,7 @@ class _RiderReloginScreenState extends State<RiderReloginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       // Welcome Back Heading
-                      Text(
-                        'Welcome Back!',
-                        style: GoogleFonts.poppins(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1E1E1E),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+                      const WelcomeBackLogo(height: 72),
                       const SizedBox(height: 6),
                       Text(
                         'Enter your mobile number to log back into your rider account',

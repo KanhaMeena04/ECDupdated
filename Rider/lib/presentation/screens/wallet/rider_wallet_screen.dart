@@ -154,7 +154,7 @@ class _RiderWalletScreenState extends State<RiderWalletScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'COD Warning: Cash in hand is near limit (â‚¹${_cashInHand.toStringAsFixed(0)} / â‚¹${_cashLimit.toStringAsFixed(0)}). Deposit cash soon to avoid account freeze.',
+                                'COD Warning: Cash in hand is near limit (₹${_cashInHand.toStringAsFixed(0)} / ₹${_cashLimit.toStringAsFixed(0)}). Deposit cash soon to avoid account freeze.',
                                 style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w500, fontSize: 13),
                               ),
                             ),
@@ -183,7 +183,7 @@ class _RiderWalletScreenState extends State<RiderWalletScreen> {
                           const Text('Weekly Payout Balance', style: TextStyle(color: Colors.white70, fontSize: 14)),
                           const SizedBox(height: 6),
                           Text(
-                            'â‚¹${_availableBalance.toStringAsFixed(2)}',
+                            '₹${_availableBalance.toStringAsFixed(2)}',
                             style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 12),
@@ -192,7 +192,7 @@ class _RiderWalletScreenState extends State<RiderWalletScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Total Delivered Earnings: â‚¹${_totalEarnings.toStringAsFixed(0)}',
+                              Text('Total Delivered Earnings: ₹${_totalEarnings.toStringAsFixed(0)}',
                                   style: const TextStyle(color: Colors.white, fontSize: 13)),
                               const Chip(
                                 label: Text('Paid Weekly', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
@@ -221,7 +221,7 @@ class _RiderWalletScreenState extends State<RiderWalletScreen> {
                               children: [
                                 const Text('Cash In Hand (COD Collected)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                                 Text(
-                                  'â‚¹${_cashInHand.toStringAsFixed(0)} / â‚¹${_cashLimit.toStringAsFixed(0)}',
+                                  '₹${_cashInHand.toStringAsFixed(0)} / ₹${_cashLimit.toStringAsFixed(0)}',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: _isFrozen ? Colors.red : (isNearLimit ? Colors.orange : Colors.green),
@@ -244,8 +244,8 @@ class _RiderWalletScreenState extends State<RiderWalletScreen> {
                             const SizedBox(height: 12),
                             Text(
                               _isFrozen
-                                  ? 'Account frozen. Please submit â‚¹${_cashInHand.toStringAsFixed(0)} cash to admin.'
-                                  : 'Limit: â‚¹${_cashLimit.toStringAsFixed(0)}. Account freezes automatically if limit is exceeded.',
+                                  ? 'Account frozen. Please submit ₹${_cashInHand.toStringAsFixed(0)} cash to admin.'
+                                  : 'Limit: ₹${_cashLimit.toStringAsFixed(0)}. Account freezes automatically if limit is exceeded.',
                               style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                             ),
                           ],
@@ -313,7 +313,7 @@ class _RiderWalletScreenState extends State<RiderWalletScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
-                                        'â‚¹${amount.toStringAsFixed(2)}',
+                                        '₹${amount.toStringAsFixed(2)}',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 15,

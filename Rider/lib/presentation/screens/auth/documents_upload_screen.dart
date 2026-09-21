@@ -283,28 +283,30 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
                       // ================= SECTION 1: DRIVER LICENSE =================
                       _buildSectionHeader(
                         icon: Icons.drive_eta_rounded,
-                        title: 'Driver License Details',
+                        title: 'Driver License Details (Optional)',
                       ),
                       const SizedBox(height: 12),
 
                       _buildTextField(
-                        label: 'Driver License Number',
+                        label: 'Driver License Number (Optional)',
                         controller: _licenseNumberController,
-                        hint: 'Enter license number (e.g. DL-1420110012345)',
+                        hint: 'Enter license number (Optional)',
+                        isOptional: true,
                       ),
                       const SizedBox(height: 12),
 
                       _buildUploadBox(
-                        title: 'Driver License Photo',
+                        title: 'Driver License Photo (Optional)',
                         imageBytes: _licenseBytes,
                         onTap: () => _pickDocumentImage((bytes) => _licenseBytes = bytes),
                       ),
                       const SizedBox(height: 12),
 
                       _buildTextField(
-                        label: 'License Expiry Date',
+                        label: 'License Expiry Date (Optional)',
                         controller: _expiryDateController,
-                        hint: 'DD/MM/YYYY',
+                        hint: 'DD/MM/YYYY (Optional)',
+                        isOptional: true,
                       ),
 
                       const SizedBox(height: 28),
@@ -531,6 +533,7 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
     required TextEditingController controller,
     required String hint,
     TextInputType keyboardType = TextInputType.text,
+    bool isOptional = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -565,7 +568,7 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
               hintStyle: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 13),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) {
+              if (!isOptional && (value == null || value.isEmpty)) {
                 return 'Please enter $label';
               }
               return null;

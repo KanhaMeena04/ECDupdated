@@ -82,8 +82,7 @@ class _DocumentationScreenState extends State<DocumentationScreen> {
           _upiController.text.isNotEmpty &&
           _profileImage != null &&
           _aadharFrontImage != null &&
-          _aadharBackImage != null &&
-          _dlImage != null;
+          _aadharBackImage != null;
     });
   }
 
@@ -198,7 +197,7 @@ class _DocumentationScreenState extends State<DocumentationScreen> {
                 ),
                 const SizedBox(height: 16),
                 _buildDocumentUpload(
-                  'Driving License',
+                  'Driving License (Optional)',
                   _dlImage,
                   () => _pickImage('dl'),
                 ),

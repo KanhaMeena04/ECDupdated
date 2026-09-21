@@ -8,6 +8,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import '../../../logic/blocs/driver/driver_bloc.dart';
 import '../../../logic/blocs/driver/driver_event.dart';
 import '../../../logic/blocs/driver/driver_state.dart';
+import '../../../data/services/api_service.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   final Map<String, dynamic> order;
@@ -31,6 +32,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   LatLng? _driverLatLng;
   StreamSubscription<Position>? _positionSubscription;
   bool _isLoading = false;
+  final TextEditingController _otpController = TextEditingController();
+  bool _isSendingOtp = false;
 
   final Set<Polyline> _polylines = {};
   static const String googleApiKey = 'AIzaSyCN7XqyxOj5lgr2uaMNrTOg6PzHTOGa0xU';
@@ -45,6 +48,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   @override
   void dispose() {
+    _otpController.dispose();
     _positionSubscription?.cancel();
     _mapController?.dispose();
     super.dispose();
@@ -213,6 +217,247 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
   }
 
+  Future<void> _sendPickupOtp() async {
+    setState(() => _isSendingOtp = true);
+    try {
+      final orderId = widget.order['_id'] ?? widget.order['orderId'] ?? '';
+      final response = await ApiService.sendPickupOtp(orderId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response['message'] ?? 'Pickup OTP sent (Mock OTP: 1234)'),
+          backgroundColor: Colors.orange[800],
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red[700],
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSendingOtp = false);
+    }
+  }
+
+  Future<void> _sendDeliveryOtp() async {
+    setState(() => _isSendingOtp = true);
+    try {
+      final orderId = widget.order['_id'] ?? widget.order['orderId'] ?? '';
+      final response = await ApiService.sendDeliveryOtp(orderId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response['message'] ?? 'OTP sent to customer successfully (Mock OTP: 5678)'),
+          backgroundColor: primaryGreen,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red[700],
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSendingOtp = false);
+    }
+  }
+
+  void _verifyAndCompleteStep([String? code]) {
+    final otpCode = (code ?? _otpController.text).trim();
+    if (otpCode.length != 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid 4-digit OTP code'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final orderId = widget.order['_id'] ?? widget.order['orderId'] ?? '';
+    final targetStatus = widget.isToRestaurant ? 'picked_up' : 'delivered';
+    setState(() => _isLoading = true);
+    context.read<DriverBloc>().add(
+          UpdateOrderStatus(
+            orderId: orderId,
+            status: targetStatus,
+            otp: otpCode,
+          ),
+        );
+  }
+
+  void _showOtpBottomSheet(BuildContext context) {
+    final dialogController = TextEditingController(text: _otpController.text);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        bool isDialogSending = false;
+        return StatefulBuilder(
+          builder: (modalContext, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 20,
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Customer Delivery OTP',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[900],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Enter the 4-digit code provided by customer',
+                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                      TextButton.icon(
+                        onPressed: isDialogSending
+                            ? null
+                            : () async {
+                                setModalState(() => isDialogSending = true);
+                                try {
+                                  final orderId = widget.order['_id'] ?? widget.order['orderId'] ?? '';
+                                  final response = await ApiService.sendDeliveryOtp(orderId);
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      SnackBar(
+                                        content: Text(response['message'] ?? 'OTP sent successfully (Mock: 5678)'),
+                                        backgroundColor: primaryGreen,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+                                    );
+                                  }
+                                } finally {
+                                  if (ctx.mounted) setModalState(() => isDialogSending = false);
+                                }
+                              },
+                        icon: isDialogSending
+                            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.send_rounded, size: 14),
+                        label: const Text('Send OTP', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: primaryGreen,
+                          backgroundColor: primaryGreen.withValues(alpha: 0.1),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: dialogController,
+                    autofocus: true,
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 10,
+                      color: primaryGreen,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '• • • •',
+                      hintStyle: TextStyle(color: Colors.grey[300], letterSpacing: 10),
+                      counterText: '',
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: primaryGreen, width: 2),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      _otpController.text = val;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final code = dialogController.text.trim();
+                        Navigator.pop(ctx);
+                        _verifyAndCompleteStep(code);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryGreen,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        'Verify & Complete Delivery',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _handleStatusTransition(BuildContext context, String currentStatus) {
     final orderId = widget.order['_id'] ?? '';
     if (widget.isToRestaurant) {
@@ -232,11 +477,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         context.read<DriverBloc>().add(
               UpdateOrderStatus(orderId: orderId, status: 'out_for_delivery'),
             );
-      } else if (currentStatus == 'out_for_delivery') {
-        setState(() => _isLoading = true);
-        context.read<DriverBloc>().add(
-              UpdateOrderStatus(orderId: orderId, status: 'delivered'),
-            );
+      } else if (currentStatus == 'out_for_delivery' || currentStatus == 'delivered') {
+        if (_otpController.text.trim().length == 4) {
+          _verifyAndCompleteStep();
+        } else {
+          _showOtpBottomSheet(context);
+        }
       }
     }
   }
@@ -514,6 +760,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                               ],
                             ),
                           ),
+                        _buildInlineDeliveryOtpSection(),
                         if (showActionButton) ...[
                           Row(
                           children: [
@@ -554,6 +801,136 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInlineDeliveryOtpSection() {
+    final bool isPickup = widget.isToRestaurant;
+    final Color themeColor = isPickup ? Colors.orange[800]! : primaryGreen;
+    final Color bgColor = isPickup ? const Color(0xFFFFF8F0) : const Color(0xFFF2F9F6);
+    final String titleText = isPickup ? 'Store Pickup OTP' : 'Customer Delivery OTP';
+    final String buttonText = isPickup ? 'Verify & Pick Up' : 'Verify & Deliver';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: themeColor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.security, size: 18, color: themeColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    titleText,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: themeColor,
+                    ),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: _isSendingOtp ? null : (isPickup ? _sendPickupOtp : _sendDeliveryOtp),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: themeColor.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_isSendingOtp)
+                        SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: themeColor))
+                      else
+                        Icon(Icons.send_rounded, size: 12, color: themeColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Send OTP',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: themeColor),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: SizedBox(
+                  height: 46,
+                  child: TextField(
+                    controller: _otpController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 6,
+                      color: themeColor,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '4-Digit OTP',
+                      hintStyle: TextStyle(color: Colors.grey[400], letterSpacing: 0, fontSize: 13),
+                      counterText: '',
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: themeColor, width: 2),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: SizedBox(
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: () => _verifyAndCompleteStep(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: Text(
+                      buttonText,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

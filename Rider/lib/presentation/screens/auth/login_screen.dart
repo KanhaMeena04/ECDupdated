@@ -9,6 +9,7 @@ import '../../../logic/blocs/auth/auth_event.dart';
 import '../../../logic/blocs/auth/auth_state.dart';
 import '../home/driver_home_screen.dart';
 import 'register_screen.dart';
+import '../../widgets/welcome_back_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -291,14 +292,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // Heading
-                        Text(
-                          'Welcome Back!',
-                          style: GoogleFonts.poppins(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1E1E1E),
-                          ),
-                        ),
+                        const WelcomeBackLogo(height: 72),
 
                         const SizedBox(height: 6),
 

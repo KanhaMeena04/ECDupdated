@@ -277,7 +277,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                   ),
                                 ),
                                 Text(
-                                  'â‚¹${(price * qty).toStringAsFixed(1)}',
+                                  '₹${(price * qty).toStringAsFixed(1)}',
                                   style: TextStyle(color: Colors.grey[700], fontSize: 14, fontWeight: FontWeight.w600),
                                 ),
                               ],
@@ -295,16 +295,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     title: 'BILL DETAILS',
                     child: Column(
                       children: [
-                        _buildPriceRow('Items Subtotal', 'â‚¹${(_currentOrder['totalAmount'] ?? 0).toStringAsFixed(1)}'),
+                        _buildPriceRow('Items Subtotal', '₹${(_currentOrder['totalAmount'] ?? 0).toStringAsFixed(1)}'),
                         const SizedBox(height: 8),
-                        _buildPriceRow('Delivery Fee', 'â‚¹${(_currentOrder['deliveryCharge'] ?? 0).toStringAsFixed(1)}'),
+                        _buildPriceRow('Delivery Fee', '₹${(_currentOrder['deliveryCharge'] ?? 0).toStringAsFixed(1)}'),
                         const SizedBox(height: 8),
-                        _buildPriceRow('Taxes & GST', 'â‚¹${(_currentOrder['gst'] ?? 0).toStringAsFixed(1)}'),
+                        _buildPriceRow('Taxes & GST', '₹${(_currentOrder['gst'] ?? 0).toStringAsFixed(1)}'),
                         if ((_currentOrder['totalDiscount'] ?? 0) > 0) ...[
                           const SizedBox(height: 8),
                           _buildPriceRow(
                             'Coupon Discount',
-                            '- â‚¹${(_currentOrder['totalDiscount'] ?? 0).toStringAsFixed(1)}',
+                            '- ₹${(_currentOrder['totalDiscount'] ?? 0).toStringAsFixed(1)}',
                             isDiscount: true,
                           ),
                         ],
@@ -320,7 +320,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                             Text(
-                              'â‚¹${(_currentOrder['payableAmount'] ?? _currentOrder['totalAmount'] ?? 0).toStringAsFixed(1)}',
+                              '₹${(_currentOrder['payableAmount'] ?? _currentOrder['totalAmount'] ?? 0).toStringAsFixed(1)}',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: primaryGreen),
                             ),
                           ],

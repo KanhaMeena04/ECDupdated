@@ -1742,9 +1742,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () {
+                    final status = order['deliveryStatus'] ?? 'accepted';
+                    final isToStore = ['accepted', 'assigned', 'reached_store'].contains(status);
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => OrderTrackingScreen(order: order),
+                        builder: (_) => OrderTrackingScreen(
+                          order: order,
+                          isToRestaurant: isToStore,
+                        ),
                       ),
                     );
                   },

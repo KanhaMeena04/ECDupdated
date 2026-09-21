@@ -101,7 +101,7 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
     );
 
     emit(ReachedStoreConfirmed(
-      message: 'Welcome back! You are now available for new orders (Mock)',
+      message: 'Welcome back. You are now available for new orders (Mock)',
       updatedUser: updatedUser,
       orders: _activeOrders,
       completedOrders: _completedOrders,

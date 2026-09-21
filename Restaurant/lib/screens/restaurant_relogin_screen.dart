@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../api_constants.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ecdkart_logo.dart';
+import '../widgets/welcome_back_logo.dart';
 import 'dashboard_screen.dart';
 import 'login_screen.dart';
 import 'privacy_policy_screen.dart';
@@ -505,26 +506,36 @@ class _RestaurantReloginScreenState extends State<RestaurantReloginScreen> {
                 children: [
                   if (_isOtpMode) ...[
                     // OTP Verification Mode
-                    Text(
-                      'OTP Verification',
-                      style: GoogleFonts.poppins(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.darkBlack,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    RichText(
-                      text: TextSpan(
-                        style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const TextSpan(text: 'Enter the 6-digit verification code sent to '),
-                          TextSpan(
-                            text: '+91 ${_mobileController.text.trim()}',
+                          Text(
+                            'OTP Verification',
+                            textAlign: TextAlign.center,
                             style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.bold,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
                               color: AppTheme.darkBlack,
+                              letterSpacing: -0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
+                              children: [
+                                const TextSpan(text: 'Enter the 6-digit verification code sent to '),
+                                TextSpan(
+                                  text: '+91 ${_mobileController.text.trim()}',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.darkBlack,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -626,22 +637,23 @@ class _RestaurantReloginScreenState extends State<RestaurantReloginScreen> {
                     ),
                   ] else ...[
                     // Primary Relogin View with OTP + PIN Options
-                    Text(
-                      'Welcome Back!',
-                      style: GoogleFonts.poppins(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.darkBlack,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Enter your mobile number to get started',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[600],
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const WelcomeBackLogo(height: 72),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Enter your mobile number to get started',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 
