@@ -1,12 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../data/models/user_models.dart';
+import '../../../data/services/api_service.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../logic/blocs/auth/auth_bloc.dart';
+import '../../../logic/blocs/auth/auth_event.dart';
 import '../home/driver_home_screen.dart';
 
 class BankDetailsScreen extends StatefulWidget {
+  final String? name;
+  final String? email;
   final String? phone;
+  final String? pin;
+  final String? profileImageBase64;
+  final String? vehicleType;
+  final String? vehicleBrand;
+  final String? vehicleModel;
+  final String? vehicleYear;
+  final String? regNumber;
+  final String? licenseNumber;
+  final String? licenseExpiry;
+  final String? licenseImageBase64;
+  final String? panNumber;
+  final String? panImageBase64;
+  final String? aadhaarNumber;
+  final String? aadhaarImageBase64;
 
-  const BankDetailsScreen({super.key, this.phone});
+  const BankDetailsScreen({
+    super.key,
+    this.name,
+    this.email,
+    this.phone,
+    this.pin,
+    this.profileImageBase64,
+    this.vehicleType,
+    this.vehicleBrand,
+    this.vehicleModel,
+    this.vehicleYear,
+    this.regNumber,
+    this.licenseNumber,
+    this.licenseExpiry,
+    this.licenseImageBase64,
+    this.panNumber,
+    this.panImageBase64,
+    this.aadhaarNumber,
+    this.aadhaarImageBase64,
+  });
 
   @override
   State<BankDetailsScreen> createState() => _BankDetailsScreenState();
@@ -15,20 +55,109 @@ class BankDetailsScreen extends StatefulWidget {
 class _BankDetailsScreenState extends State<BankDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _accountHolderNameController = TextEditingController(text: 'Rohit');
+  late final TextEditingController _accountHolderNameController;
   final _bankNameController = TextEditingController(text: 'HDFC Bank');
   final _accountNumberController = TextEditingController(text: '50100234567890');
   final _ifscCodeController = TextEditingController(text: 'HDFC0001234');
-  final _upiIdController = TextEditingController(text: 'rohit@okhdfcbank');
+  final _upiIdController = TextEditingController(text: 'rider@okhdfcbank');
 
   static const Color primaryGreen = Color(0xFF248C70);
+
+  @override
+  void initState() {
+    super.initState();
+    _accountHolderNameController = TextEditingController(text: widget.name ?? 'Driver Partner');
+  }
 
   Future<void> _onSubmit() async {
     if (_formKey.currentState!.validate()) {
       if (widget.phone != null && widget.phone!.isNotEmpty) {
         await AuthService.registerPhone(widget.phone!);
       }
+
+      final payload = {
+        'name': widget.name,
+        'email': widget.email,
+        'phone': widget.phone,
+        'mobile': widget.phone,
+        'pin': widget.pin,
+        'profilePic': widget.profileImageBase64 != null ? 'data:image/jpeg;base64,${widget.profileImageBase64}' : null,
+        'vehicle': {
+          'type': widget.vehicleType ?? 'Scooter / Motorcycle',
+          'brand': widget.vehicleBrand ?? 'Honda',
+          'model': widget.vehicleModel ?? 'Activa 6G',
+          'year': widget.vehicleYear ?? '2023',
+          'number': widget.regNumber ?? 'MH 12 AB 4567',
+          'regNumber': widget.regNumber ?? 'MH 12 AB 4567',
+        },
+        'documents': {
+          'license': {
+            'number': widget.licenseNumber ?? 'DL-1420110012345',
+            'expiryDate': widget.licenseExpiry ?? '31/12/2030',
+            'image': widget.licenseImageBase64 != null ? 'data:image/jpeg;base64,${widget.licenseImageBase64}' : null,
+            'frontImage': widget.licenseImageBase64 != null ? 'data:image/jpeg;base64,${widget.licenseImageBase64}' : null,
+          },
+          'panCard': {
+            'number': widget.panNumber ?? 'ABCDE1234F',
+            'image': widget.panImageBase64 != null ? 'data:image/jpeg;base64,${widget.panImageBase64}' : null,
+          },
+          'aadharCard': {
+            'number': widget.aadhaarNumber ?? '5489 1234 5678',
+            'image': widget.aadhaarImageBase64 != null ? 'data:image/jpeg;base64,${widget.aadhaarImageBase64}' : null,
+            'frontImage': widget.aadhaarImageBase64 != null ? 'data:image/jpeg;base64,${widget.aadhaarImageBase64}' : null,
+          },
+          'rc': {
+            'number': widget.regNumber ?? 'MH 12 AB 4567',
+          }
+        },
+        'bankDetails': {
+          'accountHolderName': _accountHolderNameController.text.trim(),
+          'bankName': _bankNameController.text.trim(),
+          'accountNumber': _accountNumberController.text.trim(),
+          'ifscCode': _ifscCodeController.text.trim(),
+          'upiId': _upiIdController.text.trim(),
+        },
+      };
+      final onboardingRes = await ApiService.completeRiderOnboarding(payload);
+      final responseData = onboardingRes['data'] is Map ? onboardingRes['data'] : onboardingRes;
+      final existingToken = await AuthService.getToken();
+      final freshToken = responseData?['token']?.toString() ??
+          responseData?['authToken']?.toString() ??
+          existingToken ??
+          '';
+
+      final phone = widget.phone ?? '';
+      final cleanPhone = phone.replaceAll(RegExp(r'\D'), '').trim();
+      final newUser = UserModel(
+        id: responseData?['user']?['_id']?.toString() ??
+            'RIDER_${cleanPhone.isNotEmpty ? cleanPhone : DateTime.now().millisecondsSinceEpoch}',
+        phone: cleanPhone.isNotEmpty ? '+91$cleanPhone' : '+919876543210',
+        name: widget.name ?? 'Rider Partner',
+        email: widget.email,
+        role: 'driver',
+        isVerified: false, // Pending admin verification
+        hasPinSet: widget.pin != null && widget.pin!.isNotEmpty,
+        isOnline: false,
+        isReturning: false,
+        upi: _upiIdController.text.trim(),
+        createdAt: DateTime.now(),
+      );
+
+      if (freshToken.isNotEmpty) {
+        await AuthService.saveTokens(
+          freshToken,
+          freshToken,
+          cleanPhone.isNotEmpty ? cleanPhone : '9876543210',
+          hasPin: widget.pin != null && widget.pin!.isNotEmpty,
+        );
+      }
+      if (cleanPhone.isNotEmpty) {
+        await AuthService.registerPhone(cleanPhone);
+      }
+
       if (!mounted) return;
+
+      context.read<AuthBloc>().add(UpdateUserData(user: newUser));
 
       showDialog(
         context: context,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/order_model.dart';
+import '../services/restaurant_api_service.dart';
 import '../theme/app_colors.dart';
 import 'order_details_screen.dart';
 import 'cancelled_orders_screen.dart';
@@ -20,6 +21,51 @@ class _PickupOrdersScreenState extends State<PickupOrdersScreen> {
   void initState() {
     super.initState();
     _loadMockPickupOrders();
+    _fetchLivePickupOrders();
+  }
+
+  Future<void> _fetchLivePickupOrders() async {
+    try {
+      final res = await RestaurantApiService.getRestaurantOrders();
+      if (res['success'] == true && res['orders'] is List && mounted) {
+        final List list = res['orders'];
+        final List<Order> parsed = [];
+        for (var raw in list) {
+          final isPickup = raw['orderType'] == 'pickup' || raw['isPickup'] == true || (raw['deliveryType'] ?? '').toString().toLowerCase().contains('pickup');
+          if (isPickup) {
+            final orderId = (raw['_id'] ?? raw['id'] ?? '').toString();
+            final shortId = orderId.length > 4 ? orderId.substring(orderId.length - 4) : orderId;
+            final itemsList = (raw['items'] as List?)?.map((i) => {
+              'name': i['name'] ?? i['title'] ?? 'Item',
+              'variant': i['variant'] ?? '',
+              'quantity': i['quantity'] ?? 1,
+              'price': (i['price'] as num?)?.toDouble() ?? 0.0,
+            }).toList() ?? [];
+
+            parsed.add(
+              Order(
+                id: shortId.isNotEmpty ? shortId : '1001',
+                backendId: orderId,
+                customerName: raw['customerName'] ?? raw['user']?['name'] ?? 'Customer',
+                address: raw['address'] ?? raw['deliveryAddress']?['address'] ?? 'Counter Pickup',
+                orderName: itemsList.isNotEmpty ? itemsList.first['name'] : 'Order Items',
+                quantity: itemsList.length,
+                items: itemsList,
+                totalAmount: (raw['totalAmount'] as num?)?.toDouble() ?? (raw['grandTotal'] as num?)?.toDouble() ?? 0.0,
+                status: raw['orderStatus'] == 'confirmed' ? 'Placed' : (raw['orderStatus'] == 'preparing' ? 'Preparing' : (raw['orderStatus'] == 'ready' ? 'Ready' : (raw['orderStatus'] == 'completed' ? 'Picked Up' : 'Placed'))),
+                createdAt: raw['createdAt'] != null ? DateTime.tryParse(raw['createdAt']) ?? DateTime.now() : DateTime.now(),
+                orderType: 'pickup',
+              ),
+            );
+          }
+        }
+        if (parsed.isNotEmpty) {
+          setState(() {
+            _pickupOrders = parsed;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   void _loadMockPickupOrders() {
@@ -372,7 +418,7 @@ class _PickupOrdersScreenState extends State<PickupOrdersScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           Navigator.pop(context);
                           setState(() {
                             order.prepTimeMinutes = selectedTime;
@@ -380,12 +426,17 @@ class _PickupOrdersScreenState extends State<PickupOrdersScreen> {
                             order.bufferReason = bufferReasonCtrl.text.trim();
                             order.status = 'Preparing';
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Order #${order.id} accepted! Total pickup time: $totalTime mins.'),
-                              backgroundColor: AppColors.primaryGreen,
-                            ),
-                          );
+                          try {
+                            await RestaurantApiService.prepareOrder(order.backendId.isNotEmpty ? order.backendId : order.id);
+                          } catch (_) {}
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Order #${order.id} accepted! Total pickup time: $totalTime mins.'),
+                                backgroundColor: AppColors.primaryGreen,
+                              ),
+                            );
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryGreen,

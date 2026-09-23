@@ -1,7 +1,9 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../data/services/api_service.dart';
 import 'login_screen.dart';
 import 'otp_verification_screen.dart';
 
@@ -16,11 +18,11 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController(text: 'Rohit');
-  final _emailController = TextEditingController(text: 'rohit@test.com');
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
   late final TextEditingController _phoneController;
-  final _pinController = TextEditingController(text: '1234');
-  final _confirmPinController = TextEditingController(text: '1234');
+  final _pinController = TextEditingController();
+  final _confirmPinController = TextEditingController();
 
   bool _obscurePin = true;
   bool _obscureConfirmPin = true;
@@ -34,7 +36,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void initState() {
     super.initState();
     _phoneController = TextEditingController(
-      text: widget.initialPhone ?? '9876543210',
+      text: widget.initialPhone ?? '',
     );
   }
 
@@ -153,7 +155,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  void _onCreateAccount() {
+  Future<void> _onCreateAccount() async {
     if (_formKey.currentState!.validate()) {
       if (_pinController.text.trim() != _confirmPinController.text.trim()) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -166,11 +168,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
+      final phone = _phoneController.text.trim();
+      final email = _emailController.text.trim();
+      final name = _nameController.text.trim();
+      final pin = _pinController.text.trim();
+
+      // Trigger OTP send to mobile
+      try {
+        await ApiService.sendOtp(phone);
+      } catch (e) {
+        debugPrint('Error sending OTP: $e');
+      }
+
+      if (!mounted) return;
+
+      final profileImageBase64 = _profileImageBytes != null ? base64Encode(_profileImageBytes!) : null;
+
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => OtpVerificationScreen(
-            email: _emailController.text.trim(),
-            phone: _phoneController.text.trim(),
+            name: name,
+            email: email,
+            phone: phone,
+            pin: pin,
+            profileImageBase64: profileImageBase64,
           ),
         ),
       );

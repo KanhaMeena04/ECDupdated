@@ -11,6 +11,7 @@ const Order = require('../models/Order');
 const Restaurant = require('../models/Restaurant');
 const { getPaginationParams } = require('../utils/pagination');
 const { getFileUrl } = require('../utils/upload');
+const { uploadToImageKit } = require('../services/imageKitService');
 const { calculateDistance } = require('../utils/locationUtils');
 const { initiateProfileUpdate, verifyOTPAndApplyUpdate, checkDuplicate } = require('../utils/profileUpdateHelpers');
 const { sendOTP } = require('../utils/twilioService');
@@ -313,7 +314,7 @@ exports.updateRiderProfile = async (req, res) => {
       return sendError(res, 401, "Unauthorized rider");
     }
     const user = await User.findById(req.user._id);
-    if (!user || user.role !== "rider") {
+    if (!user || !['rider', 'driver'].includes(user.role)) {
       return sendError(res, 404, "Rider user not found");
     }
 
@@ -465,7 +466,7 @@ exports.requestRiderProfileUpdate = async (req, res) => {
       return sendError(res, 401, "Unauthorized rider");
     }
     const user = await User.findById(req.user._id);
-    if (!user || user.role !== "rider") {
+    if (!user || (user.role !== "rider" && user.role !== "driver")) {
       return sendError(res, 404, "Rider user not found");
     }
     const rider = await Rider.findOne({ user: req.user._id });
@@ -512,7 +513,7 @@ exports.verifyRiderProfileUpdate = async (req, res) => {
       return sendError(res, 401, "Unauthorized rider");
     }
     const user = await User.findById(req.user._id);
-    if (!user || user.role !== "rider") {
+    if (!user || (user.role !== "rider" && user.role !== "driver")) {
       return sendError(res, 404, "Rider user not found");
     }
     const rider = await Rider.findOne({ user: req.user._id });
@@ -544,7 +545,7 @@ exports.getRiderProfile = async (req, res) => {
       return sendError(res, 401, "Unauthorized rider");
     }
     const user = await User.findById(req.user._id);
-    if (!user || user.role !== "rider") {
+    if (!user || (user.role !== "rider" && user.role !== "driver")) {
       return sendError(res, 404, "Rider user not found");
     }
     const riderProfile = await Rider.findOne({ user: req.user._id });
@@ -572,6 +573,17 @@ exports.getRiderProfile = async (req, res) => {
       if (typeof o.riderEarning === "number") return sum + o.riderEarning;
       return sum + (o.riderCommission || 0) + (o.tip || 0);
     }, 0);
+    const isApproved = (riderProfile.verificationStatus === 'approved' || riderProfile.riderVerified === true) &&
+      riderProfile.verificationStatus !== 'pending' &&
+      riderProfile.verificationStatus !== 'rejected';
+
+    if (!isApproved && (riderProfile.isOnline || riderProfile.isAvailable || riderProfile.status === 'active')) {
+      riderProfile.isOnline = false;
+      riderProfile.isAvailable = false;
+      riderProfile.status = 'inactive';
+      await riderProfile.save();
+    }
+
     res.status(200).json({
       success: true,
       message: "Rider profile retrieved successfully",
@@ -582,7 +594,8 @@ exports.getRiderProfile = async (req, res) => {
         mobile: user.mobile,
         profilePic: user.profilePic,
         role: user.role,
-        walletBalance: user.walletBalance || 0
+        walletBalance: user.walletBalance || 0,
+        upi: riderProfile.bankDetails?.upiId || riderProfile.bankDetails?.upi || ""
       },
       rider: {
         _id: riderProfile._id,
@@ -591,10 +604,10 @@ exports.getRiderProfile = async (req, res) => {
         workZone: riderProfile.workZone,
         rating: getAverageRating(riderProfile.rating),
         ratingCount: getRatingCount(riderProfile.rating),
-        isAvailable: riderProfile.isAvailable,
-        isOnline: riderProfile.isOnline,
+        isAvailable: isApproved ? riderProfile.isAvailable : false,
+        isOnline: isApproved ? riderProfile.isOnline : false,
         verificationStatus: riderProfile.verificationStatus,
-        riderVerified: riderProfile.riderVerified,
+        riderVerified: isApproved,
         totalOrders: totalOrders,
         deliveredOrders: deliveredOrders,
         cancelledOrders: cancelledOrders,
@@ -603,7 +616,8 @@ exports.getRiderProfile = async (req, res) => {
         currentBalance: riderProfile.currentBalance || 0,
         vehicle: riderProfile.vehicle,
         documents: riderProfile.documents,
-        bankDetails: riderProfile.bankDetails
+        bankDetails: riderProfile.bankDetails,
+        upi: riderProfile.bankDetails?.upiId || riderProfile.bankDetails?.upi || ""
       }
     });
   } catch (e) {
@@ -616,7 +630,7 @@ exports.getRiderDashboard = async (req, res) => {
       return sendError(res, 401, "Unauthorized rider");
     }
     const user = await User.findById(req.user._id);
-    if (!user || user.role !== "rider") {
+    if (!user || (user.role !== "rider" && user.role !== "driver")) {
       return sendError(res, 404, "Rider user not found");
     }
     const riderProfile = await Rider.findOne({ user: req.user._id });
@@ -675,12 +689,16 @@ exports.getRiderDashboard = async (req, res) => {
     ]);
     const totalEarnings = earningsAgg[0]?.earnings || 0;
     const todayEarnings = todayEarningsAgg[0]?.earnings || 0;
+    const isApproved = (riderProfile.verificationStatus === 'approved' || riderProfile.riderVerified === true) &&
+      riderProfile.verificationStatus !== 'pending' &&
+      riderProfile.verificationStatus !== 'rejected';
+
     return res.status(200).json({
       success: true,
       rider: {
         _id: riderProfile._id,
-        isOnline: riderProfile.isOnline,
-        isAvailable: riderProfile.isAvailable,
+        isOnline: isApproved ? riderProfile.isOnline : false,
+        isAvailable: isApproved ? riderProfile.isAvailable : false,
         breakMode: riderProfile.breakMode,
         verificationStatus: riderProfile.verificationStatus,
       },
@@ -751,124 +769,267 @@ exports.onboardRider = async (req, res) => {
     let {
       name,
       email,
+      phone,
+      mobile,
+      pin,
       address,
       workCity,
       workZone,
       vehicle,
+      vehicleType,
+      vehicleBrand,
+      vehicleModel,
+      vehicleYear,
+      regNumber,
       documents,
+      licenseNumber,
+      panNumber,
+      aadhaarNumber,
+      expiryDate,
       bankDetails,
+      accountHolderName,
+      bankName,
+      accountNumber,
+      ifscCode,
+      upiId,
+      upi,
       location
     } = req.body;
-    if (typeof address === 'string') address = JSON.parse(address);
-    if (typeof vehicle === 'string') vehicle = JSON.parse(vehicle);
-    if (typeof documents === 'string') documents = JSON.parse(documents);
-    if (typeof bankDetails === 'string') bankDetails = JSON.parse(bankDetails);
-    if (typeof location === 'string') location = JSON.parse(location);
-    const user = await User.findById(req.user._id);
-    if (!user || user.role !== "rider") {
+
+    address = parseIfString(address);
+    vehicle = parseIfString(vehicle) || {};
+    documents = parseIfString(documents) || {};
+    bankDetails = parseIfString(bankDetails) || {};
+    location = parseIfString(location);
+
+    if (vehicleType || vehicleBrand || vehicleModel || vehicleYear || regNumber) {
+      vehicle.type = vehicleType || vehicle.type || 'Scooter / Motorcycle';
+      vehicle.brand = vehicleBrand || vehicle.brand;
+      vehicle.model = vehicleModel || vehicle.model;
+      vehicle.year = vehicleYear || vehicle.year;
+      vehicle.number = regNumber || vehicle.number;
+      vehicle.regNumber = regNumber || vehicle.regNumber;
+    }
+
+    if (licenseNumber || panNumber || aadhaarNumber || expiryDate) {
+      if (licenseNumber || expiryDate) {
+        documents.license = documents.license || {};
+        if (licenseNumber) documents.license.number = licenseNumber;
+        if (expiryDate) documents.license.expiryDate = expiryDate;
+      }
+      if (panNumber) {
+        documents.panCard = documents.panCard || {};
+        documents.panCard.number = panNumber;
+      }
+      if (aadhaarNumber) {
+        documents.aadharCard = documents.aadharCard || {};
+        documents.aadharCard.number = aadhaarNumber;
+      }
+    }
+
+    if (accountHolderName || bankName || accountNumber || ifscCode || upiId || upi) {
+      bankDetails.accountHolderName = accountHolderName || bankDetails.accountHolderName;
+      bankDetails.bankName = bankName || bankDetails.bankName;
+      bankDetails.accountNumber = accountNumber || bankDetails.accountNumber;
+      bankDetails.ifscCode = ifscCode || bankDetails.ifscCode;
+      bankDetails.upiId = upiId || upi || bankDetails.upiId || bankDetails.upi;
+    }
+
+    if (!req.user || !req.user._id) {
       return sendError(res, 401, "Unauthorized");
     }
-    const existing = await Rider.findOne({ user: user._id });
-    let reuseRejected = false;
-    if (existing) {
-      const isRejected =
-        existing.verificationStatus === "rejected" ||
-        Boolean(existing.rejectionReason);
-      if (!isRejected) {
-        return sendError(res, 400, "Rider application already submitted");
-      }
-      reuseRejected = true;
+
+    const user = await User.findById(req.user._id);
+    if (!user || (!['rider', 'driver'].includes(user.role))) {
+      return sendError(res, 401, "Unauthorized - user is not a registered rider or driver");
     }
-    if (!user.name && (!name || !name.trim())) {
-      return sendError(res, 400, "Name is required");
-    }
-    const normalizedEmail = email ? email.trim().toLowerCase() : "";
-    if (!user.email && !normalizedEmail) {
-      return sendError(res, 400, "Email is required");
-    }
-    if (user.email && normalizedEmail && normalizedEmail !== user.email) {
-      return sendError(res, 400, "Email must match registered email");
-    }
-    if (name) user.name = name.trim();
-    if (!user.email && normalizedEmail) {
-      const exists = await User.findOne({
-        _id: { $ne: user._id },
-        email: normalizedEmail,
-      });
-      if (exists) {
-        return sendError(res, 409, "Email already in use");
-      }
-      user.email = normalizedEmail;
+
+    if (name && name.trim()) user.name = name.trim();
+    if (email && email.trim()) user.email = email.trim().toLowerCase();
+    if (pin) user.pin = pin;
+    if (phone || mobile) {
+      user.mobile = mobile || phone || user.mobile;
+      user.phone = phone || mobile || user.phone;
     }
     await user.save();
-    if (vehicle && vehicle.type && typeof vehicle.type === "string") {
-      const VehicleModel = require("../models/Vehicle");
-      const found = await VehicleModel.findOne({
-        $or: [{ name: vehicle.type }, { type: vehicle.type }]
-      });
-      if (found) vehicle.type = found._id;
-    }
-    if (reuseRejected) {
-      if (!address) address = existing.address;
-      if (!workCity) workCity = existing.workCity;
-      if (!workZone) workZone = existing.workZone;
-      if (!vehicle) vehicle = existing.vehicle;
-      if (!bankDetails) bankDetails = existing.bankDetails;
-      if (!location) location = existing.currentLocation;
-    }
+
+    const existing = await Rider.findOne({ user: user._id });
+
     const processedDocuments = {
-      ...(reuseRejected ? existing.documents || {} : {}),
+      ...(existing?.documents || {}),
       ...(documents || {}),
     };
+
+    // 1. Process Profile Pic
+    let profilePicUrl = user.profilePic || existing?.profilePic;
+    if (req.files && req.files.profilePic && req.files.profilePic[0]) {
+      profilePicUrl = await getFileUrl(req.files.profilePic[0]);
+    } else if (req.body.profilePic) {
+      const ikUrl = await uploadToImageKit(req.body.profilePic, `profile_${user._id}.jpg`);
+      if (ikUrl) profilePicUrl = ikUrl;
+    }
+    if (profilePicUrl) {
+      user.profilePic = profilePicUrl;
+      await user.save();
+    }
+
+    // 2. Process Files
     if (req.files) {
       if (req.files.licenseFrontImage && req.files.licenseFrontImage[0]) {
         processedDocuments.license = processedDocuments.license || {};
-        processedDocuments.license.frontImage = getFileUrl(req.files.licenseFrontImage[0]);
+        processedDocuments.license.frontImage = await getFileUrl(req.files.licenseFrontImage[0]);
+        processedDocuments.license.image = processedDocuments.license.frontImage;
       }
       if (req.files.licenseBackImage && req.files.licenseBackImage[0]) {
         processedDocuments.license = processedDocuments.license || {};
-        processedDocuments.license.backImage = getFileUrl(req.files.licenseBackImage[0]);
+        processedDocuments.license.backImage = await getFileUrl(req.files.licenseBackImage[0]);
       }
       if (req.files.rcImage && req.files.rcImage[0]) {
         processedDocuments.rc = processedDocuments.rc || {};
-        processedDocuments.rc.image = getFileUrl(req.files.rcImage[0]);
+        processedDocuments.rc.image = await getFileUrl(req.files.rcImage[0]);
       }
       if (req.files.insuranceImage && req.files.insuranceImage[0]) {
         processedDocuments.insurance = processedDocuments.insurance || {};
-        processedDocuments.insurance.image = getFileUrl(req.files.insuranceImage[0]);
+        processedDocuments.insurance.image = await getFileUrl(req.files.insuranceImage[0]);
+      }
+      if (req.files.panCardImage && req.files.panCardImage[0]) {
+        processedDocuments.panCard = processedDocuments.panCard || {};
+        processedDocuments.panCard.image = await getFileUrl(req.files.panCardImage[0]);
+      }
+      if (req.files.aadharCardImage && req.files.aadharCardImage[0]) {
+        processedDocuments.aadharCard = processedDocuments.aadharCard || {};
+        processedDocuments.aadharCard.image = await getFileUrl(req.files.aadharCardImage[0]);
+        processedDocuments.aadharCard.frontImage = processedDocuments.aadharCard.image;
       }
       if (req.files.medicalCertificate && req.files.medicalCertificate[0]) {
-        processedDocuments.medicalCertificate = getFileUrl(req.files.medicalCertificate[0]);
+        processedDocuments.medicalCertificate = await getFileUrl(req.files.medicalCertificate[0]);
       }
       if (req.files.gst && req.files.gst[0]) {
-        processedDocuments.gst = getFileUrl(req.files.gst[0]);
+        processedDocuments.gst = await getFileUrl(req.files.gst[0]);
       }
     }
+
+    // 3. Process Base64 / Data URI strings inside documents
+    if (documents) {
+      if (documents.license?.image || documents.license?.frontImage) {
+        const raw = documents.license.image || documents.license.frontImage;
+        const ikUrl = await uploadToImageKit(raw, `license_${user._id}.jpg`);
+        if (ikUrl) {
+          processedDocuments.license = processedDocuments.license || {};
+          processedDocuments.license.frontImage = ikUrl;
+          processedDocuments.license.image = ikUrl;
+        }
+      }
+      if (documents.license?.backImage) {
+        const ikUrl = await uploadToImageKit(documents.license.backImage, `license_back_${user._id}.jpg`);
+        if (ikUrl) {
+          processedDocuments.license = processedDocuments.license || {};
+          processedDocuments.license.backImage = ikUrl;
+        }
+      }
+      if (documents.panCard?.image || documents.panCard?.frontImage) {
+        const raw = documents.panCard.image || documents.panCard.frontImage;
+        const ikUrl = await uploadToImageKit(raw, `pan_${user._id}.jpg`);
+        if (ikUrl) {
+          processedDocuments.panCard = processedDocuments.panCard || {};
+          processedDocuments.panCard.image = ikUrl;
+        }
+      }
+      if (documents.aadharCard?.image || documents.aadharCard?.frontImage) {
+        const raw = documents.aadharCard.image || documents.aadharCard.frontImage;
+        const ikUrl = await uploadToImageKit(raw, `aadhaar_${user._id}.jpg`);
+        if (ikUrl) {
+          processedDocuments.aadharCard = processedDocuments.aadharCard || {};
+          processedDocuments.aadharCard.image = ikUrl;
+          processedDocuments.aadharCard.frontImage = ikUrl;
+        }
+      }
+      if (documents.aadharCard?.backImage) {
+        const ikUrl = await uploadToImageKit(documents.aadharCard.backImage, `aadhaar_back_${user._id}.jpg`);
+        if (ikUrl) {
+          processedDocuments.aadharCard = processedDocuments.aadharCard || {};
+          processedDocuments.aadharCard.backImage = ikUrl;
+        }
+      }
+      if (documents.rc?.image) {
+        const ikUrl = await uploadToImageKit(documents.rc.image, `rc_${user._id}.jpg`);
+        if (ikUrl) {
+          processedDocuments.rc = processedDocuments.rc || {};
+          processedDocuments.rc.image = ikUrl;
+        }
+      }
+      if (documents.insurance?.image) {
+        const ikUrl = await uploadToImageKit(documents.insurance.image, `insurance_${user._id}.jpg`);
+        if (ikUrl) {
+          processedDocuments.insurance = processedDocuments.insurance || {};
+          processedDocuments.insurance.image = ikUrl;
+        }
+      }
+    }
+
+    if (req.body.fcmToken || req.body.deviceToken) {
+      user.fcmToken = (req.body.fcmToken || req.body.deviceToken).trim();
+      await user.save();
+    }
+
     const riderPayload = {
       user: user._id,
-      address,
-      workCity,
-      workZone,
-      vehicle,
+      name: user.name || name,
+      email: user.email || email,
+      phone: user.phone || user.mobile || phone || mobile,
+      mobile: user.mobile || user.phone || mobile || phone,
+      pin: pin || user.pin || existing?.pin,
+      profilePic: profilePicUrl || user.profilePic,
+      address: address || existing?.address || (workCity ? { city: workCity } : undefined),
+      workCity: workCity || existing?.workCity || "",
+      workZone: workZone || existing?.workZone || "",
+      vehicle: {
+        ...(existing?.vehicle || {}),
+        ...vehicle,
+        vehicleVerified: false,
+        vehicleApproval: { status: 'pending' }
+      },
       documents: processedDocuments,
-      bankDetails,
-      currentLocation: location || undefined,
-      verificationStatus: "pending",
-      riderVerified: false,
-      rejectionReason: undefined,
-      rejectionDate: undefined,
-      rejectedBy: undefined,
+      bankDetails: {
+        ...(existing?.bankDetails || {}),
+        ...bankDetails,
+        verified: existing?.bankDetails?.verified ?? false,
+        verificationStatus: existing?.bankDetails?.verificationStatus ?? 'pending'
+      },
+      currentLocation: location || existing?.currentLocation || { type: 'Point', coordinates: [77.0658, 28.2888] },
+      verificationStatus: existing?.verificationStatus || "pending",
+      riderVerified: existing?.riderVerified ?? false,
+      isOnline: false,
+      isAvailable: false,
+      status: 'inactive',
     };
-    const rider = reuseRejected
-      ? await Rider.findByIdAndUpdate(existing._id, riderPayload, {
+
+    let rider;
+    if (existing) {
+      rider = await Rider.findByIdAndUpdate(existing._id, riderPayload, {
         new: true,
-        runValidators: true,
-      })
-      : await Rider.create(riderPayload);
-    res.status(201).json({
+        runValidators: false,
+      });
+    } else {
+      rider = await Rider.create(riderPayload);
+    }
+
+    const token = jwt.sign({ _id: user._id, role: user.role }, process.env.JWT_SECRET || 'ecd_local_dev_jwt_secret_key_2026', { expiresIn: '7d' });
+
+    res.status(200).json({
       success: true,
-      message: "Rider onboarding submitted. Waiting for admin approval.",
-      rider
+      message: "Rider onboarding submitted and profile saved in MongoDB.",
+      token,
+      authToken: token,
+      rider,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile || user.phone,
+        profilePic: user.profilePic,
+        role: user.role
+      }
     });
   } catch (error) {
     return sendError(res, 500, "Failed to submit rider onboarding", error.message);
@@ -992,20 +1153,26 @@ exports.getRiderStatus = async (req, res) => {
     }
     const hasVehicle = !!rider.vehicle;
     const isVehicleVerified = rider.vehicle?.vehicleVerified || false;
+    const isApproved = (rider.verificationStatus === 'approved' || rider.riderVerified === true) &&
+      rider.verificationStatus !== 'pending' &&
+      rider.verificationStatus !== 'rejected';
+    const effectiveOnline = isApproved ? (rider.isOnline || false) : false;
+    const effectiveAvailable = isApproved ? (rider.isAvailable || false) : false;
+
     res.json({
       success: true,
-      isOnline: rider.isOnline,
-      isAvailable: rider.isAvailable,
+      isOnline: effectiveOnline,
+      isAvailable: effectiveAvailable,
       breakMode: rider.breakMode,
       verificationStatus: rider.verificationStatus,
-      riderVerified: rider.riderVerified,
-      locationTrackingRequired: rider.isOnline,
+      riderVerified: isApproved,
+      locationTrackingRequired: effectiveOnline,
       diagnostics: {
         hasVehicle,
         isVehicleVerified,
-        canGoOnline: rider.riderVerified && rider.verificationStatus === 'approved' && isVehicleVerified,
+        canGoOnline: isApproved && isVehicleVerified,
         reasons: {
-          riderNotVerified: !rider.riderVerified,
+          riderNotVerified: !isApproved,
           statusNotApproved: rider.verificationStatus !== 'approved',
           vehicleNotVerified: hasVehicle && !isVehicleVerified
         }
@@ -1182,24 +1349,113 @@ exports.adminRiderSettlements = async (req, res) => {
 exports.requestWithdrawal = async (req, res) => {
   try {
     const { amount, method, bankDetails } = req.body;
-    if (!amount || amount <= 0) return res.status(400).json({ message: 'Invalid amount' });
+    const numAmount = Number(amount);
+    if (!numAmount || numAmount <= 0) return res.status(400).json({ success: false, message: 'Invalid amount' });
+    
     const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    if (user.walletBalance < amount) return res.status(400).json({ message: 'Insufficient balance' });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    
+    const Rider = require('../models/Rider');
+    const rider = await Rider.findOne({ user: req.user._id });
+    if (!rider) return res.status(404).json({ success: false, message: 'Rider profile not found' });
+
+    const isApproved = (rider.verificationStatus === 'approved' || rider.riderVerified === true) &&
+      rider.verificationStatus !== 'pending' &&
+      rider.verificationStatus !== 'rejected';
+
+    if (!isApproved) {
+      return res.status(403).json({
+        success: false,
+        message: rider.verificationStatus === 'pending'
+          ? "Cannot request payout. Your profile is under review by Admin. You can request payouts once approved."
+          : rider.verificationStatus === 'rejected'
+            ? "Cannot request payout. Your rider profile was rejected. Please contact support."
+            : "Cannot request payout. Your rider profile is not approved yet.",
+        verificationStatus: rider.verificationStatus
+      });
+    }
+
+    const RiderWallet = require('../models/RiderWallet');
+    const riderWallet = await RiderWallet.findOne({ rider: rider._id });
+    
+    const availableBalance = riderWallet?.availableBalance ?? user.walletBalance ?? 0;
+    
+    // Auto-resolve UPI / Bank details
+    const upiId = bankDetails?.upiId || bankDetails?.upi || rider?.bankDetails?.upiId || rider?.bankDetails?.upi || rider?.upiId || rider?.upi || user.upi || '';
+    const accountHolder = bankDetails?.accountHolder || bankDetails?.accountHolderName || rider?.bankDetails?.accountHolder || rider?.bankDetails?.accountHolderName || rider?.name || user.name || 'Rider Partner';
+    const bankName = bankDetails?.bankName || rider?.bankDetails?.bankName || '';
+    const accountNumber = bankDetails?.accountNumber || rider?.bankDetails?.accountNumber || '';
+    const ifsc = bankDetails?.ifsc || bankDetails?.ifscCode || rider?.bankDetails?.ifsc || rider?.bankDetails?.ifscCode || '';
+
+    const resolvedBankDetails = {
+      upiId: upiId || '',
+      accountHolder: accountHolder,
+      bankName: bankName,
+      accountNumber: accountNumber,
+      ifsc: ifsc,
+      phone: user.mobile || user.phone || ''
+    };
+
+    // If rider passed updated bank details in request, sync back to rider model
+    if (rider && bankDetails) {
+      rider.bankDetails = {
+        ...(rider.bankDetails || {}),
+        ...resolvedBankDetails
+      };
+      if (upiId) rider.upiId = upiId;
+      await rider.save().catch(() => {});
+    }
+    if (upiId && (!user.upi || user.upi !== upiId)) {
+      user.upi = upiId;
+      await user.save().catch(() => {});
+    }
+
     const Withdrawal = require('../models/WithdrawalRequest');
-    const reqObj = await Withdrawal.create({ user: req.user._id, amount, method, bankDetails });
-    res.status(201).json({ message: 'Withdrawal requested', request: reqObj });
+    const reqObj = await Withdrawal.create({
+      user: req.user._id,
+      rider: rider?._id,
+      amount: numAmount,
+      method: method || (upiId ? 'upi' : 'bank'),
+      bankDetails: resolvedBankDetails,
+      status: 'pending'
+    });
+
+    // Notify admins via socket if available
+    try {
+      const io = req.app.get('io') || global.io;
+      if (io) {
+        io.to('admin_room').emit('new_withdrawal_request', {
+          id: reqObj._id,
+          riderName: user.name,
+          riderPhone: user.mobile || user.phone,
+          amount: numAmount,
+          method: reqObj.method,
+          upiId: upiId,
+          bankName: bankName,
+          accountNumber: accountNumber,
+          ifsc: ifsc,
+          accountHolder: accountHolder,
+          createdAt: reqObj.createdAt
+        });
+      }
+    } catch (_) {}
+
+    return res.status(201).json({
+      success: true,
+      message: 'Withdrawal requested successfully',
+      request: reqObj
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.getWithdrawals = async (req, res) => {
   try {
     const Withdrawal = require('../models/WithdrawalRequest');
     const requests = await Withdrawal.find({ user: req.user._id }).sort({ createdAt: -1 });
-    res.status(200).json(requests);
+    return res.status(200).json({ success: true, requests });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.createTicket = async (req, res) => {
@@ -1318,38 +1574,97 @@ exports.updateDocuments = async (req, res) => {
     if (req.files) {
       if (req.files.licenseFrontImage && req.files.licenseFrontImage[0]) {
         updatedDocuments.license = updatedDocuments.license || {};
-        updatedDocuments.license.frontImage = getFileUrl(req.files.licenseFrontImage[0]);
+        updatedDocuments.license.frontImage = await getFileUrl(req.files.licenseFrontImage[0]);
+        updatedDocuments.license.image = updatedDocuments.license.frontImage;
       }
       if (req.files.licenseBackImage && req.files.licenseBackImage[0]) {
         updatedDocuments.license = updatedDocuments.license || {};
-        updatedDocuments.license.backImage = getFileUrl(req.files.licenseBackImage[0]);
+        updatedDocuments.license.backImage = await getFileUrl(req.files.licenseBackImage[0]);
       }
       if (req.files.rcImage && req.files.rcImage[0]) {
         updatedDocuments.rc = updatedDocuments.rc || {};
-        updatedDocuments.rc.image = getFileUrl(req.files.rcImage[0]);
+        updatedDocuments.rc.image = await getFileUrl(req.files.rcImage[0]);
       }
       if (req.files.insuranceImage && req.files.insuranceImage[0]) {
         updatedDocuments.insurance = updatedDocuments.insurance || {};
-        updatedDocuments.insurance.image = getFileUrl(req.files.insuranceImage[0]);
+        updatedDocuments.insurance.image = await getFileUrl(req.files.insuranceImage[0]);
       }
       if (req.files.medicalCertificate && req.files.medicalCertificate[0]) {
         updatedDocuments.medicalCertificate = updatedDocuments.medicalCertificate || {};
-        updatedDocuments.medicalCertificate.image = getFileUrl(req.files.medicalCertificate[0]);
+        updatedDocuments.medicalCertificate.image = await getFileUrl(req.files.medicalCertificate[0]);
       }
       if (req.files.panCardImage && req.files.panCardImage[0]) {
         updatedDocuments.panCard = updatedDocuments.panCard || {};
-        updatedDocuments.panCard.image = getFileUrl(req.files.panCardImage[0]);
+        updatedDocuments.panCard.image = await getFileUrl(req.files.panCardImage[0]);
       }
       if (req.files.aadharCardImage && req.files.aadharCardImage[0]) {
         updatedDocuments.aadharCard = updatedDocuments.aadharCard || {};
-        updatedDocuments.aadharCard.image = getFileUrl(req.files.aadharCardImage[0]);
+        updatedDocuments.aadharCard.image = await getFileUrl(req.files.aadharCardImage[0]);
+        updatedDocuments.aadharCard.frontImage = updatedDocuments.aadharCard.image;
       }
       if (req.files.policyVerification && req.files.policyVerification[0]) {
         updatedDocuments.policyVerification = updatedDocuments.policyVerification || {};
-        updatedDocuments.policyVerification.image = getFileUrl(req.files.policyVerification[0]);
+        updatedDocuments.policyVerification.image = await getFileUrl(req.files.policyVerification[0]);
       }
       if (req.files.gst && req.files.gst[0]) {
-        updatedDocuments.gst = getFileUrl(req.files.gst[0]);
+        updatedDocuments.gst = await getFileUrl(req.files.gst[0]);
+      }
+    }
+
+    if (documents) {
+      if (documents.license?.image || documents.license?.frontImage) {
+        const raw = documents.license.image || documents.license.frontImage;
+        const ikUrl = await uploadToImageKit(raw, `license_${req.user._id}.jpg`);
+        if (ikUrl) {
+          updatedDocuments.license = updatedDocuments.license || {};
+          updatedDocuments.license.frontImage = ikUrl;
+          updatedDocuments.license.image = ikUrl;
+        }
+      }
+      if (documents.license?.backImage) {
+        const ikUrl = await uploadToImageKit(documents.license.backImage, `license_back_${req.user._id}.jpg`);
+        if (ikUrl) {
+          updatedDocuments.license = updatedDocuments.license || {};
+          updatedDocuments.license.backImage = ikUrl;
+        }
+      }
+      if (documents.panCard?.image || documents.panCard?.frontImage) {
+        const raw = documents.panCard.image || documents.panCard.frontImage;
+        const ikUrl = await uploadToImageKit(raw, `pan_${req.user._id}.jpg`);
+        if (ikUrl) {
+          updatedDocuments.panCard = updatedDocuments.panCard || {};
+          updatedDocuments.panCard.image = ikUrl;
+        }
+      }
+      if (documents.aadharCard?.image || documents.aadharCard?.frontImage) {
+        const raw = documents.aadharCard.image || documents.aadharCard.frontImage;
+        const ikUrl = await uploadToImageKit(raw, `aadhaar_${req.user._id}.jpg`);
+        if (ikUrl) {
+          updatedDocuments.aadharCard = updatedDocuments.aadharCard || {};
+          updatedDocuments.aadharCard.image = ikUrl;
+          updatedDocuments.aadharCard.frontImage = ikUrl;
+        }
+      }
+      if (documents.aadharCard?.backImage) {
+        const ikUrl = await uploadToImageKit(documents.aadharCard.backImage, `aadhaar_back_${req.user._id}.jpg`);
+        if (ikUrl) {
+          updatedDocuments.aadharCard = updatedDocuments.aadharCard || {};
+          updatedDocuments.aadharCard.backImage = ikUrl;
+        }
+      }
+      if (documents.rc?.image) {
+        const ikUrl = await uploadToImageKit(documents.rc.image, `rc_${req.user._id}.jpg`);
+        if (ikUrl) {
+          updatedDocuments.rc = updatedDocuments.rc || {};
+          updatedDocuments.rc.image = ikUrl;
+        }
+      }
+      if (documents.insurance?.image) {
+        const ikUrl = await uploadToImageKit(documents.insurance.image, `insurance_${req.user._id}.jpg`);
+        if (ikUrl) {
+          updatedDocuments.insurance = updatedDocuments.insurance || {};
+          updatedDocuments.insurance.image = ikUrl;
+        }
       }
     }
 
@@ -1891,217 +2206,510 @@ exports.createRiderByAdmin = async (req, res) => {
   session.startTransaction();
   try {
     let {
-      name, email, mobile, password,
-      address, workCity, workZone, vehicle, documents, bankDetails
+      name, email, mobile, phone, pin, password,
+      address, address2, city, state, country, zipCode,
+      workCity, workZone, status, vehicle, documents, bankDetails
     } = req.body;
-    if (typeof address === 'string') address = JSON.parse(address);
-    if (typeof vehicle === 'string') vehicle = JSON.parse(vehicle);
-    if (typeof documents === 'string') documents = JSON.parse(documents);
-    if (typeof bankDetails === 'string') bankDetails = JSON.parse(bankDetails);
-    const userExists = await User.findOne({ $or: [{ email }, { mobile }] });
-    if (userExists) {
-      throw new Error('User with this email or mobile already exists');
+
+    if (typeof address === 'string') address = parseIfString(address);
+    if (typeof vehicle === 'string') vehicle = parseIfString(vehicle);
+    if (typeof documents === 'string') documents = parseIfString(documents);
+    if (typeof bankDetails === 'string') bankDetails = parseIfString(bankDetails);
+
+    // Normalize phone number
+    const rawPhone = (mobile || phone || "").toString().replace(/[^0-9]/g, '');
+    if (!rawPhone || rawPhone.length < 10) {
+      throw new Error('Please provide a valid 10-digit mobile number');
     }
+    const last10 = rawPhone.slice(-10);
+    const cleanMobile = `+91${last10}`;
+    const cleanPin = (pin || "1234").toString().trim();
+    const cleanName = (name || "").trim() || `Rider ${last10.slice(-4)}`;
+
+    // Avoid accidental browser autofill of admin email
+    const adminEmail = (req.user?.email || "admin@gmail.com").toLowerCase();
+    const rawEmail = (email || "").trim().toLowerCase();
+    const cleanEmail = (!rawEmail || rawEmail === adminEmail || rawEmail === 'admin@gmail.com')
+      ? `rider_${last10}@ecdkart.com`
+      : rawEmail;
+
+    // Check if mobile already exists
+    const mobileExists = await User.findOne({
+      $or: [
+        { mobile: cleanMobile },
+        { phone: cleanMobile },
+        { mobile: last10 },
+        { phone: last10 }
+      ]
+    });
+
+    if (mobileExists) {
+      throw new Error(`Mobile number ${cleanMobile} is already registered (${mobileExists.name || mobileExists.role}). Please use another number or delete the previous driver.`);
+    }
+
+    // Check if email already exists (only if custom email provided)
+    if (cleanEmail && !cleanEmail.endsWith('@ecdkart.com')) {
+      const emailExists = await User.findOne({ email: cleanEmail });
+      if (emailExists) {
+        throw new Error(`Email ${cleanEmail} is already registered. Please enter a different email or leave it blank.`);
+      }
+    }
+
     let profilePic = '';
     if (req.files && req.files.profilePic && req.files.profilePic[0]) {
       profilePic = getFileUrl(req.files.profilePic[0]);
+    } else if (req.body.profilePic && typeof req.body.profilePic === 'string') {
+      profilePic = req.body.profilePic;
     }
+
+    if (profilePic && profilePic.startsWith('data:')) {
+      const ikProfile = await uploadToImageKit(profilePic, `profile_${last10}.jpg`, '/ecdkart/riders/profiles');
+      if (ikProfile) profilePic = ikProfile;
+    }
+
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const passToHash = (password && password.trim().length > 0) ? password : (cleanPin || last10);
+    const hashedPassword = await bcrypt.hash(passToHash, salt);
+
     const [newUser] = await User.create([{
-      name, email, mobile, password: hashedPassword, role: 'rider', profilePic, isVerified: true
+      name: cleanName,
+      email: cleanEmail,
+      mobile: cleanMobile,
+      phone: cleanMobile,
+      pin: cleanPin,
+      password: hashedPassword,
+      role: 'driver',
+      profilePic,
+      isVerified: false
     }], { session });
-    if (!vehicle || !vehicle.type) {
-      throw new Error("Vehicle type is required (bike | car | scooter | other)");
-    }
-    vehicle.vehicleVerified = true; // Admin created = Auto Verified
-    vehicle.approvedAt = new Date();
-    vehicle.approvedBy = req.user._id;
-    vehicle.vehicleApproval = {
-      status: 'approved',
-      approvedAt: new Date(),
-      approvedBy: req.user._id
+
+    // Vehicle formatting
+    const formattedVehicle = vehicle || {};
+    const vehicleType = formattedVehicle.type || "bike";
+    const vehicleNumber = formattedVehicle.number || formattedVehicle.regNumber || "";
+
+    const finalVehicle = {
+      type: vehicleType,
+      brand: formattedVehicle.brand || "",
+      model: formattedVehicle.model || "",
+      number: vehicleNumber,
+      regNumber: vehicleNumber,
+      color: formattedVehicle.color || "",
+      year: formattedVehicle.year || "",
+      vehicleVerified: false,
+      vehicleApproval: {
+        status: 'pending'
+      }
     };
-    const processedDocuments = documents || {};
-    if (req.files) {
-      if (req.files.licenseFrontImage && req.files.licenseFrontImage[0]) {
-        processedDocuments.license = processedDocuments.license || {};
-        processedDocuments.license.frontImage = getFileUrl(req.files.licenseFrontImage[0]);
-      }
-      if (req.files.licenseBackImage && req.files.licenseBackImage[0]) {
-        processedDocuments.license = processedDocuments.license || {};
-        processedDocuments.license.backImage = getFileUrl(req.files.licenseBackImage[0]);
-      }
-      if (req.files.rcImage && req.files.rcImage[0]) {
-        processedDocuments.rc = processedDocuments.rc || {};
-        processedDocuments.rc.image = getFileUrl(req.files.rcImage[0]);
-      }
-      if (req.files.insuranceImage && req.files.insuranceImage[0]) {
-        processedDocuments.insurance = processedDocuments.insurance || {};
-        processedDocuments.insurance.image = getFileUrl(req.files.insuranceImage[0]);
-      }
-      if (req.files.medicalCertificate && req.files.medicalCertificate[0]) {
-        processedDocuments.medicalCertificate = getFileUrl(req.files.medicalCertificate[0]);
-      }
-      if (req.files.gst && req.files.gst[0]) {
-        processedDocuments.gst = getFileUrl(req.files.gst[0]);
-      }
-    }
+
+    // Extract & upload all documents to ImageKit
+    const rawDocs = documents || {};
+
+    const licenseNumber = rawDocs.licenseNumber || rawDocs.license?.number || "";
+    const licenseExpiry = rawDocs.licenseExpiry || rawDocs.license?.expiryDate || rawDocs.license?.expiry || "";
+    let licenseFront = (req.files?.licenseFrontImage?.[0] ? getFileUrl(req.files.licenseFrontImage[0]) : (rawDocs.licenseFront || rawDocs.license?.frontImage || rawDocs.license?.image)) || "";
+    let licenseBack = (req.files?.licenseBackImage?.[0] ? getFileUrl(req.files.licenseBackImage[0]) : (rawDocs.licenseBack || rawDocs.license?.backImage)) || "";
+
+    const rcNumber = rawDocs.rcNumber || rawDocs.rc?.number || vehicleNumber || "";
+    let rcImage = (req.files?.rcImage?.[0] ? getFileUrl(req.files.rcImage[0]) : (rawDocs.rcImage || rawDocs.rc?.image)) || "";
+
+    const aadharNumber = rawDocs.aadharNumber || rawDocs.aadharCard?.number || "";
+    let aadharImage = (req.files?.aadharCardImage?.[0] ? getFileUrl(req.files.aadharCardImage[0]) : (rawDocs.aadharFront || rawDocs.aadharCard?.image || rawDocs.aadharCard?.frontImage)) || "";
+
+    const panNumber = rawDocs.panNumber || rawDocs.panCard?.number || "";
+    let panImage = (req.files?.panCardImage?.[0] ? getFileUrl(req.files.panCardImage[0]) : (rawDocs.panImage || rawDocs.panCard?.image)) || "";
+
+    const insuranceNumber = rawDocs.insuranceNumber || rawDocs.insurance?.number || "";
+    const insuranceExpiry = rawDocs.insuranceExpiry || rawDocs.insurance?.expiryDate || rawDocs.insurance?.expiry || "";
+    let insuranceImage = (req.files?.insuranceImage?.[0] ? getFileUrl(req.files.insuranceImage[0]) : (rawDocs.insuranceImage || rawDocs.insurance?.image)) || "";
+
+    let medicalCertificate = (req.files?.medicalCertificate?.[0] ? getFileUrl(req.files.medicalCertificate[0]) : rawDocs.medicalCertificate) || "";
+    let gst = (req.files?.gst?.[0] ? getFileUrl(req.files.gst[0]) : rawDocs.gst) || "";
+
+    // Upload base64 strings to ImageKit
+    const [
+      ikLicenseFront,
+      ikLicenseBack,
+      ikRcImage,
+      ikAadharImage,
+      ikPanImage,
+      ikInsuranceImage,
+      ikMedicalCertificate,
+      ikGst
+    ] = await Promise.all([
+      licenseFront && licenseFront.startsWith('data:') ? uploadToImageKit(licenseFront, `license_front_${last10}.jpg`, '/ecdkart/riders/documents') : Promise.resolve(licenseFront),
+      licenseBack && licenseBack.startsWith('data:') ? uploadToImageKit(licenseBack, `license_back_${last10}.jpg`, '/ecdkart/riders/documents') : Promise.resolve(licenseBack),
+      rcImage && rcImage.startsWith('data:') ? uploadToImageKit(rcImage, `rc_${last10}.jpg`, '/ecdkart/riders/documents') : Promise.resolve(rcImage),
+      aadharImage && aadharImage.startsWith('data:') ? uploadToImageKit(aadharImage, `aadhar_${last10}.jpg`, '/ecdkart/riders/documents') : Promise.resolve(aadharImage),
+      panImage && panImage.startsWith('data:') ? uploadToImageKit(panImage, `pan_${last10}.jpg`, '/ecdkart/riders/documents') : Promise.resolve(panImage),
+      insuranceImage && insuranceImage.startsWith('data:') ? uploadToImageKit(insuranceImage, `insurance_${last10}.jpg`, '/ecdkart/riders/documents') : Promise.resolve(insuranceImage),
+      medicalCertificate && medicalCertificate.startsWith('data:') ? uploadToImageKit(medicalCertificate, `medical_${last10}.jpg`, '/ecdkart/riders/documents') : Promise.resolve(medicalCertificate),
+      gst && gst.startsWith('data:') ? uploadToImageKit(gst, `gst_${last10}.jpg`, '/ecdkart/riders/documents') : Promise.resolve(gst)
+    ]);
+
+    const finalProcessedDocuments = {
+      license: {
+        number: licenseNumber,
+        expiryDate: licenseExpiry,
+        expiry: licenseExpiry,
+        frontImage: ikLicenseFront || licenseFront || "",
+        backImage: ikLicenseBack || licenseBack || "",
+        image: ikLicenseFront || licenseFront || "",
+        verified: false
+      },
+      rc: {
+        number: rcNumber,
+        image: ikRcImage || rcImage || "",
+        verified: false
+      },
+      aadharCard: {
+        number: aadharNumber,
+        image: ikAadharImage || aadharImage || "",
+        frontImage: ikAadharImage || aadharImage || "",
+        verified: false
+      },
+      panCard: {
+        number: panNumber,
+        image: ikPanImage || panImage || "",
+        verified: false
+      },
+      insurance: {
+        number: insuranceNumber,
+        expiryDate: insuranceExpiry,
+        expiry: insuranceExpiry,
+        image: ikInsuranceImage || insuranceImage || "",
+        verified: false
+      },
+      medicalCertificate: ikMedicalCertificate || medicalCertificate || "",
+      gst: ikGst || gst || ""
+    };
+
+    // Bank Details formatting
+    const rawBank = bankDetails || {};
+    const finalBankDetails = {
+      holderName: rawBank.holderName || rawBank.accountHolderName || cleanName,
+      accountHolderName: rawBank.accountHolderName || rawBank.holderName || cleanName,
+      bankName: rawBank.bankName || "",
+      accountNumber: rawBank.accountNumber || "",
+      ifscCode: (rawBank.ifscCode || "").toUpperCase().trim(),
+      upiId: (rawBank.upiId || "").trim(),
+      branchName: rawBank.branchName || "",
+      branchAddress: rawBank.branchAddress || "",
+      accountAddress: rawBank.accountAddress || "",
+      verified: false,
+      verificationStatus: 'pending'
+    };
+
+    // Address formatting
+    const finalAddress = typeof address === 'object' ? address : {
+      addressLine1: address || "",
+      addressLine2: address2 || "",
+      city: city || workCity || "",
+      state: state || "",
+      country: country || "India",
+      zipCode: zipCode || ""
+    };
+
     const [newRider] = await Rider.create([{
       user: newUser._id,
-      address,
-      workCity,
-      workZone,
-      vehicle,
-      documents: processedDocuments,
-      bankDetails,
-      verificationStatus: 'approved', // Admin created = Auto Approved
-      riderVerified: true,
+      name: cleanName,
+      email: cleanEmail,
+      mobile: cleanMobile,
+      phone: cleanMobile,
+      pin: cleanPin,
+      profilePic,
+      address: finalAddress,
+      workCity: workCity || city || "",
+      workZone: workZone || "",
+      vehicle: finalVehicle,
+      documents: finalProcessedDocuments,
+      bankDetails: finalBankDetails,
+      verificationStatus: 'pending', // Pending approval for Admin review
+      riderVerified: false,
+      status: status || 'pending',
+      isOnline: false,
+      isAvailable: false,
       currentLocation: {
         type: 'Point',
-        coordinates: [0, 0] // Default coords to satisfy 2dsphere index
+        coordinates: [77.0658, 28.2888] // Default coords to satisfy 2dsphere index
       }
     }], { session });
+
     await session.commitTransaction();
     session.endSession();
+
     res.status(201).json({
-      message: "Rider created successfully by Admin",
-      user: newUser,
+      success: true,
+      message: "Rider created successfully with Pending verification status for Admin approval",
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        mobile: newUser.mobile,
+        phone: newUser.phone,
+        role: newUser.role,
+        pin: newUser.pin,
+        isVerified: newUser.isVerified
+      },
       rider: newRider
     });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.getPendingRiders = async (req, res) => {
   try {
-    const pendingRiders = await Rider.find({ verificationStatus: 'pending' })
-      .populate('user', 'name email mobile profilePic');
-    res.status(200).json(pendingRiders);
+    const pendingRiders = await Rider.find({
+      $or: [
+        { verificationStatus: 'pending' },
+        { riderVerified: false },
+        { 'vehicle.vehicleVerified': false },
+        { 'vehicle.vehicleApproval.status': 'pending' }
+      ]
+    }).populate('user', 'name email mobile phone profilePic role');
+
+    const formatted = pendingRiders.map(r => {
+      const obj = r.toObject();
+      return {
+        ...obj,
+        name: obj.name || obj.user?.name || 'Driver Partner',
+        phone: obj.phone || obj.mobile || obj.user?.phone || obj.user?.mobile || '',
+        mobile: obj.mobile || obj.phone || obj.user?.mobile || obj.user?.phone || '',
+        email: obj.email || obj.user?.email || '',
+        profilePic: obj.profilePic || obj.user?.profilePic || '',
+        user: obj.user || {
+          _id: obj.user,
+          name: obj.name,
+          mobile: obj.mobile || obj.phone,
+          email: obj.email
+        }
+      };
+    });
+
+    res.status(200).json(formatted);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.verifyRider = async (req, res) => {
   try {
-    const { status, reason } = req.body; // Expecting: { status: 'approved' | 'rejected' }
-    const rider = await Rider.findById(req.params.id);
-    if (!rider) return res.status(404).json({ message: "Rider not found" });
+    const { id } = req.params;
+    const { status, reason } = req.body;
+    let rider = await Rider.findById(id).populate('user', 'name email mobile phone fcmToken');
+    if (!rider) {
+      rider = await Rider.findOne({ user: id }).populate('user', 'name email mobile phone fcmToken');
+    }
+    if (!rider) return res.status(404).json({ success: false, message: "Rider not found" });
+
     const newStatus = status || 'approved';
-    if (!['pending', 'approved', 'rejected', 'suspended'].includes(newStatus)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-    if (newStatus === 'approved') {
-      rider.riderVerified = true;
-    } else if (newStatus === 'rejected') {
-      rider.riderVerified = false;
-      rider.verificationStatus = 'rejected';
-      if (reason) {
-        rider.rejectionReason = reason;
+    rider.verificationStatus = newStatus;
+    rider.riderVerified = newStatus === 'approved';
+    if (rider.vehicle) {
+      rider.vehicle.vehicleVerified = newStatus === 'approved';
+      if (rider.vehicle.vehicleApproval) {
+        rider.vehicle.vehicleApproval.status = newStatus;
       }
-    } else {
-      rider.riderVerified = false;
     }
-    if (rider.riderVerified && rider.vehicle && rider.vehicle.vehicleVerified) {
-      rider.verificationStatus = 'approved';
-    } else if (newStatus !== 'rejected') {
-      rider.verificationStatus = 'pending';
+    if (rider.bankDetails) {
+      rider.bankDetails.verified = newStatus === 'approved';
+      rider.bankDetails.verificationStatus = newStatus;
+    }
+    if (newStatus === 'rejected') {
+      rider.rejectionReason = reason || 'Admin rejected application';
+      rider.rejectionDate = new Date();
     }
     await rider.save();
-    res.json({
-      message: newStatus === 'approved'
-        ? (rider.verificationStatus === 'approved'
-          ? 'Rider fully verified (documents & vehicle approved)'
-          : 'Rider documents approved. Awaiting vehicle verification.')
-        : `Rider ${newStatus} successfully`,
+    if (rider.user) {
+      await User.findByIdAndUpdate(rider.user._id || rider.user, {
+        isVerified: newStatus === 'approved'
+      }).catch(e => console.error('User isVerified sync error:', e));
+    }
+
+    // Send Push Notification to Rider App via Firebase & Socket
+    try {
+      const targetUserId = rider.user?._id || rider.user;
+      if (targetUserId) {
+        if (newStatus === 'approved') {
+          await sendNotification(
+            targetUserId,
+            "Profile Approved! 🎉",
+            "Congratulations! Your rider profile has been verified and approved by Admin. You can now go online and start accepting orders.",
+            {
+              type: "RIDER_VERIFIED",
+              riderId: rider._id.toString(),
+              status: "approved"
+            }
+          );
+          console.log(`✅ Verification approval notification sent to rider: ${targetUserId}`);
+        } else if (newStatus === 'rejected') {
+          await sendNotification(
+            targetUserId,
+            "Verification Update",
+            `Your rider profile verification was rejected. Reason: ${rider.rejectionReason || reason || 'Please check with admin'}`,
+            {
+              type: "RIDER_REJECTED",
+              riderId: rider._id.toString(),
+              status: "rejected",
+              reason: rider.rejectionReason
+            }
+          );
+          console.log(`⚠️ Verification rejection notification sent to rider: ${targetUserId}`);
+        }
+      }
+    } catch (notifyErr) {
+      console.error('Failed to send verification push notification:', notifyErr.message);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Rider ${newStatus} successfully`,
       rider
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.rejectRider = async (req, res) => {
   try {
+    const { id } = req.params;
     const { reason } = req.body;
-    const rider = await Rider.findById(req.params.id)
-      .populate('user', 'name email mobile');
+    let rider = await Rider.findById(id).populate('user', 'name email mobile phone');
     if (!rider) {
-      return res.status(404).json({ message: "Rider not found" });
+      rider = await Rider.findOne({ user: id }).populate('user', 'name email mobile phone');
     }
-    if (!reason || reason.trim().length === 0) {
-      return res.status(400).json({
-        message: "Rejection reason is required",
-        error: "Please provide a reason for rejecting this rider"
-      });
+    if (!rider) {
+      return res.status(404).json({ success: false, message: "Rider not found" });
     }
     rider.riderVerified = false;
     rider.verificationStatus = 'rejected';
-    rider.rejectionReason = reason;
+    rider.isOnline = false;
+    rider.isAvailable = false;
+    rider.status = 'inactive';
+    rider.rejectionReason = reason || 'Application rejected by Admin';
     rider.rejectionDate = new Date();
-    rider.rejectedBy = req.user._id;
+    rider.rejectedBy = req.user?._id;
     await rider.save();
+    if (rider.user) {
+      await User.findByIdAndUpdate(rider.user._id || rider.user, {
+        isVerified: false
+      }).catch(e => console.error('User isVerified sync error on reject:', e));
+    }
     try {
-      await sendNotification(
-        rider.user._id,
-        "Application Rejected",
-        `Your rider application has been rejected. Reason: ${reason}`,
-        { riderId: rider._id, reason }
-      );
+      if (rider.user?._id) {
+        await sendNotification(
+          rider.user._id,
+          "Application Rejected",
+          `Your rider application has been rejected. Reason: ${rider.rejectionReason}`,
+          { riderId: rider._id, reason: rider.rejectionReason }
+        );
+      }
     } catch (notifyError) {
       console.error('Failed to send rejection notification:', notifyError);
     }
     res.status(200).json({
       success: true,
       message: "Rider rejected successfully",
-      rider: {
-        _id: rider._id,
-        name: rider.user.name,
-        verificationStatus: rider.verificationStatus,
-        rejectionReason: rider.rejectionReason,
-        rejectionDate: rider.rejectionDate
-      }
+      rider
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.getAllRiders = async (req, res) => {
   try {
-    const { page, limit, skip } = getPaginationParams(req, 50);
+    const { page, limit, skip } = getPaginationParams(req, 100);
     const { status } = req.query;
     const search = req.query.search || '';
+
+    // Auto-reconcile any driver users without Rider docs
+    const driversWithoutRiders = await User.find({
+      role: { $in: ['driver', 'rider'] },
+      _id: { $nin: await Rider.distinct('user') }
+    });
+    if (driversWithoutRiders.length > 0) {
+      for (const d of driversWithoutRiders) {
+        try {
+          await Rider.create({
+            user: d._id,
+            name: d.name || 'Driver Partner',
+            email: d.email,
+            phone: d.phone || d.mobile,
+            mobile: d.mobile || d.phone,
+            profilePic: d.profilePic,
+            verificationStatus: 'pending',
+            riderVerified: false,
+            isAvailable: false,
+            isOnline: false,
+            status: 'inactive'
+          });
+        } catch (e) {
+          // ignore duplicate
+        }
+      }
+    }
+
     let query = {};
-    if (status) {
+    if (status && status !== 'all') {
       query.verificationStatus = status;
     }
     if (search) {
       query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+        { mobile: { $regex: search, $options: 'i' } },
         { 'address.city': { $regex: search, $options: 'i' } },
-        { workCity: { $regex: search, $options: 'i' } }
+        { workCity: { $regex: search, $options: 'i' } },
+        { 'vehicle.number': { $regex: search, $options: 'i' } },
+        { 'vehicle.regNumber': { $regex: search, $options: 'i' } }
       ];
     }
     const total = await Rider.countDocuments(query);
     const riders = await Rider.find(query)
-      .populate('user', 'name email mobile profilePic')
+      .populate('user', 'name email mobile phone profilePic role')
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
+
+    const formattedRiders = riders.map(r => {
+      const obj = r.toObject();
+      return {
+        ...obj,
+        name: obj.name || obj.user?.name || 'Driver Partner',
+        phone: obj.phone || obj.mobile || obj.user?.phone || obj.user?.mobile || '',
+        mobile: obj.mobile || obj.phone || obj.user?.mobile || obj.user?.phone || '',
+        email: obj.email || obj.user?.email || '',
+        profilePic: obj.profilePic || obj.user?.profilePic || '',
+        user: obj.user || {
+          _id: obj.user,
+          name: obj.name,
+          mobile: obj.mobile || obj.phone,
+          email: obj.email
+        }
+      };
+    });
+
     res.status(200).json({
-      riders,
+      success: true,
+      riders: formattedRiders,
       total,
       page,
       limit,
       pages: Math.ceil(total / limit)
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.getActiveRidersWithLocations = async (req, res) => {
   try {
-    const { isOnline } = req.query; // Optional filter: true/false
+    const { isOnline } = req.query;
     let query = {
       'currentLocation.coordinates.0': { $exists: true },
       'currentLocation.coordinates.1': { $exists: true },
@@ -2113,7 +2721,7 @@ exports.getActiveRidersWithLocations = async (req, res) => {
       query.isOnline = true;
     }
     const ridersWithLocations = await Rider.find(query)
-      .populate('user', 'name email mobile')
+      .populate('user', 'name email mobile phone')
       .lean();
     const enrichedRiders = await Promise.all(
       ridersWithLocations.map(async (rider) => {
@@ -2123,14 +2731,14 @@ exports.getActiveRidersWithLocations = async (req, res) => {
         })
           .lean()
           .select('_id customer restaurant deliveryAddress status pickupAddress');
-        const [longitude, latitude] = rider.currentLocation?.coordinates || [0, 0];
+        const [longitude, latitude] = rider.currentLocation?.coordinates || [77.0658, 28.2888];
         const riderStatus = rider.isOnline
           ? (rider.breakMode ? 'break' : (rider.isAvailable ? 'online' : 'busy'))
           : 'offline';
         return {
           riderId: rider._id,
-          riderName: rider.user?.name || 'Unknown',
-          riderPhone: rider.user?.mobile || rider.contactNumber,
+          riderName: rider.user?.name || rider.name || 'Unknown',
+          riderPhone: rider.user?.mobile || rider.user?.phone || rider.phone || rider.mobile || 'N/A',
           status: riderStatus,
           coordinates: {
             latitude,
@@ -2151,7 +2759,7 @@ exports.getActiveRidersWithLocations = async (req, res) => {
           orderCount: activeOrders.length,
           vehicle: {
             type: rider.vehicle?.type,
-            number: rider.vehicle?.number
+            number: rider.vehicle?.number || rider.vehicle?.regNumber
           }
         };
       })
@@ -2159,31 +2767,37 @@ exports.getActiveRidersWithLocations = async (req, res) => {
     res.status(200).json({
       success: true,
       count: enrichedRiders.length,
-      riders: enrichedRiders.sort((a, b) => b.orderCount - a.orderCount), // Show busiest riders first
+      riders: enrichedRiders.sort((a, b) => b.orderCount - a.orderCount),
       timestamp: new Date()
     });
   } catch (error) {
     console.error('Error fetching active riders:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.getRiderLiveTracking = async (req, res) => {
   try {
     const { riderId } = req.params;
-    const rider = await Rider.findById(riderId)
-      .populate('user', 'name email mobile profilePic')
+    let rider = await Rider.findById(riderId)
+      .populate('user', 'name email mobile phone profilePic')
       .lean();
     if (!rider) {
-      return res.status(404).json({ message: 'Rider not found' });
+      rider = await Rider.findOne({ user: riderId })
+        .populate('user', 'name email mobile phone profilePic')
+        .lean();
+    }
+    if (!rider) {
+      return res.status(404).json({ success: false, message: 'Rider not found' });
     }
     const activeOrders = await Order.find({
-      rider: riderId,
+      rider: rider._id,
       status: { $in: ['assigned', 'accepted_by_rider', 'reached_restaurant', 'arrived_restaurant', 'picked_up', 'delivery_arrived'] }
     })
       .populate('customer', 'name mobile')
       .populate('restaurant', 'name address')
       .lean();
-    const [longitude, latitude] = rider.currentLocation?.coordinates || [0, 0];
+    const [longitude, latitude] = rider.currentLocation?.coordinates || [77.0658, 28.2888];
     const riderStatus = rider.isOnline
       ? (rider.breakMode ? 'break' : (rider.isAvailable ? 'online' : 'busy'))
       : 'offline';
@@ -2191,9 +2805,9 @@ exports.getRiderLiveTracking = async (req, res) => {
       success: true,
       rider: {
         riderId: rider._id,
-        riderName: rider.user?.name,
-        riderPhone: rider.user?.mobile,
-        riderProfilePic: rider.user?.profilePic,
+        riderName: rider.user?.name || rider.name,
+        riderPhone: rider.user?.mobile || rider.user?.phone || rider.phone,
+        riderProfilePic: rider.user?.profilePic || rider.profilePic,
         currentLocation: {
           latitude,
           longitude,
@@ -2208,14 +2822,14 @@ exports.getRiderLiveTracking = async (req, res) => {
         breakReason: rider.breakReason,
         vehicle: {
           type: rider.vehicle?.type,
-          number: rider.vehicle?.number,
+          number: rider.vehicle?.number || rider.vehicle?.regNumber,
           color: rider.vehicle?.color
         },
         stats: {
-          totalDeliveries: rider.stats?.totalDeliveries || 0,
-          successfulOrders: rider.stats?.successfulOrders || 0,
-          ordersRejected: rider.stats?.ordersRejected || 0,
-          rating: rider.rating || 0
+          totalDeliveries: rider.totalDeliveries || 0,
+          successfulOrders: rider.deliveredOrders || 0,
+          ordersRejected: rider.cancelledOrders || 0,
+          rating: rider.averageRating || rider.rating?.average || 4.8
         },
         lastLocationUpdate: rider.lastLocationUpdateAt,
         updatedAt: rider.updatedAt
@@ -2236,56 +2850,187 @@ exports.getRiderLiveTracking = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching rider tracking:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.getRiderDetails = async (req, res) => {
   try {
-    const rider = await Rider.findById(req.params.id)
-      .populate('user', 'name email mobile profilePic');
-    if (!rider) return res.status(404).json({ message: "Rider not found" });
-    res.status(200).json(rider);
+    const { id } = req.params;
+    let rider = null;
+    if (isValidObjectId(id)) {
+      rider = await Rider.findById(id).populate('user', 'name email mobile phone profilePic role');
+      if (!rider) {
+        rider = await Rider.findOne({ user: id }).populate('user', 'name email mobile phone profilePic role');
+      }
+    }
+    if (!rider) {
+      const user = await User.findById(id);
+      if (user && ['driver', 'rider'].includes(user.role)) {
+        rider = await Rider.create({
+          user: user._id,
+          name: user.name || 'Driver Partner',
+          email: user.email,
+          mobile: user.mobile || user.phone,
+          phone: user.phone || user.mobile,
+          verificationStatus: 'approved',
+          riderVerified: true
+        });
+        rider = await Rider.findById(rider._id).populate('user', 'name email mobile phone profilePic role');
+      }
+    }
+    if (!rider) return res.status(404).json({ success: false, message: "Rider not found" });
+
+    const orders = await Order.find({ rider: rider._id });
+    const totalOrders = orders.length;
+    const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
+    const cancelledOrders = orders.filter(o => o.status === 'cancelled').length;
+    const totalEarnings = orders.reduce((sum, o) => sum + (o.riderEarning || o.riderCommission || 0), 0);
+
+    const riderObj = rider.toObject();
+    riderObj.name = riderObj.name || riderObj.user?.name || 'Driver Partner';
+    riderObj.phone = riderObj.phone || riderObj.mobile || riderObj.user?.phone || riderObj.user?.mobile || '';
+    riderObj.mobile = riderObj.mobile || riderObj.phone || riderObj.user?.mobile || riderObj.user?.phone || '';
+    riderObj.email = riderObj.email || riderObj.user?.email || '';
+    riderObj.profilePic = riderObj.profilePic || riderObj.user?.profilePic || '';
+    riderObj.totalOrders = totalOrders || riderObj.totalOrders || 0;
+    riderObj.deliveredOrders = deliveredOrders || riderObj.totalDeliveries || 0;
+    riderObj.cancelledOrders = cancelledOrders;
+    riderObj.totalEarnings = totalEarnings || riderObj.totalEarnings || 0;
+
+    res.status(200).json({
+      success: true,
+      rider: riderObj,
+      ...riderObj
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.updateRiderByAdmin = async (req, res) => {
   try {
-    const { address, workCity, workZone, vehicle, documents, bankDetails } = req.body;
-    if (vehicle && vehicle.type && typeof vehicle.type === 'string') {
-      const VehicleModel = require('../models/Vehicle');
-      const foundVehicle = await VehicleModel.findOne({ $or: [{ name: vehicle.type }, { type: vehicle.type }] });
-      if (foundVehicle) vehicle.type = foundVehicle._id;
+    const { id } = req.params;
+    let rider = null;
+    if (isValidObjectId(id)) {
+      rider = await Rider.findById(id);
+      if (!rider) {
+        rider = await Rider.findOne({ user: id });
+      }
     }
-    const updatedRider = await Rider.findByIdAndUpdate(
-      req.params.id,
-      { address, workCity, workZone, vehicle, documents, bankDetails },
-      { new: true, runValidators: true }
-    );
-    if (!updatedRider) return res.status(404).json({ message: "Rider not found" });
-    res.status(200).json({ message: "Rider details updated", rider: updatedRider });
+    if (!rider) return res.status(404).json({ success: false, message: "Rider not found" });
+
+    let { name, email, phone, mobile, address, workCity, workZone, vehicle, documents, bankDetails, verificationStatus, riderVerified, profilePic } = req.body;
+
+    address = parseIfString(address);
+    vehicle = parseIfString(vehicle);
+    documents = parseIfString(documents);
+    bankDetails = parseIfString(bankDetails);
+
+    // Profile Pic
+    let profilePicUrl = rider.profilePic;
+    if (req.files && req.files.profilePic && req.files.profilePic[0]) {
+      profilePicUrl = await getFileUrl(req.files.profilePic[0]);
+    } else if (profilePic) {
+      const ikUrl = await uploadToImageKit(profilePic, `profile_${rider._id}.jpg`);
+      if (ikUrl) profilePicUrl = ikUrl;
+    }
+
+    if (rider.user) {
+      try {
+        const user = await User.findById(rider.user);
+        if (user) {
+          if (name && name.trim()) user.name = name.trim();
+          if (email && email.trim()) user.email = email.trim().toLowerCase();
+          if (phone || mobile) {
+            user.mobile = mobile || phone || user.mobile;
+            user.phone = phone || mobile || user.phone;
+          }
+          if (profilePicUrl) {
+            user.profilePic = profilePicUrl;
+          }
+          await user.save();
+        }
+      } catch (userErr) {
+        console.warn('User update warning in admin edit:', userErr.message);
+      }
+    }
+
+    const updateDoc = {
+      ...(name ? { name } : {}),
+      ...(email ? { email } : {}),
+      ...(phone || mobile ? { phone: phone || mobile, mobile: mobile || phone } : {}),
+      ...(profilePicUrl ? { profilePic: profilePicUrl } : {}),
+      ...(address !== undefined ? { address } : {}),
+      ...(workCity !== undefined ? { workCity } : {}),
+      ...(workZone !== undefined ? { workZone } : {}),
+      ...(verificationStatus ? { verificationStatus } : {}),
+      ...(riderVerified !== undefined ? { riderVerified } : {}),
+    };
+
+    if (vehicle) {
+      updateDoc.vehicle = { ...(rider.vehicle || {}), ...vehicle };
+    }
+    if (documents) {
+      updateDoc.documents = { ...(rider.documents || {}), ...documents };
+    }
+    if (bankDetails) {
+      updateDoc.bankDetails = { ...(rider.bankDetails || {}), ...bankDetails };
+    }
+
+    const updated = await Rider.findByIdAndUpdate(
+      rider._id,
+      { $set: updateDoc },
+      { new: true, runValidators: false }
+    ).populate('user', 'name email mobile phone profilePic');
+
+    res.status(200).json({ success: true, message: "Rider details updated successfully", rider: updated });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Update rider error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.deleteRider = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
-    const rider = await Rider.findById(req.params.id).session(session);
-    if (!rider) {
-      await session.abortTransaction();
-      return res.status(404).json({ message: "Rider not found" });
+    const { id } = req.params;
+    let rider = null;
+    if (isValidObjectId(id)) {
+      rider = await Rider.findById(id);
+      if (!rider) {
+        rider = await Rider.findOne({ user: id });
+      }
     }
-    await User.findByIdAndDelete(rider.user).session(session);
-    await Rider.findByIdAndDelete(req.params.id).session(session);
-    await session.commitTransaction();
-    session.endSession();
-    res.status(200).json({ message: "Rider and associated User account deleted successfully" });
+    if (!rider) {
+      rider = await Rider.findOne({ $or: [{ _id: id }, { user: id }] }).catch(() => null);
+    }
+    if (!rider) {
+      return res.status(404).json({ success: false, message: "Rider not found" });
+    }
+    const userId = rider.user;
+    const phone = rider.mobile || rider.phone;
+    await Rider.findByIdAndDelete(rider._id);
+    if (userId) {
+      await User.findByIdAndDelete(userId);
+    }
+    if (phone) {
+      const clean10 = phone.toString().replace(/[^0-9]/g, '').slice(-10);
+      if (clean10) {
+        await User.deleteMany({
+          role: { $in: ['driver', 'rider'] },
+          $or: [
+            { mobile: `+91${clean10}` },
+            { phone: `+91${clean10}` },
+            { mobile: clean10 },
+            { phone: clean10 }
+          ]
+        });
+      }
+    }
+    res.status(200).json({ success: true, message: "Rider and associated User account deleted successfully" });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    res.status(500).json({ message: error.message });
+    console.error("Delete rider error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.sendSOS = async (req, res) => {
@@ -3455,13 +4200,40 @@ exports.getMyActiveOrder = async (req, res) => {
 exports.driverToggleOnline = async (req, res) => {
   try {
     let riderDoc = await Rider.findOne({ user: req.user._id });
-    if (!riderDoc) return res.status(404).json({ message: "Rider profile not found" });
-    riderDoc.isOnline = !riderDoc.isOnline;
+    if (!riderDoc) return res.status(404).json({ success: false, message: "Rider profile not found" });
+
+    const isApproved = (riderDoc.verificationStatus === 'approved' || riderDoc.riderVerified === true) &&
+      riderDoc.verificationStatus !== 'pending' &&
+      riderDoc.verificationStatus !== 'rejected';
+
+    if (!isApproved) {
+      if (riderDoc.isOnline || riderDoc.isAvailable || riderDoc.status === 'active') {
+        riderDoc.isOnline = false;
+        riderDoc.isAvailable = false;
+        riderDoc.status = 'inactive';
+        await riderDoc.save();
+      }
+      return res.status(403).json({
+        success: false,
+        message: riderDoc.verificationStatus === 'pending'
+          ? "Your profile is under review by Admin. You can go online once approved."
+          : riderDoc.verificationStatus === 'rejected'
+            ? "Your verification was rejected by Admin. Please contact support."
+            : "Your account is not approved yet. Please wait for admin approval.",
+        verificationStatus: riderDoc.verificationStatus,
+        isOnline: false,
+        rider: riderDoc
+      });
+    }
+
+    const requestedOnline = typeof req.body?.isOnline === 'boolean' ? req.body.isOnline : !riderDoc.isOnline;
+    riderDoc.isOnline = requestedOnline;
+    riderDoc.isAvailable = requestedOnline;
     riderDoc.status = riderDoc.isOnline ? "active" : "inactive";
     await riderDoc.save();
     return res.status(200).json({ success: true, isOnline: riderDoc.isOnline, status: riderDoc.status, rider: riderDoc });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 

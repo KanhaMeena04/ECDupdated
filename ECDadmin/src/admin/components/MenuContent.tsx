@@ -68,6 +68,7 @@ export const menuItems = [
     children: [
       { text: 'All Riders', path: '/driver-list' },
       { text: 'Pending Verification', path: '/pending-driver-list' },
+      { text: 'Payout Requests', path: '/rider-payout-requests' },
       { text: 'Earnings', path: '/rider-earnings-control' },
       { text: 'Incentives', path: '/promocodes' },
     ]
@@ -119,6 +120,7 @@ export const menuItems = [
       { text: 'Refunds', path: '/order-refund' },
       { text: 'Restaurant Settlement', path: '/restaurant-payout' },
       { text: 'Rider Settlement', path: '/driver-payout' },
+      { text: 'Rider Payout Requests', path: '/rider-payout-requests' },
       { text: 'Reconciliation', path: '/payment-reconciliation' },
     ]
   },

@@ -49,8 +49,12 @@ let rejectRider=false;
   };
 
   const handleRejectRider = async (id) => {
-    await rejectRider({ riderId: id, status: "rejected" });
-    await fetchPendingRiders();
+    try {
+      await verifyRider({ riderId: id, status: "rejected", reason: "Rejected by admin" });
+      await fetchPendingRiders();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   if (loading) return <p className="p-4 italic">Loading pending requests...</p>;
@@ -88,13 +92,13 @@ let rejectRider=false;
                   <td className="p-4 border">
                     <div className="flex gap-3 items-center">
                       <img
-                        src={driver.user?.profilePic || "https://via.placeholder.com/40"}
-                        className="w-10 h-10 rounded-full border"
+                        src={driver.user?.profilePic || driver.profilePic || "https://via.placeholder.com/40"}
+                        className="w-10 h-10 rounded-full border object-cover"
                         alt=""
                       />
                       <div>
-                        <div className="font-bold">{driver.user?.name}</div>
-                        <div className="text-xs text-gray-500">{driver.user?.mobile}</div>
+                        <div className="font-bold">{driver.user?.name || driver.name || "Driver Partner"}</div>
+                        <div className="text-xs text-gray-500">{driver.user?.mobile || driver.user?.phone || driver.phone || driver.mobile || "-"}</div>
                       </div>
                     </div>
                   </td>

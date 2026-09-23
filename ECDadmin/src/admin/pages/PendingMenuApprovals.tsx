@@ -263,7 +263,7 @@ export default function PendingMenuApprovals() {
                   <TableCell>
                     <Chip label="Pending Review" size="small" color="warning" />
                   </TableCell>
-                  <TableCell variant="body2" sx={{ fontSize: '0.8rem', color: '#64748B' }}>
+                  <TableCell variant="body" sx={{ fontSize: '0.8rem', color: '#64748B' }}>
                     {item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : 'Recent'}
                   </TableCell>
                   <TableCell align="center">
@@ -312,7 +312,7 @@ export default function PendingMenuApprovals() {
             </DialogTitle>
             <DialogContent dividers>
               <Grid container spacing={3}>
-                <Grid item xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                   {selectedItem.image ? (
                     <CardMedia
                       component="img"
@@ -330,7 +330,7 @@ export default function PendingMenuApprovals() {
                     <Chip label={selectedItem.available ? 'Available' : 'Out of Stock'} color={selectedItem.available ? 'info' : 'default'} />
                   </Box>
                 </Grid>
-                <Grid item xs={12} md={8}>
+                <Grid size={{ xs: 12, md: 8 }}>
                   <Typography variant="subtitle2" color="textSecondary">
                     Restaurant Details
                   </Typography>
@@ -353,12 +353,12 @@ export default function PendingMenuApprovals() {
                   </Typography>
 
                   <Grid container spacing={2} sx={{ bgcolor: '#F8FAFC', p: 2, borderRadius: 2, mb: 2 }}>
-                    <Grid item xs={6}>
+                    <Grid size={{ xs: 6 }}>
                       <Typography variant="caption" color="textSecondary">B2C Pricing</Typography>
                       <Typography variant="h6" color="primary">₹{selectedItem.pricing?.b2c?.sellingPrice ?? 0}</Typography>
                       <Typography variant="caption">MRP: ₹{selectedItem.pricing?.b2c?.mrp ?? 0}</Typography>
                     </Grid>
-                    <Grid item xs={6}>
+                    <Grid size={{ xs: 6 }}>
                       <Typography variant="caption" color="textSecondary">B2B Price (Corporate)</Typography>
                       <Typography variant="h6" color="secondary">₹{selectedItem.pricing?.b2b?.sellingPrice ?? 0}</Typography>
                     </Grid>

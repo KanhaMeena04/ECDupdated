@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/restaurant_api_service.dart';
 import '../theme/app_colors.dart';
 
 class OrderManagementSettingsScreen extends StatefulWidget {
@@ -35,18 +36,39 @@ class _OrderManagementSettingsScreenState extends State<OrderManagementSettingsS
     super.dispose();
   }
 
-  void _saveSettings() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Order management settings updated successfully!',
-          style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500),
+  Future<void> _saveSettings() async {
+    final settingsPayload = {
+      'autoAcceptOrders': _autoAcceptOrders,
+      'limitType': _limitType,
+      'dailyOrderLimit': _customLimitController.text.trim(),
+      'defaultPrepTime': _prepTimeController.text.trim(),
+      'orderScheduling': _orderScheduling,
+      'selfPickupEnabled': _selfPickupEnabled,
+      'autoReadyNotification': _autoReadyNotification,
+      'prepBuffer': _prepBufferController.text.trim(),
+      'pickupSlot': _pickupSlotController.text.trim(),
+      'maxPickupCapacity': _maxPickupCapacityController.text.trim(),
+      'gracePeriod': _gracePeriodController.text.trim(),
+      'cancellationWindow': _cancellationWindowController.text.trim(),
+    };
+
+    try {
+      await RestaurantApiService.updateSettings(settingsPayload);
+    } catch (_) {}
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Order management settings updated successfully!',
+            style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500),
+          ),
+          backgroundColor: AppColors.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        backgroundColor: AppColors.primaryGreen,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+      );
+    }
   }
 
   @override

@@ -42,6 +42,7 @@ const EditBrand=lazy(()=>import("../brands/pages/EditBrand"))
 
 const DriverList=lazy(()=>import("../drivermanagement/pages/DriverList"))
 const AddDriver=lazy(()=>import("../drivermanagement/pages/AddDriver"))
+const RiderPayoutRequests=lazy(()=>import("../drivermanagement/pages/RiderPayoutRequests"))
 const PromocodesList=lazy(()=>import("../promocodes/pages/PromoCodesList"))
 const AddPromoCodes=lazy(()=>import("../promocodes/pages/AddPromoCodes"))
 const UserManagement=lazy(()=>import("../userManagement/pages/UserManagement"))
@@ -217,6 +218,7 @@ const AdminRoutes = () => {
 				 <Route path="/admin/riders/:id" element={<DriverProfile/>} />
 				 <Route path="/admin/riders/edit/:id" element={<EditRider/>} />
 				 <Route path="/pending-driver-list" element={<PendingDriverList/>} />
+				 <Route path="/rider-payout-requests" element={<RiderPayoutRequests/>} />
 
 				 <Route path="/promocodes" element={<PromocodesList/>} />
 				 <Route path="/add-promocodes" element={<AddPromoCodes/>} />

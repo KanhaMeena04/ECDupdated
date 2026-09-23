@@ -27,6 +27,17 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
     ToggleOnlineStatus event,
     Emitter<DriverState> emit,
   ) async {
+    if (!event.currentUser.isVerified && event.isOnline) {
+      emit(DriverError(
+        message: 'Your profile is under review by Admin. You can go online once approved.',
+        orders: _activeOrders,
+        completedOrders: _completedOrders,
+        cancelledOrders: _cancelledOrders,
+        summaryData: _summaryData,
+      ));
+      return;
+    }
+
     emit(DriverLoading(
       orders: _activeOrders,
       completedOrders: _completedOrders,
@@ -78,36 +89,37 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
     MarkReachedStore event,
     Emitter<DriverState> emit,
   ) async {
-    emit(const DriverLoading());
-
-    // try {
-    //   final result = await ApiService.markReachedStore();
-    //   ...
-    // } catch (e) { ... }
-
-    // Logic Bypass for Development: Always succeed
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    final updatedUser = UserModel(
-      id: "mock_id",
-      phone: "9876543210",
-      name: "Mock Driver",
-      role: "driver",
-      isVerified: true,
-      hasPinSet: true,
-      createdAt: DateTime.now(),
-      isOnline: true,
-      isReturning: false,
-    );
-
-    emit(ReachedStoreConfirmed(
-      message: 'Welcome back. You are now available for new orders (Mock)',
-      updatedUser: updatedUser,
+    emit(DriverLoading(
       orders: _activeOrders,
       completedOrders: _completedOrders,
       cancelledOrders: _cancelledOrders,
       summaryData: _summaryData,
     ));
+
+    try {
+      final result = await ApiService.markReachedStore();
+      final updatedUser = event.currentUser?.copyWith(
+        isOnline: true,
+        isReturning: false,
+      );
+
+      emit(ReachedStoreConfirmed(
+        message: result['message'] ?? 'Arrived at store successfully',
+        updatedUser: updatedUser,
+        orders: _activeOrders,
+        completedOrders: _completedOrders,
+        cancelledOrders: _cancelledOrders,
+        summaryData: _summaryData,
+      ));
+    } catch (e) {
+      emit(DriverError(
+        message: 'Failed to update store arrival: $e',
+        orders: _activeOrders,
+        completedOrders: _completedOrders,
+        cancelledOrders: _cancelledOrders,
+        summaryData: _summaryData,
+      ));
+    }
   }
 
   // Update driver location
@@ -241,13 +253,15 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
         summaryData: _summaryData,
       ));
     } catch (e) {
-      emit(DriverError(
-        message: 'Network error: $e',
-        orders: _activeOrders,
-        completedOrders: _completedOrders,
-        cancelledOrders: _cancelledOrders,
-        summaryData: _summaryData,
-      ));
+      if (!event.isSilent) {
+        emit(DriverError(
+          message: 'Network error: $e',
+          orders: _activeOrders,
+          completedOrders: _completedOrders,
+          cancelledOrders: _cancelledOrders,
+          summaryData: _summaryData,
+        ));
+      }
     }
   }
 

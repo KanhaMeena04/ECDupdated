@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../models/order_model.dart';
+import '../services/restaurant_api_service.dart';
 import '../theme/app_colors.dart';
 import 'menu_management_screen.dart';
 import 'restaurant_dashboard_screen.dart';
@@ -32,6 +33,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadInitialMockData();
+    _fetchLiveOrders();
+  }
+
+  Future<void> _fetchLiveOrders() async {
+    try {
+      final res = await RestaurantApiService.getRestaurantOrders();
+      if (res['success'] == true && res['orders'] is List && (res['orders'] as List).isNotEmpty) {
+        final List<dynamic> list = res['orders'];
+        final List<Order> loaded = [];
+        for (var item in list) {
+          try {
+            if (item is Map<String, dynamic>) {
+              loaded.add(Order.fromJson(item));
+            }
+          } catch (e) {
+            debugPrint('Error parsing order: $e');
+          }
+        }
+        if (loaded.isNotEmpty && mounted) {
+          setState(() {
+            _orders = loaded;
+            for (var order in _orders) {
+              if (order.status == 'Ready' && !_otpControllers.containsKey(order.id)) {
+                _otpControllers[order.id] = TextEditingController(text: order.pickupOtp ?? '1234');
+              }
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading live orders: $e');
+    }
   }
 
   void _loadInitialMockData() {
@@ -442,6 +475,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       order.status = 'Preparing';
     });
+    RestaurantApiService.prepareOrder(order.backendId.isNotEmpty ? order.backendId : order.id);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Order accepted! Moved to Preparing state.'),
@@ -455,6 +489,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       _orders.removeWhere((o) => o.id == order.id);
     });
+    RestaurantApiService.cancelOrder(order.backendId.isNotEmpty ? order.backendId : order.id, "Order rejected by restaurant");
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Order rejected.'),
@@ -465,6 +500,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _markSearchingRider(Order order) {
+    RestaurantApiService.markOrderReady(order.backendId.isNotEmpty ? order.backendId : order.id);
     _showSearchingRiderModal(order);
   }
 
@@ -823,6 +859,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   value: _isOnline,
                   onChanged: (val) {
                     setState(() => _isOnline = val);
+                    RestaurantApiService.toggleActiveStatus(val);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(_isOnline ? 'Restaurant is now Online' : 'Restaurant is Offline'),

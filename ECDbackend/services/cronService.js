@@ -3,6 +3,7 @@ const Order = require('../models/Order');
 const User = require('../models/User');
 const socketService = require('./socketService');
 const mongoose = require('mongoose');
+
 const initCronJobs = () => {
     console.log(' Initializing Cron Jobs...');
     cron.schedule('*/5 * * * *', async () => {
@@ -12,6 +13,8 @@ const initCronJobs = () => {
             const now = new Date();
             const twentyMinsAgo = new Date(Date.now() - 20 * 60 * 1000);
             const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+            
+            // Job 1: Clean unverified users with expired OTPs
             try {
                 console.log('[Cleanup Job 1] Checking for unverified users with expired OTPs...');
                 const expiredUsers = await User.find({
@@ -30,6 +33,8 @@ const initCronJobs = () => {
             } catch (error) {
                 console.error('[Cleanup Job 1] Error:', error.message);
             }
+
+            // Job 2: Clean stale COD / wallet orders older than 20 mins
             try {
                 console.log('[Cleanup Job 2] Checking for stale orders...');
                 const staleOrders = await Order.find({
@@ -42,13 +47,27 @@ const initCronJobs = () => {
                 } else {
                     console.log(`Found ${staleOrders.length} stale COD/wallet orders.`);
                     for (const order of staleOrders) {
-                        order.status = 'cancelled';
-                        order.cancellationReason = 'System Auto-Cancel: Restaurant did not accept in time';
-                        order.cancellationInitiatedBy = 'system';
-                        order.cancelledAt = new Date();
-                        order.timeline.push({ status: 'cancelled', timestamp: new Date(), label: 'Order Cancelled', by: 'system', description: 'Restaurant did not accept in time.' });
-                        await order.save();
-                        if (socketService.getIO()) {
+                        await Order.updateOne(
+                            { _id: order._id },
+                            {
+                                $set: {
+                                    status: 'cancelled',
+                                    cancellationReason: 'System Auto-Cancel: Restaurant did not accept in time',
+                                    cancellationInitiatedBy: 'system',
+                                    cancelledAt: new Date()
+                                },
+                                $push: {
+                                    timeline: {
+                                        status: 'cancelled',
+                                        timestamp: new Date(),
+                                        label: 'Order Cancelled',
+                                        by: 'system',
+                                        description: 'Restaurant did not accept in time.'
+                                    }
+                                }
+                            }
+                        );
+                        if (socketService.getIO() && order.customer) {
                             socketService.emitToUser(order.customer.toString(), 'order:status', {
                                 orderId: order._id,
                                 status: 'cancelled',
@@ -62,6 +81,8 @@ const initCronJobs = () => {
             } catch (error) {
                 console.error('[Cleanup Job 2] Error:', error.message);
             }
+
+            // Job 4: Clean expired online payment orders older than 30 mins
             try {
                 console.log('[Cleanup Job 4] Checking for expired online payment orders...');
                 const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
@@ -76,14 +97,28 @@ const initCronJobs = () => {
                 } else {
                     console.log(`Found ${expiredOnlineOrders.length} expired online payment orders.`);
                     for (const order of expiredOnlineOrders) {
-                        order.status = 'failed';
-                        order.paymentStatus = 'failed';
-                        order.cancellationReason = 'System Auto-Cancel: Online payment not completed in time';
-                        order.cancellationInitiatedBy = 'system';
-                        order.cancelledAt = new Date();
-                        order.timeline.push({ status: 'failed', timestamp: new Date(), label: 'Payment Expired', by: 'system', description: 'Payment session expired. Please place a new order.' });
-                        await order.save();
-                        if (socketService.getIO()) {
+                        await Order.updateOne(
+                            { _id: order._id },
+                            {
+                                $set: {
+                                    status: 'failed',
+                                    paymentStatus: 'failed',
+                                    cancellationReason: 'System Auto-Cancel: Online payment not completed in time',
+                                    cancellationInitiatedBy: 'system',
+                                    cancelledAt: new Date()
+                                },
+                                $push: {
+                                    timeline: {
+                                        status: 'failed',
+                                        timestamp: new Date(),
+                                        label: 'Payment Expired',
+                                        by: 'system',
+                                        description: 'Payment session expired. Please place a new order.'
+                                    }
+                                }
+                            }
+                        );
+                        if (socketService.getIO() && order.customer) {
                             socketService.emitToUser(order.customer.toString(), 'order:status', {
                                 orderId: order._id,
                                 status: 'failed',
@@ -97,6 +132,8 @@ const initCronJobs = () => {
             } catch (error) {
                 console.error('[Cleanup Job 4] Error:', error.message);
             }
+
+            // Job 3: Clean stale unassigned orders older than 6 hours
             try {
                 console.log('[Cleanup Job 3] Checking for stale unassigned orders (6 hours)...');
                 const staleUnassignedOrders = await Order.find({
@@ -109,23 +146,43 @@ const initCronJobs = () => {
                 } else {
                     console.log(`Found ${staleUnassignedOrders.length} stale unassigned orders.`);
                     for (const order of staleUnassignedOrders) {
-                        order.status = 'cancelled';
-                        order.cancellationReason = 'System Auto-Cancel: No rider assigned after 6 hours';
-                        order.timeline.push({ status: 'cancelled', timestamp: new Date() });
-                        await order.save();
+                        await Order.updateOne(
+                            { _id: order._id },
+                            {
+                                $set: {
+                                    status: 'cancelled',
+                                    cancellationReason: 'System Auto-Cancel: No rider assigned after 6 hours',
+                                    cancellationInitiatedBy: 'system',
+                                    cancelledAt: new Date()
+                                },
+                                $push: {
+                                    timeline: {
+                                        status: 'cancelled',
+                                        timestamp: new Date(),
+                                        label: 'Order Cancelled',
+                                        by: 'system',
+                                        description: 'No rider assigned after 6 hours.'
+                                    }
+                                }
+                            }
+                        );
                         if (socketService.getIO()) {
-                            socketService.emitToUser(order.customer.toString(), 'order:status', {
-                                orderId: order._id,
-                                status: 'cancelled',
-                                timestamp: new Date(),
-                                message: 'Order cancelled due to no rider assignment.'
-                            });
-                            socketService.emitToRestaurant(order.restaurant.toString(), 'order:status', {
-                                orderId: order._id,
-                                status: 'cancelled',
-                                timestamp: new Date(),
-                                message: 'Order cancelled due to no rider assignment.'
-                            });
+                            if (order.customer) {
+                                socketService.emitToUser(order.customer.toString(), 'order:status', {
+                                    orderId: order._id,
+                                    status: 'cancelled',
+                                    timestamp: new Date(),
+                                    message: 'Order cancelled due to no rider assignment.'
+                                });
+                            }
+                            if (order.restaurant) {
+                                socketService.emitToRestaurant(order.restaurant.toString(), 'order:status', {
+                                    orderId: order._id,
+                                    status: 'cancelled',
+                                    timestamp: new Date(),
+                                    message: 'Order cancelled due to no rider assignment.'
+                                });
+                            }
                         }
                     }
                     console.log(`✅ Cancelled ${staleUnassignedOrders.length} stale unassigned orders.`);
@@ -138,4 +195,5 @@ const initCronJobs = () => {
         }
     });
 };
+
 module.exports = initCronJobs;

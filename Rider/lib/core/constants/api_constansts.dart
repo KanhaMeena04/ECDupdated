@@ -28,6 +28,8 @@ class ApiConstants {
 
   // User endpoints
   static String get profile => "$baseUrl/user/me";
+  static String get saveFcmToken => "$baseUrl/user/fcm-token";
+  static String get riderFcmToken => "$baseUrl/riders/fcm-token";
 
   // ✅ Driver endpoints
   static String get driverToggleOnline => "$baseUrl/drivers/toggle-online";

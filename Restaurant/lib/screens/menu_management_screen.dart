@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/restaurant_api_service.dart';
 import '../theme/app_colors.dart';
 
 class MenuManagementScreen extends StatefulWidget {
@@ -21,6 +22,29 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
   void initState() {
     super.initState();
     _loadInitialMockMenu();
+    _fetchLiveMenu();
+  }
+
+  Future<void> _fetchLiveMenu() async {
+    try {
+      final res = await RestaurantApiService.getMenu();
+      if (res['success'] == true && res['menu'] is List && (res['menu'] as List).isNotEmpty) {
+        final List<dynamic> list = res['menu'];
+        final List<Map<String, dynamic>> loaded = [];
+        for (var item in list) {
+          if (item is Map<String, dynamic>) {
+            loaded.add(Map<String, dynamic>.from(item));
+          }
+        }
+        if (loaded.isNotEmpty && mounted) {
+          setState(() {
+            _menuItems = loaded;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching live menu: $e');
+    }
   }
 
   void _loadInitialMockMenu() {
@@ -85,6 +109,7 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
         _menuItems[index]['isAvailable'] = isAvailable;
       }
     });
+    RestaurantApiService.toggleMenuItem(itemId);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -99,6 +124,7 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
     setState(() {
       _menuItems.removeWhere((item) => item['_id'] == itemId);
     });
+    RestaurantApiService.deleteMenuItem(itemId);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

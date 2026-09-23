@@ -36,7 +36,7 @@ const useRiders = (status) => {
     fetchRiders();
   }, [fetchRiders]);
 
-  return { riders, loading, error,  fetchRiders };
+  return { riders, loading, error, fetchRiders, refetch: fetchRiders };
 };
 
 const useRiderDetails = (riderId) => {
@@ -92,7 +92,6 @@ const useUpdateRider = () => {
         withCredentials: true,
       });
       return data;
-      navigate("/driver-list")
     } catch (err) {
       setError(err.response?.data?.message || "Update failed");
       throw err;
@@ -112,12 +111,21 @@ const useDeleteRider = () => {
     setLoading(true);
     setError("");
     try {
-      await axios.delete(`${API_BASE_URL}/api/admin/riders/${id}`, {
+      const { data } = await axios.delete(`${API_BASE_URL}/api/riders/admin/delete/${id}`, {
         withCredentials: true,
       });
+      return data;
     } catch (err) {
-      setError(err.response?.data?.message || "Delete failed");
-      throw err;
+      try {
+        const { data } = await axios.delete(`${API_BASE_URL}/api/admin/riders/${id}`, {
+          withCredentials: true,
+        });
+        return data;
+      } catch (innerErr) {
+        const msg = innerErr.response?.data?.message || err.response?.data?.message || "Delete failed";
+        setError(msg);
+        throw new Error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -130,28 +138,57 @@ const initialState = {
   name: "",
   email: "",
   mobile: "",
+  pin: "1234",
   password: "",
+  confirmPassword: "",
   profilePic: "",
   address: "",
+  address2: "",
+  country: "India",
+  state: "",
+  city: "",
+  zipCode: "",
   workCity: "",
   workZone: "",
+  restaurant: "",
+  status: "pending",
   vehicle: {
     type: "bike",
+    brand: "",
     model: "",
     number: "",
+    regNumber: "",
     color: "",
+    year: "",
   },
   documents: {
+    licenseNumber: "",
+    licenseExpiry: "",
+    licenseFront: null,
+    licenseBack: null,
+    rcNumber: "",
+    rcImage: null,
+    aadharNumber: "",
+    aadharFront: null,
+    aadharBack: null,
+    panNumber: "",
+    panImage: null,
+    insuranceNumber: "",
+    insuranceExpiry: "",
+    insuranceImage: null,
+    medicalCertificate: null,
     gst: null,
-    insurance: { file: null, expiry: "" },
-    medical: null,
-    license: null,
   },
   bankDetails: {
     holderName: "",
-    accountNumber: "",
-    ifscCode: "",
+    accountHolderName: "",
     bankName: "",
+    accountNumber: "",
+    confirmAccountNumber: "",
+    ifscCode: "",
+    upiId: "",
+    branchName: "",
+    branchAddress: "",
   },
 };
 
@@ -160,6 +197,7 @@ const useCreateRider = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ type: "", msg: "" });
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -167,13 +205,26 @@ const useCreateRider = () => {
   };
 
   const handleNestedChange = (parent, field, value) => {
-    setFormData((p) => ({ ...p, [parent]: { ...p[parent], [field]: value } }));
-  };
-
-  const handleDocumentChange = (key, file, expiry = "") => {
     setFormData((p) => ({
       ...p,
-      documents: { ...p.documents, [key]: expiry ? { file, expiry } : file },
+      [parent]: {
+        ...p[parent],
+        [field]: value,
+      },
+    }));
+  };
+
+  const setFieldValue = (field, value) => {
+    setFormData((p) => ({ ...p, [field]: value }));
+  };
+
+  const handleDocumentChange = (key, value) => {
+    setFormData((p) => ({
+      ...p,
+      documents: {
+        ...p.documents,
+        [key]: value,
+      },
     }));
   };
 
@@ -181,15 +232,33 @@ const useCreateRider = () => {
     setLoading(true);
     setStatus({ type: "", msg: "" });
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/riders/admin/create`, formData, {
+      // Ensure sync between number/regNumber and holderName/accountHolderName
+      const payload = {
+        ...formData,
+        vehicle: {
+          ...formData.vehicle,
+          number: formData.vehicle.number || formData.vehicle.regNumber,
+          regNumber: formData.vehicle.regNumber || formData.vehicle.number,
+        },
+        bankDetails: {
+          ...formData.bankDetails,
+          holderName: formData.bankDetails.holderName || formData.bankDetails.accountHolderName || formData.name,
+          accountHolderName: formData.bankDetails.accountHolderName || formData.bankDetails.holderName || formData.name,
+        }
+      };
+
+      const res = await axios.post(`${API_BASE_URL}/api/riders/admin/create`, payload, {
         withCredentials: true,
       });
-      setStatus({ type: "success", msg: res.data.message });
+
+      setStatus({ type: "success", msg: res.data?.message || "Rider created successfully!" });
       setFormData(initialState);
       setActiveStep(0);
+      return res.data;
     } catch (err) {
-      setStatus({ type: "error", msg: err.response?.data?.message || "Error creating rider" });
-      throw err;
+      const errorMsg = err.response?.data?.message || err.message || "Error creating rider";
+      setStatus({ type: "error", msg: errorMsg });
+      throw new Error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -197,14 +266,19 @@ const useCreateRider = () => {
 
   return {
     formData,
+    setFormData,
     activeStep,
+    setActiveStep,
     loading,
     status,
+    setStatus,
     handleChange,
     handleNestedChange,
     handleDocumentChange,
+    setFieldValue,
     nextStep: () => setActiveStep((s) => s + 1),
-    prevStep: () => setActiveStep((s) => s - 1),
+    prevStep: () => setActiveStep((s) => Math.max(0, s - 1)),
+    goToStep: (step) => setActiveStep(step),
     submitRider,
   };
 };

@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../../data/models/user_models.dart';
 import '../../../data/services/api_service.dart';
+import '../../../data/services/notification_service.dart';
 import '../../../logic/blocs/auth/auth_bloc.dart';
 import '../../../logic/blocs/auth/auth_event.dart';
 import '../../../logic/blocs/auth/auth_state.dart';
@@ -14,8 +16,10 @@ import '../../../logic/blocs/driver/driver_state.dart';
 import '../../../data/services/location_service.dart';
 import '../auth/rider_relogin_screen.dart';
 import '../auth/profile_screen.dart';
+import '../onboarding_screen.dart';
 import '../order/order_tracking_screen.dart';
 import '../wallet/rider_wallet_screen.dart';
+import 'widgets/notifications_sheet.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class DriverHomeScreen extends StatefulWidget {
@@ -30,10 +34,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   bool _isReturning = false;
   bool _isTrackingLocation = false;
   bool _showIncomingOrder = false;
+  bool _celebrationDialogShown = false;
   final Set<String> _processedOrders = {};
 
   late AnimationController _timerController;
   Timer? _pollingTimer;
+  StreamSubscription? _notificationSub;
 
   // ECD Kart brand colors
   static const Color primaryGreen = Color(0xFF248C70);
@@ -45,6 +51,47 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     super.initState();
     _initializeDriverStatus();
     _checkLocationPermission();
+
+    // Initialize Push Notifications (FCM) & In-App notification listener
+    NotificationService.initialize();
+    _notificationSub = NotificationService.onNotificationReceived.listen((payload) {
+      if (!mounted) return;
+      final title = payload['title'] ?? 'Notification';
+      final body = payload['body'] ?? '';
+      final type = payload['type'] ?? '';
+      final isApproval = type == 'RIDER_VERIFIED' ||
+          title.toLowerCase().contains('rider approved') ||
+          (title.toLowerCase().contains('approved') && !title.toLowerCase().contains('payment') && !title.toLowerCase().contains('payout') && !title.toLowerCase().contains('withdrawal'));
+
+      if (isApproval) {
+        context.read<AuthBloc>().add(const CheckAuthStatus());
+        _showApprovalCelebrationDialog(title, body);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  type == 'PAYOUT_APPROVED' ? Icons.account_balance_wallet_rounded : Icons.notifications_active_rounded,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    body.isNotEmpty ? body : title,
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: type == 'PAYOUT_REJECTED' ? Colors.redAccent : primaryGreen,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    });
+
     _timerController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 15),
@@ -75,22 +122,90 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DriverBloc>().add(const LoadActiveOrders());
-      // Poll for active orders every 3 seconds for near real-time order popups
-      _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-        if (mounted) {
-          context.read<DriverBloc>().add(const LoadActiveOrders(isSilent: true));
-        }
-      });
+      NotificationService.syncWithdrawalNotifications();
     });
+  }
+
+  void _showApprovalCelebrationDialog(String title, String body) {
+    if (_celebrationDialogShown) return;
+    _celebrationDialogShown = true;
+
+    final notifTitle = title.isNotEmpty ? title : 'Profile Approved! 🎉';
+    final notifBody = body.isNotEmpty
+        ? body
+        : 'Congratulations! Your rider profile has been verified and approved by Admin. You can now go online and start accepting orders.';
+
+    // Save notification to bell icon list
+    NotificationService.addNotification(
+      title: notifTitle,
+      body: notifBody,
+      type: 'APPROVAL',
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: lightGreen,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.verified_rounded, color: primaryGreen, size: 48),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Profile Approved! 🎉',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        content: Text(
+          notifBody,
+          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[700], height: 1.4),
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryGreen,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Text('Start Earning', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _initializeDriverStatus() {
     final authState = context.read<AuthBloc>().state;
     if (authState is Authenticated) {
+      final isVerified = authState.user.isVerified;
       setState(() {
-        _isOnline = authState.user.isOnline;
+        _isOnline = isVerified ? authState.user.isOnline : false;
         _isReturning = authState.user.isReturning;
       });
+      if (isVerified) {
+        NotificationService.addNotification(
+          title: 'Profile Approved! 🎉',
+          body: 'Congratulations! Your rider profile has been verified and approved by Admin. You can now go online and start accepting orders.',
+          type: 'APPROVAL',
+        );
+      }
+    } else if (authState is AuthInitial) {
+      context.read<AuthBloc>().add(const CheckAuthStatus());
     }
   }
 
@@ -144,6 +259,31 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   }
 
   Future<void> _toggleOnlineStatus() async {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! Authenticated || !authState.user.isVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.lock_clock_rounded, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Your profile is under review by Admin. You can go online once approved.',
+                  style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+
+    final user = authState.user;
     final newStatus = !_isOnline;
 
     if (newStatus) {
@@ -158,19 +298,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     }
 
     if (!mounted) return;
-    final authState = context.read<AuthBloc>().state;
-    if (authState is Authenticated) {
-      context.read<DriverBloc>().add(
-        ToggleOnlineStatus(
-          isOnline: newStatus, 
-          currentUser: authState.user,
-        ),
-      );
-      
-      // Auto-refresh orders when going online
-      if (newStatus) {
-        context.read<DriverBloc>().add(const LoadActiveOrders());
-      }
+    context.read<DriverBloc>().add(
+      ToggleOnlineStatus(
+        isOnline: newStatus, 
+        currentUser: user,
+      ),
+    );
+    
+    // Auto-refresh orders when going online
+    if (newStatus) {
+      context.read<DriverBloc>().add(const LoadActiveOrders());
     }
   }
 
@@ -196,11 +333,17 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   }
 
   void _markReachedStore() {
-    context.read<DriverBloc>().add(const MarkReachedStore());
+    final authState = context.read<AuthBloc>().state;
+    UserModel? user;
+    if (authState is Authenticated) {
+      user = authState.user;
+    }
+    context.read<DriverBloc>().add(MarkReachedStore(currentUser: user));
   }
 
   @override
   void dispose() {
+    _notificationSub?.cancel();
     _stopLocationTracking();
     _timerController.dispose();
     _pollingTimer?.cancel();
@@ -218,13 +361,27 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 MaterialPageRoute(builder: (_) => const RiderReloginScreen()),
                 (route) => false,
               );
+            } else if (state is Authenticated) {
+              setState(() {
+                _isOnline = state.user.isVerified ? state.user.isOnline : false;
+                _isReturning = state.user.isReturning;
+              });
+
+              if (state.user.isVerified && !_celebrationDialogShown) {
+                _showApprovalCelebrationDialog(
+                  'Profile Approved! 🎉',
+                  'Congratulations! Your rider profile has been verified and approved by Admin. You can now go online and start accepting orders.',
+                );
+              }
             }
           },
         ),
         BlocListener<DriverBloc, DriverState>(
           listener: (context, state) {
             if (state is OnlineStatusUpdated) {
-              setState(() => _isOnline = state.isOnline);
+              final authState = context.read<AuthBloc>().state;
+              final isVerified = authState is Authenticated && authState.user.isVerified;
+              setState(() => _isOnline = isVerified ? state.isOnline : false);
 
               // Update AuthBloc with new user data
               if (state.updatedUser != null) {
@@ -249,7 +406,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                   ),
                   backgroundColor: state.isOnline
                       ? primaryGreen
-                      : Colors.orange[700],
+                      : darkBlack,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -317,6 +474,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         body: BlocBuilder<AuthBloc, AuthState>(
           builder: (context, authState) {
             if (authState is! Authenticated) {
+              if (authState is Unauthenticated || authState is AuthError) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const RiderReloginScreen()),
+                      (route) => false,
+                    );
+                  }
+                });
+              } else if (authState is AuthInitial) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    context.read<AuthBloc>().add(const CheckAuthStatus());
+                  }
+                });
+              }
               return const Center(child: CircularProgressIndicator(color: primaryGreen));
             }
 
@@ -522,12 +695,17 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                           duration: const Duration(milliseconds: 250),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
-                            color: _isOnline ? primaryGreen : Colors.redAccent.withValues(alpha: 0.95),
+                            color: !user.isVerified
+                                ? primaryGreen
+                                : (_isOnline ? primaryGreen : Colors.redAccent.withValues(alpha: 0.95)),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                             boxShadow: [
                               BoxShadow(
-                                color: (_isOnline ? primaryGreen : Colors.redAccent).withValues(alpha: 0.45),
+                                color: (!user.isVerified
+                                        ? primaryGreen
+                                        : (_isOnline ? primaryGreen : Colors.redAccent))
+                                    .withValues(alpha: 0.45),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -546,7 +724,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                _isOnline ? 'ONLINE' : 'OFFLINE',
+                                !user.isVerified
+                                    ? 'PENDING'
+                                    : (_isOnline ? 'ONLINE' : 'OFFLINE'),
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 11,
@@ -560,26 +740,61 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                       ),
                       const SizedBox(width: 8),
 
-                      // Notifications Button
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 20),
-                          padding: const EdgeInsets.all(8),
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('No new notifications'),
-                                behavior: SnackBarBehavior.floating,
+                      // Notifications Button with Live Badge
+                      ValueListenableBuilder<int>(
+                        valueListenable: NotificationService.unreadCountNotifier,
+                        builder: (context, unreadCount, _) {
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.45),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                                ),
+                                child: IconButton(
+                                  icon: Icon(
+                                    unreadCount > 0 ? Icons.notifications_active_rounded : Icons.notifications_none_rounded,
+                                    color: unreadCount > 0 ? const Color(0xFFFBBF24) : Colors.white,
+                                    size: 20,
+                                  ),
+                                  padding: const EdgeInsets.all(8),
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () {
+                                    NotificationsSheet.show(context);
+                                  },
+                                ),
                               ),
-                            );
-                          },
-                        ),
+                              if (unreadCount > 0)
+                                Positioned(
+                                  top: -2,
+                                  right: -2,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red[600],
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 1.5),
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: Text(
+                                      unreadCount > 9 ? '9+' : '$unreadCount',
+                                      style: GoogleFonts.poppins(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -617,12 +832,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                _isOnline
-                                    ? '🟢 You are online & ready to receive orders'
-                                    : '🔴 You are offline. Tap Go Online to start',
+                                !user.isVerified
+                                    ? '⏳ Profile under review. Waiting for admin approval.'
+                                    : (_isOnline
+                                        ? '🟢 You are online & ready to receive orders'
+                                        : '🔴 You are offline. Tap Go Online to start'),
                                 style: GoogleFonts.poppins(
                                   fontSize: 11,
-                                  color: _isOnline ? const Color(0xFF9EF01A) : Colors.white70,
+                                  color: !user.isVerified
+                                      ? const Color(0xFFFFB703)
+                                      : (_isOnline ? const Color(0xFF9EF01A) : Colors.white70),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -781,7 +1000,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 
                 _buildPopupInfoRow(
                   icon: Icons.storefront,
-                  color: Colors.orange[700]!,
+                  color: primaryGreen,
                   title: storeName,
                   subtitle: storeAddress,
                   onTrack: () {
@@ -1100,22 +1319,58 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 ],
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: lightGreen,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: primaryGreen.withValues(alpha: 0.3)),
-              ),
-              child: Text(
-                user.riderId ?? 'RIDER',
-                style: GoogleFonts.poppins(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.bold,
-                  color: primaryGreen,
-                  letterSpacing: 0.5,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: lightGreen,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: primaryGreen.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    user.riderId ?? 'RIDER',
+                    style: GoogleFonts.poppins(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: primaryGreen,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: user.isVerified ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: user.isVerified ? const Color(0xFF81C784) : const Color(0xFFFFB74D),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        user.isVerified ? Icons.verified_rounded : Icons.hourglass_top_rounded,
+                        size: 11,
+                        color: user.isVerified ? const Color(0xFF2E7D32) : const Color(0xFFE65100),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        user.isVerified ? 'Verified' : 'Pending',
+                        style: GoogleFonts.poppins(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                          color: user.isVerified ? const Color(0xFF2E7D32) : const Color(0xFFE65100),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1124,6 +1379,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   }
 
   Widget _buildActionButtons() {
+    final authState = context.watch<AuthBloc>().state;
+    final isVerified = authState is Authenticated && authState.user.isVerified;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -1139,12 +1397,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 child: ElevatedButton(
                   onPressed: isLoading ? null : _toggleOnlineStatus,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isOnline
-                        ? Colors.orange[700]
-                        : darkBlack,
+                    backgroundColor: !isVerified
+                        ? primaryGreen
+                        : (_isOnline ? primaryGreen : darkBlack),
                     foregroundColor: Colors.white,
                     elevation: 2,
-                    shadowColor: (_isOnline ? Colors.orange : darkBlack).withValues(alpha: 0.3),
+                    shadowColor: (!isVerified
+                            ? primaryGreen
+                            : (_isOnline ? primaryGreen : darkBlack))
+                        .withValues(alpha: 0.3),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -1163,15 +1424,19 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              _isOnline
-                                  ? Icons.pause_circle_filled_rounded
-                                  : Icons.play_circle_fill_rounded,
+                              !isVerified
+                                  ? Icons.lock_clock_rounded
+                                  : (_isOnline
+                                      ? Icons.pause_circle_filled_rounded
+                                      : Icons.play_circle_fill_rounded),
                               size: 22,
                               color: Colors.white,
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              _isOnline ? 'Go Offline' : 'Go Online',
+                              !isVerified
+                                  ? 'Approval Pending (Locked)'
+                                  : (_isOnline ? 'Go Offline' : 'Go Online'),
                               style: GoogleFonts.poppins(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
@@ -1185,61 +1450,33 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               );
             },
           ),
-          if (_isReturning) ...[
-            const SizedBox(height: 10),
-            BlocBuilder<DriverBloc, DriverState>(
-              builder: (context, state) {
-                final isLoading = state is DriverLoading;
-
-                return SizedBox(
-                  height: 52,
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: isLoading ? null : _markReachedStore,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryGreen,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      disabledBackgroundColor: Colors.grey[300],
-                    ),
-                    child: isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.storefront_rounded, size: 20),
-                              const SizedBox(width: 10),
-                              Text(
-                                'I Reached Store',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                );
-              },
-            ),
-          ],
         ],
       ),
     );
   }
 
   Widget _buildStatsCards() {
+    final authState = context.watch<AuthBloc>().state;
+    final isVerified = authState is Authenticated && authState.user.isVerified;
+
+    String statusText;
+    Color statusColor;
+    Color statusBgColor;
+
+    if (!isVerified) {
+      statusText = 'Pending';
+      statusColor = primaryGreen;
+      statusBgColor = lightGreen;
+    } else if (_isOnline) {
+      statusText = 'Available';
+      statusColor = primaryGreen;
+      statusBgColor = lightGreen;
+    } else {
+      statusText = 'Offline';
+      statusColor = Colors.grey[700]!;
+      statusBgColor = Colors.grey[100]!;
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -1258,9 +1495,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             child: _buildStatCard(
               icon: Icons.assignment_outlined,
               title: 'Status',
-              value: _isReturning ? 'Returning' : 'Available',
-              color: _isReturning ? Colors.orange[700]! : Colors.blue[600]!,
-              bgColor: _isReturning ? Colors.orange[50]! : Colors.blue[50]!,
+              value: statusText,
+              color: statusColor,
+              bgColor: statusBgColor,
             ),
           ),
         ],
@@ -1375,7 +1612,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                       icon: Icons.timer_rounded,
                       label: 'Today Hours',
                       value: hours,
-                      color: Colors.orange[700]!,
+                      color: primaryGreen,
                     ),
                   ),
                 ],
@@ -1571,6 +1808,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   }
 
   Widget _buildNoOrdersWidget({String? title}) {
+    final authState = context.read<AuthBloc>().state;
+    final isVerified = authState is Authenticated && authState.user.isVerified;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 40),
@@ -1583,11 +1823,17 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 color: Colors.grey[100],
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.inbox_outlined, size: 40, color: Colors.grey[400]),
+              child: Icon(
+                !isVerified ? Icons.lock_clock_outlined : Icons.inbox_outlined,
+                size: 40,
+                color: !isVerified ? primaryGreen : Colors.grey[400],
+              ),
             ),
             const SizedBox(height: 14),
             Text(
-              title ?? (_isOnline ? 'No active orders right now' : 'Go online to receive nearby orders'),
+              title ?? (!isVerified
+                  ? 'Your profile is under review by Admin'
+                  : (_isOnline ? 'No active orders right now' : 'Go online to receive nearby orders')),
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 14,
@@ -1598,7 +1844,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             if (!_isOnline && title == null) ...[
               const SizedBox(height: 6),
               Text(
-                'You are currently offline',
+                !isVerified
+                    ? 'Orders will be available once Admin approves'
+                    : 'You are currently offline',
                 style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[400]),
               ),
             ],

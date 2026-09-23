@@ -262,7 +262,7 @@ const useRestaurantNameList = () => {
 };
 
 const useEditRestaurantProfile = (restaurantId) => {
-  const navigate=useNavigate()
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -273,10 +273,37 @@ const useEditRestaurantProfile = (restaurantId) => {
 
     const fetchRestaurant = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/restaurants/${restaurantId}`, { withCredentials: true });
-        setData(res.data.restaurant);
+        let rest = null;
+        let menu = null;
+
+        try {
+          const res = await axios.get(`${API_BASE_URL}/api/restaurants/admin/${restaurantId}`, { withCredentials: true });
+          rest = res.data.restaurant || res.data;
+          menu = res.data.menu || null;
+        } catch (adminErr) {
+          console.warn("Admin endpoint error, trying public endpoint:", adminErr);
+          const fallbackRes = await axios.get(`${API_BASE_URL}/api/restaurants/${restaurantId}`, { withCredentials: true });
+          rest = fallbackRes.data.restaurant || fallbackRes.data;
+          menu = fallbackRes.data.menu || null;
+        }
+
+        if (rest) {
+          if (menu) {
+            rest.menu = menu;
+          }
+          if (typeof rest.name === "string") {
+            rest.name = { en: rest.name, de: rest.name };
+          }
+          if (typeof rest.description === "string") {
+            rest.description = { en: rest.description, de: rest.description };
+          }
+          setData(rest);
+        } else {
+          setError("Restaurant not found");
+        }
       } catch (err) {
-        setError("Failed to load restaurant data");
+        console.error("Failed to load restaurant data:", err);
+        setError(err.response?.data?.message || "Failed to load restaurant data");
       } finally {
         setLoading(false);
       }
@@ -288,20 +315,24 @@ const useEditRestaurantProfile = (restaurantId) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name.includes(".")) {
-      setData(prev => updateNestedField(prev, name, value));
+      setData((prev) => updateNestedField(prev, name, value));
     } else {
-      setData(prev => ({ ...prev, [name]: value }));
+      setData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
   const handleSubmit = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API_BASE_URL}/api/restaurants/${restaurantId}`, data, { withCredentials: true });
+      try {
+        await axios.put(`${API_BASE_URL}/api/restaurants/admin/${restaurantId}`, data, { withCredentials: true });
+      } catch (adminPutErr) {
+        await axios.put(`${API_BASE_URL}/api/restaurants/${restaurantId}`, data, { withCredentials: true });
+      }
       toast.success("Restaurant Updated Successfully!");
       navigate("/restaurants");
     } catch (err) {
-      setError("Update failed");
+      setError(err.response?.data?.message || "Update failed");
     } finally {
       setSaving(false);
     }

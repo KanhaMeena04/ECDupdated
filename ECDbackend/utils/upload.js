@@ -45,14 +45,31 @@ function fileFilter (req, file, cb) {
   cb(new Error('Invalid file type. Only JPEG, PNG and WEBP allowed.'));
 }
 const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB
-const getFileUrl = (file) => {
+const { uploadToImageKit } = require('../services/imageKitService');
+
+const getFileUrl = async (file) => {
   if (!file) return null;
+  if (typeof file === 'string') {
+    if (/^https?:\/\//i.test(file) && !file.startsWith('data:')) return file;
+    if (file.startsWith('data:') || file.length > 500) {
+      const ikUrl = await uploadToImageKit(file, 'upload.jpg');
+      if (ikUrl) return ikUrl;
+    }
+  }
   if (typeof file.path === 'string' && /^https?:\/\//.test(file.path)) return file.path;
   if (typeof file.url === 'string' && /^https?:\/\//.test(file.url)) return file.url;
+  if (file.path && fs.existsSync(file.path)) {
+    try {
+      const ikUrl = await uploadToImageKit(file.path, file.originalname || file.filename || 'upload.jpg');
+      if (ikUrl) return ikUrl;
+    } catch (e) {
+      console.warn('ImageKit file upload fallback:', e.message);
+    }
+  }
   if (file.filename) return `/uploads/${file.filename}`;
   return null;
 };
 async function uploadToS3 (file) {
-  return null;
+  return getFileUrl(file);
 }
-module.exports = { upload, getFileUrl, uploadToS3 };
+module.exports = { upload, getFileUrl, uploadToS3, uploadToImageKit };

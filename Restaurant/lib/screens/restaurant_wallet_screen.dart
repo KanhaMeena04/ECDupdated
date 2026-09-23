@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/restaurant_api_service.dart';
 import '../theme/app_theme.dart';
 
 class RestaurantWalletScreen extends StatefulWidget {
@@ -9,16 +10,41 @@ class RestaurantWalletScreen extends StatefulWidget {
 }
 
 class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
-  final bool _isLoading = false;
+  bool _isLoading = false;
   double _availableBalance = 12450.00;
-  final double _totalEarnings = 48900.00;
-  final double _totalCommissionPaid = 4890.00;
+  double _totalEarnings = 48900.00;
+  double _totalCommissionPaid = 4890.00;
   List<dynamic> _transactions = [];
 
   @override
   void initState() {
     super.initState();
     _loadInitialMockWallet();
+    _fetchLiveWallet();
+  }
+
+  Future<void> _fetchLiveWallet() async {
+    setState(() => _isLoading = true);
+    try {
+      final res = await RestaurantApiService.getWalletData();
+      if (res['success'] == true && res['data'] != null) {
+        final data = res['data'];
+        if (mounted) {
+          setState(() {
+            _availableBalance = (data['balance'] ?? data['availableBalance'] ?? _availableBalance).toDouble();
+            _totalEarnings = (data['totalEarnings'] ?? _totalEarnings).toDouble();
+            _totalCommissionPaid = (data['totalCommission'] ?? data['totalCommissionPaid'] ?? _totalCommissionPaid).toDouble();
+            if (data['transactions'] is List && (data['transactions'] as List).isNotEmpty) {
+              _transactions = data['transactions'];
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching wallet data: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _loadInitialMockWallet() {

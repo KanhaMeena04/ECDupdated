@@ -92,14 +92,15 @@ useEffect(() => {
       id: item._id,
       name: item.name || "-",
       ownerId: item.ownerId || "-",
+      email: item.email || "-",
       address: item.address || "-",
       contact: item.contact || "-",
       rating: item.rating ?? 0,
-      status: (item.status=="Active") ? "Active" : "Inactive",
-      openStatus: (item.openStatus=="Accepting Orders")
+      status: (item.status === "Active" || item.status === true) ? "Active" : "Inactive",
+      openStatus: (item.openStatus === "Accepting Orders" || item.openStatus === true)
         ? "Accepting Orders"
         : "Not Accepting Orders",
-      createdOn: formatDate(item.createdOn),
+      createdOn: item.createdOn ? formatDate(item.createdOn) : "-",
     }));
   }, [data]);
 

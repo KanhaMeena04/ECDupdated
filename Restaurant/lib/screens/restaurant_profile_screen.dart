@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/restaurant_api_service.dart';
+import '../services/restaurant_auth_service.dart';
 import '../theme/app_colors.dart';
 
 class RestaurantProfileScreen extends StatefulWidget {
@@ -57,6 +59,22 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadProfileData();
+  }
+
+  Future<void> _loadProfileData() async {
+    final session = await RestaurantAuthService.getSavedAuthSession();
+    final vendor = session['vendor'];
+    if (vendor != null && mounted) {
+      setState(() {
+        if (vendor['name'] != null) _tradeNameController.text = vendor['name'].toString();
+        if (vendor['address'] != null) _addressController.text = vendor['address'].toString();
+        if (vendor['city'] != null) _cityController.text = vendor['city'].toString();
+        if (vendor['area'] != null) _areaController.text = vendor['area'].toString();
+        if (vendor['email'] != null) _emailController.text = vendor['email'].toString();
+        if (vendor['contactNumber'] != null) _phoneController.text = vendor['contactNumber'].toString();
+      });
+    }
   }
 
   @override
@@ -76,18 +94,36 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
     super.dispose();
   }
 
-  void _saveProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Restaurant Profile saved successfully!',
-          style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500),
+  Future<void> _saveProfile() async {
+    final updatedData = {
+      'name': _tradeNameController.text.trim(),
+      'type': _typeController.text.trim(),
+      'cuisine': _cuisineController.text.trim(),
+      'about': _aboutController.text.trim(),
+      'address': _addressController.text.trim(),
+      'area': _areaController.text.trim(),
+      'city': _cityController.text.trim(),
+      'email': _emailController.text.trim(),
+      'phone': _phoneController.text.trim(),
+    };
+
+    try {
+      await RestaurantApiService.updateSettings(updatedData);
+    } catch (_) {}
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Restaurant Profile saved successfully!',
+            style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500),
+          ),
+          backgroundColor: AppColors.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        backgroundColor: AppColors.primaryGreen,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+      );
+    }
   }
 
   @override

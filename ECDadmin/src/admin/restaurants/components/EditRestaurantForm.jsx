@@ -36,24 +36,28 @@ const EditRestaurantForm = () => {
   const { cuisines, loading: cuisinesLoading, error: cuisinesError } = useCuisine();
   const {cities}=useCities()
   const toggleCuisine = (value) => {
+    const currentCuisines = Array.isArray(data?.cuisine) ? data.cuisine : [];
     handleChange({
       target: {
         name: "cuisine",
-        value: data.cuisine.includes(value)
-          ? data.cuisine.filter((c) => c !== value)
-          : [...data?.cuisine, value],
+        value: currentCuisines.includes(value)
+          ? currentCuisines.filter((c) => c !== value)
+          : [...currentCuisines, value],
       },
     });
   };
 
+  if (loading || !data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <CircularProgress />
+      </div>
+    );
+  }
 
-  if (loading || !data || !data.name) {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <CircularProgress />
-    </div>
-  );
-}
+  const displayName = typeof data.name === "object"
+    ? (data.name?.en || data.name?.de || "Restaurant")
+    : (data.name || "Restaurant");
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12 font-sans text-gray-700">
@@ -66,7 +70,7 @@ const EditRestaurantForm = () => {
           </Breadcrumbs>
           <div className="flex justify-between items-center">
             <h1 className="text-white text-3xl font-extrabold flex items-center gap-3">
-              <Store size={32} /> {data?.name?.en || "Loading Restaurant..."}
+              <Store size={32} /> {displayName}
             </h1>
             <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg border border-white/30 text-white text-sm flex items-center gap-2">
               <History size={16} /> Last Updated: Dec 31, 2025
@@ -96,8 +100,8 @@ const EditRestaurantForm = () => {
                    Information Details
                 </div>
                 <div className="grid gap-6">
-                  <TextField fullWidth variant="filled" label="Restaurant Name" name="name.en" value={data.name.en} onChange={handleChange} size="small" />
-                  <TextField fullWidth variant="filled" label="Brand Name" name="brand" value={data.brand} onChange={handleChange} size="small" />
+                  <TextField fullWidth variant="filled" label="Restaurant Name" name="name.en" value={data.name?.en ?? (typeof data.name === 'string' ? data.name : '')} onChange={handleChange} size="small" />
+                  <TextField fullWidth variant="filled" label="Brand Name" name="brand" value={data.brand || ''} onChange={handleChange} size="small" />
                 </div>
               </section>
               

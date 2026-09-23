@@ -1,13 +1,35 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'bank_details_screen.dart';
 
 class DocumentsUploadScreen extends StatefulWidget {
+  final String? name;
+  final String? email;
   final String? phone;
+  final String? pin;
+  final String? profileImageBase64;
+  final String? vehicleType;
+  final String? vehicleBrand;
+  final String? vehicleModel;
+  final String? vehicleYear;
+  final String? regNumber;
 
-  const DocumentsUploadScreen({super.key, this.phone});
+  const DocumentsUploadScreen({
+    super.key,
+    this.name,
+    this.email,
+    this.phone,
+    this.pin,
+    this.profileImageBase64,
+    this.vehicleType,
+    this.vehicleBrand,
+    this.vehicleModel,
+    this.vehicleYear,
+    this.regNumber,
+  });
 
   @override
   State<DocumentsUploadScreen> createState() => _DocumentsUploadScreenState();
@@ -62,7 +84,12 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
                     label: 'Camera',
                     onTap: () async {
                       Navigator.pop(ctx);
-                      final XFile? file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+                      final XFile? file = await _picker.pickImage(
+                        source: ImageSource.camera, 
+                        imageQuality: 85,
+                        maxWidth: 1200,
+                        maxHeight: 1200,
+                      );
                       if (file != null) {
                         final bytes = await file.readAsBytes();
                         setState(() => onPicked(bytes));
@@ -74,7 +101,12 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
                     label: 'Gallery',
                     onTap: () async {
                       Navigator.pop(ctx);
-                      final XFile? file = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                      final XFile? file = await _picker.pickImage(
+                        source: ImageSource.gallery, 
+                        imageQuality: 85,
+                        maxWidth: 1200,
+                        maxHeight: 1200,
+                      );
                       if (file != null) {
                         final bytes = await file.readAsBytes();
                         setState(() => onPicked(bytes));
@@ -125,9 +157,31 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
 
   void _onSubmit() {
     if (_formKey.currentState!.validate()) {
+      final licenseBase64 = _licenseBytes != null ? base64Encode(_licenseBytes!) : null;
+      final panBase64 = _panBytes != null ? base64Encode(_panBytes!) : null;
+      final aadhaarBase64 = _aadhaarBytes != null ? base64Encode(_aadhaarBytes!) : null;
+
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => BankDetailsScreen(phone: widget.phone),
+          builder: (_) => BankDetailsScreen(
+            name: widget.name,
+            email: widget.email,
+            phone: widget.phone,
+            pin: widget.pin,
+            profileImageBase64: widget.profileImageBase64,
+            vehicleType: widget.vehicleType,
+            vehicleBrand: widget.vehicleBrand,
+            vehicleModel: widget.vehicleModel,
+            vehicleYear: widget.vehicleYear,
+            regNumber: widget.regNumber,
+            licenseNumber: _licenseNumberController.text.trim(),
+            licenseExpiry: _expiryDateController.text.trim(),
+            licenseImageBase64: licenseBase64,
+            panNumber: _panNumberController.text.trim(),
+            panImageBase64: panBase64,
+            aadhaarNumber: _aadhaarNumberController.text.trim(),
+            aadhaarImageBase64: aadhaarBase64,
+          ),
         ),
       );
     }

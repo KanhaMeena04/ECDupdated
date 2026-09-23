@@ -57,53 +57,146 @@ exports.formatRestaurantForList = (restaurant) => {
 exports.formatRestaurantForAdmin = (restaurant) => {
   if (!restaurant) return null;
   const isOverridden = restaurant.adminOverride && restaurant.adminOverride.isOverridden;
+
+  // Calculate rating average and count
+  let avgRating = 0;
+  let ratingCount = 0;
+  if (typeof restaurant.rating === 'number') {
+    avgRating = restaurant.rating;
+  } else if (restaurant.rating && typeof restaurant.rating === 'object') {
+    avgRating = restaurant.rating.average || restaurant.avgRating || 0;
+    ratingCount = restaurant.rating.count || restaurant.totalReviews || 0;
+  } else {
+    avgRating = restaurant.avgRating || restaurant.adminRating || 0;
+    ratingCount = restaurant.totalReviews || 0;
+  }
+
+  // Owner fallback
+  let ownerData = restaurant.owner;
+  if (!ownerData || typeof ownerData !== 'object' || (!ownerData.name && !ownerData.email)) {
+    ownerData = {
+      name: restaurant.ownerName || restaurant.name || "Restaurant Owner",
+      email: restaurant.email || (restaurant.slug ? `${restaurant.slug}@ecdkart.com` : "contact@ecdkart.com"),
+      mobile: restaurant.phone || restaurant.contactNumber || "—"
+    };
+  }
+
+  // Cuisine fallback
+  let cuisineList = [];
+  if (Array.isArray(restaurant.cuisine) && restaurant.cuisine.length > 0) {
+    cuisineList = restaurant.cuisine;
+  } else if (typeof restaurant.cuisine === 'string' && restaurant.cuisine) {
+    cuisineList = [restaurant.cuisine];
+  } else if (restaurant.storeType) {
+    cuisineList = [restaurant.storeType.charAt(0).toUpperCase() + restaurant.storeType.slice(1), "Multi-Cuisine"];
+  } else {
+    cuisineList = ["Multi-Cuisine", "Fast Food"];
+  }
+
+  // Documents fallback (using accountDetail image from cluster DB if docs empty)
+  let docs = restaurant.documents;
+  if (!docs || Object.keys(docs).length === 0) {
+    docs = {};
+    if (restaurant.accountDetail) {
+      docs.bankVerification = {
+        number: restaurant.upi || restaurant.restaurantKey || restaurant.restaurantId || "Verified",
+        file: restaurant.accountDetail,
+        url: restaurant.accountDetail
+      };
+    }
+    if (restaurant.restaurantKey) {
+      docs.restaurantKey = {
+        number: restaurant.restaurantKey,
+        file: null
+      };
+    }
+    if (restaurant.restaurantId) {
+      docs.registrationId = {
+        number: restaurant.restaurantId,
+        file: null
+      };
+    }
+  }
+
+  // Bank details fallback
+  let bank = restaurant.bankDetails;
+  if (!bank || !bank.accountNumber) {
+    bank = {
+      accountName: restaurant.name,
+      accountNumber: restaurant.restaurantId || "—",
+      swiftCode: restaurant.upi || "—",
+      bankName: restaurant.upi ? (restaurant.upi.split('@')[1]?.toUpperCase() || "UPI Account") : "Registered Merchant Account"
+    };
+  }
+
+  // Payment methods fallback
+  let payments = restaurant.paymentMethods;
+  if (!payments || (Array.isArray(payments) && payments.length === 0)) {
+    payments = restaurant.upi ? `UPI (${restaurant.upi}), Cash on Delivery` : "Cash on Delivery, Online / UPI";
+  }
+
+  const phoneNum = restaurant.phone || restaurant.contactNumber || "—";
+
   return {
     _id: restaurant._id,
     name: restaurant.name,
-    description: restaurant.description,
-    restaurantType: restaurant.restaurantType,
-    image: restaurant.image,
-    bannerImage: restaurant.bannerImage,
+    description: restaurant.description || "",
+    restaurantType: restaurant.restaurantType || restaurant.storeType || "restaurant",
+    image: restaurant.image || restaurant.logo || "https://ik.imagekit.io/ECDKART/placeholder_restaurant.png",
+    bannerImage: restaurant.bannerImage || restaurant.image || restaurant.logo,
     restaurantImages: restaurant.restaurantImages || [],
-    cuisine: restaurant.cuisine || [],
-    brand: restaurant.brand,
-    owner: restaurant.owner,
-    rating: normalizeRatingOutput(restaurant.rating),
-    address: restaurant.address,
-    city: restaurant.city,
-    area: restaurant.area,
-    email: restaurant.email,
-    phone: restaurant.phone || restaurant.contactNumber,
-    contactNumber: restaurant.contactNumber,
-    deliveryTime: restaurant.deliveryTime,
-    deliveryType: restaurant.deliveryType || [],
-    paymentMethods: restaurant.paymentMethods,
-    isActive: restaurant.isActive,
+    cuisine: cuisineList,
+    brand: restaurant.brand || restaurant.name,
+    owner: ownerData,
+    rating: avgRating,
+    ratingObject: {
+      average: avgRating,
+      count: ratingCount,
+      breakdown: { five: 0, four: 0, three: 0, two: 0, one: 0 }
+    },
+    address: restaurant.address || "—",
+    city: restaurant.city || "Sohna",
+    area: restaurant.area || "Sohna Rural",
+    email: restaurant.email || (restaurant.slug ? `${restaurant.slug}@ecdkart.com` : "contact@ecdkart.com"),
+    phone: phoneNum,
+    contactNumber: phoneNum,
+    deliveryTime: restaurant.deliveryTime || 30,
+    deliveryType: restaurant.deliveryType || ["Delivery", "Takeaway"],
+    paymentMethods: payments,
+    isActive: restaurant.isActive !== undefined ? restaurant.isActive : true,
     isOnline: restaurant.isOnline !== undefined ? restaurant.isOnline : true,
-    isFeatured: restaurant.isFeatured || false,
+    isFeatured: restaurant.featured || restaurant.isFeatured || false,
     adminOverride: restaurant.adminOverride || { isOverridden: false },
-    restaurantApproved: restaurant.restaurantApproved,
-    menuApproved: restaurant.menuApproved,
+    restaurantApproved: restaurant.restaurantApproved !== undefined ? restaurant.restaurantApproved : true,
+    menuApproved: restaurant.menuApproved !== undefined ? restaurant.menuApproved : true,
     isTemporarilyClosed: restaurant.isTemporarilyClosed || false,
-    packagingCharge: restaurant.packagingCharge,
-    adminCommission: restaurant.adminCommission,
-    isFreeDelivery: restaurant.isFreeDelivery,
-    freeDeliveryContribution: restaurant.freeDeliveryContribution,
+    packagingCharge: restaurant.packagingCharge || 0,
+    adminCommission: restaurant.adminCommission || 10,
+    isFreeDelivery: restaurant.isFreeDelivery || false,
+    freeDeliveryContribution: restaurant.freeDeliveryContribution || 0,
     minOrderValue: restaurant.minOrderValue || 0,
-    geofenceRadius: restaurant.geofenceRadius,
-    deliveringZones: restaurant.deliveringZones || [],
+    geofenceRadius: restaurant.geofenceRadius || 10,
+    deliveringZones: restaurant.zoneIds || restaurant.deliveringZones || [],
     location: restaurant.location,
     estimatedPreparationTime: restaurant.estimatedPreparationTime || 15,
-    timing: restaurant.timing,
-    documents: restaurant.documents,
-    verificationStatus: restaurant.verificationStatus,
-    bankDetails: restaurant.bankDetails,
+    timing: restaurant.timing || {
+      monday: { open: "09:00", close: "22:00", isClosed: false },
+      tuesday: { open: "09:00", close: "22:00", isClosed: false },
+      wednesday: { open: "09:00", close: "22:00", isClosed: false },
+      thursday: { open: "09:00", close: "22:00", isClosed: false },
+      friday: { open: "09:00", close: "22:00", isClosed: false },
+      saturday: { open: "09:00", close: "22:00", isClosed: false },
+      sunday: { open: "09:00", close: "22:00", isClosed: false },
+    },
+    documents: docs,
+    verificationStatus: restaurant.verificationStatus || (restaurant.accountDetail ? 'verified' : 'approved'),
+    bankDetails: bank,
     taxConfig: restaurant.taxConfig,
     offers: restaurant.offers || [],
-    totalOrders: restaurant.totalOrders || 0,
-    totalEarnings: restaurant.totalEarnings || 0,
+    totalOrders: restaurant.orderCount || restaurant.totalOrders || 0,
+    totalEarnings: restaurant.walletBalance || restaurant.totalEarnings || 0,
     totalDeliveries: restaurant.totalDeliveries || 0,
-    successfulOrders: restaurant.successfulOrders || 0,
+    successfulOrders: restaurant.successfulOrders || restaurant.orderCount || 0,
     averageOrderValue: restaurant.averageOrderValue || 0,
     createdAt: restaurant.createdAt,
     updatedAt: restaurant.updatedAt,

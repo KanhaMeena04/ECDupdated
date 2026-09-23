@@ -52,6 +52,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: Image.asset(
                     'assets/onboarding_illustration.jpg',
                     fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: const Color(0xFFF0FDF4),
+                      child: const Center(
+                        child: Icon(Icons.delivery_dining_rounded, size: 100, color: primaryGreen),
+                      ),
+                    ),
                   ),
                 ),
               ),

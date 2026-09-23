@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../logic/blocs/auth/auth_bloc.dart';
 import '../../../logic/blocs/auth/auth_event.dart';
 import 'otp_verification_screen.dart';
@@ -26,7 +27,18 @@ class _RiderReloginScreenState extends State<RiderReloginScreen> {
   @override
   void initState() {
     super.initState();
-    _phoneController = TextEditingController(text: widget.initialPhone ?? '9876543210');
+    _phoneController = TextEditingController(text: widget.initialPhone ?? '');
+    if (_phoneController.text.isEmpty) {
+      AuthService.getUserPhone().then((savedPhone) {
+        if (savedPhone != null && savedPhone.isNotEmpty && mounted) {
+          if (_phoneController.text.isEmpty) {
+            setState(() {
+              _phoneController.text = savedPhone.replaceAll('+91', '').trim();
+            });
+          }
+        }
+      });
+    }
   }
 
   @override

@@ -5,18 +5,28 @@ import 'package:pinput/pinput.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../logic/blocs/auth/auth_bloc.dart';
 import '../../../logic/blocs/auth/auth_event.dart';
+import '../../../logic/blocs/auth/auth_state.dart';
 import '../home/driver_home_screen.dart';
 import 'vehicle_details_screen.dart';
+import 'register_screen.dart';
+
+import '../../../data/services/api_service.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
+  final String? name;
   final String? email;
   final String phone;
+  final String? pin;
+  final String? profileImageBase64;
   final bool isLoginFlow;
 
   const OtpVerificationScreen({
     super.key,
+    this.name,
     this.email,
     required this.phone,
+    this.pin,
+    this.profileImageBase64,
     this.isLoginFlow = false,
   });
 
@@ -25,32 +35,36 @@ class OtpVerificationScreen extends StatefulWidget {
 }
 
 class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
-  final _pinController = TextEditingController(text: '582914');
+  final _pinController = TextEditingController();
   static const Color primaryGreen = Color(0xFF248C70);
 
   Future<void> _onVerify() async {
-    if (_pinController.text.trim().length >= 4) {
+    final otp = _pinController.text.trim();
+    if (otp.length >= 4) {
       if (widget.isLoginFlow) {
+        context.read<AuthBloc>().add(
+              VerifyOtpRequested(phone: widget.phone, otp: otp, pin: widget.pin),
+            );
+      } else {
+        // Authenticate / verify with backend and proceed to vehicle details
+        try {
+          await ApiService.verifyOtp(
+            widget.phone,
+            otp,
+            pin: widget.pin,
+          );
+        } catch (_) {}
         await AuthService.registerPhone(widget.phone);
         if (!mounted) return;
-        context.read<AuthBloc>().add(
-              VerifyOtpRequested(phone: widget.phone, otp: _pinController.text.trim()),
-            );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login successful! Welcome back.'),
-            backgroundColor: primaryGreen,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const DriverHomeScreen()),
-          (route) => false,
-        );
-      } else {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => VehicleDetailsScreen(phone: widget.phone),
+            builder: (_) => VehicleDetailsScreen(
+              name: widget.name,
+              email: widget.email,
+              phone: widget.phone,
+              pin: widget.pin,
+              profileImageBase64: widget.profileImageBase64,
+            ),
           ),
         );
       }
@@ -63,7 +77,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -98,11 +111,56 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const ClampingScrollPhysics(),
-          child: Column(
-            children: [
+      body: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (widget.isLoginFlow) {
+            if (state is Authenticated) {
+              if (!state.user.isReturning) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('New partner detected! Please complete registration.'),
+                    backgroundColor: primaryGreen,
+                    behavior: SnackBarBehavior.floating,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => RegisterScreen(
+                      initialPhone: widget.phone,
+                    ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Login successful! Welcome back.'),
+                    backgroundColor: primaryGreen,
+                    behavior: SnackBarBehavior.floating,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const DriverHomeScreen()),
+                  (route) => false,
+                );
+              }
+            } else if (state is AuthError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.redAccent,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          }
+        },
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            child: Column(
+              children: [
               // Top Header Banner with OTP Security Illustration
               Stack(
                 alignment: Alignment.bottomCenter,
@@ -202,29 +260,43 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
                     const SizedBox(height: 36),
 
-                    // Action Button (Get Started)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _onVerify,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryGreen,
-                          foregroundColor: Colors.white,
-                          elevation: 2,
-                          shadowColor: primaryGreen.withValues(alpha: 0.3),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                    // Action Button (Get Started / Verify & Login)
+                    BlocBuilder<AuthBloc, AuthState>(
+                      builder: (context, state) {
+                        final isLoading = state is AuthLoading;
+                        return SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: isLoading ? null : _onVerify,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryGreen,
+                              foregroundColor: Colors.white,
+                              elevation: 2,
+                              shadowColor: primaryGreen.withValues(alpha: 0.3),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: isLoading
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.5,
+                                    ),
+                                  )
+                                : Text(
+                                    widget.isLoginFlow ? 'Verify & Login' : 'Get Started',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                           ),
-                        ),
-                        child: Text(
-                          widget.isLoginFlow ? 'Verify & Login' : 'Get Started',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
 
                     const SizedBox(height: 24),
@@ -285,7 +357,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   @override

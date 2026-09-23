@@ -22,19 +22,20 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: true,
+      default: "User",
     },
     email: {
       type: String,
       unique: true,
       sparse: true, 
-      required: true,
     },
-    mobile: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    mobile: { type: String, sparse: true },
+    phone: { type: String, sparse: true },
+    pin: { type: String },
+    password: { type: String },
     role: {
       type: String,
-      enum: ["customer", "admin", "restaurant_owner", "rider"],
+      enum: ["customer", "admin", "restaurant_owner", "rider", "driver"],
       default: "customer",
     },
     profilePic: { type: String },
@@ -67,6 +68,7 @@ const userSchema = new mongoose.Schema(
     blockedAt: { type: Date },
     blockReason: { type: String, default: "" },
     otp: { type: String },
+    otpSession: { type: String },
     otpExpires: { type: Date },
     isVerified: { type: Boolean, default: false },
     pendingProfileUpdate: {

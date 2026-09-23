@@ -24,7 +24,8 @@ const initPaymentCronJobs = () => {
         $expr: { $gte: ['$cashInHand', { $multiply: ['$cashLimit', 0.8] }] }
       }).populate('rider');
       for (const wallet of nearLimitWallets) {
-        console.log(`⚠️ Rider ${wallet.rider._id} has ₹${wallet.cashInHand} / ₹${wallet.cashLimit} (near limit)`);
+        const riderId = wallet.rider?._id || wallet.rider || 'Unknown';
+        console.log(`⚠️ Rider ${riderId} has ₹${wallet.cashInHand} / ₹${wallet.cashLimit} (near limit)`);
       }
     } catch (err) {
       console.error('[Payment Cron] Freeze check failed:', err.message);

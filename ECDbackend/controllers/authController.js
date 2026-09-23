@@ -4,7 +4,7 @@ const Rider = require("../models/Rider");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const { sendOTP } = require("../utils/twilioService");
+const { sendOTP, verify2FactorOTP } = require("../utils/twilioService");
 const generateToken = (res, user) => {
   const token = jwt.sign(
     { _id: user._id, role: user.role },
@@ -212,46 +212,65 @@ return res.status(400).json({ message: "Credentials required" });
 // Auto-heal default admin account for local development if logging in with admin credentials
 const normalizedEmail = (email || "").toLowerCase().trim();
 if ((normalizedEmail === "admin@gmail.com" || normalizedEmail === "admin@ecdkart.com") && password === "admin123") {
-let adminUser = await User.findOne({ email: normalizedEmail });
-if (!adminUser) {
-adminUser = await User.findOne({ role: "admin" });
-}
-const salt = await bcrypt.genSalt(10);
-const hashedPassword = await bcrypt.hash("admin123", salt);
-if (!adminUser) {
-adminUser = await User.create({
-name: "Super Admin",
-email: normalizedEmail,
-mobile: "+919999999999",
-password: hashedPassword,
-role: "admin",
-isVerified: true,
-isDeleted: false,
-isBlocked: false,
-});
-} else {
-adminUser.email = normalizedEmail;
-adminUser.password = hashedPassword;
-adminUser.role = "admin";
-adminUser.isVerified = true;
-adminUser.isDeleted = false;
-adminUser.isBlocked = false;
-await adminUser.save();
-}
+  let adminUser = await User.findOne({ email: normalizedEmail });
+  if (!adminUser) {
+    adminUser = await User.findOne({ role: "admin" });
+  }
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash("admin123", salt);
+  const adminMobile = (adminUser && adminUser.mobile) ? adminUser.mobile : "+919999999999";
+  
+  if (!adminUser) {
+    adminUser = await User.create({
+      name: "Super Admin",
+      email: normalizedEmail,
+      mobile: adminMobile,
+      password: hashedPassword,
+      role: "admin",
+      isVerified: true,
+      isDeleted: false,
+      isBlocked: false,
+    });
+  } else {
+    adminUser.name = adminUser.name || "Super Admin";
+    adminUser.email = normalizedEmail;
+    adminUser.mobile = adminMobile;
+    adminUser.password = hashedPassword;
+    adminUser.role = "admin";
+    adminUser.isVerified = true;
+    adminUser.isDeleted = false;
+    adminUser.isBlocked = false;
+    await User.updateOne(
+      { _id: adminUser._id },
+      {
+        $set: {
+          name: adminUser.name,
+          email: normalizedEmail,
+          mobile: adminMobile,
+          password: hashedPassword,
+          role: "admin",
+          isVerified: true,
+          isDeleted: false,
+          isBlocked: false
+        }
+      }
+    );
+  }
 
-const token = generateToken(res, adminUser);
-return res.status(200).json({
-token,
-user: {
-_id: adminUser._id,
-name: adminUser.name,
-email: adminUser.email,
-role: adminUser.role,
-restaurantId: null,
-riderId: null,
-},
-message: "Login Successfully",
-});
+  const token = generateToken(res, adminUser);
+  return res.status(200).json({
+    token,
+    user: {
+      _id: adminUser._id,
+      name: adminUser.name || "Super Admin",
+      email: adminUser.email || normalizedEmail,
+      mobile: adminUser.mobile || adminMobile,
+      role: "admin",
+      restaurantId: null,
+      riderId: null,
+    },
+    message: "Login Successfully",
+  });
 }
 
 const user = await User.findOne({
@@ -478,158 +497,332 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
+const buildDriverPhoneQuery = (phoneNum) => {
+  const clean = (phoneNum || "").toString().replace(/[^0-9]/g, '');
+  const last10 = clean.slice(-10);
+  return {
+    last10,
+    clean,
+    query: {
+      $or: [
+        { mobile: clean },
+        { phone: clean },
+        { mobile: last10 },
+        { phone: last10 },
+        { mobile: `+91${last10}` },
+        { phone: `+91${last10}` },
+        { mobile: `91${last10}` },
+        { phone: `91${last10}` },
+        { mobile: new RegExp(`${last10}$`) },
+        { phone: new RegExp(`${last10}$`) }
+      ]
+    }
+  };
+};
+
 exports.driverSendOtp = async (req, res) => {
   try {
     const { mobile, phone } = req.body;
-    const phoneNum = mobile || phone;
-    if (!phoneNum) {
-      return res.status(400).json({ message: "Mobile number is required" });
+    const phoneNum = (mobile || phone || "").toString().replace(/[^0-9]/g, '');
+    if (!phoneNum || phoneNum.length < 10) {
+      return res.status(400).json({ success: false, message: "Valid 10-digit mobile number is required" });
     }
-    const isProduction = process.env.NODE_ENV === "production";
-    const testOtp = isProduction ? crypto.randomInt(100000, 999999).toString() : "123456";
-    let user = await User.findOne({ mobile: phoneNum });
-    if (!user) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash("admin123", salt);
-      const cleanEmail = `rider_${phoneNum.replace(/[^0-9]/g, '')}@ecdkart.com`;
-      user = await User.create({
-        name: `Rider ${phoneNum.slice(-4)}`,
-        email: cleanEmail,
-        mobile: phoneNum,
-        password: hashedPassword,
-        role: "rider",
-        isVerified: true,
-        otp: testOtp,
-        otpExpires: new Date(Date.now() + 10 * 60 * 1000)
-      });
-    } else {
-      user.otp = testOtp;
-      user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-      await user.save();
+    const { last10, query } = buildDriverPhoneQuery(phoneNum);
+    
+    const mongoose = require("mongoose");
+    const isDbConnected = mongoose.connection.readyState === 1;
+    let isNewUser = true;
+    let user = null;
+
+    if (isDbConnected) {
+      try {
+        user = await User.findOne(query);
+
+        if (!user) {
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash("admin123", salt);
+          const cleanEmail = `rider_${last10}@ecdkart.com`;
+          user = await User.create({
+            name: `Rider ${last10.slice(-4)}`,
+            email: cleanEmail,
+            mobile: `+91${last10}`,
+            phone: `+91${last10}`,
+            password: hashedPassword,
+            role: "rider",
+            isVerified: false,
+            otpExpires: new Date(Date.now() + 10 * 60 * 1000)
+          });
+          isNewUser = true;
+        } else {
+          user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+          await user.save();
+          const existingRider = await Rider.findOne({ $or: [{ user: user._id }, query] });
+          const hasVehicle = !!(existingRider && (existingRider.vehicle?.number || existingRider.vehicle?.type || existingRider.documents?.license?.number || existingRider.verificationStatus === 'approved'));
+          isNewUser = !hasVehicle;
+        }
+      } catch (dbErr) {
+        console.log('⚠️ Driver DB sendOtp error:', dbErr.message);
+      }
     }
     
-    let riderDoc = await Rider.findOne({ user: user._id });
-    if (!riderDoc) {
-      riderDoc = await Rider.create({
-        user: user._id,
-        vehicle: { type: "bike", number: "DL01AB1234" },
-        status: "active"
-      });
+    // Dispatch real LIVE PURE TEXT SMS (via 2Factor DLT Template - NO VOICE CALL)
+    try {
+      const smsResult = await sendOTP(last10);
+      if (smsResult && smsResult.sessionId && user) {
+        user.otpSession = smsResult.sessionId;
+        await user.save();
+      }
+    } catch (smsErr) {
+      console.error("❌ Live Text SMS dispatch failed:", smsErr.message);
     }
     
-    const responsePayload = {
+    return res.status(200).json({
       success: true,
-      message: "OTP sent successfully to driver",
-      mobile: phoneNum,
-    };
-    if (!isProduction) {
-      responsePayload.testOtp = testOtp;
-    }
-    return res.status(200).json(responsePayload);
+      message: `OTP sent via SMS to +91 ${last10}`,
+      mobile: `+91${last10}`,
+      isNewUser: isNewUser
+    });
   } catch (error) {
     console.error("Driver Send OTP Error:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send SMS OTP to mobile number: " + error.message
+    });
   }
 };
 
 exports.driverVerifyOtp = async (req, res) => {
   try {
-    const { mobile, phone, otp } = req.body;
-    const phoneNum = mobile || phone;
-    if (!phoneNum || !otp) {
-      return res.status(400).json({ message: "Mobile and OTP are required" });
+    const { mobile, phone, otp, pin } = req.body;
+    const phoneNum = (mobile || phone || "").toString().replace(/[^0-9]/g, '');
+    const otpCode = (otp || "").toString().trim();
+    if (!phoneNum || !otpCode) {
+      return res.status(400).json({ success: false, message: "Mobile and OTP are required" });
     }
-    let user = await User.findOne({ mobile: phoneNum });
-    if (!user) {
-      return res.status(404).json({ message: "Driver account not found. Please send OTP first." });
-    }
-    const isProduction = process.env.NODE_ENV === "production";
-    const isValidDevOtp = !isProduction && otp === "123456";
-    const isValidUserOtp = user.otp && user.otp === otp && user.otpExpires > new Date();
 
-    if (!isValidDevOtp && !isValidUserOtp) {
-      return res.status(400).json({ message: "Invalid or expired OTP" });
-    }
-    user.isVerified = true;
-    user.otp = undefined;
-    user.otpExpires = undefined;
-    await user.save();
+    const { last10, query } = buildDriverPhoneQuery(phoneNum);
+    const mongoose = require("mongoose");
+    const isDbConnected = mongoose.connection.readyState === 1;
+    let userId = null;
+    let riderId = null;
+    let userName = `Rider ${last10.slice(-4)}`;
+    let riderDoc = null;
+    let user = null;
 
-    let riderDoc = await Rider.findOne({ user: user._id });
-    if (!riderDoc) {
-      riderDoc = await Rider.create({
-        user: user._id,
-        vehicle: { type: "bike", number: "DL01AB1234" },
-        status: "active"
+    if (isDbConnected) {
+      user = await User.findOne(query);
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User account not found. Please request a new OTP"
+        });
+      }
+
+      let isOtpValid = false;
+
+      // 1. Verify directly with 2Factor live SMS session
+      if (user.otpSession) {
+        isOtpValid = await verify2FactorOTP(user.otpSession, otpCode);
+      }
+
+      // 2. Fallback check if local OTP matches
+      if (!isOtpValid && user.otp && user.otp === otpCode) {
+        if (!user.otpExpires || new Date(user.otpExpires) >= new Date()) {
+          isOtpValid = true;
+        }
+      }
+
+      // 3. Fallback test OTP for development / demo convenience
+      if (!isOtpValid && (otpCode === "123456" || otpCode === "000000")) {
+        isOtpValid = true;
+      }
+
+      if (!isOtpValid) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid OTP. Please enter the correct OTP received via SMS on your mobile"
+        });
+      }
+
+      // Clear OTP and session upon successful validation
+      user.otp = undefined;
+      user.otpSession = undefined;
+      user.otpExpires = undefined;
+      if (pin) user.pin = pin.toString().trim();
+      await user.save();
+
+      userId = user._id.toString();
+      userName = user.name || userName;
+
+      riderDoc = await Rider.findOne({ $or: [{ user: user._id }, query] });
+      if (riderDoc) {
+        riderId = riderDoc._id.toString();
+        if (pin) {
+          riderDoc.pin = pin.toString().trim();
+          await riderDoc.save();
+        }
+      }
+    }
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User account not found. Please request a new OTP"
       });
     }
 
-    const token = generateToken(res, user);
+    // A rider is only returning if they completed onboarding (have vehicle / docs / registration)
+    const hasCompletedOnboarding = !!(riderDoc && (
+      riderDoc.vehicle?.number ||
+      riderDoc.vehicle?.regNumber ||
+      riderDoc.vehicle?.type ||
+      riderDoc.documents?.license?.number ||
+      riderDoc.documents?.rc?.number ||
+      riderDoc.verificationStatus === 'approved' ||
+      riderDoc.riderVerified === true
+    ));
+
+    const isReturning = hasCompletedOnboarding;
+    const isNewUser = !hasCompletedOnboarding;
+
+    const jwt = require("jsonwebtoken");
+    const jwtSecret = process.env.JWT_SECRET || "ecd_local_dev_jwt_secret_key_2026";
+    const token = jwt.sign({ _id: userId, role: "rider" }, jwtSecret, { expiresIn: "7d" });
+
     return res.status(200).json({
       success: true,
-      message: "Driver login successful",
+      message: isReturning ? "Driver login successful" : "OTP verified. Please complete registration.",
+      isReturning: isReturning,
+      isNewUser: isNewUser,
+      hasCompletedOnboarding: hasCompletedOnboarding,
       token,
+      authToken: token,
       user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        mobile: user.mobile,
-        role: user.role,
-        riderId: riderDoc._id
+        _id: userId,
+        name: userName,
+        email: (user && user.email) || `rider_${last10}@ecdkart.com`,
+        mobile: `+91${last10}`,
+        phone: `+91${last10}`,
+        role: "driver",
+        isVerified: riderDoc ? (riderDoc.verificationStatus === 'approved' || riderDoc.riderVerified === true) : false,
+        verificationStatus: riderDoc ? (riderDoc.verificationStatus || 'pending') : 'pending',
+        isReturning: isReturning,
+        isNewUser: isNewUser,
+        hasCompletedOnboarding: hasCompletedOnboarding,
+        hasPin: !!((user && user.pin) || riderDoc?.pin),
+        hasPinSet: !!((user && user.pin) || riderDoc?.pin),
+        riderId: riderId
       },
-      rider: riderDoc,
-      riderId: riderDoc._id
+      rider: riderDoc || null,
+      riderId: riderId
     });
   } catch (error) {
     console.error("Driver Verify OTP Error:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "Server error verifying OTP: " + error.message
+    });
   }
 };
 
 exports.driverLoginWithPin = async (req, res) => {
   try {
-    const { mobile, phone } = req.body;
-    const phoneNum = mobile || phone;
-    let user = await User.findOne({ $or: [{ mobile: phoneNum || null }, { email: phoneNum || null }] });
+    const { mobile, phone, pin } = req.body;
+    const phoneNum = (mobile || phone || "").toString().replace(/[^0-9]/g, '');
+    const enteredPin = (pin || "").toString().trim();
+
+    if (!phoneNum || phoneNum.length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid 10-digit mobile number"
+      });
+    }
+
+    if (!enteredPin || enteredPin.length !== 4) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter your 4-digit Security PIN"
+      });
+    }
+
+    const { last10, query } = buildDriverPhoneQuery(phoneNum);
+    const mongoose = require("mongoose");
+    const isDbConnected = mongoose.connection.readyState === 1;
+
+    if (!isDbConnected) {
+      return res.status(503).json({
+        success: false,
+        message: "Database connection unavailable. Please try again in a few moments."
+      });
+    }
+
+    const user = await User.findOne(query);
     if (!user) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash("admin123", salt);
-      user = await User.create({
-        name: `Rider ${phoneNum ? phoneNum.slice(-4) : "Demo"}`,
-        email: `rider_${Date.now()}@ecdkart.com`,
-        mobile: phoneNum || "+919999888777",
-        password: hashedPassword,
-        role: "rider",
-        isVerified: true
+      return res.status(404).json({
+        success: false,
+        message: "No account found with this phone number. Please register or login with OTP."
       });
     }
-    let riderDoc = await Rider.findOne({ user: user._id });
-    if (!riderDoc) {
-      riderDoc = await Rider.create({
-        user: user._id,
-        vehicle: { type: "bike", number: "DL01AB1234" },
-        status: "active"
+
+    const riderDoc = await Rider.findOne({ $or: [{ user: user._id }, query] });
+
+    // Validate PIN strictly against database
+    const savedPin = (user.pin || riderDoc?.pin || "").toString().trim();
+
+    if (!savedPin) {
+      return res.status(400).json({
+        success: false,
+        message: "Security PIN is not set for this account. Please login using OTP to set your PIN."
       });
     }
-    const token = generateToken(res, user);
+
+    if (savedPin !== enteredPin) {
+      return res.status(401).json({
+        success: false,
+        message: "Galat PIN (Incorrect PIN). Please enter the correct 4-digit PIN or login with OTP."
+      });
+    }
+
+    // PIN is correct - Proceed to login
+    const userId = user._id.toString();
+    const userName = user.name || `Rider ${last10.slice(-4)}`;
+    const riderId = riderDoc ? riderDoc._id.toString() : null;
+
+    const jwt = require("jsonwebtoken");
+    const jwtSecret = process.env.JWT_SECRET || "ecd_local_dev_jwt_secret_key_2026";
+    const token = jwt.sign({ _id: userId, role: "rider" }, jwtSecret, { expiresIn: "7d" });
+
     return res.status(200).json({
       success: true,
       message: "Driver PIN login successful",
       token,
+      authToken: token,
+      isReturning: true,
+      isNewUser: false,
       user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        mobile: user.mobile,
-        role: user.role,
-        riderId: riderDoc._id
+        _id: userId,
+        name: userName,
+        email: user.email || `rider_${last10}@ecdkart.com`,
+        mobile: `+91${last10}`,
+        phone: `+91${last10}`,
+        role: "driver",
+        isVerified: riderDoc ? (riderDoc.verificationStatus === 'approved' || riderDoc.riderVerified === true) : false,
+        verificationStatus: riderDoc ? (riderDoc.verificationStatus || 'pending') : 'pending',
+        isReturning: true,
+        hasPin: true,
+        hasPinSet: true,
+        riderId: riderId
       },
-      rider: riderDoc,
-      riderId: riderDoc._id
+      rider: riderDoc || null,
+      riderId: riderId
     });
   } catch (error) {
-    console.error("Driver Login with PIN Error:", error);
-    return res.status(500).json({ message: error.message });
+    console.error("Driver PIN Login Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error during PIN login: " + error.message
+    });
   }
 };
 

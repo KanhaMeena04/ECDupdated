@@ -101,6 +101,7 @@ const {
   adminRiderSettlements,
   adminGetActiveSOS,
   adminClearSOS,
+  deleteRider,
 } = require("../controllers/riderController");
 const {
   createIncentive,
@@ -238,6 +239,8 @@ router.post("/training", protect, admin, addMaterial);
 router.delete("/training/:id", protect, admin, deleteMaterial);
 router.get("/riders/settlements", protect, admin, adminRiderSettlements);
 router.get("/riders/sos-active", protect, admin, adminGetActiveSOS);
+router.delete("/riders/:id", protect, admin, deleteRider);
+router.delete("/riders/delete/:id", protect, admin, deleteRider);
 router.get("/dashboard", protect, admin, dashboardController.getOverview);
 router.get("/dashboard/overview", protect, admin, dashboardController.getOverview);
 router.get("/payouts/restaurants", protect, admin, dashboardController.getRestaurantPayoutList);

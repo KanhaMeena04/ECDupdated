@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/restaurant_api_service.dart';
 import '../theme/app_colors.dart';
 
 class RestaurantDashboardScreen extends StatefulWidget {
@@ -12,14 +13,15 @@ class RestaurantDashboardScreen extends StatefulWidget {
 class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _selectedPeriod = 'Today';
+  bool _isLoading = false;
 
-  // Overview Mock Data
-  final String _todayEarning = '₹8,450';
-  final int _todayOrders = 42;
-  final int _completedOrders = 38;
-  final int _cancelledOrders = 4;
+  // Overview Data
+  String _todayEarning = '₹8,450';
+  int _todayOrders = 42;
+  int _completedOrders = 38;
+  int _cancelledOrders = 4;
 
-  final List<Map<String, dynamic>> _earningHistory = [
+  List<Map<String, dynamic>> _earningHistory = [
     {
       'amount': '₹420',
       'paymentMode': 'Cash',
@@ -75,6 +77,46 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _fetchStats();
+  }
+
+  Future<void> _fetchStats() async {
+    setState(() => _isLoading = true);
+    try {
+      final res = await RestaurantApiService.getDashboardStats(_selectedPeriod.toLowerCase());
+      if (res['success'] == true && res['data'] != null && mounted) {
+        final data = res['data'];
+        setState(() {
+          if (data['totalEarnings'] != null || data['revenue'] != null) {
+            final amt = data['totalEarnings'] ?? data['revenue'];
+            _todayEarning = '₹$amt';
+          }
+          if (data['totalOrders'] != null) {
+            _todayOrders = (data['totalOrders'] as num).toInt();
+          }
+          if (data['completedOrders'] != null) {
+            _completedOrders = (data['completedOrders'] as num).toInt();
+          }
+          if (data['cancelledOrders'] != null) {
+            _cancelledOrders = (data['cancelledOrders'] as num).toInt();
+          }
+          if (data['recentTransactions'] is List && (data['recentTransactions'] as List).isNotEmpty) {
+            _earningHistory = (data['recentTransactions'] as List).map<Map<String, dynamic>>((t) {
+              return {
+                'amount': '₹${t['amount'] ?? 0}',
+                'paymentMode': t['paymentMode'] ?? t['method'] ?? 'Online',
+                'dateTime': t['date'] ?? t['createdAt'] ?? 'Recent',
+                'orderId': t['orderNumber'] ?? t['orderId'] ?? 'Order',
+                'status': t['status'] ?? 'Completed',
+              };
+            }).toList();
+          }
+        });
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -227,7 +269,10 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
                     icon: const Icon(Icons.keyboard_arrow_down, size: 18),
                     style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
                     onChanged: (val) {
-                      if (val != null) setState(() => _selectedPeriod = val);
+                      if (val != null) {
+                        setState(() => _selectedPeriod = val);
+                        _fetchStats();
+                      }
                     },
                     items: ['Today', 'Weekly', 'Monthly'].map((p) {
                       return DropdownMenuItem(value: p, child: Text(p));

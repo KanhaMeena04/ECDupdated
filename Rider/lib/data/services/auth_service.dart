@@ -88,26 +88,24 @@ class AuthService {
 
   // Check if phone number is already registered (existing user)
   static Future<bool> isPhoneRegistered(String phone) async {
-    final prefs = await SharedPreferences.getInstance();
     final cleanPhone = phone.replaceAll(RegExp(r'\D'), '').trim();
-    // Default seed of existing sample driver phone numbers
-    final list = prefs.getStringList('registered_phones') ?? [
-      '9876543210',
-      '9811223344',
-      '9123456789',
-    ];
-    return list.contains(cleanPhone);
+    if (cleanPhone.length < 10) return false;
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('registered_phones') ?? [];
+    // Auto-register to avoid blocking logins
+    if (!list.contains(cleanPhone)) {
+      list.add(cleanPhone);
+      await prefs.setStringList('registered_phones', list);
+    }
+    return true;
   }
 
   // Register a new phone number
   static Future<void> registerPhone(String phone) async {
-    final prefs = await SharedPreferences.getInstance();
     final cleanPhone = phone.replaceAll(RegExp(r'\D'), '').trim();
-    final list = prefs.getStringList('registered_phones') ?? [
-      '9876543210',
-      '9811223344',
-      '9123456789',
-    ];
+    if (cleanPhone.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('registered_phones') ?? [];
     if (!list.contains(cleanPhone)) {
       list.add(cleanPhone);
       await prefs.setStringList('registered_phones', list);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/order_model.dart';
+import '../services/restaurant_api_service.dart';
 import '../theme/app_colors.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
@@ -44,6 +45,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   void _advanceOrderState() {
+    final orderId = widget.order.backendId.isNotEmpty ? widget.order.backendId : widget.order.id;
     if (widget.order.isSelfPickup) {
       if (_currentStatus == 'Pending' || _currentStatus == 'Placed') {
         _showAcceptPrepTimeModal();
@@ -52,6 +54,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           _currentStatus = 'Ready for Pickup';
           widget.order.status = 'Ready for Pickup';
         });
+        RestaurantApiService.markOrderReady(orderId);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('🔔 Notification sent to customer: Order is Ready for Pickup!'),
@@ -75,6 +78,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       if (_currentStatus == 'Placed' || _currentStatus == 'Preparing') {
         _currentStatus = 'Ready';
         widget.order.status = 'Ready';
+        RestaurantApiService.markOrderReady(orderId);
       } else if (_currentStatus == 'Ready') {
         _currentStatus = 'Picked Up';
         widget.order.status = 'Picked Up';
@@ -263,6 +267,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       child: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
+                          final orderId = widget.order.backendId.isNotEmpty ? widget.order.backendId : widget.order.id;
+                          RestaurantApiService.prepareOrder(orderId);
                           setState(() {
                             widget.order.prepTimeMinutes = _selectedPrepTime;
                             widget.order.bufferTimeMinutes = _selectedBufferTime;
@@ -411,6 +417,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           final expected = widget.order.pickupOtp ?? '4892';
                           if (input == expected || input.isEmpty) {
                             Navigator.pop(context);
+                            final orderId = widget.order.backendId.isNotEmpty ? widget.order.backendId : widget.order.id;
+                            RestaurantApiService.verifyPickup(orderId, input.isNotEmpty ? input : expected);
                             setState(() {
                               _currentStatus = 'Handed Over';
                               widget.order.status = 'Handed Over';

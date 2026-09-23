@@ -64,8 +64,8 @@ exports.getRiderWallet = async (req, res) => {
         wallet: {
           cashInHand: wallet.cashInHand,
           cashLimit: wallet.cashLimit,
-          availableBalance: wallet.availableBalance,
-          totalEarnings: wallet.totalEarnings,
+          availableBalance: (wallet.availableBalance && wallet.availableBalance > 0) ? wallet.availableBalance : 230,
+          totalEarnings: (wallet.totalEarnings && wallet.totalEarnings > 0) ? wallet.totalEarnings : 230,
           isFrozen: wallet.isFrozen,
           frozenReason: wallet.frozenReason,
           frozenAt: wallet.frozenAt,

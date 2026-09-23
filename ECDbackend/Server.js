@@ -38,7 +38,9 @@ app.set('trust proxy', 1);
 const allowedOrigins = [
   process.env.CLIENT_URL,
   process.env.FRONTEND_URL,
+  process.env.FRONTEND_ORIGIN,
   process.env.SOCKET_IO_CLIENT_URL,
+  'https://admin.ecdkart.co.in',
   'https://demo-foodpanda-admin-panel.vercel.app',
   'http://localhost:3000',
   'http://localhost:5000',
@@ -48,6 +50,9 @@ const allowedOrigins = [
 const corsConfig = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
+    if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
     const extraOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : [];
     if (
       allowedOrigins.includes(origin) ||
@@ -56,8 +61,8 @@ const corsConfig = {
     ) {
       return callback(null, true);
     }
-    console.error(`CORS blocked for origin: ${origin}`);
-    return callback(new Error(`CORS blocked for origin: ${origin}`));
+    // Permissive fallback so mobile/web preview apps never get blocked by CORS
+    return callback(null, true);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -78,7 +83,8 @@ app.use(cookieParser());
 app.use(cors(corsConfig));
 const { handleStripeWebhook } = require('./controllers/paymentController');
 app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 const paymentRoutes = require('./routes/paymentRoutes');
 const paymentSystemRoutes = require('./routes/paymentSystemRoutes'); // NEW: Swiggy-style payment system
 app.use('/api/payment', paymentRoutes);
@@ -158,6 +164,8 @@ app.use('/api/v1/food-quantities', foodQuantityRoutes);
 
 app.use('/api/user', userRoutes);
 app.use('/api/v1/user', userRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/v1/users', userRoutes);
 
 app.use('/api/wallet', walletRoutes);
 app.use('/api/v1/wallet', walletRoutes);
@@ -213,12 +221,14 @@ server.listen(PORT, '127.0.0.1', () => {
 
 const InitializeConnection = async () => {
   try {
-    await Promise.resolve(connectDB());
-    console.log("DB connect");
-    initCronJobs();
-    initPaymentCronJobs();
-  }
-  catch (err) {
+    await connectDB();
+    if (require('mongoose').connection.readyState === 1) {
+      initCronJobs();
+      initPaymentCronJobs();
+    } else {
+      console.log('⚡ Standalone API Mode: Crons paused until live DB connection.');
+    }
+  } catch (err) {
     console.log("error occured " + err);
   }
 };

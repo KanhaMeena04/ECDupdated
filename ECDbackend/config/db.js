@@ -3,38 +3,38 @@ const dns = require('dns');
 try {
   dns.setDefaultResultOrder('ipv4first');
 } catch (e) {}
-mongoose.set('bufferCommands', false);
+
 const connectDB = async () => {
   let mongoURI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/ecdkart_local_dev";
   try {
     const conn = await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 3000,
-      connectTimeoutMS: 3000
+      serverSelectionTimeoutMS: 4000,
+      connectTimeoutMS: 4000
     });
-    console.log(`✅ MongoDB Local Dev Connected: ${conn.connection.host}/${conn.connection.name}`);
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`);
     await ensureAdminUser();
     await ensureSeededData();
     return;
   } catch (error) {
-    console.error(`⚠️ Primary MongoDB Connection Error: ${error.message}`);
-    console.log('🔄 Retrying with local MongoDB instance (mongodb://127.0.0.1:27017/ecdkart_local_dev)...');
+    console.error(`⚠️ MongoDB Atlas Connection Note: ${error.message}`);
+    console.log('🔄 Attempting local fallback...');
     try {
       const conn = await mongoose.connect('mongodb://127.0.0.1:27017/ecdkart_local_dev', {
-        serverSelectionTimeoutMS: 3000
+        serverSelectionTimeoutMS: 2000
       });
-      console.log(`✅ Connected to local MongoDB fallback: ${conn.connection.host}/${conn.connection.name}`);
+      console.log(`✅ Connected to local MongoDB: ${conn.connection.host}/${conn.connection.name}`);
       await ensureAdminUser();
       await ensureSeededData();
       return;
     } catch (localErr) {
-      console.error('❌ Local MongoDB fallback failed:', localErr.message);
-      console.log('⚠️ Running in standalone API mode. Database calls will use fallback responses.');
+      console.log('⚠️ Running in Resilient Standalone API Mode with in-memory fallback.');
       return;
     }
   }
 };
 
 async function ensureAdminUser() {
+  if (mongoose.connection.readyState !== 1) return;
   try {
     const User = require('../models/User');
     const bcrypt = require('bcryptjs');
@@ -49,7 +49,7 @@ async function ensureAdminUser() {
 
     if (process.env.NODE_ENV === 'production') {
       if (admin) {
-        console.log(`🔒 Production mode active: Existing Admin account (${admin.email}) preserved without password mutation.`);
+        console.log(`🔒 Production mode active: Existing Admin account (${admin.email || admin.mobile || admin._id}) preserved without password mutation.`);
       } else {
         console.warn(`⚠️ Production mode active: No Admin user found. Default admin auto-creation with static credentials is disabled in production.`);
       }
@@ -87,6 +87,7 @@ async function ensureAdminUser() {
 }
 
 async function ensureSeededData() {
+  if (mongoose.connection.readyState !== 1) return;
   try {
     const Restaurant = require('../models/Restaurant');
     const count = await Restaurant.countDocuments();

@@ -14,30 +14,29 @@ const restaurantSchema = new mongoose.Schema(
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
     product : [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
     }], // Products offered by the restaurant - synced when items are added
-    name: translationSchema, // Form: Restaurant Name
-    description: translationSchema,
+    name: { type: mongoose.Schema.Types.Mixed }, // String or translation object { en, de, ar }
+    description: { type: mongoose.Schema.Types.Mixed },
     restaurantType: { type: String },
     image: { type: String },
     bannerImage: { type: String },
     restaurantImages: [{ type: String }],
     cuisine: [{ type: String }], // Form: Cuisines
     brand: { type: String },
-    email: { type: String, required: true }, // Form: Email (Public contact email)
-    contactNumber: { type: String, required: true }, // Form: Contact Number
-    address: { type: String, required: true }, // Form: Address
-    city: { type: String, required: true }, // Form: Select City
-    area: { type: String, required: true }, // Form: Select Area
+    email: { type: String }, // Form: Email (Public contact email)
+    contactNumber: { type: String }, // Form: Contact Number
+    address: { type: String }, // Form: Address
+    city: { type: String }, // Form: Select City
+    area: { type: String }, // Form: Select Area
     location: {
       type: { type: String, default: "Point" },
       coordinates: { type: [Number], index: "2dsphere" }, // [long, lat]
     },
-    deliveryTime: { type: Number, required: true }, // Form: Estimated Delivery Time (Mins)
+    deliveryTime: { type: Number, default: 30 }, // Form: Estimated Delivery Time (Mins)
     geofenceRadius: { type: Number, default: 5 }, // Form: Geofence Radius (km)
     deliveringZones: [{ type: String }], // Form: Delivering Zones
     deliveryType: [{ 
@@ -142,6 +141,21 @@ const restaurantSchema = new mongoose.Schema(
       updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       updatedAt: { type: Date }
     },
+    phone: { type: String },
+    logo: { type: String },
+    accountDetail: { type: String },
+    upi: { type: String },
+    restaurantId: { type: String },
+    restaurantKey: { type: String },
+    avgRating: { type: Number, default: 0 },
+    adminRating: { type: Number, default: 0 },
+    totalReviews: { type: Number, default: 0 },
+    orderCount: { type: Number, default: 0 },
+    walletBalance: { type: Number, default: 0 },
+    menu: { type: Array, default: [] },
+    storeType: { type: String },
+    slug: { type: String },
+    zoneIds: [{ type: String }],
     timing: {
       monday: dailyTimingSchema,
       tuesday: dailyTimingSchema,
@@ -153,6 +167,7 @@ const restaurantSchema = new mongoose.Schema(
       isHoliday: { type: Boolean, default: false } // Global Holiday Switch
     }
   },
-  { timestamps: true }
+  { timestamps: true, strict: false }
 );
 module.exports = mongoose.model("Restaurant", restaurantSchema);
+

@@ -14,6 +14,8 @@ import 'payment_policy_screen.dart';
 import 'help_support_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api_constants.dart';
+import '../services/restaurant_auth_service.dart';
+import '../services/restaurant_api_service.dart';
 import 'restaurant_relogin_screen.dart';
 import 'restaurant_wallet_screen.dart';
 
@@ -25,14 +27,49 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final bool _isLoading = false;
-  final String _name = 'ECDKART Partner Kitchen';
+  bool _isLoading = false;
+  String _name = 'ECDKART Partner Kitchen';
   final String _image = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80';
-  final String _restaurantId = 'REST-94820';
-  final int _totalOrders = 142;
-  final double _totalRevenue = 48900.0;
+  String _restaurantId = 'REST-94820';
+  int _totalOrders = 142;
+  double _totalRevenue = 48900.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileDetails();
+  }
+
+  Future<void> _loadProfileDetails() async {
+    final session = await RestaurantAuthService.getSavedAuthSession();
+    final vendor = session['vendor'];
+    final restId = session['restaurantId'];
+
+    if (mounted) {
+      setState(() {
+        if (vendor != null && vendor['name'] != null) {
+          _name = vendor['name'].toString();
+        }
+        if (restId != null && restId.isNotEmpty) {
+          _restaurantId = restId.length > 8 ? restId.substring(restId.length - 8).toUpperCase() : restId;
+        }
+      });
+    }
+
+    try {
+      final stats = await RestaurantApiService.getDashboardStats('all');
+      if (stats['success'] == true && stats['data'] != null && mounted) {
+        final d = stats['data'];
+        setState(() {
+          if (d['totalOrders'] != null) _totalOrders = (d['totalOrders'] as num).toInt();
+          if (d['totalEarnings'] != null) _totalRevenue = (d['totalEarnings'] as num).toDouble();
+        });
+      }
+    } catch (_) {}
+  }
 
   void _handleLogout() async {
+    await RestaurantAuthService.clearAuthSession();
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     ApiConstants.clearAuthenticatedSession();

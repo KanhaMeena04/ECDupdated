@@ -20,7 +20,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController(text: '9876543210');
+  final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
 
   bool _isOtpSent = false;
@@ -29,6 +29,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // App Theme Color
   static const Color primaryGreen = Color(0xFF248C70);
+
+  @override
+  void initState() {
+    super.initState();
+    AuthService.getUserPhone().then((savedPhone) {
+      if (savedPhone != null && savedPhone.isNotEmpty && mounted) {
+        if (_phoneController.text.isEmpty) {
+          setState(() {
+            _phoneController.text = savedPhone.replaceAll('+91', '').trim();
+          });
+        }
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -78,43 +92,8 @@ class _LoginScreenState extends State<LoginScreen> {
       final phone = _phoneController.text.trim();
       final otp = _otpController.text.trim();
 
-      // Check if this phone number is already registered
-      final isRegistered = await AuthService.isPhoneRegistered(phone);
-
-      if (isRegistered) {
-        // ✅ EXISTING USER: Direct OTP login -> DriverHomeScreen
-        if (mounted) {
-          context.read<AuthBloc>().add(VerifyOtpRequested(phone: phone, otp: otp));
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Login successful! Welcome back.'),
-              backgroundColor: primaryGreen,
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 2),
-            ),
-          );
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const DriverHomeScreen()),
-          );
-        }
-      } else {
-        // 🚀 NEW USER (Not registered): Open registration flow
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('New number detected! Opening registration...'),
-              backgroundColor: primaryGreen,
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 2),
-            ),
-          );
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => RegisterScreen(initialPhone: phone),
-            ),
-          );
-        }
-      }
+      // Verify OTP via AuthBloc
+      context.read<AuthBloc>().add(VerifyOtpRequested(phone: phone, otp: otp));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -155,9 +134,37 @@ class _LoginScreenState extends State<LoginScreen> {
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is Authenticated) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const DriverHomeScreen()),
-            );
+            if (!state.user.isReturning) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('New partner detected! Please complete registration.'),
+                  backgroundColor: primaryGreen,
+                  behavior: SnackBarBehavior.floating,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => RegisterScreen(
+                    initialPhone: _phoneController.text.trim().isNotEmpty
+                        ? _phoneController.text.trim()
+                        : state.user.phone,
+                  ),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Login successful! Welcome back.'),
+                  backgroundColor: primaryGreen,
+                  behavior: SnackBarBehavior.floating,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const DriverHomeScreen()),
+              );
+            }
           } else if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -475,28 +482,79 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 30),
 
                         // Main Action Button (Get Started / Verify & Login)
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed: _isOtpSent ? _onVerifyAndLogin : _onSendOtp,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryGreen,
-                              foregroundColor: Colors.white,
-                              elevation: 2,
-                              shadowColor: primaryGreen.withValues(alpha: 0.3),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                        BlocBuilder<AuthBloc, AuthState>(
+                          builder: (context, state) {
+                            final isLoading = state is AuthLoading;
+                            return SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed: isLoading ? null : (_isOtpSent ? _onVerifyAndLogin : _onSendOtp),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryGreen,
+                                  foregroundColor: Colors.white,
+                                  elevation: 2,
+                                  shadowColor: primaryGreen.withValues(alpha: 0.3),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                child: isLoading
+                                    ? const SizedBox(
+                                        height: 22,
+                                        width: 22,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.5,
+                                        ),
+                                      )
+                                    : Text(
+                                        _isOtpSent ? 'Verify & Login' : 'Get Started',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                               ),
-                            ),
-                            child: Text(
-                              _isOtpSent ? 'Verify & Login' : 'Get Started',
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Register New Partner Link
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "New delivery partner? ",
                               style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Colors.grey[700],
                               ),
                             ),
-                          ),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => RegisterScreen(
+                                      initialPhone: _phoneController.text.trim().isNotEmpty
+                                          ? _phoneController.text.trim()
+                                          : null,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                'Register Now',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryGreen,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
 
                         const SizedBox(height: 32),

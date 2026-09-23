@@ -3,9 +3,20 @@ import 'package:google_fonts/google_fonts.dart';
 import 'documents_upload_screen.dart';
 
 class VehicleDetailsScreen extends StatefulWidget {
+  final String? name;
+  final String? email;
   final String? phone;
+  final String? pin;
+  final String? profileImageBase64;
 
-  const VehicleDetailsScreen({super.key, this.phone});
+  const VehicleDetailsScreen({
+    super.key,
+    this.name,
+    this.email,
+    this.phone,
+    this.pin,
+    this.profileImageBase64,
+  });
 
   @override
   State<VehicleDetailsScreen> createState() => _VehicleDetailsScreenState();
@@ -33,7 +44,18 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
     if (_formKey.currentState!.validate()) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => DocumentsUploadScreen(phone: widget.phone),
+          builder: (_) => DocumentsUploadScreen(
+            name: widget.name,
+            email: widget.email,
+            phone: widget.phone,
+            pin: widget.pin,
+            profileImageBase64: widget.profileImageBase64,
+            vehicleType: _selectedVehicleType,
+            vehicleBrand: _brandController.text.trim(),
+            vehicleModel: _modelController.text.trim(),
+            vehicleYear: _yearController.text.trim(),
+            regNumber: _regNumberController.text.trim(),
+          ),
         ),
       );
     }

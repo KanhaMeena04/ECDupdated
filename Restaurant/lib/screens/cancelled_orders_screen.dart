@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/order_model.dart';
+import '../services/restaurant_api_service.dart';
 import '../theme/app_colors.dart';
 import 'order_details_screen.dart';
 
@@ -19,6 +20,53 @@ class _CancelledOrdersScreenState extends State<CancelledOrdersScreen> {
   void initState() {
     super.initState();
     _loadMockCancelledOrders();
+    _fetchLiveCancelledOrders();
+  }
+
+  Future<void> _fetchLiveCancelledOrders() async {
+    try {
+      final res = await RestaurantApiService.getRestaurantOrders();
+      if (res['success'] == true && res['orders'] is List && mounted) {
+        final List list = res['orders'];
+        final List<Order> parsed = [];
+        for (var raw in list) {
+          final status = (raw['orderStatus'] ?? raw['deliveryStatus'] ?? '').toString().toLowerCase();
+          if (status == 'cancelled' || status == 'canceled' || status == 'rejected') {
+            final orderId = (raw['_id'] ?? raw['id'] ?? '').toString();
+            final shortId = orderId.length > 4 ? orderId.substring(orderId.length - 4) : orderId;
+            final itemsList = (raw['items'] as List?)?.map((i) => {
+              'name': i['name'] ?? i['title'] ?? 'Item',
+              'variant': i['variant'] ?? '',
+              'quantity': i['quantity'] ?? 1,
+              'price': (i['price'] as num?)?.toDouble() ?? 0.0,
+            }).toList() ?? [];
+
+            parsed.add(
+              Order(
+                id: shortId.isNotEmpty ? shortId : '1001',
+                backendId: orderId,
+                customerName: raw['customerName'] ?? raw['user']?['name'] ?? 'Customer',
+                address: raw['address'] ?? raw['deliveryAddress']?['address'] ?? 'Customer Address',
+                orderName: itemsList.isNotEmpty ? itemsList.first['name'] : 'Order Items',
+                quantity: itemsList.length,
+                items: itemsList,
+                totalAmount: (raw['totalAmount'] as num?)?.toDouble() ?? (raw['grandTotal'] as num?)?.toDouble() ?? 0.0,
+                status: 'Cancelled',
+                createdAt: raw['createdAt'] != null ? DateTime.tryParse(raw['createdAt']) ?? DateTime.now() : DateTime.now(),
+                cancelledAt: DateTime.now(),
+                cancellationReason: raw['cancellationReason'] ?? 'Cancelled by system/customer',
+                orderType: raw['orderType'] == 'pickup' ? 'pickup' : 'delivery',
+              ),
+            );
+          }
+        }
+        if (parsed.isNotEmpty) {
+          setState(() {
+            _cancelledOrders = parsed;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   void _loadMockCancelledOrders() {
