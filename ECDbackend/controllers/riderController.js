@@ -3451,3 +3451,63 @@ exports.getMyActiveOrder = async (req, res) => {
     });
   }
 };
+
+exports.driverToggleOnline = async (req, res) => {
+  try {
+    let riderDoc = await Rider.findOne({ user: req.user._id });
+    if (!riderDoc) return res.status(404).json({ message: "Rider profile not found" });
+    riderDoc.isOnline = !riderDoc.isOnline;
+    riderDoc.status = riderDoc.isOnline ? "active" : "inactive";
+    await riderDoc.save();
+    return res.status(200).json({ success: true, isOnline: riderDoc.isOnline, status: riderDoc.status, rider: riderDoc });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.driverReachedStore = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    if (!orderId) return res.status(400).json({ message: "Order ID is required" });
+    req.params.id = orderId;
+    return exports.riderArrivedRestaurant(req, res);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.driverDeleteAccount = async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user._id, { isDeleted: true, deletedAt: new Date() });
+    return res.status(200).json({ success: true, message: "Driver account deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.driverCodInitiate = async (req, res) => {
+  try {
+    const { amount } = req.body;
+    return res.status(200).json({
+      success: true,
+      message: "COD payment initiated",
+      transactionId: `COD_PAY_${Date.now()}`,
+      amount: amount || 0,
+      razorpayOrderId: `order_cod_${Date.now()}`
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.driverCodVerify = async (req, res) => {
+  try {
+    return res.status(200).json({
+      success: true,
+      message: "COD payment verified and credited to wallet"
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+

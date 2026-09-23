@@ -42,7 +42,6 @@ const AddTagForm = () => {
         <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 4 }}>
           <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
             <Tab icon={<Translate />} label="English" />
-            <Tab icon={<Translate />} label="Arabic" />
           </Tabs>
         </Box>
 

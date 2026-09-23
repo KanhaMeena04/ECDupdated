@@ -514,33 +514,21 @@ class _LoginPageState extends State<LoginPage>
             
             const SizedBox(height: 16),
             
-            // "Welcome Back" Image and subtext
-            Center(
-              child: Image.asset(
-                'assets/welcome_back.png',
-                height: 42,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => Text(
-                  'Welcome Back',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                    letterSpacing: -0.8,
-                  ),
-                ),
+            // "Welcome Back!" and subtext
+            const Text(
+              'Welcome Back!',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
             ),
             const SizedBox(height: 8),
-            const Center(
-              child: Text(
-                'Log in to continue your meal journey',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
+            const Text(
+              'Log in to continue your meal journey',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
               ),
             ),
             

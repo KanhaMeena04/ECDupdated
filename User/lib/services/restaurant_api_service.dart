@@ -1,7 +1,8 @@
 import '../core/constants/app_constants.dart';
 import '../core/config/app_mode.dart';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:http/http.dart' as http;
 import '../core/models/restaurant_models.dart';
 import '../core/models/category.dart';
@@ -19,6 +20,25 @@ class RestaurantApiService {
   static String get categoriesUrl => '$apiBaseUrl/categories';
   static String get popularDishesUrl => '$apiBaseUrl/popular-dishes';
   static String get bannersUrl => '$apiBaseUrl/banners';
+  static String get homeSectionsUrl => '$apiBaseUrl/home/sections';
+
+  static Future<List<Map<String, dynamic>>> getHomeScreenSections() async {
+    if (kFrontendPreviewMode) {
+      return [];
+    }
+    try {
+      final response = await http.get(Uri.parse(homeSectionsUrl));
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        final List<dynamic> data = jsonResponse['sections'] ?? [];
+        return data.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching home screen sections: $e');
+      return [];
+    }
+  }
 
   static Future<Map<String, String>> _getHeaders() async {
     final token = await AuthService.getToken();
@@ -106,7 +126,11 @@ class RestaurantApiService {
     }
   }
 
-  static Future<List<Restaurant>> getRestaurants({Map<String, String>? filters}) async {
+  static Future<List<Restaurant>> getRestaurants({
+    Map<String, String>? filters,
+    double? lat,
+    double? lng,
+  }) async {
     if (kFrontendPreviewMode) {
       final list = _getMockRestaurants();
       if (filters != null && filters.containsKey('search')) {
@@ -117,20 +141,32 @@ class RestaurantApiService {
     }
     try {
       var uri = Uri.parse('$restaurantsUrl/list');
-      final queryParams = {'limit': '100'};
+      final queryParams = <String, String>{'limit': '100'};
+      if (lat != null && lng != null) {
+        queryParams['lat'] = lat.toString();
+        queryParams['lng'] = lng.toString();
+      }
       if (filters != null) {
         queryParams.addAll(filters);
       }
       uri = uri.replace(queryParameters: queryParams);
       
+      debugPrint('RESTAURANT_API_REQUEST\nGET ${uri.toString()}');
+      
       final response = await http.get(uri);
-      debugPrint('API Response [getRestaurants]: ${response.statusCode} - ${response.body.length} bytes');
       
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-        final List<dynamic> restaurantsJson = jsonResponse['restaurants'] ?? [];
+        List<dynamic> restaurantsJson = [];
+        if (jsonResponse is List) {
+          restaurantsJson = jsonResponse;
+        } else if (jsonResponse is Map) {
+          restaurantsJson = jsonResponse['restaurants'] ?? jsonResponse['data'] ?? [];
+        }
+        debugPrint('RESTAURANT_API_RESPONSE\nstatus = ${response.statusCode}\ncount = ${restaurantsJson.length}');
         return restaurantsJson.map((json) => _fromJsonToRestaurant(json)).toList();
       } else {
+        debugPrint('RESTAURANT_API_RESPONSE\nstatus = ${response.statusCode}\ncount = 0');
         throw Exception('Failed to load restaurants: ${response.statusCode}');
       }
     } catch (e) {
@@ -164,12 +200,17 @@ class RestaurantApiService {
     }
   }
 
-  static Future<List<MenuItem>> getRestaurantMenu(String slug) async {
+  static Future<List<MenuItem>> getRestaurantMenu(String identifier) async {
     if (kFrontendPreviewMode) {
       return _getMockMenuItems();
     }
     try {
-      final response = await http.get(Uri.parse('$restaurantsUrl/menu/$slug'));
+      var url = '$apiBaseUrl/menu/$identifier';
+      var response = await http.get(Uri.parse(url));
+      if (response.statusCode != 200) {
+        url = '$restaurantsUrl/menu/$identifier';
+        response = await http.get(Uri.parse(url));
+      }
       debugPrint('API Response [getRestaurantMenu]: ${response.statusCode}');
       
       if (response.statusCode == 200) {
@@ -178,7 +219,20 @@ class RestaurantApiService {
         if (jsonResponse is List) {
           menuJson = jsonResponse;
         } else if (jsonResponse is Map) {
-          menuJson = jsonResponse['menu'] ?? jsonResponse['data'] ?? [];
+          if (jsonResponse['menu'] is List) {
+            menuJson = jsonResponse['menu'];
+          } else if (jsonResponse['menu'] is Map) {
+            final Map<String, dynamic> catMap = jsonResponse['menu'];
+            for (var items in catMap.values) {
+              if (items is List) {
+                menuJson.addAll(items);
+              }
+            }
+          } else if (jsonResponse['products'] is List) {
+            menuJson = jsonResponse['products'];
+          } else if (jsonResponse['data'] is List) {
+            menuJson = jsonResponse['data'];
+          }
         }
         return menuJson.map((json) => _fromJsonToMenuItem(json)).toList();
       } else {
@@ -266,11 +320,23 @@ class RestaurantApiService {
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         final List<dynamic> data = jsonResponse['categories'] ?? [];
-        return data.map((json) => Category(
-          id: json['_id']?.toString() ?? json['slug']?.toString() ?? '',
-          title: json['name']?.toString() ?? '',
-          image: json['image']?.toString() ?? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
-        )).toList();
+        return data.map((json) {
+          String catTitle = '';
+          if (json['title'] != null && json['title'].toString().isNotEmpty) {
+            catTitle = json['title'].toString();
+          } else if (json['name'] != null) {
+            if (json['name'] is Map) {
+              catTitle = json['name']['en']?.toString() ?? json['name'].values.first?.toString() ?? 'Category';
+            } else {
+              catTitle = json['name'].toString();
+            }
+          }
+          return Category(
+            id: json['_id']?.toString() ?? json['slug']?.toString() ?? '',
+            title: catTitle.isNotEmpty ? catTitle : 'Category',
+            image: json['image']?.toString() ?? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
+          );
+        }).toList();
       }
       return [];
     } catch (e) {
@@ -287,10 +353,10 @@ class RestaurantApiService {
       final response = await http.get(Uri.parse(popularDishesUrl));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-        final List<dynamic> data = jsonResponse['dishes'] ?? [];
+        final List<dynamic> data = jsonResponse['dishes'] ?? jsonResponse['products'] ?? [];
         return data.map((json) => PopularDish(
           id: json['_id']?.toString() ?? '',
-          name: json['name']?.toString() ?? '',
+          name: json['name'] is Map ? (json['name']['en']?.toString() ?? json['name'].values.first?.toString() ?? '') : (json['name']?.toString() ?? ''),
           slug: json['slug']?.toString() ?? '',
           imageUrl: json['image']?.toString() ?? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
           category: json['category']?.toString() ?? '',
@@ -324,27 +390,47 @@ class RestaurantApiService {
 
   static Restaurant _fromJsonToRestaurant(Map<String, dynamic> json) {
     List<MenuItem> menuItems = [];
-    if (json['menu'] != null) {
+    if (json['menu'] != null && json['menu'] is List) {
       menuItems = (json['menu'] as List).map((i) => _fromJsonToMenuItem(i)).toList();
     }
 
-    // Robust mapping with fallbacks for every field
+    String rName = 'Unknown Restaurant';
+    if (json['name'] != null) {
+      if (json['name'] is Map) {
+        rName = json['name']['en']?.toString() ?? json['name']['de']?.toString() ?? json['name'].values.first?.toString() ?? 'Unknown Restaurant';
+      } else {
+        rName = json['name'].toString();
+      }
+    }
+
+    double parsedRating = 4.5;
+    if (json['rating'] != null) {
+      if (json['rating'] is Map) {
+        parsedRating = _parseDouble(json['rating']['average'] ?? json['rating']['avgRating'], 4.5);
+      } else {
+        parsedRating = _parseDouble(json['rating'], 4.5);
+      }
+    } else if (json['avgRating'] != null) {
+      parsedRating = _parseDouble(json['avgRating'], 4.5);
+    }
+
     return Restaurant(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       slug: json['slug']?.toString() ?? '',
-      name: json['name']?.toString() ?? 'Unknown Restaurant',
+      name: rName,
       imageUrl: json['coverImage']?.toString() ?? json['logo']?.toString() ?? json['image']?.toString() ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600',
-      rating: _parseDouble((json['avgRating'] != null && json['avgRating'] > 0) ? json['avgRating'] : (json['adminRating'] ?? json['rating'] ?? json['avgRating']), 4.0),
-      reviewCount: _parseInt(json['totalReviews'] != null && json['totalReviews'] > 0 ? json['totalReviews'] : (json['orderCount'] ?? json['reviewCount'] ?? json['totalReviews']), 100),
-      distanceKm: _parseDouble(json['distance'] ?? json['distanceKm'], 2.5),
-      deliveryTimeMin: _parseInt(json['deliveryTime'] ?? json['deliveryTimeMin'] ?? json['prepTime'], 30),
+      rating: parsedRating,
+      reviewCount: _parseInt(json['totalReviews'] != null && json['totalReviews'] > 0 ? json['totalReviews'] : (json['orderCount'] ?? json['reviewCount'] ?? json['totalReviews']), 120),
+      distanceKm: _parseDouble(json['distanceKm'] ?? json['distance'], 1.8),
+      deliveryTimeMin: _parseInt(json['deliveryTime'] ?? json['deliveryTimeMin'] ?? json['prepTime'], 25),
       deliveryCharge: _parseDouble(json['deliveryCharge'] ?? json['shippingFee'], 0.0),
-      cuisine: json['storeType']?.toString() ?? json['cuisine']?.toString() ?? json['description']?.toString() ?? 'Food',
+      cuisine: (json['cuisine'] is List) ? (json['cuisine'] as List).join(', ') : (json['storeType']?.toString() ?? json['cuisine']?.toString() ?? 'North Indian, Fast Food'),
       menu: menuItems,
-      isActive: json['isActive'] == true,
-      isOnline: json['isOnline'] == true,
+      isActive: json['isActive'] != false,
+      isOnline: json['isOnline'] != false,
     );
   }
+
 
   static double _parseDouble(dynamic value, double defaultVal) {
     if (value == null) return defaultVal;
@@ -363,15 +449,27 @@ class RestaurantApiService {
   }
 
   static MenuItem _fromJsonToMenuItem(Map<String, dynamic> json) {
+    final rawPrice = _parseDouble(json['price'] ?? json['basePrice'], 0.0);
+    final rawMrp = _parseDouble(json['mrp'] ?? json['originalBasePrice'], rawPrice > 0 ? rawPrice * 1.3 : 0.0);
+    final rawDiscount = _parseDouble(json['discountPercent'], 0.0);
+    final isOut = json['outOfStock'] == true || json['available'] == false;
+
     return MenuItem(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Item',
       imageUrl: json['image']?.toString() ?? json['imageUrl']?.toString() ?? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
-      price: _parseDouble(json['price'], 0.0),
+      price: rawPrice,
+      originalPrice: rawMrp > rawPrice ? rawMrp : null,
+      comparisonTag: rawDiscount > 0 ? '${rawDiscount.toInt()}% OFF' : null,
       category: json['category']?.toString() ?? 'General',
       rating: _parseDouble(json['rating'], 4.0),
       isVeg: json['isVeg'] == true || json['isVegetarian'] == true || json['veg'] == true,
       description: json['description']?.toString() ?? '',
+      outOfStock: isOut,
+      preparationTime: _parseInt(json['preparationTime'], 15),
+      subcategory: json['subcategory']?.toString() ?? '',
+      isFeatured: json['isFeatured'] == true,
+      adminPriceOverridden: json['adminPriceOverride']?['isOverridden'] == true,
     );
   }
 

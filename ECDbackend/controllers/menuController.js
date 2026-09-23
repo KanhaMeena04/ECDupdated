@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Category = require("../models/Category");
 const Product = require("../models/Product");
 const Restaurant = require("../models/Restaurant");
@@ -75,10 +76,19 @@ exports.addFoodItem = async (req, res) => {
     const file = req.files && req.files.image ? req.files.image[0] : null;
     const {
       categoryId,
+      subcategoryId,
       name,
       description,
       basePrice,
+      mrp,
+      sellingPrice,
+      b2cMrp,
+      b2cSellingPrice,
+      b2bPrice,
+      b2bSellingPrice,
+      foodType,
       isVeg,
+      preparationTime,
       variations,
       addOns,
     } = req.body;
@@ -93,19 +103,59 @@ exports.addFoodItem = async (req, res) => {
       });
     }
     const restaurant = await getOwnerRestaurant(req.user._id);
-    const category = await Category.findOne({
-      _id: categoryId,
-      restaurant: restaurant._id,
-    });
-    if (!category) {
-      return res
-        .status(404)
-        .json({ message: "Category not found or does not belong to you." });
+
+    // Validate main category from Category Master
+    if (!categoryId) {
+      return res.status(400).json({ message: "Category ID is required" });
     }
+    const category = await Category.findById(categoryId);
+    if (!category || category.isActive === false) {
+      return res.status(404).json({ message: "Category not found or inactive" });
+    }
+
+    // Validate subcategory if provided
+    let validSubcategory = null;
+    if (subcategoryId) {
+      validSubcategory = await Category.findById(subcategoryId);
+      if (!validSubcategory || validSubcategory.isActive === false) {
+        return res.status(404).json({ message: "Subcategory not found or inactive" });
+      }
+      if (validSubcategory.parentCategoryId && validSubcategory.parentCategoryId.toString() !== category._id.toString()) {
+        return res.status(400).json({ message: "Selected subcategory does not belong to selected category." });
+      }
+    }
+
     const normalizedName = normalizeTranslation(name);
     if (!normalizedName || !normalizedName.en) {
       return res.status(400).json({ message: "Product name is required" });
     }
+
+    // Calculate B2C and B2B pricing
+    const finalB2cSelling = Number(b2cSellingPrice ?? sellingPrice ?? basePrice ?? 0);
+    const finalB2cMrp = Number(b2cMrp ?? mrp ?? finalB2cSelling);
+    const finalB2bSelling = Number(b2bSellingPrice ?? b2bPrice ?? finalB2cSelling);
+
+    if (finalB2cSelling < 0 || finalB2cMrp < 0 || finalB2bSelling < 0) {
+      return res.status(400).json({ message: "Prices cannot be negative" });
+    }
+
+    const b2cDiscount = finalB2cMrp > 0 ? Math.max(0, Math.round(((finalB2cMrp - finalB2cSelling) / finalB2cMrp) * 100 * 100) / 100) : 0;
+    const b2bDiscount = finalB2cMrp > 0 ? Math.max(0, Math.round(((finalB2cMrp - finalB2bSelling) / finalB2cMrp) * 100 * 100) / 100) : 0;
+
+    const pricingObj = {
+      b2c: {
+        mrp: finalB2cMrp,
+        sellingPrice: finalB2cSelling,
+        discountPercent: b2cDiscount
+      },
+      b2b: {
+        sellingPrice: finalB2bSelling,
+        discountPercent: b2bDiscount
+      }
+    };
+
+    const resolvedFoodType = foodType || (isVeg === false || isVeg === "false" ? "non-veg" : "veg");
+
     let normalizedVariations = normalizeNamedList(parsedVariations || variations) || [];
     if (Array.isArray(normalizedVariations)) {
       normalizedVariations = normalizedVariations.filter((variation) => {
@@ -130,23 +180,46 @@ exports.addFoodItem = async (req, res) => {
         return true;
       });
     }
+
     const product = await Product.create({
       restaurant: restaurant._id,
-      category: categoryId,
+      category: category._id,
+      categoryId: category._id,
+      subcategoryId: validSubcategory ? validSubcategory._id : null,
+      subcategory: validSubcategory ? validSubcategory.name : "",
       name: normalizedName,
       description: normalizeTranslation(description),
-      basePrice,
+      basePrice: finalB2cSelling,
+      mrp: finalB2cMrp,
+      sellingPrice: finalB2cSelling,
+      pricing: pricingObj,
+      foodType: resolvedFoodType,
+      isVeg: resolvedFoodType === "veg",
+      preparationTime: Number(preparationTime || 15),
       image,
-      isVeg,
       variations: normalizedVariations,
       addOns: normalizedAddOns,
-      isApproved: false, // ✅ NEW ITEMS START UNAPPROVED
+      approvalStatus: "pending",
+      isApproved: false,
+      isPublished: false,
     });
+
     await Restaurant.findByIdAndUpdate(
       restaurant._id,
-      { $addToSet: { product: product._id } }, // $addToSet prevents duplicates
+      { $addToSet: { product: product._id } },
       { new: true }
     );
+
+    const AuditLog = require("../models/AuditLog");
+    await AuditLog.log({
+      entity: "Product",
+      entityId: product._id,
+      action: "MENU_ITEM_CREATED",
+      userId: req.user._id,
+      userRole: "restaurant_owner",
+      reason: `Restaurant submitted menu item '${product.name?.en || product.name}' for approval`,
+    });
+
     res.status(201).json({ 
       message: "Food Item added successfully. Awaiting admin approval.",
       product,
@@ -159,90 +232,140 @@ exports.addFoodItem = async (req, res) => {
 exports.getMenu = async (req, res) => {
   try {
     const { restaurantId } = req.params;
-    const restaurant = await Restaurant.findById(restaurantId).select(
-      "restaurantApproved isActive menuApproved"
-    );
+    let restaurant;
+    if (mongoose.Types.ObjectId.isValid(restaurantId)) {
+      restaurant = await Restaurant.findById(restaurantId).select(
+        "name restaurantApproved isActive menuApproved"
+      );
+    } else {
+      restaurant = await Restaurant.findOne({ slug: restaurantId }).select(
+        "name restaurantApproved isActive menuApproved"
+      );
+    }
     if (!restaurant) {
       return res.status(404).json({ message: "Restaurant not found" });
     }
-    if (!restaurant.restaurantApproved || !restaurant.isActive) {
-      return res.status(403).json({ message: "Restaurant not available" });
+    if (!restaurant.restaurantApproved || !restaurant.isActive || !restaurant.menuApproved) {
+      return res.status(403).json({ message: "Restaurant menu is not active or approved" });
     }
+
+    // Filter products: approved, published, active, not out of stock
     const products = await Product.find({
-      restaurant: restaurantId,
+      restaurant: restaurant._id,
       isApproved: true,
+      isPublished: { $ne: false },
+      isRejected: { $ne: true },
       available: true,
-      pendingUpdate: { $exists: false } // Exclude products with pending edits
-    });
-    if (products.length === 0) {
-      return res.status(200).json({
-        message: restaurant.menuApproved ? "Restaurant menu is empty" : "Menu is being updated, please check back soon",
-        menu: {},
-        menuByCategoryId: {},
-        categories: [],
-        status: restaurant.menuApproved ? "empty" : "pending_approval"
-      });
-    }
-    const categoryIds = [
-      ...new Set(products.map((p) => p.category.toString())),
-    ];
-    const categories = await Category.find({ _id: { $in: categoryIds } });
+      outOfStock: { $ne: true }
+    })
+      .populate("category", "name slug isActive userAppVisible")
+      .populate("categoryId", "name slug isActive userAppVisible")
+      .populate("subcategoryId", "name slug isActive userAppVisible")
+      .lean();
+
+    // Check if authenticated user is authorized for B2B pricing
+    const isB2BUser = req.user && (req.user.userType === "b2b" || req.user.userType === "corporate" || req.user.role === "b2b");
+
+    const items = [];
     const menu = {};
     const menuByCategoryId = {};
-    categories.forEach((cat) => {
-      const catName = cat.name.en || cat.name;
-      menu[catName] = [];
-      menuByCategoryId[cat._id.toString()] = {
-        category: {
-          _id: cat._id,
-          name: cat.name,
-          image: cat.image,
-        },
-        items: [],
-      };
-    });
+
     products.forEach((p) => {
-      const category = categories.find(
-        (c) => c._id.toString() === p.category.toString(),
-      );
-      if (category) {
-        const catName = category.name.en || category.name;
-        const item = {
-          _id: p._id,
-          categoryId: p.category,
-          name: p.name.en || p.name,
-          description: p.description ? p.description.en || p.description : "",
-          image: p.image,
-          basePrice: p.basePrice,
-          isVeg: p.isVeg,
-          variations: p.variations,
-          addOns: p.addOns,
-          available: p.available,
-          isBestSeller: false,
-        };
-        menu[catName].push(item);
-        const categoryKey = category._id.toString();
-        if (!menuByCategoryId[categoryKey]) {
-          menuByCategoryId[categoryKey] = {
-            category: {
-              _id: category._id,
-              name: category.name,
-              image: category.image,
-            },
-            items: [],
-          };
-        }
-        menuByCategoryId[categoryKey].items.push(item);
+      const catObj = p.categoryId || p.category;
+      if (!catObj || catObj.isActive === false || catObj.userAppVisible === false) {
+        return; // Skip if main category is inactive
       }
+
+      const subcatObj = p.subcategoryId;
+      if (subcatObj && (subcatObj.isActive === false || subcatObj.userAppVisible === false)) {
+        return; // Skip if subcategory is inactive
+      }
+
+      const catName = catObj.name?.en || catObj.name || "Uncategorized";
+      const b2cSelling = p.pricing?.b2c?.sellingPrice ?? p.sellingPrice ?? p.basePrice ?? 0;
+      const b2cMrp = p.pricing?.b2c?.mrp ?? p.mrp ?? b2cSelling;
+      const b2bSelling = p.pricing?.b2b?.sellingPrice ?? b2cSelling;
+
+      const formattedItem = {
+        _id: p._id,
+        id: p._id,
+        categoryId: catObj._id,
+        subcategoryId: subcatObj ? subcatObj._id : null,
+        name: p.name?.en || p.name || "",
+        description: p.description ? p.description.en || p.description : "",
+        image: p.image,
+        basePrice: b2cSelling,
+        b2cPrice: b2cSelling,
+        sellingPrice: b2cSelling,
+        mrp: b2cMrp,
+        foodType: p.foodType || (p.isVeg ? "veg" : "non-veg"),
+        isVeg: p.isVeg !== false,
+        preparationTime: p.preparationTime || 15,
+        variations: p.variations || [],
+        addOns: p.addOns || [],
+        available: p.available !== false,
+        category: {
+          id: catObj._id,
+          _id: catObj._id,
+          name: catName,
+          slug: catObj.slug
+        },
+        subcategory: subcatObj ? {
+          id: subcatObj._id,
+          _id: subcatObj._id,
+          name: subcatObj.name?.en || subcatObj.name || "",
+          slug: subcatObj.slug
+        } : null,
+        restaurant: {
+          id: restaurant._id,
+          _id: restaurant._id,
+          name: restaurant.name?.en || restaurant.name || ""
+        }
+      };
+
+      if (isB2BUser) {
+        formattedItem.b2bPrice = b2bSelling;
+        formattedItem.pricing = {
+          b2c: { mrp: b2cMrp, sellingPrice: b2cSelling },
+          b2b: { sellingPrice: b2bSelling }
+        };
+      } else {
+        formattedItem.pricing = {
+          b2c: { mrp: b2cMrp, sellingPrice: b2cSelling }
+        };
+      }
+
+      items.push(formattedItem);
+
+      if (!menu[catName]) menu[catName] = [];
+      menu[catName].push(formattedItem);
+
+      const categoryKey = catObj._id.toString();
+      if (!menuByCategoryId[categoryKey]) {
+        menuByCategoryId[categoryKey] = {
+          category: {
+            _id: catObj._id,
+            id: catObj._id,
+            name: catName,
+            image: catObj.image,
+          },
+          items: [],
+        };
+      }
+      menuByCategoryId[categoryKey].items.push(formattedItem);
     });
+
     res.json({
+      success: true,
+      count: items.length,
+      items,
       menu,
       menuByCategoryId,
-      categories: categories.map((cat) => ({
-        _id: cat._id,
-        name: cat.name,
-        image: cat.image,
-      })),
+      restaurant: {
+        _id: restaurant._id,
+        id: restaurant._id,
+        name: restaurant.name?.en || restaurant.name || ""
+      }
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -1,5 +1,8 @@
 const dotenv = require('dotenv');
-dotenv.config();
+const path = require('path');
+dotenv.config({ path: path.join(__dirname, '.env') });
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'ecd_local_dev_jwt_secret_key_2026';
+process.env.MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ecdkart_local_dev';
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
@@ -68,11 +71,9 @@ const io = socketIO(server, {
   pingTimeout: 60000,
   pingInterval: 25000
 });
-require('./sockets')(io);
 const initCronJobs = require('./services/cronService');
-initCronJobs();
-const initPaymentCronJobs = require('./services/paymentCronJobs'); // NEW: weekly payout cron
-initPaymentCronJobs();
+const initPaymentCronJobs = require('./services/paymentCronJobs');
+
 app.use(cookieParser());
 app.use(cors(corsConfig));
 const { handleStripeWebhook } = require('./controllers/paymentController');
@@ -94,11 +95,18 @@ app.use('/api/v1/restaurants', restaurantRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/v1/menu', menuRoutes);
 
+const { submitCategoryRequest } = require('./controllers/categoryRequestController');
+const { protect: protectAuth, restaurantOwner: ownerAuth } = require('./middleware/authMiddleware');
+app.post('/api/vendor/category-requests', protectAuth, ownerAuth, submitCategoryRequest);
+app.post('/api/v1/vendor/category-requests', protectAuth, ownerAuth, submitCategoryRequest);
+
 app.use('/api/orders', orderRoutes);
 app.use('/api/v1/orders', orderRoutes);
 
 app.use('/api/riders', riderRoutes);
 app.use('/api/v1/riders', riderRoutes);
+app.use('/api/drivers', riderRoutes);
+app.use('/api/v1/drivers', riderRoutes);
 
 app.use('/api/admin/cms', adminCmsRoutes); // Must come BEFORE /api/admin
 app.use('/api/admin/reports', reportRoutes); // Must come BEFORE /api/admin
@@ -113,8 +121,31 @@ app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/v1/search', searchRoutes);
 
+const homeCmsRoutes = require('./routes/homeCmsRoutes');
+app.use('/api/home', homeCmsRoutes);
+app.use('/api/v1/home', homeCmsRoutes);
+
+const catalogCmsRoutes = require('./routes/catalogCmsRoutes');
+app.use('/api/catalog', catalogCmsRoutes);
+app.use('/api/v1/catalog', catalogCmsRoutes);
+
+const pricingCmsRoutes = require('./routes/pricingCmsRoutes');
+app.use('/api/pricing', pricingCmsRoutes);
+app.use('/api/v1/pricing', pricingCmsRoutes);
+
 app.use('/api/home', homeRoutes);
 app.use('/api/v1/home', homeRoutes);
+
+const categoryRoutes = require('./routes/categoryRoutes');
+app.use('/api/categories', categoryRoutes);
+app.use('/api/v1/categories', categoryRoutes);
+
+const { getCategories, getBanners, getPopularDishes } = require('./controllers/homeController');
+app.get('/api/banners', getBanners);
+app.get('/api/v1/banners', getBanners);
+app.get('/api/popular-dishes', getPopularDishes);
+app.get('/api/v1/popular-dishes', getPopularDishes);
+
 
 app.use('/api/cities', cityRoutes);
 app.use('/api/v1/cities', cityRoutes);
@@ -143,9 +174,28 @@ app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/cms', cmsRoutes);
 app.use('/api/v1/cms', cmsRoutes);
 
+const ruleEngineRoutes = require('./routes/ruleEngineRoutes');
+const emergencyRoutes = require('./routes/emergencyRoutes');
+const featureFlagRoutes = require('./routes/featureFlagRoutes');
+const scheduledChangeRoutes = require('./routes/scheduledChangeRoutes');
+const serviceAreaRoutes = require('./routes/serviceAreaRoutes');
+const reconciliationRoutes = require('./routes/reconciliationRoutes');
+
+app.use('/api/rules', ruleEngineRoutes);
+app.use('/api/v1/rules', ruleEngineRoutes);
+app.use('/api/emergency', emergencyRoutes);
+app.use('/api/v1/emergency', emergencyRoutes);
+app.use('/api/feature-flags', featureFlagRoutes);
+app.use('/api/v1/feature-flags', featureFlagRoutes);
+app.use('/api/scheduled-changes', scheduledChangeRoutes);
+app.use('/api/v1/scheduled-changes', scheduledChangeRoutes);
+app.use('/api/service-areas', serviceAreaRoutes);
+app.use('/api/v1/service-areas', serviceAreaRoutes);
+app.use('/api/reconciliations', reconciliationRoutes);
+app.use('/api/v1/reconciliations', reconciliationRoutes);
+
 app.use('/api/training', trainingRoutes);
 app.use('/api/v1/training', trainingRoutes);
-const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/', (req, res) => {
   res.send('Food Delivery API is running...');
@@ -155,18 +205,21 @@ app.use(notFound);
 app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 const HOST = "0.0.0.0";
+
+server.listen(PORT, '127.0.0.1', () => {
+  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on http://127.0.0.1:${PORT}`);
+  console.log(`Socket.IO server ready for real-time connections`);
+});
+
 const InitializeConnection = async () => {
   try {
     await Promise.resolve(connectDB());
     console.log("DB connect");
-    server.listen(PORT, HOST, () => {
-      console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-      console.log(`Socket.IO server ready for real-time connections`);
-      console.log(server.address());
-    });
+    initCronJobs();
+    initPaymentCronJobs();
   }
   catch (err) {
     console.log("error occured " + err);
   }
-}
+};
 InitializeConnection();

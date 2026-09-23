@@ -44,7 +44,7 @@ const AdminLogin = () => {
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs font-semibold tracking-wide backdrop-blur-sm shadow-sm">
             <span className="w-2 h-2 rounded-full bg-[#E89D1E] animate-pulse"></span>
-            ECDKART SOHNA (HARYANA) PLATFORM
+            ECDKART PLATFORM
           </div>
         </div>
 
@@ -54,7 +54,7 @@ const AdminLogin = () => {
             Smart Hyperlocal Food &amp; Restaurant SaaS
           </h1>
           <p className="text-base sm:text-lg text-white/85 leading-relaxed font-normal">
-            Real-time food ordering, hyperlocal multi-kitchen dispatch in Sohna (Haryana), live rider fleet tracking, and unified merchant-customer operations console designed for high-velocity food ecosystems.
+            Real-time food ordering, hyperlocal multi-kitchen dispatch, live rider fleet tracking, and unified merchant-customer operations console designed for high-velocity food ecosystems.
           </p>
         </div>
 
@@ -62,7 +62,7 @@ const AdminLogin = () => {
         <div className="relative z-10 pt-6 border-t border-white/15 grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div>
             <div className="text-xl sm:text-2xl font-bold text-white tracking-tight">50+ Kitchens</div>
-            <div className="text-xs text-white/75 mt-0.5">Active across Sohna, HR</div>
+            <div className="text-xs text-white/75 mt-0.5">Active Across Cities</div>
           </div>
           <div>
             <div className="text-xl sm:text-2xl font-bold text-white tracking-tight">25 Min Delivery</div>
@@ -92,7 +92,7 @@ const AdminLogin = () => {
               Welcome Administrator
             </h2>
             <p className="text-sm text-gray-500 mt-1.5 font-medium">
-              Sign in to explore the Sohna food operations management console
+              Sign in to explore the food operations management console
             </p>
           </div>
 

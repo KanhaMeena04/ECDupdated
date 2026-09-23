@@ -6,6 +6,7 @@ const aboutUsController = require('../controllers/aboutUsController');
 const faqController = require('../controllers/faqController');
 const contactFormController = require('../controllers/contactFormController');
 const { protect, admin } = require('../middleware/authMiddleware');
+router.get('/', (req, res) => res.status(200).json({ status: 'active', message: 'CMS API operational' }));
 router.get('/privacy-policy', privacyPolicyController.getPrivacyPolicy);
 router.get('/terms-conditions', termsConditionsController.getTermsConditions);
 router.get('/about-us', aboutUsController.getAboutUs);

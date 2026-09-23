@@ -18,11 +18,10 @@ function useDashboardData() {
         withCredentials: true,
       });
 
-      const { totals = {}, heatmap = [], salesSeries = [] } = response.data || {};
-
-      setTotals(totals);
-      setHeatmap(Array.isArray(heatmap) ? heatmap : []);
-      setSalesSeries(Array.isArray(salesSeries) ? salesSeries : []);
+      const data = response.data || {};
+      setTotals(data);
+      setHeatmap(Array.isArray(data.heatmap) ? data.heatmap : []);
+      setSalesSeries(Array.isArray(data.salesSeries) ? data.salesSeries : []);
     } catch (err) {
       setTotals({});
       setHeatmap([]);

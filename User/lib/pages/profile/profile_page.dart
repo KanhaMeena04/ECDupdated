@@ -11,9 +11,14 @@ import '../../services/user_api_service.dart';
 import '../../services/auth_service.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../providers/theme_provider.dart';
 import '../../routes/app_routes.dart';
+import '../order/my_orders_page.dart';
 import 'policy_page.dart';
+import 'support_chat_page.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/user_provider.dart';
 
 class _GroupMenuItem {
@@ -613,7 +618,14 @@ class ProfileTab extends StatelessWidget {
     );
   }
 
-  void _showNotificationSettingsSheet(BuildContext context, bool isDark) {
+  void _showNotificationSettingsSheet(BuildContext context, bool isDark) async {
+    final prefs = await SharedPreferences.getInstance();
+    bool pushNotifications = prefs.getBool('push_notifications') ?? true;
+    bool orderStatusAlerts = prefs.getBool('order_status_alerts') ?? true;
+    bool promotionalOffers = prefs.getBool('promotional_offers') ?? true;
+
+    if (!context.mounted) return;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -651,7 +663,7 @@ class ProfileTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 SwitchListTile(
-                  value: true,
+                  value: pushNotifications,
                   activeColor: AppColors.primary,
                   title: Text('Push Notifications',
                       style: TextStyle(
@@ -659,10 +671,15 @@ class ProfileTab extends StatelessWidget {
                           color: isDark ? Colors.white : Colors.black)),
                   subtitle: const Text('Receive real-time app updates',
                       style: TextStyle(fontSize: 11, color: Colors.grey)),
-                  onChanged: (val) {},
+                  onChanged: (val) {
+                    setSheetState(() {
+                      pushNotifications = val;
+                    });
+                    prefs.setBool('push_notifications', val);
+                  },
                 ),
                 SwitchListTile(
-                  value: true,
+                  value: orderStatusAlerts,
                   activeColor: AppColors.primary,
                   title: Text('Order Status Alerts',
                       style: TextStyle(
@@ -671,10 +688,15 @@ class ProfileTab extends StatelessWidget {
                   subtitle: const Text(
                       'Get notified when food is out for delivery',
                       style: TextStyle(fontSize: 11, color: Colors.grey)),
-                  onChanged: (val) {},
+                  onChanged: (val) {
+                    setSheetState(() {
+                      orderStatusAlerts = val;
+                    });
+                    prefs.setBool('order_status_alerts', val);
+                  },
                 ),
                 SwitchListTile(
-                  value: false,
+                  value: promotionalOffers,
                   activeColor: AppColors.primary,
                   title: Text('Promotional Offers',
                       style: TextStyle(
@@ -683,7 +705,12 @@ class ProfileTab extends StatelessWidget {
                   subtitle: const Text(
                       'Receive special deals and discount codes',
                       style: TextStyle(fontSize: 11, color: Colors.grey)),
-                  onChanged: (val) {},
+                  onChanged: (val) {
+                    setSheetState(() {
+                      promotionalOffers = val;
+                    });
+                    prefs.setBool('promotional_offers', val);
+                  },
                 ),
                 const SizedBox(height: 16),
               ],

@@ -50,6 +50,8 @@ const CategoryList=lazy(()=>import("../categories/pages/CategoryList"))
 const AddCategory=lazy(()=>import("../categories/pages/AddCategory"))
 const CategorySort=lazy(()=>import("../categories/pages/CategorySort"))
 const EditCategory=lazy(()=>import("../categories/pages/EditCategory"))
+const PendingMenuApprovals=lazy(()=>import("../pages/PendingMenuApprovals"))
+const CategoryRequests=lazy(()=>import("../pages/CategoryRequests"))
 
 const UnitSymbolAdd=lazy(()=>import("../units/pages/AddUnitSymbol"))
 const AddUnit=lazy(()=>import("../units/pages/AddUnit"))
@@ -80,6 +82,9 @@ const AboutUs=lazy(()=>import("../contentmanagement/pages/AboutUs"))
 const FAQ=lazy(()=>import("../contentmanagement/pages/FAQ"))
 const LandingPage=lazy(()=>import("../contentmanagement/pages/LandingPage"))
 const PrivacyPolicy=lazy(()=>import("../contentmanagement/pages/PrivacyPolicy"))
+const UserAppCmsPage=lazy(()=>import("../contentmanagement/pages/UserAppCmsPage"))
+const CatalogMasterControl=lazy(()=>import("../contentmanagement/pages/CatalogMasterControl"))
+const PricingControlTower=lazy(()=>import("../contentmanagement/pages/PricingControlTower"))
 const RestaurantDashboard=lazy(()=>import("../restaurants/pages/RestaurantDashboard"))
 const EditRestaurant=lazy(()=>import("../restaurants/pages/EditRestaurant"))
 
@@ -145,6 +150,15 @@ const AddZone=lazy(()=>import("../citymanagment/pages/AddZone"))
 const EditGroupTag=lazy(()=>import("../groups/pages/EditGroupTag"))
 const EditFoodQuantity=lazy(()=>import("../food/pages/EditFoodQuantity"))
 
+const RuleEnginePage=lazy(()=>import("../pages/RuleEnginePage"))
+const FeatureFlagsPage=lazy(()=>import("../pages/FeatureFlagsPage"))
+const ScheduledChangesPage=lazy(()=>import("../pages/ScheduledChangesPage"))
+const EmergencyControlsPage=lazy(()=>import("../pages/EmergencyControlsPage"))
+const ServiceAreasPage=lazy(()=>import("../pages/ServiceAreasPage"))
+const SelfPickupControlPage=lazy(()=>import("../pages/SelfPickupControlPage"))
+const PaymentReconciliationPage=lazy(()=>import("../pages/PaymentReconciliationPage"))
+const RiderEarningsControlPage=lazy(()=>import("../pages/RiderEarningsControlPage"))
+const AuditLogsPage=lazy(()=>import("../pages/AuditLogsPage"))
 
 const AdminRoutes = () => {
   return (
@@ -210,12 +224,16 @@ const AdminRoutes = () => {
 
 				 <Route path="/custom-push" element={<CustomPush/>} />
 				 <Route path="/admin-custom-push" element={<AdminCustomPush/>} />
+
 				 <Route path="/user-management" element={<UserManagement/>} />
 
 				 <Route path="/category" element={<CategoryList/>} />
 				 <Route path="/add-category" element={<AddCategory/>} />
 				 <Route path="/sort-category" element={<CategorySort/>} />
 				 <Route path="/edit-category/:id"element={<EditCategory/>} />
+				 <Route path="/pending-menu-approvals" element={<PendingMenuApprovals/>} />
+				 <Route path="/category-requests" element={<CategoryRequests/>} />
+				 <Route path="/menu-approval-history" element={<PendingMenuApprovals/>} />
 
 
 				 <Route path="/unit-list" element={<UnitList/>} />
@@ -254,6 +272,9 @@ const AdminRoutes = () => {
 				 <Route path="/contact" element={<Contact/>} />
 				 <Route path="/landing-page" element={<LandingPage/>} />
 				 <Route path="/privacy-policy" element={<PrivacyPolicy/>} />
+				 <Route path="/user-app-cms" element={<UserAppCmsPage/>} />
+				 <Route path="/catalog-master-control" element={<CatalogMasterControl/>} />
+				 <Route path="/pricing-control" element={<PricingControlTower/>} />
 
 				 <Route path="/documents" element={<Document/>} />
 				 <Route path="/add-document" element={<AddDocument/>} />
@@ -311,7 +332,16 @@ const AdminRoutes = () => {
 				 <Route path="/edit-city/:id" element={<EditCity/>} />
 				 <Route path="/add-zone" element={<AddZone/>} />
 
-	 
+				 <Route path="/rule-engine" element={<RuleEnginePage/>} />
+				 <Route path="/feature-flags" element={<FeatureFlagsPage/>} />
+				 <Route path="/scheduled-changes" element={<ScheduledChangesPage/>} />
+				 <Route path="/emergency-controls" element={<EmergencyControlsPage/>} />
+				 <Route path="/service-areas" element={<ServiceAreasPage/>} />
+				 <Route path="/self-pickup-control" element={<SelfPickupControlPage/>} />
+				 <Route path="/payment-reconciliation" element={<PaymentReconciliationPage/>} />
+				 <Route path="/rider-earnings-control" element={<RiderEarningsControlPage/>} />
+				 <Route path="/audit-logs" element={<AuditLogsPage/>} />
+
 			 </Route>
     </Routes>
   );

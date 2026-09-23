@@ -4,7 +4,13 @@ class AppConstants {
   static const String appName = 'ECDKART';
   static const String appTagline = 'Food Delivery App';
   
+  // Pass --dart-define=LOCAL_IP=192.168.x.x for testing on physical devices
+  static const String _customLocalIp = String.fromEnvironment('LOCAL_IP', defaultValue: '');
+  
   static String get baseUrl {
+    if (_customLocalIp.isNotEmpty) {
+      return 'http://$_customLocalIp:5000/api';
+    }
     if (kIsWeb) return 'http://localhost:5000/api';
     if (defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:5000/api';

@@ -171,6 +171,12 @@ const AdminCreateRestaurantForm = () => {
         <Grid item xs={12} md={6}>
           <TextField label="Area" name="area" fullWidth onChange={handleChange} value={formData.area || ""} />
         </Grid>
+        <Grid item xs={12} md={6}>
+          <TextField label="Latitude (e.g. 28.248)" name="latitude" type="number" fullWidth onChange={handleChange} value={formData.latitude ?? 28.248} />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <TextField label="Longitude (e.g. 77.081)" name="longitude" type="number" fullWidth onChange={handleChange} value={formData.longitude ?? 77.081} />
+        </Grid>
       </FormSection>
 
       {/* 4. SETTINGS */}

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../routes/app_routes.dart';
+import '../../services/auth_service.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});

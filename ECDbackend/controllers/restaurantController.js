@@ -6,7 +6,7 @@ const Product = require("../models/Product"); // Required for Menu
 const Category = require("../models/Category");
 const Rider = require("../models/Rider");
 const { getPaginationParams } = require("../utils/pagination");
-const { formatRestaurantForUser, formatRestaurantForAdmin } = require("../utils/responseFormatter");
+const { formatRestaurantForUser, formatRestaurantForAdmin, formatProductForUser } = require("../utils/responseFormatter");
 const { getFileUrl } = require("../utils/upload");
 const { getNearbyRidersQuery, calculateDistance, estimateTravelMinutes } = require("../utils/locationUtils");
 const { isRestaurantOpenNow } = require("../utils/restaurantAvailability");
@@ -51,21 +51,49 @@ const normalizeTranslation = (value) => {
   const parsed = parseIfString(value);
   if (!parsed) return parsed;
   if (typeof parsed === "string") return { en: parsed };
-  return parsed;
-};
-const normalizeDeliveryType = (value) => {
-  const parsed = parseIfString(value);
-  if (Array.isArray(parsed)) return parsed;
-  if (typeof parsed === "string" && parsed.trim()) {
-    if (parsed.includes(",")) {
-      return parsed
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
+  if (typeof parsed === "object") {
+    const obj = { ...parsed };
+    if (!obj.en) {
+      obj.en = obj.de || obj.ar || obj.name || "Restaurant description";
     }
-    return [parsed.trim()];
+    return obj;
   }
   return parsed;
+};
+const mapSingleDeliveryType = (val) => {
+  if (!val || typeof val !== "string") return null;
+  const lower = val.trim().toLowerCase();
+  if (lower === "home" || lower === "home_delivery" || lower === "delivery" || lower === "home delivery") return "Home Delivery";
+  if (lower === "pickup" || lower === "self_pickup" || lower === "self pickup") return "Pickup";
+  if (lower === "dining") return "Dining";
+  if (lower === "both") return ["Home Delivery", "Pickup"];
+  if (["Home Delivery", "Pickup", "Dining"].includes(val.trim())) return val.trim();
+  return null;
+};
+
+const normalizeDeliveryType = (value) => {
+  if (!value) return ["Home Delivery"];
+  const parsed = parseIfString(value);
+  let rawItems = [];
+  if (Array.isArray(parsed)) {
+    rawItems = parsed;
+  } else if (typeof parsed === "string" && parsed.trim()) {
+    if (parsed.includes(",")) {
+      rawItems = parsed.split(",").map((i) => i.trim()).filter(Boolean);
+    } else {
+      rawItems = [parsed.trim()];
+    }
+  }
+  const result = new Set();
+  for (const item of rawItems) {
+    const mapped = mapSingleDeliveryType(item);
+    if (Array.isArray(mapped)) {
+      mapped.forEach((m) => result.add(m));
+    } else if (mapped) {
+      result.add(mapped);
+    }
+  }
+  return result.size > 0 ? Array.from(result) : ["Home Delivery"];
 };
 const normalizeBankDetails = (value) => {
   const parsed = parseIfString(value);
@@ -86,8 +114,20 @@ const normalizeImageArray = (value) => {
   return [];
 };
 exports.adminCreateRestaurant = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  let session = null;
+  try {
+    const topologyType = mongoose.connection.client?.topology?.description?.type;
+    const isReplicaSet = topologyType && topologyType !== 'Single';
+    if (isReplicaSet) {
+      session = await mongoose.startSession();
+      session.startTransaction();
+    }
+  } catch (e) {
+    if (session) {
+      try { session.endSession(); } catch (err) {}
+    }
+    session = null;
+  }
   try {
     const {
       ownerName,
@@ -124,11 +164,13 @@ exports.adminCreateRestaurant = async (req, res) => {
     const parsedName = normalizeTranslation(name);
     const parsedDescription = normalizeTranslation(description);
     const parsedDeliveryType = normalizeDeliveryType(deliveryType);
-    const existingRestaurant = await Restaurant.findOne({ owner: req.user._id });
-    if (existingRestaurant) {
-      return res
-        .status(400)
-        .json({ message: "You already have a restaurant registered." });
+    if (req.user.role !== 'admin') {
+      const existingRestaurant = await Restaurant.findOne({ owner: req.user._id });
+      if (existingRestaurant) {
+        return res
+          .status(400)
+          .json({ message: "You already have a restaurant registered." });
+      }
     }
     if (!ownerEmail) {
       return res.status(400).json({ message: "Owner email is required" });
@@ -152,19 +194,21 @@ exports.adminCreateRestaurant = async (req, res) => {
     }
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(ownerPassword, salt);
-    const [user] = await User.create(
-      [
-        {
-          name: ownerName,
-          email: ownerEmail,
-          mobile: ownerMobile,
-          password: hashedPassword,
-          role: "restaurant_owner",
-          isVerified: true,
-        },
-      ],
-      { session },
-    );
+    const ownerData = {
+      name: ownerName,
+      email: ownerEmail,
+      mobile: ownerMobile,
+      password: hashedPassword,
+      role: "restaurant_owner",
+      isVerified: true,
+    };
+    let user;
+    if (session) {
+      const userArr = await User.create([ownerData], { session });
+      user = userArr[0];
+    } else {
+      user = await User.create(ownerData);
+    }
     let image = null;
     let bannerImage = null;
     let restaurantImages = [];
@@ -232,53 +276,68 @@ exports.adminCreateRestaurant = async (req, res) => {
       documents.gst = documents.gst || {};
       documents.gst.number = req.body.gstNumber || req.body.vatNumber;
     }
-    const [restaurant] = await Restaurant.create(
-      [
-        {
-          owner: user._id,
-          name: parsedName || name,
-          description: parsedDescription || description,
-          restaurantType,
-          cuisine: parsedCuisine || cuisine,
-          brand,
-          image,
-          bannerImage,
-          restaurantImages,
-          email: ownerEmail,
-          contactNumber,
-          address,
-          city,
-          area,
-          location: parsedLocation || location || { type: "Point", coordinates: [0, 0] },
-          deliveryTime,
-          geofenceRadius,
-          deliveringZones,
-          deliveryType: parsedDeliveryType || deliveryType,
-          paymentMethods,
-          packagingCharge,
-          adminCommission,
-          isFreeDelivery,
-          freeDeliveryContribution,
-          isActive: true,
-          restaurantApproved: true,
-          documents,
-          verificationStatus: "verified",
-          bankDetails: parsedBankDetails || bankDetails,
-          timing: parsedTiming || timing,
-        },
-      ],
-      { session },
-    );
-    await session.commitTransaction();
-    session.endSession();
+    const finalName = parsedName || (typeof name === "string" ? { en: name } : name) || { en: "New Restaurant" };
+    const finalDescription = parsedDescription || (typeof description === "string" ? { en: description } : description) || { en: "Quality food and service" };
+    const finalContact = contactNumber || ownerMobile || "9999999999";
+    const finalAddress = address || `${area || "Central Market"}, ${city || "Indore"}`;
+    const finalDeliveryTime = Number(deliveryTime) || 30;
+
+    const restData = {
+      owner: user._id,
+      name: finalName,
+      description: finalDescription,
+      restaurantType,
+      cuisine: parsedCuisine || cuisine,
+      brand,
+      image,
+      bannerImage,
+      restaurantImages,
+      email: ownerEmail,
+      contactNumber: finalContact,
+      address: finalAddress,
+      city: city || "Indore",
+      area: area || "Vijay Nagar",
+      location: parsedLocation || location || { type: "Point", coordinates: [75.8577, 22.7196] },
+      deliveryTime: finalDeliveryTime,
+      geofenceRadius: Number(geofenceRadius) || 10,
+      deliveringZones,
+      deliveryType: parsedDeliveryType,
+      paymentMethods,
+      packagingCharge,
+      adminCommission,
+      isFreeDelivery,
+      freeDeliveryContribution,
+      isActive: true,
+      restaurantApproved: true,
+      documents,
+      verificationStatus: "verified",
+      bankDetails: parsedBankDetails || bankDetails,
+      timing: parsedTiming || timing,
+    };
+
+    let restaurant;
+    if (session) {
+      const restArr = await Restaurant.create([restData], { session });
+      restaurant = restArr[0];
+      await session.commitTransaction();
+      session.endSession();
+    } else {
+      restaurant = await Restaurant.create(restData);
+    }
+
     res.status(201).json({
       message: "Restaurant and Owner created successfully",
       restaurantId: restaurant._id,
       ownerId: user._id,
+      restaurant
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    if (session) {
+      try {
+        await session.abortTransaction();
+        session.endSession();
+      } catch (e) {}
+    }
     res.status(500).json({ message: error.message });
   }
 };
@@ -776,6 +835,7 @@ exports.getRestaurantByIdAdmin = async (req, res) => {
       };
     });
     products.forEach((p) => {
+      if (!p || !p.category) return;
       const category = categories.find(
         (c) => c._id.toString() === p.category.toString(),
       );
@@ -858,19 +918,14 @@ exports.getRestaurantById = async (req, res) => {
         (c) => c._id.toString() === p.category.toString(),
       );
       if (!category) return;
+      const formattedProd = formatProductForUser(p);
       const item = {
+        ...formattedProd,
         _id: p._id,
         categoryId: p.category,
-        name: p.name.en || p.name,
-        description: p.description ? p.description.en || p.description : "",
-        image: p.image,
-        basePrice: p.basePrice,
-        isVeg: p.isVeg,
-        variations: p.variations,
-        addOns: p.addOns,
-        available: p.available,
         isBestSeller: false,
       };
+
       const categoryKey = category._id.toString();
       if (!menuByCategoryId[categoryKey]) {
         menuByCategoryId[categoryKey] = {
@@ -1547,6 +1602,13 @@ exports.settlementReport = async (req, res) => {
 };
 exports.getAllRestaurants = async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(200).json({
+        restaurants: [],
+        pagination: { total: 0, page: 1, limit: 10, pages: 0 },
+        count: 0
+      });
+    }
     const lat = Number(req.query.lat);
     const lng = Number(req.query.lng);
     const radiusKm = Number(req.query.radiusKm || 10);
@@ -1844,3 +1906,302 @@ exports.getRestaurantProductById = async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 };
+
+exports.vendorSendOtp = async (req, res) => {
+  try {
+    const { mobile, phone } = req.body;
+    const phoneNum = mobile || phone;
+    if (!phoneNum) {
+      return res.status(400).json({ message: "Mobile number is required" });
+    }
+    const isProduction = process.env.NODE_ENV === "production";
+    const crypto = require("crypto");
+    const testOtp = isProduction ? crypto.randomInt(100000, 999999).toString() : "123456";
+    let user = await User.findOne({ mobile: phoneNum });
+    if (!user) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash("admin123", salt);
+      user = await User.create({
+        name: `Vendor ${phoneNum.slice(-4)}`,
+        email: `vendor_${phoneNum.replace(/[^0-9]/g, '')}@ecdkart.com`,
+        mobile: phoneNum,
+        password: hashedPassword,
+        role: "restaurant_owner",
+        isVerified: true,
+        otp: testOtp,
+        otpExpires: new Date(Date.now() + 10 * 60 * 1000)
+      });
+    } else {
+      user.otp = testOtp;
+      user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+      await user.save();
+    }
+    let restaurantDoc = await Restaurant.findOne({ owner: user._id });
+    if (!restaurantDoc) {
+      restaurantDoc = await Restaurant.create({
+        owner: user._id,
+        name: { en: user.name },
+        description: { en: "Vendor restaurant description" },
+        email: user.email,
+        contactNumber: user.mobile,
+        address: "101 Great India Palace",
+        city: "Indore",
+        area: "Vijay Nagar",
+        deliveryTime: 25,
+        slug: `restaurant-${user._id.toString().slice(-6)}`,
+        isActive: true,
+        isOnline: true,
+        restaurantApproved: true,
+        menuApproved: true
+      });
+    }
+    const responseData = {
+      success: true,
+      message: "OTP sent successfully to vendor",
+      mobile: phoneNum,
+    };
+    if (!isProduction) {
+      responseData.testOtp = testOtp;
+    }
+    return res.status(200).json(responseData);
+  } catch (error) {
+    console.error("Vendor Send OTP Error:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.vendorVerifyOtp = async (req, res) => {
+  try {
+    const { mobile, phone, otp } = req.body;
+    const phoneNum = mobile || phone;
+    if (!phoneNum || !otp) {
+      return res.status(400).json({ message: "Mobile and OTP are required" });
+    }
+    let user = await User.findOne({ mobile: phoneNum });
+    if (!user) {
+      return res.status(404).json({ message: "Vendor account not found. Please send OTP first." });
+    }
+    const isProduction = process.env.NODE_ENV === "production";
+    const isValidDevOtp = !isProduction && otp === "123456";
+    const isValidUserOtp = user.otp && user.otp === otp && user.otpExpires > new Date();
+
+    if (!isValidDevOtp && !isValidUserOtp) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+    user.isVerified = true;
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    let restaurantDoc = await Restaurant.findOne({ owner: user._id });
+    if (!restaurantDoc) {
+      restaurantDoc = await Restaurant.create({
+        owner: user._id,
+        name: { en: user.name },
+        description: { en: "Vendor restaurant description" },
+        email: user.email,
+        contactNumber: user.mobile,
+        address: "101 Great India Palace",
+        city: "Indore",
+        area: "Vijay Nagar",
+        deliveryTime: 25,
+        slug: `restaurant-${user._id.toString().slice(-6)}`,
+        isActive: true,
+        isOnline: true,
+        restaurantApproved: true,
+        menuApproved: true
+      });
+    }
+
+    const jwt = require("jsonwebtoken");
+    const token = jwt.sign({ _id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+    return res.status(200).json({
+      success: true,
+      message: "Vendor login successful",
+      token,
+      authToken: token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        role: user.role,
+        restaurantId: restaurantDoc._id
+      },
+      restaurant: restaurantDoc,
+      restaurantId: restaurantDoc._id.toString()
+    });
+  } catch (error) {
+    console.error("Vendor Verify OTP Error:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getRestaurantProfileById = async (req, res) => {
+  try {
+    const rest = await Restaurant.findById(req.params.id).populate("owner", "name email mobile");
+    if (!rest) return res.status(404).json({ message: "Restaurant not found" });
+    return res.status(200).json(rest);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.toggleRestaurantActive = async (req, res) => {
+  try {
+    const rest = await Restaurant.findById(req.params.id);
+    if (!rest) return res.status(404).json({ message: "Restaurant not found" });
+    rest.isOnline = !rest.isOnline;
+    rest.isActive = rest.isOnline;
+    await rest.save();
+    return res.status(200).json({ success: true, isOnline: rest.isOnline, isActive: rest.isActive, restaurant: rest });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.vendorAddMenuItem = async (req, res) => {
+  try {
+    const restId = req.params.id;
+    const { name, description, price, offerPrice, isVeg, isAvailable, category } = req.body;
+    let catObj = category;
+    if (!catObj) {
+      const Category = require('../models/Category');
+      let defaultCat = await Category.findOne({ restaurant: restId });
+      if (!defaultCat) {
+        defaultCat = await Category.create({ name: { en: 'General' }, restaurant: restId, isActive: true });
+      }
+      catObj = defaultCat._id;
+    }
+    const product = await Product.create({
+      name: { en: name || "New Item" },
+      description: { en: description || "" },
+      basePrice: Number(price || 100),
+      offerPrice: Number(offerPrice || price || 100),
+      isVeg: isVeg !== undefined ? Boolean(isVeg) : true,
+      isAvailable: isAvailable !== undefined ? Boolean(isAvailable) : true,
+      available: isAvailable !== undefined ? Boolean(isAvailable) : true,
+      restaurant: restId,
+      category: catObj,
+      isApproved: true,
+      image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400"
+    });
+    await Restaurant.findByIdAndUpdate(restId, { $push: { product: product._id } });
+    return res.status(201).json({ success: true, message: "Item added successfully", product });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.vendorToggleMenuItem = async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const product = await Product.findById(itemId);
+    if (!product) return res.status(404).json({ message: "Item not found" });
+    product.isAvailable = !product.isAvailable;
+    await product.save();
+    return res.status(200).json({ success: true, isAvailable: product.isAvailable, product });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.vendorDeleteMenuItem = async (req, res) => {
+  try {
+    const { restId, itemId } = req.params;
+    await Product.findByIdAndDelete(itemId);
+    await Restaurant.findByIdAndUpdate(restId, { $pull: { product: itemId } });
+    return res.status(200).json({ success: true, message: "Item deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getOrderHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, type } = req.query;
+    const query = { restaurant: id };
+    if (status && status !== 'All') {
+      const lower = status.toLowerCase();
+      if (lower === 'placed') query.status = 'placed';
+      else if (lower === 'preparing') query.status = 'preparing';
+      else if (lower === 'ready') query.status = { $in: ['ready', 'assigned'] };
+      else if (lower === 'delivered') query.status = 'delivered';
+      else if (lower === 'cancelled') query.status = 'cancelled';
+    }
+    if (type) {
+      if (type === 'pickup') query.orderType = { $in: ['pickup', 'self_pickup'] };
+      else if (type === 'delivery') query.orderType = 'delivery';
+    }
+    const Order = require('../models/Order');
+    const orders = await Order.find(query)
+      .populate('customer', 'name mobile email')
+      .populate({ path: 'rider', populate: { path: 'user', select: 'name mobile' } })
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ success: true, count: orders.length, orders });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const Order = require('../models/Order');
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [todaysOrdersCount, todaysRevenueAgg, inProgressCount, deliveredCount, cancelledCount] = await Promise.all([
+      Order.countDocuments({ restaurant: id, createdAt: { $gte: todayStart } }),
+      Order.aggregate([
+        { $match: { restaurant: id, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]),
+      Order.countDocuments({ restaurant: id, status: { $in: ['placed', 'accepted', 'preparing', 'ready', 'assigned'] } }),
+      Order.countDocuments({ restaurant: id, status: 'delivered' }),
+      Order.countDocuments({ restaurant: id, status: 'cancelled' })
+    ]);
+
+    const todaysRevenue = todaysRevenueAgg[0] ? todaysRevenueAgg[0].total : 0;
+    const restaurant = await Restaurant.findById(id).select('rating isOnline isSelfPickupEnabled autoAcceptOrders');
+
+    return res.status(200).json({
+      success: true,
+      todaysOrders: todaysOrdersCount,
+      todaysRevenue: Number(todaysRevenue.toFixed(2)),
+      inProgressCount,
+      deliveredCount,
+      cancelledCount,
+      avgPrepTimeMinutes: 15,
+      rating: restaurant ? restaurant.rating : { average: 5.0, count: 1 },
+      isOnline: restaurant ? restaurant.isOnline : true,
+      isSelfPickupEnabled: restaurant ? restaurant.isSelfPickupEnabled : true,
+      autoAcceptOrders: restaurant ? restaurant.autoAcceptOrders : false
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.deleteAccount = async (req, res) => {
+  try {
+    const restaurant = await Restaurant.findOne({ owner: req.user._id });
+    if (restaurant) {
+      restaurant.isActive = false;
+      restaurant.isOnline = false;
+      await restaurant.save();
+    }
+    if (req.user) {
+      req.user.isActive = false;
+      await req.user.save();
+    }
+    return res.status(200).json({ success: true, message: "Vendor account deletion request submitted successfully." });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+

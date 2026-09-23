@@ -85,7 +85,7 @@ class _SupportChatPageState extends State<SupportChatPage> {
   }
 
   Future<void> _makeCall() async {
-    final Uri callUri = Uri(scheme: 'tel', path: '+919876543210');
+    final Uri callUri = Uri(scheme: 'tel', path: '8950605676');
     if (await canLaunchUrl(callUri)) {
       await launchUrl(callUri);
     }

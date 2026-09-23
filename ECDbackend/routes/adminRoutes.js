@@ -138,11 +138,43 @@ const {
   approveRefund,
   rejectRefund,
 } = require("../controllers/refundController");
-router.post("/master-category", protect, admin, upload.single('image'), addMasterCategory);
-router.get("/master-category", protect, admin, getAllMasterCategories);
-router.get("/master-category/:id", protect, admin, getMasterCategoryById);
-router.put("/master-category/:id", protect, admin, upload.single('image'), updateMasterCategory);
-router.delete("/master-category/:id", protect, admin, deleteMasterCategory);
+const {
+  getAdminCategories,
+  createCategory,
+  updateCategory,
+  patchCategoryStatus,
+  reorderCategories,
+  deleteCategory,
+  getCategoryById,
+  getSubcategoriesByParent,
+} = require("../controllers/categoryController");
+
+// Canonical Admin Category Routes
+router.get("/categories", protect, admin, getAdminCategories);
+router.post("/categories", protect, admin, upload.single('image'), createCategory);
+router.put("/categories/reorder", protect, admin, reorderCategories);
+router.put("/categories/:id", protect, admin, upload.single('image'), updateCategory);
+router.patch("/categories/:id/status", protect, admin, patchCategoryStatus);
+router.delete("/categories/:id", protect, admin, deleteCategory);
+router.get("/categories/:id/subcategories", protect, admin, getSubcategoriesByParent);
+
+// Canonical Admin Subcategory Routes
+router.post("/categories/:id/subcategories", protect, admin, upload.single('image'), (req, res, next) => {
+  req.body.parentCategoryId = req.params.id;
+  req.body.type = "subcategory";
+  return createCategory(req, res, next);
+});
+router.put("/subcategories/reorder", protect, admin, reorderCategories);
+router.put("/subcategories/:id", protect, admin, upload.single('image'), updateCategory);
+router.patch("/subcategories/:id/status", protect, admin, patchCategoryStatus);
+router.delete("/subcategories/:id", protect, admin, deleteCategory);
+
+// Legacy Master Category Aliases
+router.post("/master-category", protect, admin, upload.single('image'), createCategory);
+router.get("/master-category", protect, admin, getAdminCategories);
+router.get("/master-category/:id", protect, admin, getCategoryById);
+router.put("/master-category/:id", protect, admin, upload.single('image'), updateCategory);
+router.delete("/master-category/:id", protect, admin, deleteCategory);
 router.post("/unit", protect, admin, addUnit);
 router.get("/unit", protect, admin, getAllUnits);
 router.get("/unit/:id", protect, admin, getUnitById);
@@ -206,9 +238,12 @@ router.post("/training", protect, admin, addMaterial);
 router.delete("/training/:id", protect, admin, deleteMaterial);
 router.get("/riders/settlements", protect, admin, adminRiderSettlements);
 router.get("/riders/sos-active", protect, admin, adminGetActiveSOS);
-router.put("/riders/sos/:id/clear", protect, admin, adminClearSOS);
-router.get("/dashboard", protect, admin, adminController.getDashboard);
+router.get("/dashboard", protect, admin, dashboardController.getOverview);
 router.get("/dashboard/overview", protect, admin, dashboardController.getOverview);
+router.get("/payouts/restaurants", protect, admin, dashboardController.getRestaurantPayoutList);
+router.get("/payouts/drivers", protect, admin, dashboardController.getDriverPayoutList);
+router.get("/transactions/restaurants", protect, admin, dashboardController.getRestaurantTransactionHistory);
+router.get("/transactions/drivers", protect, admin, dashboardController.getDriverTransactionHistory);
 router.get('/orders/dashboard', protect, admin, adminController.getOrdersDashboard);
 router.get('/order-dashboard', protect, admin, adminController.getOrdersDashboard);
 router.get("/users", protect, admin, adminController.getAllUsers);
@@ -371,5 +406,19 @@ router.post('/process-payout', protect, admin, adminController.processAdminPayou
 // Manual Restaurant & Rider Payouts
 router.post('/restaurant/:restaurantId/payout', protect, admin, adminController.processRestaurantPayout);
 router.post('/rider/:riderId/payout', protect, admin, adminController.processRiderPayout);
+
+// Category Request Routes
+const { getAdminCategoryRequests, approveCategoryRequest, rejectCategoryRequest } = require("../controllers/categoryRequestController");
+router.get('/category-requests', protect, admin, getAdminCategoryRequests);
+router.put('/category-requests/:id/approve', protect, admin, approveCategoryRequest);
+router.put('/category-requests/:id/reject', protect, admin, rejectCategoryRequest);
+
+// Menu Approval Routes
+const { getPendingMenuItems, getMenuItemForReview, approveMenuItem, rejectMenuItem, requestChangesMenuItem } = require("../controllers/adminMenuApprovalController");
+router.get('/menu/pending', protect, admin, getPendingMenuItems);
+router.get('/menu/:id', protect, admin, getMenuItemForReview);
+router.put('/menu/:id/approve', protect, admin, approveMenuItem);
+router.put('/menu/:id/reject', protect, admin, rejectMenuItem);
+router.put('/menu/:id/request-changes', protect, admin, requestChangesMenuItem);
 
 module.exports = router;

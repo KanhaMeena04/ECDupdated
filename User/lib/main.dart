@@ -3,6 +3,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:ecdkart_app/services/notification_service.dart';
 import 'package:ecdkart_app/providers/theme_provider.dart';
+import 'package:ecdkart_app/pages/widgets/app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';

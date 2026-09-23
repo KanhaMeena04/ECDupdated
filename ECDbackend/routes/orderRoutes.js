@@ -70,9 +70,29 @@ const {
   resendPickupOTPByRestaurant,
   searchRidersForOrder,
   verifySelfPickup,
+  getOrdersForRestaurantById,
+  prepareOrderVendor,
+  readyOrderVendor,
+  verifyPickupVendor,
+  completePickupVendor,
+  cancelOrderVendor,
+  sendPickupOtpVendor,
 } = require("../controllers/orderController");
+const { getMyActiveOrder } = require("../controllers/riderController");
+
 router.post("/place", protect, checkServiceAvailability, validatePlaceOrder, handleValidationErrors, placeOrderLimiter, placeOrder);
 router.get("/my-orders", protect, generalOrderLimiter, getMyOrders);
+router.get("/driver/my-orders", protect, rider, getMyActiveOrder);
+router.put("/driver/update-status", protect, rider, updateOrderStatus);
+
+// Vendor Order Routes
+router.post("/restaurant/prepare/:orderId", protect, prepareOrderVendor);
+router.post("/restaurant/ready/:orderId", protect, readyOrderVendor);
+router.post("/restaurant/verify-pickup/:orderId", protect, verifyPickupVendor);
+router.post("/restaurant/complete-pickup/:orderId", protect, completePickupVendor);
+router.post("/restaurant/cancel/:orderId", protect, cancelOrderVendor);
+router.post("/restaurant/send-pickup-otp/:orderId", protect, sendPickupOtpVendor);
+
 router.get("/:id/details", protect, generalOrderLimiter, getOrderDetails);
 router.get("/:id/customer", protect, customer, generalOrderLimiter, getOrderDetailsCustomer); // ✅ Explicit customer route
 router.post("/:id/cancel", protect, customer, validateCancelOrder, handleValidationErrors, generalOrderLimiter, customerCancelOrder);
@@ -81,7 +101,7 @@ router.post("/:id/rate-rider", protect, customer, validateRateRider, handleValid
 router.post("/:id/resend-otp", protect, generalOrderLimiter, resendOTP);
 router.get("/restaurant", protect, restaurantOwner, getRestaurantOrders);
 router.get("/restaurant/:id/details", protect, restaurantOwner, getRestaurantOrderDetails);
-router.get("/restaurant/:id", protect, restaurantOwner, generalOrderLimiter, getOrderDetailsRestaurant); // ✅ Explicit restaurant detail route
+router.get("/restaurant/:id", protect, getOrdersForRestaurantById);
 router.get("/restaurant/pending", protect, restaurantOwner, getPendingOrdersForRestaurant);
 router.get("/restaurant/completed", protect, restaurantOwner, getCompletedOrdersForRestaurant);
 router.put("/:id/status", protect, restaurantOwner, updateOrderStatus);

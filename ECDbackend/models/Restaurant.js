@@ -115,7 +115,33 @@ const restaurantSchema = new mongoose.Schema(
       gstPercent: { type: Number, default: 0 }
     },
     estimatedPreparationTime: { type: Number, default: 15 }, // in minutes
+    autoAcceptOrders: { type: Boolean, default: false },
+    prepBufferTimeMinutes: { type: Number, default: 0 },
+    isSelfPickupEnabled: { type: Boolean, default: true },
+    cancellationWindowMinutes: { type: Number, default: 5 },
+    gracePeriodMinutes: { type: Number, default: 15 },
     isTemporarilyClosed: { type: Boolean, default: false },
+    isFeatured: { type: Boolean, default: false },
+    isOnline: { type: Boolean, default: true },
+    offers: [{
+      title: { type: String, required: true },
+      code: { type: String },
+      discountPercent: { type: Number, default: 0 },
+      maxDiscount: { type: Number, default: 0 },
+      minOrder: { type: Number, default: 0 },
+      description: { type: String },
+      isActive: { type: Boolean, default: true }
+    }],
+    adminOverride: {
+      isOverridden: { type: Boolean, default: false },
+      isFeatured: { type: Boolean },
+      isOnline: { type: Boolean },
+      isActive: { type: Boolean },
+      deliveryTime: { type: Number },
+      reason: { type: String },
+      updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      updatedAt: { type: Date }
+    },
     timing: {
       monday: dailyTimingSchema,
       tuesday: dailyTimingSchema,

@@ -60,5 +60,7 @@ router.put(
   toggleProductAvailability
 );
 router.put("/bulk/prices", protect, restaurantOwner, bulkUpdatePrices);
+const { submitCategoryRequest } = require("../controllers/categoryRequestController");
+router.post("/category-request", protect, restaurantOwner, submitCategoryRequest);
 router.get("/seasonal/:restaurantId", getSeasonalMenu);
 module.exports = router;

@@ -2,6 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ecdkart_app/core/theme/app_colors.dart';
+import 'package:ecdkart_app/core/theme/app_text_styles.dart';
 import 'package:ecdkart_app/pages/profile/policy_page.dart';
 
 class RegisterPage extends StatefulWidget {

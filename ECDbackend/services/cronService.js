@@ -2,9 +2,11 @@ const cron = require('node-cron');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const socketService = require('./socketService');
+const mongoose = require('mongoose');
 const initCronJobs = () => {
     console.log(' Initializing Cron Jobs...');
     cron.schedule('*/5 * * * *', async () => {
+        if (mongoose.connection.readyState !== 1) return;
         try {
             console.log('Running Cleanup Jobs...');
             const now = new Date();

@@ -4,12 +4,14 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:ecdkart_app/core/models/restaurant_models.dart';
 import 'package:ecdkart_app/core/models/product.dart';
 import 'package:ecdkart_app/core/models/banner.dart';
+import 'package:ecdkart_app/pages/food_delivery/dish_restaurants_page.dart';
 import 'package:ecdkart_app/pages/food_delivery/restaurant_detail_screen.dart';
 import 'package:ecdkart_app/pages/order/my_orders_page.dart';
 import 'package:ecdkart_app/pages/profile/profile_page.dart';
 import 'package:ecdkart_app/pages/category_selection/categories_page.dart';
 import 'package:ecdkart_app/pages/category_selection/food_preferences_page.dart';
 import 'package:ecdkart_app/pages/widgets/app_bar.dart';
+import 'package:ecdkart_app/pages/widgets/category_card.dart';
 import 'package:ecdkart_app/widgets/curved_bottom_nav_bar.dart';
 import 'package:ecdkart_app/widgets/quick_order_sheet.dart';
 import 'package:ecdkart_app/widgets/coupons_bottom_sheet.dart';
@@ -17,14 +19,17 @@ import 'package:flutter/material.dart' hide Category;
 import 'package:provider/provider.dart';
 import '../../core/models/category.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../providers/theme_provider.dart';
 import 'widgets/filters_bottom_sheet.dart';
 import '../../services/dummy_data.dart';
+import '../../services/popular_dish_data.dart';
 import '../../services/restaurant_api_service.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/wishlist_provider.dart';
+import '../../providers/order_provider.dart';
 import '../../services/socket_service.dart';
 
 import 'recommended_restaurants_page.dart';
@@ -200,14 +205,28 @@ class _HomeTabState extends State<_HomeTab> {
   Function(dynamic)? _restaurantSocketCallback;
   Timer? _shuffleTimer;
   int _shuffleSeed = 0;
+  double? _lastLat;
+  double? _lastLng;
+  int _fetchCounter = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final loc = context.watch<LocationProvider>();
+    if (_lastLat != loc.lat || _lastLng != loc.lng) {
+      _lastLat = loc.lat;
+      _lastLng = loc.lng;
+      _fetchRestaurants();
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _fetchHomeSections();
     _fetchBanners();
     _fetchCategories();
     _fetchPopularDishes();
-    _fetchRestaurants();
 
     // 10-second periodic shuffle for Recommended For You items/restaurants
     _shuffleTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
@@ -267,11 +286,41 @@ class _HomeTabState extends State<_HomeTab> {
 
   Future<void> _refreshData() async {
     await Future.wait([
+      _fetchHomeSections(),
       _fetchBanners(),
       _fetchCategories(),
       _fetchPopularDishes(),
       _fetchRestaurants(),
     ]);
+  }
+
+  List<Map<String, dynamic>> _cmsSections = [];
+
+  Future<void> _fetchHomeSections() async {
+    try {
+      final sections = await RestaurantApiService.getHomeScreenSections();
+      if (mounted && sections.isNotEmpty) {
+        setState(() {
+          _cmsSections = sections;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching home CMS sections: $e');
+    }
+  }
+
+  bool _isSectionActive(String key) {
+    if (_cmsSections.isEmpty) return true;
+    final sec = _cmsSections.firstWhere((s) => s['sectionKey'] == key, orElse: () => {});
+    if (sec.isEmpty) return true;
+    return sec['isActive'] == true;
+  }
+
+  String _getSectionTitle(String key, String defaultTitle) {
+    if (_cmsSections.isEmpty) return defaultTitle;
+    final sec = _cmsSections.firstWhere((s) => s['sectionKey'] == key, orElse: () => {});
+    if (sec.isEmpty || sec['title'] == null || (sec['title'] as String).isEmpty) return defaultTitle;
+    return sec['title'] as String;
   }
 
   List<Category> _categories = [];
@@ -318,18 +367,40 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   Future<void> _fetchRestaurants({Map<String, String>? filters}) async {
-    try {
-      setState(() => _isLoadingRestaurants = true);
-      final restaurants = await RestaurantApiService.getRestaurants(filters: filters);
+    final currentFetchId = ++_fetchCounter;
+    final locProvider = context.read<LocationProvider>();
+    final reqLat = locProvider.lat;
+    final reqLng = locProvider.lng;
 
+    if (mounted) {
       setState(() {
-        _restaurants = restaurants;
-        _isLoadingRestaurants = false;
+        _restaurants = [];
+        _isLoadingRestaurants = true;
       });
+    }
+
+    try {
+      final restaurants = await RestaurantApiService.getRestaurants(
+        filters: filters,
+        lat: reqLat,
+        lng: reqLng,
+      );
+
+      if (currentFetchId == _fetchCounter && mounted) {
+        setState(() {
+          _restaurants = restaurants;
+          _isLoadingRestaurants = false;
+        });
+
+        debugPrint('RESTAURANT_PARSE_LOG\nbackend count = ${restaurants.length}\nparsed count = ${restaurants.length}\nstate count = ${_restaurants.length}\nUI count = ${_displayRestaurants.length}');
+      }
     } catch (e) {
-      setState(() {
-        _isLoadingRestaurants = false;
-      });
+      if (currentFetchId == _fetchCounter && mounted) {
+        setState(() {
+          _restaurants = [];
+          _isLoadingRestaurants = false;
+        });
+      }
     }
   }
 
@@ -507,7 +578,85 @@ class _HomeTabState extends State<_HomeTab> {
     );
   }
 
+  Widget _buildServiceUnavailableCard(BuildContext context, bool isDark) {
+    final locProvider = context.watch<LocationProvider>();
+    final currentLocationName = locProvider.location;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFEF2F2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.location_off_rounded,
+              color: Color(0xFFEF4444),
+              size: 36,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Service Currently Unavailable',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'We are not delivering to $currentLocationName at the moment. Please select another delivery address or check back later!',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              context.read<LocationProvider>().refreshLocation();
+              _refreshData();
+            },
+            icon: const Icon(Icons.my_location_rounded, size: 18, color: Colors.white),
+            label: const Text(
+              'Use Live GPS Location',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF248C70),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   int _activeTopTab = 0;
+
 
   @override
   Widget build(BuildContext context) {
@@ -664,9 +813,9 @@ class _HomeTabState extends State<_HomeTab> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              "What's on your mind?",
-                              style: TextStyle(
+                            Text(
+                              _getSectionTitle('food_categories', "What's on your mind?"),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
@@ -912,94 +1061,99 @@ class _HomeTabState extends State<_HomeTab> {
                   ),
 
                   // Recommended For You
-                  Padding(
-                    padding: const EdgeInsets.only(
-                        left: 16, top: 12, right: 16, bottom: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Recommended For You',
-                          style: isDark
-                              ? const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  height: 1.4,
-                                )
-                              : const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black87,
-                                  height: 1.4,
+                  if (_isSectionActive('recommended_dishes')) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(
+                          left: 16, top: 12, right: 16, bottom: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _getSectionTitle('recommended_dishes', 'Recommended For You'),
+                            style: isDark
+                                ? const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    height: 1.4,
+                                  )
+                                : const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black87,
+                                    height: 1.4,
+                                  ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RecommendedRestaurantsPage(),
                                 ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const RecommendedRestaurantsPage(),
+                              );
+                            },
+                            child: const Text(
+                              'View All',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFE89D1E),
                               ),
-                            );
-                          },
-                          child: const Text(
-                            'View All',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFE89D1E),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  _isLoadingRestaurants
-                      ? const Center(child: CircularProgressIndicator())
-                      : AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 600),
-                          switchInCurve: Curves.easeOutCubic,
-                          switchOutCurve: Curves.easeInCubic,
-                          transitionBuilder: (child, animation) {
-                            return FadeTransition(
-                              opacity: animation,
-                              child: SlideTransition(
-                                position: Tween<Offset>(
-                                  begin: const Offset(0.04, 0.0),
-                                  end: Offset.zero,
-                                ).animate(animation),
-                                child: child,
+                    _isLoadingRestaurants
+                        ? const Center(child: CircularProgressIndicator())
+                        : AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 600),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            transitionBuilder: (child, animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0.04, 0.0),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: SizedBox(
+                              key: ValueKey('recommended_shuffle_$_shuffleSeed'),
+                              height: 240,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                itemCount: _displayRestaurants.length > 5 ? 5 : _displayRestaurants.length,
+                                itemBuilder: (context, index) {
+                                  return _RecommendedRestaurantCard(
+                                    restaurant: _displayRestaurants[index],
+                                  );
+                                },
                               ),
-                            );
-                          },
-                          child: SizedBox(
-                            key: ValueKey('recommended_shuffle_$_shuffleSeed'),
-                            height: 240,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: _displayRestaurants.length > 5 ? 5 : _displayRestaurants.length,
-                              itemBuilder: (context, index) {
-                                return _RecommendedRestaurantCard(
-                                  restaurant: _displayRestaurants[index],
-                                );
-                              },
                             ),
                           ),
-                        ),
+                  ],
 
                   // Favourites Section
-                  const _FavouritesSection(),
+                  if (_isSectionActive('favourites_section'))
+                    const _FavouritesSection(),
 
                   // Recent Orders Section
-                  const _RecentOrdersSection(),
+                  if (_isSectionActive('recent_orders_section'))
+                    const _RecentOrdersSection(),
 
-                  // ── ECDkart vs OTHER APPS Section (Matching Screenshot 2 Premium Design) ──
-                  _EcdkartComparisonSection(
-                    restaurants: _displayRestaurants,
-                    isDark: isDark,
-                  ),
+                  // ── ECDkart vs OTHER APPS Section ──
+                  if (_isSectionActive('ecdkart_comparison'))
+                    _EcdkartComparisonSection(
+                      restaurants: _displayRestaurants,
+                      isDark: isDark,
+                    ),
 
                   // ── Explore Section Top Filter Bar (Matching Screenshots 1 & 2) ──
                   Padding(
@@ -1248,22 +1402,25 @@ class _HomeTabState extends State<_HomeTab> {
                     ),
                   ),
 
-                  // Redesigned Restaurant List Cards
+                  // Redesigned Restaurant List Cards or Service Unavailable Card
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: _isLoadingRestaurants
                         ? const Center(child: CircularProgressIndicator())
-                        : ListView.builder(
-                            itemCount: _displayRestaurants.length,
-                            physics: const NeverScrollableScrollPhysics(),
-                            shrinkWrap: true,
-                            padding: EdgeInsets.zero,
-                            itemBuilder: (context, index) {
-                              final r = _displayRestaurants[index];
-                              return _RestaurantListCard(restaurant: r);
-                            },
-                          ),
+                        : _displayRestaurants.isEmpty
+                            ? _buildServiceUnavailableCard(context, isDark)
+                            : ListView.builder(
+                                itemCount: _displayRestaurants.length,
+                                physics: const NeverScrollableScrollPhysics(),
+                                shrinkWrap: true,
+                                padding: EdgeInsets.zero,
+                                itemBuilder: (context, index) {
+                                  final r = _displayRestaurants[index];
+                                  return _RestaurantListCard(restaurant: r);
+                                },
+                              ),
                   ),
+
                   const SizedBox(height: 16),
                   const RotatingThaliWidget(),
                   const SizedBox(height: 30),
@@ -2385,33 +2542,16 @@ class _AnimatedDeliveryPickupToggle extends StatelessWidget {
 class _FavouritesSection extends StatelessWidget {
   const _FavouritesSection();
 
-  final List<Map<String, String>> favs = const [
-    {
-      'name': 'Paneer Butter Masala',
-      'restaurant': 'Royal Punjab',
-      'price': '₹240',
-      'rating': '4.8',
-      'image': 'assets/food.png',
-    },
-    {
-      'name': 'Special Italian Pizza',
-      'restaurant': 'Pizza Express',
-      'price': '₹320',
-      'rating': '4.9',
-      'image': 'assets/Group 2072750484.jpg',
-    },
-    {
-      'name': 'Crispy Veg Burger',
-      'restaurant': 'Burger Hub',
-      'price': '₹140',
-      'rating': '4.7',
-      'image': 'assets/food.png',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final wishlist = context.watch<WishlistProvider>();
+    final favIds = wishlist.favoriteRestaurantIds;
+
+    if (favIds.isEmpty) {
+      return const SizedBox.shrink(); // Hide section cleanly if user has no favourites yet
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2458,117 +2598,34 @@ class _FavouritesSection extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 170,
+          height: 100,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: favs.length,
+            itemCount: favIds.length,
             itemBuilder: (context, index) {
-              final f = favs[index];
-              return GestureDetector(
-                onTap: () {
-                  final priceVal = double.tryParse(f['price']!.replaceAll('₹', '').trim()) ?? 150.0;
-                  final product = Product(
-                    id: 'fav_${index + 1}',
-                    name: f['name']!,
-                    description: '${f['name']} from ${f['restaurant']}',
-                    price: priceVal,
-                    image: f['image']!,
-                    category: 'Favourites',
-                    rating: double.tryParse(f['rating']!) ?? 4.5,
-                  );
-
-                  context.read<CartProvider>().addItem(
-                    product,
-                    restaurantId: 'rest_fav_${index + 1}',
-                    restaurantName: f['restaurant']!,
-                    restaurantImageUrl: f['image']!,
-                    imageUrl: f['image']!,
-                  );
-
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('🛒 Added ${f['name']} to Cart!'),
-                      duration: const Duration(seconds: 2),
-                      backgroundColor: const Color(0xFF248C70),
-                      action: SnackBarAction(
-                        label: 'VIEW CART',
-                        textColor: Colors.white,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const CartPage()),
-                          );
-                        },
+              final id = favIds.elementAt(index);
+              return Container(
+                margin: const EdgeInsets.only(right: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.favorite, color: Colors.red, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Saved Restaurant #$id',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
-                  );
-                },
-                child: Container(
-                  width: 140,
-                  margin: const EdgeInsets.only(right: 12),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                    border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFF3F4F6)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              height: 80,
-                              width: double.infinity,
-                              color: const Color(0xFFF5FAF8),
-                              child: Image.asset(f['image']!, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.fastfood, color: Color(0xFF248C70))),
-                            ),
-                          ),
-                          const Positioned(
-                            top: 6,
-                            right: 6,
-                            child: Icon(Icons.favorite, color: Colors.red, size: 18),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        f['name']!,
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: isDark ? Colors.white : Colors.black),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        f['restaurant']!,
-                        style: const TextStyle(fontSize: 10, color: Colors.grey),
-                        maxLines: 1,
-                      ),
-                      const Spacer(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(f['price']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF248C70))),
-                          Row(
-                            children: [
-                              const Icon(Icons.star, color: Colors.amber, size: 12),
-                              Text(f['rating']!, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
               );
             },
@@ -2593,28 +2650,12 @@ class _RecentOrdersSectionState extends State<_RecentOrdersSection> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final recentOrders = [
-      {
-        'id': 'rec_ord_1',
-        'title': 'Paneer Tikka + Butter Roti x2',
-        'restaurant': 'Royal Punjab Restaurant',
-        'restaurantId': 'rest_royal_punjab',
-        'date': 'Yesterday, 8:30 PM',
-        'price': 290.0,
-        'total': '₹290',
-        'image': 'assets/food.png',
-      },
-      {
-        'id': 'rec_ord_2',
-        'title': 'Cheesy Garlic Bread + Coke',
-        'restaurant': 'Dominos Pizza',
-        'restaurantId': 'rest_dominos',
-        'date': '12 Sep, 2:15 PM',
-        'price': 199.0,
-        'total': '₹199',
-        'image': 'assets/Group 2072750484.jpg',
-      },
-    ];
+    final orderProvider = context.watch<OrderProvider>();
+    final pastOrders = [...orderProvider.activeOrders, ...orderProvider.pastOrders];
+
+    if (pastOrders.isEmpty) {
+      return const SizedBox.shrink(); // Hide section cleanly if user has no past orders
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2665,9 +2706,12 @@ class _RecentOrdersSectionState extends State<_RecentOrdersSection> {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: recentOrders.length,
+          itemCount: pastOrders.length > 3 ? 3 : pastOrders.length,
           itemBuilder: (context, index) {
-            final order = recentOrders[index];
+            final order = pastOrders[index];
+            final restName = order['restaurant']?['name'] ?? 'ECDKART Order';
+            final totalAmt = order['totalAmount'] ?? 0;
+            final statusStr = order['status'] ?? 'processing';
             final isReordered = _reorderSuccessIndex == index;
 
             return Container(
@@ -2679,7 +2723,7 @@ class _RecentOrdersSectionState extends State<_RecentOrdersSection> {
                 border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -2691,7 +2735,7 @@ class _RecentOrdersSectionState extends State<_RecentOrdersSection> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF248C70).withOpacity(0.1),
+                      color: const Color(0xFF248C70).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF248C70), size: 22),
@@ -2702,7 +2746,7 @@ class _RecentOrdersSectionState extends State<_RecentOrdersSection> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          order['title'] as String,
+                          restName.toString(),
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 13,
@@ -2712,76 +2756,47 @@ class _RecentOrdersSectionState extends State<_RecentOrdersSection> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${order['restaurant']} • ${order['total']}',
+                          'Status: $statusStr • Total: ₹$totalAmt',
                           style: const TextStyle(fontSize: 11, color: Colors.grey),
                         ),
                       ],
                     ),
                   ),
-
-                  // Animated Re-order Button
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        final product = Product(
-                          id: order['id'] as String,
-                          name: order['title'] as String,
-                          description: 'Reordered item from ${order['restaurant']}',
-                          price: (order['price'] as num).toDouble(),
-                          image: order['image'] as String,
-                          category: 'Food',
-                          rating: 4.8,
-                          isVeg: true,
-                        );
-
-                        final cart = context.read<CartProvider>();
-                        cart.addItem(
-                          product,
-                          restaurantId: order['restaurantId'] as String,
-                          restaurantName: order['restaurant'] as String,
-                          restaurantImageUrl: order['image'] as String,
-                          imageUrl: order['image'] as String,
-                        );
-
-                        setState(() => _reorderSuccessIndex = index);
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                                const SizedBox(width: 8),
-                                Expanded(child: Text('${order['title']} added to Cart!')),
-                              ],
-                            ),
-                            backgroundColor: const Color(0xFF248C70),
-                            duration: const Duration(seconds: 2),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        );
-                        Future.delayed(const Duration(seconds: 2), () {
-                          if (mounted) setState(() => _reorderSuccessIndex = null);
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isReordered ? Colors.green : const Color(0xFF248C70),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _reorderSuccessIndex = index;
+                      });
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Reordered from $restName!'),
+                          duration: const Duration(seconds: 2),
+                          backgroundColor: const Color(0xFF248C70),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
+                      );
+                      Future.delayed(const Duration(seconds: 2), () {
+                        if (mounted) setState(() => _reorderSuccessIndex = null);
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isReordered ? Colors.green : const Color(0xFF248C70),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      icon: Icon(
-                        isReordered ? Icons.check_circle : Icons.replay_rounded,
-                        size: 16,
-                      ),
-                      label: Text(
-                        isReordered ? 'Added!' : 'Reorder',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
+                    ),
+                    icon: Icon(
+                      isReordered ? Icons.check_circle : Icons.replay_rounded,
+                      size: 16,
+                    ),
+                    label: Text(
+                      isReordered ? 'Added!' : 'Reorder',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],

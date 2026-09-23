@@ -24,14 +24,18 @@ const useAdminAuth = () => {
         { withCredentials: true }
       );
 
-      const { user } = res.data;
+      const { user, token } = res.data;
 
       if (!user || !user.role) {
         throw new Error("Invalid login response");
       }
 
-      // Persist user (cookie already set by backend)
-      setAuth(user);
+      if (token) {
+        localStorage.setItem("token", token);
+      }
+
+      // Persist user
+      setAuth(user, token);
 
       toast.success("Login successful");
       setSuccess(true);

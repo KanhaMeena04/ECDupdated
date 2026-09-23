@@ -3,6 +3,7 @@ import '../core/config/app_mode.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'dart:io';
 
 class SettingsApiService {
   static String get baseUrl {

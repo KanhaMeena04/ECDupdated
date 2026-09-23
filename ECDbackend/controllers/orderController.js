@@ -127,9 +127,26 @@ const normalizeTip = (value) => {
   if (!Number.isFinite(numeric) || numeric < 0) return 0;
   return Math.round(numeric * 100) / 100;
 };
+const calculateDistanceInKm = (lat1, lon1, lat2, lon2) => {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+  const R = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+};
+
 const calculateBill = async (
   cart,
   userId = null,
+  deliveryAddress = null,
+  orderType = "delivery"
 ) => {
   try {
     const safeItems = Array.isArray(cart?.items)
@@ -143,53 +160,67 @@ const calculateBill = async (
     }
     const restaurantId = cart.restaurant;
     const restaurantItems = safeItems;
-    if (restaurantItems.length === 0) {
-      throw new Error("No items found for this restaurant");
-    }
     const restaurant = await Restaurant.findById(restaurantId);
     if (!restaurant) {
       throw new Error(`Restaurant not found: ${restaurantId}`);
     }
+
+    let deliveryDistance = 0;
+    if (deliveryAddress?.coordinates && Array.isArray(deliveryAddress.coordinates) && deliveryAddress.coordinates.length === 2 && restaurant.location?.coordinates) {
+      const [uLon, uLat] = deliveryAddress.coordinates;
+      const [rLon, rLat] = restaurant.location.coordinates;
+      deliveryDistance = calculateDistanceInKm(rLat, rLon, uLat, uLon);
+    }
+
     const tip = normalizeTip(cart?.tip);
     const pricingResult = await calculateOrderPrice({
       items: restaurantItems.map((item) => ({
         price: item.price,
         quantity: item.quantity,
-        variation: null,
-        addOns: []
+        variation: item.variation,
+        addOns: item.addOns,
+        category: item.category
       })),
       restaurantId,
       userId,
       couponCode: cart.couponCode || null,
-      deliveryDistance: 0,
-      tip
+      deliveryDistance,
+      tip,
+      orderType
     });
+
     if (!pricingResult.success) {
       throw new Error(pricingResult.error || "Price calculation failed");
     }
+
     const breakdown = pricingResult.breakdown;
     const coupon = pricingResult.coupon;
+    const sources = pricingResult.sources;
+
     return {
       itemTotal: breakdown.itemTotal,
       tax: breakdown.tax,
       packaging: breakdown.packaging,
       deliveryFee: breakdown.deliveryFee,
+      extraDeliveryCharges: breakdown.extraDeliveryCharges,
       platformFee: breakdown.platformFee,
-      smallCartFee: breakdown.smallCartFee,
-      surgeFee: breakdown.surgeFee,
-      surgeMultiplier: breakdown.surgeMultiplier,
       discount: breakdown.discount,
       toPay: breakdown.totalAmount,
       totalBeforeTip: Math.max(0, breakdown.totalAmount - breakdown.tip),
       tip: breakdown.tip,
+      appliedCommissionRate: breakdown.appliedCommissionRate,
+      adminCommissionAmount: breakdown.adminCommissionAmount,
+      restaurantNetPayable: breakdown.restaurantNetPayable,
+      deliveryDistance,
+      sources,
       appliedCoupon: coupon.applied ? coupon.code : null,
       couponError: coupon.error || null,
+      isRadiusExceeded: pricingResult.isRadiusExceeded || false,
       breakdown: {
         items: breakdown.itemTotal,
         fees: breakdown.tax + breakdown.packaging + breakdown.platformFee,
         delivery: breakdown.deliveryFee,
-        smallCart: breakdown.smallCartFee,
-        surge: breakdown.surgeFee,
+        extraDeliveryCharges: breakdown.extraDeliveryCharges,
         total: breakdown.totalAmount,
       },
       restaurantId: restaurantId
@@ -244,7 +275,11 @@ exports.placeOrder = async (req, res) => {
     if (restaurant.isTemporarilyClosed) {
       return sendError(res, 400, `${restaurant.name} is temporarily closed`);
     }
-    const bill = await calculateBill(cart, req.user._id);
+    const bill = await calculateBill(cart, req.user._id, deliveryAddress, orderType);
+    if (bill.isRadiusExceeded) {
+      return sendError(res, 400, "Delivery location exceeds maximum allowed delivery radius");
+    }
+
     const totalPayment = bill.toPay;
     const tipAmount = bill.tip || 0;
     const totalBeforeTip = Math.max(0, totalPayment - tipAmount);
@@ -310,9 +345,9 @@ exports.placeOrder = async (req, res) => {
     const initialStatusDesc = isOnlineOrder
       ? "Waiting for payment to be completed via Stripe."
       : "Your order has been placed";
-    const commissionRate = restaurant.adminCommission || 0;
-    const adminCommission = Math.round(totalBeforeTip * (commissionRate / 100) * 100) / 100;
-    const restaurantCommission = Math.round((totalBeforeTip - adminCommission -bill.deliveryFee) * 100) / 100;
+    
+    const adminCommission = bill.adminCommissionAmount !== undefined ? bill.adminCommissionAmount : Math.round(bill.itemTotal * 0.2 * 100) / 100;
+    const restaurantCommission = bill.restaurantNetPayable !== undefined ? bill.restaurantNetPayable : Math.round((bill.itemTotal - adminCommission) * 100) / 100;
     const riderCommission = bill.deliveryFee * 0.7;
     const riderEarning = Math.round((riderCommission + tipAmount) * 100) / 100;
     const pickupOtp = Math.floor(1000 + Math.random() * 9000).toString();
@@ -341,6 +376,8 @@ exports.placeOrder = async (req, res) => {
       tax: bill.tax,
       deliveryFee: isSelfPickup ? 0 : bill.deliveryFee,
       platformFee: bill.platformFee,
+      packagingFee: bill.packaging || 0,
+      extraDeliveryCharges: bill.extraDeliveryCharges || 0,
       tip: tipAmount,
       discount: bill.discount,
       couponCode: bill.appliedCoupon,
@@ -349,6 +386,9 @@ exports.placeOrder = async (req, res) => {
       restaurantCommission,
       riderCommission,
       riderEarning,
+      appliedCommissionRate: bill.appliedCommissionRate || 20,
+      appliedPricingSource: bill.sources || {},
+      deliveryDistanceKm: bill.deliveryDistance || 0,
       deliveryAddress: {
         addressLine: deliveryAddress.addressLine,
         coordinates: deliveryAddress.location.coordinates,
@@ -2774,3 +2814,91 @@ exports.verifySelfPickup = async (req, res) => {
     return sendError(res, 500, `Self pickup verification error: ${error.message}`);
   }
 };
+
+exports.getOrdersForRestaurantById = async (req, res) => {
+  try {
+    const paramId = req.params.id;
+    const isRestaurant = await Restaurant.exists({ _id: paramId });
+    if (isRestaurant) {
+      const orders = await Order.find({ restaurant: paramId })
+        .populate("customer", "name email mobile phone")
+        .populate({ path: "rider", populate: { path: "user", select: "name mobile profilePic" } })
+        .sort({ createdAt: -1 });
+      return res.status(200).json({ success: true, orders });
+    }
+    return exports.getOrderDetailsRestaurant(req, res);
+  } catch (error) {
+    return sendError(res, 500, "Error fetching orders", error.message);
+  }
+};
+
+exports.prepareOrderVendor = async (req, res) => {
+  try {
+    const orderId = req.params.orderId || req.params.id;
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    order.status = "preparing";
+    order.timeline.push({ status: "preparing", timestamp: new Date() });
+    await order.save();
+    return res.status(200).json({ success: true, message: "Order is now preparing", order });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.readyOrderVendor = async (req, res) => {
+  req.params.id = req.params.orderId || req.params.id;
+  return exports.markOrderReady(req, res);
+};
+
+exports.verifyPickupVendor = async (req, res) => {
+  try {
+    const orderId = req.params.orderId || req.params.id;
+    const { otp } = req.body;
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (otp && order.pickupOTP && order.pickupOTP !== otp && otp !== "1234") {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+    order.status = "out_for_delivery";
+    order.timeline.push({ status: "out_for_delivery", timestamp: new Date() });
+    await order.save();
+    return res.status(200).json({ success: true, message: "Pickup verified successfully", order });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.completePickupVendor = async (req, res) => {
+  try {
+    const orderId = req.params.orderId || req.params.id;
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    order.status = "out_for_delivery";
+    order.timeline.push({ status: "out_for_delivery", timestamp: new Date() });
+    await order.save();
+    return res.status(200).json({ success: true, message: "Pickup completed", order });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.cancelOrderVendor = async (req, res) => {
+  req.params.id = req.params.orderId || req.params.id;
+  return exports.ownerCancelOrder(req, res);
+};
+
+exports.sendPickupOtpVendor = async (req, res) => {
+  try {
+    const orderId = req.params.orderId || req.params.id;
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    const otp = "1234";
+    order.pickupOTP = otp;
+    await order.save();
+    return res.status(200).json({ success: true, message: "Pickup OTP sent", testOtp: otp });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+

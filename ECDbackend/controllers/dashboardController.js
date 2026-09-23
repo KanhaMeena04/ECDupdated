@@ -180,3 +180,129 @@ exports.getOverview = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.getRestaurantPayoutList = async (req, res) => {
+  try {
+    const restaurants = await Restaurant.find({}).lean();
+    const deliveredOrders = await Order.aggregate([
+      { $match: { status: "delivered" } },
+      {
+        $group: {
+          _id: "$restaurant",
+          totalOrders: { $sum: 1 },
+          totalToBePaid: { $sum: { $ifNull: ["$restaurantShare", { $ifNull: ["$totalAmount", 0] }] } }
+        }
+      }
+    ]);
+    const map = {};
+    deliveredOrders.forEach(o => {
+      if (o._id) map[String(o._id)] = o;
+    });
+
+    const rows = restaurants.map((r, idx) => {
+      const stats = map[String(r._id)] || { totalOrders: 0, totalToBePaid: 0 };
+      const name = typeof r.name === 'object' ? (r.name.en || JSON.stringify(r.name)) : (r.name || 'Unnamed');
+      return {
+        id: idx + 1,
+        restaurant: name,
+        phone: r.phone ? `${r.phone.slice(0, 3)}****${r.phone.slice(-3)}` : 'N/A',
+        totalOrders: stats.totalOrders,
+        totalToBePaid: `₹${Number(stats.totalToBePaid || 0).toFixed(2)}`
+      };
+    });
+
+    res.status(200).json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getDriverPayoutList = async (req, res) => {
+  try {
+    const riders = await Rider.find({}).lean();
+    const riderOrders = await Order.aggregate([
+      { $match: { status: "delivered" } },
+      {
+        $group: {
+          _id: "$rider",
+          totalOrders: { $sum: 1 },
+          totalToBePaid: { $sum: { $ifNull: ["$riderEarning", { $ifNull: ["$deliveryFee", 0] }] } }
+        }
+      }
+    ]);
+    const map = {};
+    riderOrders.forEach(o => {
+      if (o._id) map[String(o._id)] = o;
+    });
+
+    const rows = riders.map((r, idx) => {
+      const stats = map[String(r._id)] || { totalOrders: 0, totalToBePaid: 0 };
+      return {
+        id: idx + 1,
+        driver: r.name || 'Unnamed Rider',
+        phone: r.phone ? `${r.phone.slice(0, 3)}****${r.phone.slice(-3)}` : 'N/A',
+        totalOrders: stats.totalOrders,
+        totalToBePaid: `₹${Number(stats.totalToBePaid || 0).toFixed(2)}`
+      };
+    });
+
+    res.status(200).json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getRestaurantTransactionHistory = async (req, res) => {
+  try {
+    const orders = await Order.find({ status: "delivered" })
+      .populate("restaurant", "name")
+      .sort({ updatedAt: -1 })
+      .limit(20)
+      .lean();
+
+    const rows = orders.map((o, idx) => {
+      const rName = o.restaurant ? (typeof o.restaurant.name === 'object' ? o.restaurant.name.en : o.restaurant.name) : 'Restaurant';
+      const amount = o.restaurantShare || o.totalAmount || 0;
+      return {
+        id: idx + 1,
+        restaurant: rName,
+        total: `₹${Number(amount).toFixed(2)}`,
+        transactionId: `TXN-${String(o._id).slice(-6).toUpperCase()}`,
+        date: new Date(o.updatedAt || o.createdAt).toLocaleString('en-IN'),
+        status: 'Success'
+      };
+    });
+
+    res.status(200).json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getDriverTransactionHistory = async (req, res) => {
+  try {
+    const orders = await Order.find({ status: { $in: ["delivered", "cancelled", "failed"] } })
+      .populate("rider", "name")
+      .sort({ updatedAt: -1 })
+      .limit(20)
+      .lean();
+
+    const rows = orders.map((o, idx) => {
+      const dName = o.rider ? o.rider.name : 'Unassigned Rider';
+      const amount = o.riderEarning || o.deliveryFee || 0;
+      const status = o.status === 'delivered' ? 'Success' : 'Failed';
+      return {
+        id: idx + 1,
+        driver: dName,
+        total: `₹${Number(amount).toFixed(2)}`,
+        transactionId: `TXN-${String(o._id).slice(-6).toUpperCase()}`,
+        status
+      };
+    });
+
+    res.status(200).json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

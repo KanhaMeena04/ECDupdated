@@ -53,10 +53,25 @@ const {
   resendDeliveryOTP,
   getActiveRidersWithLocations,
   getRiderLiveTracking,
+  driverToggleOnline,
+  driverReachedStore,
+  driverDeleteAccount,
+  driverCodInitiate,
+  driverCodVerify,
 } = require("../controllers/riderController");
 router.get("/profile", protect, rider, getRiderProfile);
 router.get("/dashboard", protect, rider, getRiderDashboard);
+router.get("/summary", protect, rider, getEarningsSummary);
 router.get("/status", protect, rider, getRiderStatus);
+router.delete("/delete-account", protect, rider, driverDeleteAccount);
+router.post("/toggle-online", protect, rider, driverToggleOnline);
+router.post("/reached-store", protect, rider, driverReachedStore);
+router.post("/update-location", protect, rider, updateLocation);
+router.post("/cod-payment/initiate", protect, rider, driverCodInitiate);
+router.post("/cod-payment/verify", protect, rider, driverCodVerify);
+router.get("/orders/active", protect, rider, getMyActiveOrder);
+router.get("/orders/history", protect, rider, getCompletedOrdersForRider);
+router.patch("/profile", protect, rider, upload.single('profilePic'), updateRiderProfile);
 router.patch("/profile", protect, rider, upload.single('profilePic'), updateRiderProfile);
 router.post("/profile/request-update", protect, rider, requestRiderProfileUpdate);
 router.post("/profile/verify-update", protect, rider, verifyRiderProfileUpdate);
