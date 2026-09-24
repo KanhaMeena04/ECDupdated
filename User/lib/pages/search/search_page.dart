@@ -8,6 +8,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../services/restaurant_api_service.dart';
 import '../../core/models/restaurant_models.dart';
 import '../../routes/app_routes.dart';
+import '../food_delivery/restaurant_detail_screen.dart';
 import '../../providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -408,7 +409,12 @@ class _SearchPageState extends State<SearchPage> {
 
   Widget _buildFoodItemCard(MenuItem item, Restaurant restaurant, bool isDark) {
     return GestureDetector(
-      onTap: () => context.push('${AppRoutes.restaurantDetail}/${restaurant.slug}'),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RestaurantDetailScreen(restaurant: restaurant),
+        ),
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
@@ -565,7 +571,14 @@ class _SearchPageState extends State<SearchPage> {
                         ),
                       ),
                       ElevatedButton(
-                        onPressed: !restaurant.isActive ? null : () => context.push('${AppRoutes.restaurantDetail}/${restaurant.slug}'),
+                        onPressed: !restaurant.isActive
+                            ? null
+                            : () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => RestaurantDetailScreen(restaurant: restaurant),
+                                  ),
+                                ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: restaurant.isActive ? const Color(0xFF248C70) : Colors.grey[400],
                           foregroundColor: Colors.white,
@@ -592,7 +605,12 @@ class _SearchPageState extends State<SearchPage> {
 
   Widget _buildRestaurantCard(Restaurant restaurant, bool isDark) {
     return GestureDetector(
-      onTap: () => context.push('${AppRoutes.restaurantDetail}/${restaurant.slug}'),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RestaurantDetailScreen(restaurant: restaurant),
+        ),
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
         decoration: BoxDecoration(

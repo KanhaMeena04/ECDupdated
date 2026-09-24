@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../providers/location_provider.dart';
 import '../../core/models/restaurant_models.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/theme_provider.dart';
@@ -33,13 +34,19 @@ class _RecommendedRestaurantsPageState
 
   Future<void> _fetchRestaurants() async {
     try {
-      final list = await RestaurantApiService.getRestaurants();
-      setState(() {
-        _restaurants = list;
-        _isLoading = false;
-      });
+      final loc = context.read<LocationProvider>();
+      final list = await RestaurantApiService.getRestaurants(
+        lat: loc.lat,
+        lng: loc.lng,
+      );
+      if (mounted) {
+        setState(() {
+          _restaurants = list;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

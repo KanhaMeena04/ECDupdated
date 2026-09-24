@@ -14,9 +14,23 @@ const {
     driverSendOtp,
     driverVerifyOtp,
     driverLoginWithPin,
-    driverRefreshToken
+    driverRefreshToken,
+    userSendOtp,
+    userVerifyOtp,
+    userGoogleLogin,
+    userVerifyGooglePhone
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
+
+// Customer / User App Auth Routes
+router.post('/send-otp', userSendOtp);
+router.post('/verify-otp', userVerifyOtp);
+router.post('/user/send-otp', userSendOtp);
+router.post('/user/verify-otp', userVerifyOtp);
+router.post('/user/google', userGoogleLogin);
+router.post('/google', userGoogleLogin);
+router.post('/user/verify-google-phone', userVerifyGooglePhone);
+router.post('/verify-google-phone', userVerifyGooglePhone);
 
 router.post('/register/initiate', registerInitiate);
 router.post('/register/verify', registerVerify);
@@ -36,3 +50,4 @@ router.post('/driver/login-with-pin', driverLoginWithPin);
 router.post('/driver/refresh-token', protect, driverRefreshToken);
 
 module.exports = router;
+

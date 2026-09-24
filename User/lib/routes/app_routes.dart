@@ -4,7 +4,8 @@ import 'package:ecdkart_app/pages/auth/verify_google_phone_page.dart';
 import 'package:ecdkart_app/pages/auth/register_page.dart';
 import 'package:ecdkart_app/pages/category_product/category_products.dart';
 import 'package:go_router/go_router.dart';
-import '../pages/food_delivery/restraunt_detail_screen.dart';
+import '../pages/food_delivery/restaurant_detail_screen.dart';
+import '../core/models/restaurant_models.dart';
 import '../pages/splash_screen/splash_page.dart';
 import '../pages/onboarding/onboarding_page.dart';
 import '../pages/auth/login_page.dart';
@@ -83,10 +84,43 @@ class AppRoutes {
         },
       ),
       GoRoute(
+        path: restaurantDetail,
+        builder: (context, state) {
+          if (state.extra is Restaurant) {
+            return RestaurantDetailScreen(restaurant: state.extra as Restaurant);
+          }
+          final slug = state.uri.queryParameters['slug'] ?? state.uri.queryParameters['id'] ?? '';
+          return RestaurantDetailScreen(slug: slug.isNotEmpty ? slug : null);
+        },
+      ),
+      GoRoute(
         path: '$restaurantDetail/:slug',
         builder: (context, state) {
+          if (state.extra is Restaurant) {
+            return RestaurantDetailScreen(restaurant: state.extra as Restaurant);
+          }
           final slug = state.pathParameters['slug'] ?? '';
-          return RestaurantScreen(slug: slug);
+          return RestaurantDetailScreen(slug: slug.isNotEmpty ? slug : null);
+        },
+      ),
+      GoRoute(
+        path: '/restaurant-detail',
+        builder: (context, state) {
+          if (state.extra is Restaurant) {
+            return RestaurantDetailScreen(restaurant: state.extra as Restaurant);
+          }
+          final slug = state.uri.queryParameters['slug'] ?? state.uri.queryParameters['id'] ?? '';
+          return RestaurantDetailScreen(slug: slug.isNotEmpty ? slug : null);
+        },
+      ),
+      GoRoute(
+        path: '/restaurant-detail/:slug',
+        builder: (context, state) {
+          if (state.extra is Restaurant) {
+            return RestaurantDetailScreen(restaurant: state.extra as Restaurant);
+          }
+          final slug = state.pathParameters['slug'] ?? '';
+          return RestaurantDetailScreen(slug: slug.isNotEmpty ? slug : null);
         },
       ),
       GoRoute(

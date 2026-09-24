@@ -6,6 +6,11 @@ const orderSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    orderNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
     restaurant: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",

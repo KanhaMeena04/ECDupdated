@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Category;
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/models/product.dart';
+import '../../core/models/category.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/theme_provider.dart';
-import '../../services/dummy_data.dart';
 import '../../services/restaurant_api_service.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/safe_image.dart';
@@ -29,6 +29,7 @@ class _CategoryFilteredOrderPageState
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   List<Product> _allProducts = [];
+  List<Category> _categoriesList = [];
   bool _isLoading = true;
   Map<String, String> _appliedFilters = {};
 
@@ -59,27 +60,25 @@ class _CategoryFilteredOrderPageState
 
   Future<void> _loadProducts() async {
     try {
-      final menuItems =
-          await RestaurantApiService.getRestaurantMenu('gourmet-kitchen');
-      if (menuItems.isNotEmpty) {
-        _allProducts = menuItems
-            .map((item) => Product(
-                  id: item.id,
-                  name: item.name,
-                  description: item.description,
-                  price: item.price.toDouble(),
-                  image: item.imageUrl,
-                  category: item.category,
-                  rating: item.rating,
-                  isVeg: item.isVeg,
-                ))
-            .toList();
-      } else {
-        _allProducts = DummyData.getProducts();
+      final cats = await RestaurantApiService.getCategories();
+      final dishes = await RestaurantApiService.getPopularDishes();
+      if (mounted) {
+        setState(() {
+          _categoriesList = cats;
+          _allProducts = dishes.map((d) => Product(
+            id: d.id,
+            name: d.name,
+            description: d.description,
+            price: d.price > 0 ? d.price : 149.0,
+            image: d.imageUrl,
+            category: d.category.isNotEmpty ? d.category : 'General',
+            rating: 4.5,
+            isVeg: true,
+          )).toList();
+          _isLoading = false;
+        });
       }
     } catch (_) {
-      _allProducts = DummyData.getProducts();
-    } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -259,9 +258,9 @@ class _CategoryFilteredOrderPageState
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 10),
-                          itemCount: DummyData.getCategories().length,
+                          itemCount: _categoriesList.length,
                           itemBuilder: (context, index) {
-                            final cat = DummyData.getCategories()[index];
+                            final cat = _categoriesList[index];
                             final isSelected = _activeCategories.any((c) =>
                                 c.toLowerCase().contains(cat.title.toLowerCase()) ||
                                 cat.title.toLowerCase().contains(c.toLowerCase()));

@@ -11,94 +11,81 @@ exports.getProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user._id).select('-password');
         if (!user || user.isDeleted) {
-            return res.status(404).json({ message: "User not found or account deleted" });
+            return res.status(404).json({ success: false, message: "User not found or account deleted" });
         }
-        res.status(200).json(user);
+        const userObj = user.toObject ? user.toObject() : { ...user };
+        userObj.id = user._id.toString();
+        userObj.phone = user.phone || user.mobile || "";
+        userObj.mobile = user.mobile || user.phone || "";
+        userObj.avatar = user.profilePic || user.avatar || "";
+        userObj.profilePic = user.profilePic || user.avatar || "";
+
+        res.status(200).json({
+            success: true,
+            user: userObj,
+            ...userObj
+        });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 exports.updateProfile = async (req, res) => {
     try {
-        const { name, email, mobile, language } = req.body;
+        const { name, email, mobile, phone, language, avatar } = req.body;
         const user = await User.findById(req.user._id);
-        if (!user) return res.status(404).json({ message: "User not found" });
-        const emailChanged = email && email !== user.email;
-        const mobileChanged = mobile && mobile !== user.mobile;
-        if (emailChanged || mobileChanged) {
-            if (emailChanged) {
-                const existingEmail = await User.findOne({ 
-                    email, 
-                    _id: { $ne: user._id } 
-                });
-                if (existingEmail) {
-                    return res.status(400).json({ 
-                        message: "Email already in use by another account" 
-                    });
-                }
-                const existingRestaurantEmail = await Restaurant.findOne({
-                    email,
-                    owner: { $ne: user._id }
-                });
-                if (existingRestaurantEmail) {
-                    return res.status(400).json({
-                        message: "Email already in use by another restaurant"
-                    });
-                }
-            }
-            if (mobileChanged) {
-                const existingMobile = await User.findOne({ 
-                    mobile, 
-                    _id: { $ne: user._id } 
-                });
-                if (existingMobile) {
-                    return res.status(400).json({ 
-                        message: "Mobile number already in use by another account" 
-                    });
-                }
-            }
-            const otp = crypto.randomInt(100000, 999999).toString();
-            const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-            user.pendingProfileUpdate = {
-                email: emailChanged ? email : undefined,
-                mobile: mobileChanged ? mobile : undefined,
-                name: name || undefined,
-                language: language || undefined,
-                profilePic: req.file ? getFileUrl(req.file) : undefined
-            };
-            user.otp = otp;
-            user.otpExpires = otpExpires;
-            await user.save();
-            if (mobileChanged) {
-                try {
-                  await sendOTP(mobile, otp);
-                } catch (smsErr) {
-                  console.error('Twilio SMS failed (profileUpdate mobile):', smsErr.message);
-                }
-            }
-            if (emailChanged) {
-                console.log(`📧 OTP for email update (${email}) is: ${otp}`);
-            }
-            return res.status(200).json({
-                message: "OTP sent to verify your new contact information",
-                requiresOTP: true,
-                updatedFields: {
-                    email: emailChanged,
-                    mobile: mobileChanged
-                },
-                testOtp: otp, // Remove in production
-                expiresIn: "5 minutes"
-            });
-        }
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+        const newPhone = phone || mobile;
         if (name) user.name = name;
         if (language) user.language = language;
-        if (req.file) {
-            user.profilePic = getFileUrl(req.file);
+        if (avatar) {
+            user.profilePic = avatar;
+            user.avatar = avatar;
         }
+        if (req.file) {
+            const uploadedUrl = await getFileUrl(req.file);
+            user.profilePic = uploadedUrl;
+            user.avatar = uploadedUrl;
+        }
+
+        if (email && email !== user.email) {
+            const existingEmail = await User.findOne({ email, _id: { $ne: user._id } });
+            if (existingEmail) {
+                return res.status(400).json({ success: false, message: "Email already in use by another account" });
+            }
+            user.email = email;
+        }
+
+        if (newPhone && newPhone !== user.mobile && newPhone !== user.phone) {
+            const clean = newPhone.replace(/[^0-9]/g, '').slice(-10);
+            const existingMobile = await User.findOne({
+                $or: [{ mobile: `+91${clean}` }, { phone: `+91${clean}` }, { mobile: clean }, { phone: clean }],
+                _id: { $ne: user._id }
+            });
+            if (existingMobile) {
+                return res.status(400).json({ success: false, message: "Mobile number already in use by another account" });
+            }
+            user.mobile = `+91${clean}`;
+            user.phone = `+91${clean}`;
+        }
+
         await user.save();
-        res.status(200).json({ message: "Profile updated successfully", user });
+
+        const userObj = user.toObject ? user.toObject() : { ...user };
+        userObj.id = user._id.toString();
+        userObj.phone = user.phone || user.mobile || "";
+        userObj.mobile = user.mobile || user.phone || "";
+        userObj.avatar = user.profilePic || user.avatar || "";
+        userObj.profilePic = user.profilePic || user.avatar || "";
+
+        res.status(200).json({
+            success: true,
+            message: "Profile updated successfully",
+            user: userObj,
+            ...userObj
+        });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 exports.verifyProfileUpdateOTP = async (req, res) => {
@@ -193,66 +180,175 @@ exports.resendProfileUpdateOTP = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+const formatAddress = (a) => {
+    if (!a) return null;
+    const lat = a.location?.coordinates?.[1] ?? a.latitude ?? 0.0;
+    const lng = a.location?.coordinates?.[0] ?? a.longitude ?? 0.0;
+    const fullAddr = a.addressLine || a.fullAddress || a.address || "";
+    return {
+        _id: a._id?.toString() || "",
+        id: a._id?.toString() || "",
+        label: a.label || "Home",
+        fullAddress: fullAddr,
+        address: fullAddr,
+        addressLine: fullAddr,
+        flatNo: a.apartment || a.flatNo || "",
+        apartment: a.apartment || a.flatNo || "",
+        landmark: a.landmark || "",
+        city: a.city || "",
+        state: a.state || "",
+        pincode: a.zipCode || a.pincode || "",
+        zipCode: a.zipCode || a.pincode || "",
+        isDefault: a.isDefault === true,
+        latitude: lat,
+        longitude: lng,
+        location: a.location || { type: 'Point', coordinates: [lng, lat] },
+        phone: a.phone || ""
+    };
+};
+
 exports.addAddress = async (req, res) => {
     try {
         const { 
-            label, addressLine, city, zipCode, 
-            location, deliveryInstructions, isDefault 
+            label, fullAddress, addressLine, address, 
+            city, state, pincode, zipCode, 
+            flatNo, apartment, landmark, phone,
+            latitude, longitude, location, isDefault 
         } = req.body;
+
         const user = await User.findById(req.user._id);
-        if (isDefault) {
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+        const resolvedAddressLine = fullAddress || addressLine || address || "";
+        const resolvedZip = pincode || zipCode || "";
+        const resolvedFlat = flatNo || apartment || "";
+        const lat = Number(latitude ?? (location?.coordinates?.[1] ?? 0.0));
+        const lng = Number(longitude ?? (location?.coordinates?.[0] ?? 0.0));
+
+        const shouldBeDefault = isDefault === true || !user.savedAddresses || user.savedAddresses.length === 0;
+
+        if (shouldBeDefault && user.savedAddresses) {
             user.savedAddresses.forEach(a => a.isDefault = false);
         }
-        user.savedAddresses.push({
-            label, addressLine, city, zipCode, location, deliveryInstructions, isDefault
-        });
+
+        const newAddr = {
+            label: label || "Home",
+            addressLine: resolvedAddressLine,
+            city: city || "",
+            state: state || "",
+            zipCode: resolvedZip,
+            apartment: resolvedFlat,
+            landmark: landmark || "",
+            phone: phone || "",
+            location: {
+                type: 'Point',
+                coordinates: [lng, lat]
+            },
+            isDefault: shouldBeDefault
+        };
+
+        if (!user.savedAddresses) user.savedAddresses = [];
+        user.savedAddresses.push(newAddr);
         await user.save();
-        res.status(201).json({ message: "Address added", addresses: user.savedAddresses });
+
+        const formatted = user.savedAddresses.map(formatAddress);
+        res.status(201).json({ 
+            success: true, 
+            message: "Address added successfully", 
+            address: formatAddress(user.savedAddresses[user.savedAddresses.length - 1]),
+            addresses: formatted 
+        });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
+
 exports.getAddresses = async (req, res) => {
     try {
         const user = await User.findById(req.user._id).select('savedAddresses');
-        if (!user) return res.status(404).json({ message: "User not found" });
-        res.status(200).json({ addresses: user.savedAddresses || [] });
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+        const formatted = (user.savedAddresses || []).map(formatAddress);
+        res.status(200).json({ success: true, addresses: formatted });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
+
 exports.updateAddress = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
-        const address = user.savedAddresses.id(req.params.id);
-        if (!address) return res.status(404).json({ message: "Address not found" });
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+        const address = user.savedAddresses ? user.savedAddresses.id(req.params.id) : null;
+        if (!address) return res.status(404).json({ success: false, message: "Address not found" });
+
         const updates = req.body;
         if (updates.label) address.label = updates.label;
-        if (updates.addressLine) address.addressLine = updates.addressLine;
-        if (updates.city) address.city = updates.city;
-        if (updates.zipCode) address.zipCode = updates.zipCode;
-        if (updates.location) address.location = updates.location;
-        if (updates.deliveryInstructions) address.deliveryInstructions = updates.deliveryInstructions;
+        if (updates.fullAddress || updates.addressLine || updates.address) {
+            address.addressLine = updates.fullAddress || updates.addressLine || updates.address;
+        }
+        if (updates.city !== undefined) address.city = updates.city;
+        if (updates.state !== undefined) address.state = updates.state;
+        if (updates.pincode || updates.zipCode) address.zipCode = updates.pincode || updates.zipCode;
+        if (updates.flatNo || updates.apartment) address.apartment = updates.flatNo || updates.apartment;
+        if (updates.landmark !== undefined) address.landmark = updates.landmark;
+        if (updates.phone !== undefined) address.phone = updates.phone;
+        if (updates.latitude !== undefined || updates.longitude !== undefined) {
+            const lat = Number(updates.latitude ?? address.location?.coordinates?.[1] ?? 0.0);
+            const lng = Number(updates.longitude ?? address.location?.coordinates?.[0] ?? 0.0);
+            address.location = { type: 'Point', coordinates: [lng, lat] };
+        }
         if (updates.isDefault) {
             user.savedAddresses.forEach(a => a.isDefault = false);
             address.isDefault = true;
         }
+
         await user.save();
-        res.status(200).json({ message: "Address updated", addresses: user.savedAddresses });
+        const formatted = user.savedAddresses.map(formatAddress);
+        res.status(200).json({ 
+            success: true, 
+            message: "Address updated successfully", 
+            address: formatAddress(address),
+            addresses: formatted 
+        });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
+
 exports.deleteAddress = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
-        user.savedAddresses = user.savedAddresses.filter(
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+        user.savedAddresses = (user.savedAddresses || []).filter(
             addr => addr._id.toString() !== req.params.id
         );
         await user.save();
-        res.status(200).json({ message: "Address removed", addresses: user.savedAddresses });
+        const formatted = user.savedAddresses.map(formatAddress);
+        res.status(200).json({ success: true, message: "Address removed", addresses: formatted });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.setDefaultAddress = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) return res.status(404).json({ success: false, message: "User not found" });
+        const address = user.savedAddresses ? user.savedAddresses.id(req.params.id) : null;
+        if (!address) return res.status(404).json({ success: false, message: "Address not found" });
+
+        user.savedAddresses.forEach(a => a.isDefault = false);
+        address.isDefault = true;
+        await user.save();
+
+        const formatted = user.savedAddresses.map(formatAddress);
+        res.status(200).json({ 
+            success: true, 
+            message: "Default address set successfully", 
+            addresses: formatted 
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 exports.addPaymentMethod = async (req, res) => {

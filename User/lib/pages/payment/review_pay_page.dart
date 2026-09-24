@@ -13,6 +13,7 @@ import '../../services/settings_api_service.dart';
 import '../../services/order_api_service.dart';
 import '../order/order_tracking_page.dart';
 import 'address_selection_page.dart';
+import '../profile/location_setup_page.dart';
 import '../../widgets/flip_animation_widgets.dart';
 
 class ReviewPayPage extends StatefulWidget {
@@ -458,10 +459,36 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
         ? addressProvider.addresses[_selectedAddressIndex ?? 0]
         : null;
 
+    final locProvider = context.read<LocationProvider>();
+    if (cart.orderType != 'pickup' && !locProvider.isServiceable) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              locProvider.serviceabilityMessage.isNotEmpty
+                  ? locProvider.serviceabilityMessage
+                  : 'Delivery is not available in your current location. Please update your address.',
+            ),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'CHANGE',
+              textColor: Colors.white,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LocationSetupPage()),
+              ),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     final isCod = _selectedPaymentMethod == 'Cash on Delivery';
 
     final orderData = {
-      'restaurantId': cart.restaurantId ?? 'rest_mock_1',
+      'restaurantId': cart.restaurantId ?? '',
       'paymentMethod': isCod ? 'cod' : 'online',
       'items': cart.items
           .map((item) => ({

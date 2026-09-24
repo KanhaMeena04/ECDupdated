@@ -1,15 +1,21 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import '../services/location_service.dart';
+import '../services/restaurant_api_service.dart';
 
 class LocationProvider extends ChangeNotifier {
   String _location = 'Vijay Nagar, Indore';
-  String _subAddress = 'Bhagora, Madhya Pradesh, India';
-  double? lat = 22.7196;
-  double? lng = 75.8577;
+  String _subAddress = 'Madhya Pradesh, India';
+  double? lat = 22.7533;
+  double? lng = 75.8937;
   double? deviceLat;
   double? deviceLng;
   bool _isLocationSet = false;
+  bool _isServiceable = true;
+  String _serviceabilityMessage = '';
+  Map<String, dynamic>? _serviceArea;
 
   LocationProvider() {
     _loadSavedLocation();
@@ -18,10 +24,9 @@ class LocationProvider extends ChangeNotifier {
   String get location => _location;
   String get subAddress => _subAddress;
   bool get isLocationSet => _isLocationSet;
-
-  // Serviceability is determined dynamically by backend API geospatial queries
-  bool get isServiceable => true;
-  bool isLocationServiceable(String address) => true;
+  bool get isServiceable => _isServiceable;
+  String get serviceabilityMessage => _serviceabilityMessage;
+  Map<String, dynamic>? get serviceArea => _serviceArea;
 
   bool isFarFromDeviceLocation(String newLoc) {
     if (deviceLat != null && lat != null) {
@@ -55,8 +60,10 @@ class LocationProvider extends ChangeNotifier {
         }
         _isLocationSet = true;
         _logLocationState();
+        await checkServiceability();
         notifyListeners();
       } else {
+        await checkServiceability();
         _logLocationState();
       }
     } catch (_) {}
@@ -95,8 +102,56 @@ class LocationProvider extends ChangeNotifier {
       if (lng != null) await prefs.setDouble('user_lng', lng!);
     } catch (_) {}
 
+    await checkServiceability();
     _logLocationState();
     notifyListeners();
+  }
+
+  Future<bool> checkServiceability({
+    String? address,
+    String? pincode,
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      final addr = address ?? '$_location, $_subAddress';
+      final checkLat = latitude ?? lat;
+      final checkLng = longitude ?? lng;
+
+      String pin = pincode ?? '';
+      if (pin.isEmpty) {
+        final match = RegExp(r'\b\d{6}\b').firstMatch(addr);
+        if (match != null) pin = match.group(0)!;
+      }
+
+      final url = Uri.parse('${RestaurantApiService.apiBaseUrl}/service-areas/check-serviceability');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'address': addr,
+          'pincode': pin,
+          'lat': checkLat,
+          'lng': checkLng,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _isServiceable = data['isServiceable'] == true;
+        _serviceabilityMessage = data['message']?.toString() ?? '';
+        if (data['area'] is Map) {
+          _serviceArea = Map<String, dynamic>.from(data['area']);
+        }
+        notifyListeners();
+        return _isServiceable;
+      }
+    } catch (e) {
+      debugPrint('Error checking serviceability: $e');
+    }
+    _isServiceable = true; // Safe fallback
+    notifyListeners();
+    return true;
   }
 
   Future<void> refreshLocation() async {
@@ -120,6 +175,7 @@ class LocationProvider extends ChangeNotifier {
           await prefs.setDouble('user_lng', lng!);
         } catch (_) {}
 
+        await checkServiceability();
         _logLocationState();
         notifyListeners();
       }
@@ -127,6 +183,6 @@ class LocationProvider extends ChangeNotifier {
   }
 
   void _logLocationState() {
-    debugPrint('USER_LOCATION\naddress = $_location\nlat = $lat\nlng = $lng');
+    debugPrint('USER_LOCATION\naddress = $_location\nlat = $lat\nlng = $lng\nserviceable = $_isServiceable');
   }
 }

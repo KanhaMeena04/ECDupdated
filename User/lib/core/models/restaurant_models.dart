@@ -130,6 +130,10 @@ class PopularDish {
   final String slug;
   final String imageUrl;
   final String category;
+  final double price;
+  final String description;
+  final bool isVeg;
+  final double rating;
 
   const PopularDish({
     required this.id,
@@ -137,5 +141,9 @@ class PopularDish {
     required this.slug,
     required this.imageUrl,
     required this.category,
+    this.price = 149.0,
+    this.description = '',
+    this.isVeg = true,
+    this.rating = 4.5,
   });
 }

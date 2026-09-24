@@ -3,6 +3,7 @@ const router = express.Router();
 const reviewController = require('../controllers/reviewController');
 const { protect, admin, restaurantOwner, rider } = require('../middleware/authMiddleware');
 router.get('/restaurant/:restaurantId', reviewController.getReviewsByRestaurant);
+router.post('/restaurant', protect, reviewController.createReview);
 router.get('/order/:orderId', reviewController.getReviewByOrderId);
 router.post('/', protect, reviewController.createReview);
 router.get('/my-reviews', protect, reviewController.getMyReviews);

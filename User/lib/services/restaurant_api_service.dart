@@ -130,6 +130,8 @@ class RestaurantApiService {
     Map<String, String>? filters,
     double? lat,
     double? lng,
+    String? city,
+    String? address,
   }) async {
     if (kFrontendPreviewMode) {
       final list = _getMockRestaurants();
@@ -145,6 +147,12 @@ class RestaurantApiService {
       if (lat != null && lng != null) {
         queryParams['lat'] = lat.toString();
         queryParams['lng'] = lng.toString();
+      }
+      if (city != null && city.isNotEmpty) {
+        queryParams['city'] = city;
+      }
+      if (address != null && address.isNotEmpty) {
+        queryParams['address'] = address;
       }
       if (filters != null) {
         queryParams.addAll(filters);
@@ -219,7 +227,11 @@ class RestaurantApiService {
         if (jsonResponse is List) {
           menuJson = jsonResponse;
         } else if (jsonResponse is Map) {
-          if (jsonResponse['menu'] is List) {
+          if (jsonResponse['items'] is List) {
+            menuJson = jsonResponse['items'];
+          } else if (jsonResponse['products'] is List) {
+            menuJson = jsonResponse['products'];
+          } else if (jsonResponse['menu'] is List) {
             menuJson = jsonResponse['menu'];
           } else if (jsonResponse['menu'] is Map) {
             final Map<String, dynamic> catMap = jsonResponse['menu'];
@@ -228,15 +240,13 @@ class RestaurantApiService {
                 menuJson.addAll(items);
               }
             }
-          } else if (jsonResponse['products'] is List) {
-            menuJson = jsonResponse['products'];
           } else if (jsonResponse['data'] is List) {
             menuJson = jsonResponse['data'];
           }
         }
-        return menuJson.map((json) => _fromJsonToMenuItem(json)).toList();
+        return menuJson.map((json) => _fromJsonToMenuItem(Map<String, dynamic>.from(json))).toList();
       } else {
-        throw Exception('Failed to load menu');
+        return [];
       }
     } catch (e) {
       debugPrint('Error fetching menu: $e');
@@ -353,14 +363,27 @@ class RestaurantApiService {
       final response = await http.get(Uri.parse(popularDishesUrl));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-        final List<dynamic> data = jsonResponse['dishes'] ?? jsonResponse['products'] ?? [];
-        return data.map((json) => PopularDish(
-          id: json['_id']?.toString() ?? '',
-          name: json['name'] is Map ? (json['name']['en']?.toString() ?? json['name'].values.first?.toString() ?? '') : (json['name']?.toString() ?? ''),
-          slug: json['slug']?.toString() ?? '',
-          imageUrl: json['image']?.toString() ?? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
-          category: json['category']?.toString() ?? '',
-        )).toList();
+        final List<dynamic> data = jsonResponse is List
+            ? jsonResponse
+            : (jsonResponse['dishes'] ?? jsonResponse['products'] ?? jsonResponse['data'] ?? []);
+        return data.map((json) {
+          final rawPrice = _parseDouble(json['price'] ?? json['sellingPrice'] ?? json['basePrice'], 149.0);
+          final rawName = json['name'] is Map ? (json['name']['en']?.toString() ?? json['name'].values.first?.toString() ?? 'Dish') : (json['name']?.toString() ?? 'Dish');
+          final rawDesc = json['description'] is Map ? (json['description']['en']?.toString() ?? json['description'].values.first?.toString() ?? '') : (json['description']?.toString() ?? '');
+          final rawCat = json['category'] is Map ? (json['category']['name']?.toString() ?? 'General') : (json['category']?.toString() ?? 'General');
+
+          return PopularDish(
+            id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+            name: rawName,
+            slug: json['slug']?.toString() ?? '',
+            imageUrl: json['image']?.toString() ?? json['imageUrl']?.toString() ?? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
+            category: rawCat,
+            price: rawPrice,
+            description: rawDesc,
+            isVeg: json['isVeg'] == true || json['foodType'] == 'veg',
+            rating: _parseDouble(json['rating'], 4.5),
+          );
+        }).toList();
       }
       return [];
     } catch (e) {
@@ -414,6 +437,34 @@ class RestaurantApiService {
       parsedRating = _parseDouble(json['avgRating'], 4.5);
     }
 
+    String parsedCuisine = '';
+    if (json['cuisine'] is List && (json['cuisine'] as List).isNotEmpty) {
+      parsedCuisine = (json['cuisine'] as List).map((e) => e.toString()).where((s) => s.isNotEmpty).join(', ');
+    } else if (json['cuisine'] is String && (json['cuisine'] as String).trim().isNotEmpty) {
+      parsedCuisine = json['cuisine'].toString().trim();
+    } else if (json['storeType'] != null && json['storeType'].toString().trim().isNotEmpty) {
+      parsedCuisine = json['storeType'].toString().trim();
+    }
+
+    if (parsedCuisine.isEmpty) {
+      final n = rName.toLowerCase();
+      if (n.contains('cafe')) {
+        parsedCuisine = 'Cafe, Fast Food, Beverages, Burger, Sandwich';
+      } else if (n.contains('momo')) {
+        parsedCuisine = 'Chinese, Momos, Fast Food';
+      } else if (n.contains('biryani')) {
+        parsedCuisine = 'Biryani, North Indian, Main Course';
+      } else if (n.contains('pizza') || n.contains('cheesey')) {
+        parsedCuisine = 'Pizza, Fast Food, Italian, Burger';
+      } else if (n.contains('naan') || n.contains('rasoi') || n.contains('dhaba') || n.contains('chulha') || n.contains('rajput') || n.contains('sohna') || n.contains('pandit')) {
+        parsedCuisine = 'North Indian, Main Course, Thali';
+      } else if (n.contains('cake') || n.contains('sweet') || n.contains('baker')) {
+        parsedCuisine = 'Cake, Bakery, Desserts';
+      } else {
+        parsedCuisine = 'North Indian, Fast Food, Chinese, Pizza, Burger, Biryani, Momos, Sandwich';
+      }
+    }
+
     return Restaurant(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       slug: json['slug']?.toString() ?? '',
@@ -424,7 +475,7 @@ class RestaurantApiService {
       distanceKm: _parseDouble(json['distanceKm'] ?? json['distance'], 1.8),
       deliveryTimeMin: _parseInt(json['deliveryTime'] ?? json['deliveryTimeMin'] ?? json['prepTime'], 25),
       deliveryCharge: _parseDouble(json['deliveryCharge'] ?? json['shippingFee'], 0.0),
-      cuisine: (json['cuisine'] is List) ? (json['cuisine'] as List).join(', ') : (json['storeType']?.toString() ?? json['cuisine']?.toString() ?? 'North Indian, Fast Food'),
+      cuisine: parsedCuisine,
       menu: menuItems,
       isActive: json['isActive'] != false,
       isOnline: json['isOnline'] != false,
@@ -449,297 +500,59 @@ class RestaurantApiService {
   }
 
   static MenuItem _fromJsonToMenuItem(Map<String, dynamic> json) {
-    final rawPrice = _parseDouble(json['price'] ?? json['basePrice'], 0.0);
-    final rawMrp = _parseDouble(json['mrp'] ?? json['originalBasePrice'], rawPrice > 0 ? rawPrice * 1.3 : 0.0);
-    final rawDiscount = _parseDouble(json['discountPercent'], 0.0);
+    final rawPrice = _parseDouble(json['price'] ?? json['sellingPrice'] ?? json['basePrice'] ?? json['b2cPrice'], 0.0);
+    final rawMrp = _parseDouble(json['mrp'] ?? json['originalBasePrice'] ?? json['originalPrice'], rawPrice > 0 ? rawPrice : 0.0);
+    final rawDiscount = _parseDouble(json['discountPercent'], rawMrp > rawPrice ? ((rawMrp - rawPrice) / rawMrp * 100) : 0.0);
     final isOut = json['outOfStock'] == true || json['available'] == false;
+
+    String pName = 'Item';
+    if (json['name'] != null) {
+      if (json['name'] is Map) {
+        pName = json['name']['en']?.toString() ?? json['name']['de']?.toString() ?? json['name'].values.first?.toString() ?? 'Item';
+      } else {
+        pName = json['name'].toString();
+      }
+    }
+
+    String pDesc = '';
+    if (json['description'] != null) {
+      if (json['description'] is Map) {
+        pDesc = json['description']['en']?.toString() ?? json['description']['de']?.toString() ?? json['description'].values.first?.toString() ?? '';
+      } else {
+        pDesc = json['description'].toString();
+      }
+    }
+
+    String pCategory = 'General';
+    if (json['category'] != null) {
+      if (json['category'] is Map) {
+        pCategory = json['category']['name'] is Map
+            ? (json['category']['name']['en']?.toString() ?? json['category']['name'].values.first?.toString() ?? 'General')
+            : (json['category']['name']?.toString() ?? json['category']['title']?.toString() ?? 'General');
+      } else {
+        pCategory = json['category'].toString();
+      }
+    }
 
     return MenuItem(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
-      name: json['name']?.toString() ?? 'Item',
+      name: pName,
       imageUrl: json['image']?.toString() ?? json['imageUrl']?.toString() ?? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
       price: rawPrice,
       originalPrice: rawMrp > rawPrice ? rawMrp : null,
       comparisonTag: rawDiscount > 0 ? '${rawDiscount.toInt()}% OFF' : null,
-      category: json['category']?.toString() ?? 'General',
-      rating: _parseDouble(json['rating'], 4.0),
-      isVeg: json['isVeg'] == true || json['isVegetarian'] == true || json['veg'] == true,
-      description: json['description']?.toString() ?? '',
+      category: pCategory,
+      rating: _parseDouble(json['rating'], 4.5),
+      isVeg: json['isVeg'] == true || json['isVegetarian'] == true || json['foodType'] == 'veg' || json['veg'] == true,
+      description: pDesc,
       outOfStock: isOut,
       preparationTime: _parseInt(json['preparationTime'], 15),
-      subcategory: json['subcategory']?.toString() ?? '',
+      subcategory: json['subcategory'] is Map ? (json['subcategory']['name']?.toString() ?? '') : (json['subcategory']?.toString() ?? ''),
       isFeatured: json['isFeatured'] == true,
       adminPriceOverridden: json['adminPriceOverride']?['isOverridden'] == true,
     );
   }
 
-  static List<Restaurant> _getMockRestaurants() {
-    return [
-      Restaurant(
-        id: 'rest_apna',
-        slug: 'apna-sweets',
-        name: 'Apna Sweets',
-        imageUrl: 'assets/static/restraunt.jpg',
-        rating: 4.4,
-        reviewCount: 310,
-        distanceKm: 1.5,
-        deliveryTimeMin: 20,
-        deliveryCharge: 0.0,
-        cuisine: 'North Indian, Sweets, Snacks',
-        isActive: true,
-        isOnline: true,
-        menu: [
-          const MenuItem(
-            id: 'apna_1',
-            name: 'Indori Poha',
-            description: 'Steamed poha topped with ratlami sev & fresh pomegranate',
-            price: 25.0,
-            originalPrice: 45.0,
-            comparisonTag: '45% lower',
-            imageUrl: 'assets/static/c6.png',
-            category: 'Snacks',
-            rating: 4.8,
-            isVeg: true,
-          ),
-          const MenuItem(
-            id: 'apna_2',
-            name: 'Crispy Samosa',
-            description: 'Golden spiced potato stuffed samosa served with chutney',
-            price: 25.0,
-            originalPrice: 40.0,
-            comparisonTag: '38% lower',
-            imageUrl: 'assets/static/c5.png',
-            category: 'Snacks',
-            rating: 4.7,
-            isVeg: true,
-          ),
-          const MenuItem(
-            id: 'apna_3',
-            name: 'Uttapam',
-            description: 'South Indian rice pancake loaded with fresh onion & tomato',
-            price: 35.0,
-            originalPrice: 65.0,
-            comparisonTag: '46% lower',
-            imageUrl: 'assets/static/c2.png',
-            category: 'South Indian',
-            rating: 4.6,
-            isVeg: true,
-          ),
-          const MenuItem(
-            id: 'apna_4',
-            name: 'Desi Ghee Jalebi',
-            description: 'Crispy hot jalebis dipped in saffron sugar syrup',
-            price: 49.0,
-            originalPrice: 90.0,
-            comparisonTag: '45% lower',
-            imageUrl: 'assets/static/c1.png',
-            category: 'Sweets',
-            rating: 4.9,
-            isVeg: true,
-          ),
-        ],
-      ),
-      Restaurant(
-        id: 'rest_haldiram',
-        slug: 'haldirams-restaurant',
-        name: "Haldiram's Restaurant",
-        imageUrl: 'assets/static/b1.jpg',
-        rating: 4.3,
-        reviewCount: 420,
-        distanceKm: 2.0,
-        deliveryTimeMin: 25,
-        deliveryCharge: 20.0,
-        cuisine: 'North Indian, Chaat, Thali',
-        isActive: true,
-        isOnline: true,
-        menu: [
-          const MenuItem(
-            id: 'hald_1',
-            name: 'Masala Dosa',
-            description: 'Crispy rice crepe filled with spiced potato masala',
-            price: 69.0,
-            originalPrice: 120.0,
-            comparisonTag: '42% lower',
-            imageUrl: 'assets/static/c2.png',
-            category: 'South Indian',
-            rating: 4.6,
-            isVeg: true,
-          ),
-          const MenuItem(
-            id: 'hald_2',
-            name: 'Grilled Sandwich',
-            description: 'Cheese & vegetable multi-grain grilled sandwich',
-            price: 56.0,
-            originalPrice: 99.0,
-            comparisonTag: '43% lower',
-            imageUrl: 'assets/static/c6.png',
-            category: 'Snacks',
-            rating: 4.5,
-            isVeg: true,
-          ),
-          const MenuItem(
-            id: 'hald_3',
-            name: 'Special North Thali',
-            description: 'Paneer, dal makhani, 2 naan, rice, raita & sweet dish',
-            price: 129.0,
-            originalPrice: 220.0,
-            comparisonTag: '41% lower',
-            imageUrl: 'assets/static/c5.png',
-            category: 'Thali',
-            rating: 4.8,
-            isVeg: true,
-          ),
-          const MenuItem(
-            id: 'hald_4',
-            name: 'Raj Kachori',
-            description: 'Crispy sphere filled with sprouts, curd & sweet chutney',
-            price: 79.0,
-            originalPrice: 135.0,
-            comparisonTag: '41% lower',
-            imageUrl: 'assets/static/b4.jpg',
-            category: 'Chaat',
-            rating: 4.7,
-            isVeg: true,
-          ),
-        ],
-      ),
-      Restaurant(
-        id: 'rest_1',
-        slug: 'gourmet-kitchen',
-        name: 'The Gourmet Kitchen',
-        imageUrl: 'assets/static/restraunt.jpg',
-        rating: 4.8,
-        reviewCount: 245,
-        distanceKm: 1.8,
-        deliveryTimeMin: 25,
-        deliveryCharge: 30.0,
-        cuisine: 'North Indian, Biryani, Thali',
-        isActive: true,
-        isOnline: true,
-        menu: _getMockMenuItems(),
-      ),
-      Restaurant(
-        id: 'rest_2',
-        slug: 'pizza-perfection',
-        name: 'Pizza Perfection',
-        imageUrl: 'assets/static/pizza.jpg',
-        rating: 4.6,
-        reviewCount: 180,
-        distanceKm: 2.2,
-        deliveryTimeMin: 30,
-        deliveryCharge: 25.0,
-        cuisine: 'Pizza, Italian, Desserts',
-        isActive: true,
-        isOnline: true,
-        menu: _getMockMenuItems(),
-      ),
-      Restaurant(
-        id: 'rest_3',
-        slug: 'burger-heights',
-        name: 'Burger Heights',
-        imageUrl: 'assets/static/b2.jpg',
-        rating: 4.4,
-        reviewCount: 120,
-        distanceKm: 3.0,
-        deliveryTimeMin: 20,
-        deliveryCharge: 20.0,
-        cuisine: 'Burger, Fast Food, Beverages',
-        isActive: true,
-        isOnline: true,
-        menu: _getMockMenuItems(),
-      ),
-      Restaurant(
-        id: 'rest_4',
-        slug: 'wok-and-roll',
-        name: 'Wok & Roll Chinese',
-        imageUrl: 'assets/static/b3.jpg',
-        rating: 4.5,
-        reviewCount: 95,
-        distanceKm: 2.5,
-        deliveryTimeMin: 35,
-        deliveryCharge: 35.0,
-        cuisine: 'Chinese, Asian, Noodles',
-        isActive: true,
-        isOnline: true,
-        menu: _getMockMenuItems(),
-      ),
-    ];
-  }
-
-  static List<MenuItem> _getMockMenuItems() {
-    return [
-      const MenuItem(
-        id: 'item_1',
-        name: 'Margherita Pizza',
-        description: 'Classic cheese pizza with rich tomato sauce & fresh basil',
-        price: 199.0,
-        originalPrice: 349.0,
-        comparisonTag: '43% lower',
-        imageUrl: 'assets/static/pizza.jpg',
-        category: 'Pizza',
-        rating: 4.8,
-        isVeg: true,
-      ),
-      const MenuItem(
-        id: 'item_2',
-        name: 'Double Cheeseburger',
-        description: 'Juicy patty with double cheese, lettuce, tomato & spicy mayo',
-        price: 129.0,
-        originalPrice: 220.0,
-        comparisonTag: '41% lower',
-        imageUrl: 'assets/static/b2.jpg',
-        category: 'Burger',
-        rating: 4.5,
-        isVeg: false,
-      ),
-      const MenuItem(
-        id: 'item_3',
-        name: 'Schezwan Hakka Noodles',
-        description: 'Spicy wok-tossed noodles loaded with fresh veggies & garlic',
-        price: 119.0,
-        originalPrice: 199.0,
-        comparisonTag: '40% lower',
-        imageUrl: 'assets/static/b3.jpg',
-        category: 'Chinese',
-        rating: 4.3,
-        isVeg: true,
-      ),
-      const MenuItem(
-        id: 'item_4',
-        name: 'Creamy White Pasta',
-        description: 'Penne pasta tossed in rich parmesan sauce with Italian herbs',
-        price: 149.0,
-        originalPrice: 260.0,
-        comparisonTag: '42% lower',
-        imageUrl: 'assets/static/b1.jpg',
-        category: 'Pasta',
-        rating: 4.6,
-        isVeg: true,
-      ),
-      const MenuItem(
-        id: 'item_5',
-        name: 'Paneer Butter Masala',
-        description: 'Rich creamy paneer gravy served with aromatic spices',
-        price: 169.0,
-        originalPrice: 280.0,
-        comparisonTag: '40% lower',
-        imageUrl: 'assets/static/b4.jpg',
-        category: 'Indian',
-        rating: 4.7,
-        isVeg: true,
-      ),
-      const MenuItem(
-        id: 'item_6',
-        name: 'Chocolate Lava Cake',
-        description: 'Warm chocolate cake with molten chocolate core',
-        price: 89.0,
-        originalPrice: 150.0,
-        comparisonTag: '40% lower',
-        imageUrl: 'assets/static/cake5.jpg',
-        category: 'Desserts',
-        rating: 4.9,
-        isVeg: true,
-      ),
-    ];
-  }
+  static List<Restaurant> _getMockRestaurants() => [];
+  static List<MenuItem> _getMockMenuItems() => [];
 }

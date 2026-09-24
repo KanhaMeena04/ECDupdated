@@ -22,7 +22,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../providers/theme_provider.dart';
 import 'widgets/filters_bottom_sheet.dart';
-import '../../services/dummy_data.dart';
 import '../../services/popular_dish_data.dart';
 import '../../services/restaurant_api_service.dart';
 import '../../providers/cart_provider.dart';
@@ -47,7 +46,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late int _selectedIndex;
-  final List<Product> _products = DummyData.getProducts();
   List<String> _selectedPreferences = [];
 
   @override
@@ -108,7 +106,6 @@ class _HomePageState extends State<HomePage> {
           key: ValueKey<int>(_selectedIndex),
           child: [
             _HomeTab(
-              products: _products,
               selectedPreferences: _selectedPreferences,
               onClearPreferences: _onClearPreferences,
             ),
@@ -184,12 +181,10 @@ class _NavBarItem extends StatelessWidget {
 }
 
 class _HomeTab extends StatefulWidget {
-  final List<Product> products;
   final List<String> selectedPreferences;
   final VoidCallback? onClearPreferences;
 
   const _HomeTab({
-    required this.products,
     this.selectedPreferences = const [],
     this.onClearPreferences,
   });
@@ -380,10 +375,13 @@ class _HomeTabState extends State<_HomeTab> {
     }
 
     try {
+      final reqAddress = locProvider.location;
       final restaurants = await RestaurantApiService.getRestaurants(
         filters: filters,
         lat: reqLat,
         lng: reqLng,
+        city: reqAddress,
+        address: reqAddress,
       );
 
       if (currentFetchId == _fetchCounter && mounted) {
@@ -420,24 +418,87 @@ class _HomeTabState extends State<_HomeTab> {
     return [allCategory, ..._categories];
   }
 
+  List<String> _getCategoryKeywords(String cat) {
+    final c = cat.toLowerCase().trim();
+    if (c == 'momos' || c == 'momo') return ['momo', 'momos'];
+    if (c == 'burger' || c == 'burgers') return ['burger', 'burgers'];
+    if (c == 'pizza' || c == 'pizzas') return ['pizza', 'pizzas'];
+    if (c == 'biryani' || c == 'biriyani') return ['biryani', 'biriyani', 'pulao', 'dum biryani'];
+    if (c == 'sandwich' || c == 'sandwiches') return ['sandwich', 'sandwiches'];
+    if (c == 'chinese' || c == 'asian') return ['chinese', 'noodle', 'noodles', 'manchurian', 'chowmein', 'fried rice', 'chilli'];
+    if (c == 'cake' || c == 'cakes' || c == 'dessert' || c == 'desserts' || c == 'sweet' || c == 'sweets') return ['cake', 'pastry', 'dessert', 'brownie', 'ice cream', 'gulab jamun', 'halwa', 'pastries'];
+    if (c.contains('north indian')) return ['north indian', 'thali', 'dal makhani', 'paneer butter', 'chur chur naan', 'naan', 'roti', 'paratha', 'chole'];
+    if (c.contains('main course') || c == 'main') return ['main course', 'thali', 'curry', 'gravy', 'paneer lababdar', 'butter chicken'];
+    if (c.contains('beverage') || c.contains('drink') || c.contains('coffee')) return ['beverage', 'beverages', 'shake', 'juice', 'coffee', 'tea', 'cold drink', 'soda', 'drink', 'drinks', 'smoothie', 'lassi'];
+    
+    final stem = c.replaceAll(RegExp(r's$'), '');
+    final set = <String>{c};
+    if (stem.length >= 3) set.add(stem);
+    return set.toList();
+  }
+
+  bool _dishMatchesCategory(MenuItem m, List<String> keywords) {
+    final mCat = m.category.toLowerCase();
+    final mSub = m.subcategory.toLowerCase();
+    final mName = m.name.toLowerCase();
+
+    for (final k in keywords) {
+      final kLow = k.toLowerCase();
+      // 1. Direct dish category or subcategory match
+      if (mCat.contains(kLow) || mSub.contains(kLow)) return true;
+
+      // 2. Dish name check with word boundary for short keywords (e.g. 'tea')
+      if (kLow.length <= 3) {
+        final regex = RegExp('(^|[\\s/,.-])' + RegExp.escape(kLow) + '(\$|[\\s/,.-])', caseSensitive: false);
+        if (regex.hasMatch(mName)) return true;
+      } else {
+        if (mName.contains(kLow)) return true;
+      }
+    }
+    return false;
+  }
+
   List<Restaurant> get _displayRestaurants {
     List<Restaurant> list = List.from(_restaurants);
 
-    // 1. In-place Category Filter
+    // 1. In-place Category Filter (Strict matching on dishes and cuisine)
     final cats = _categoriesWithAll;
     if (_selectedCategoryIndex > 0 && _selectedCategoryIndex < cats.length) {
-      final selectedCatTitle = cats[_selectedCategoryIndex].title.toLowerCase();
-      list = list.where((r) {
+      final selectedCat = cats[_selectedCategoryIndex];
+      final selectedCatTitle = selectedCat.title.toLowerCase().trim();
+      final keywords = _getCategoryKeywords(selectedCatTitle);
+
+      final List<Restaurant> filtered = [];
+
+      for (final r in list) {
+        // Find matching dishes and non-matching dishes
+        final matchingDishes = <MenuItem>[];
+        final otherDishes = <MenuItem>[];
+
+        for (final m in r.menu) {
+          if (_dishMatchesCategory(m, keywords)) {
+            matchingDishes.add(m);
+          } else {
+            otherDishes.add(m);
+          }
+        }
+
+        // Direct match on restaurant cuisine/name
         final cuisineLower = r.cuisine.toLowerCase();
         final nameLower = r.name.toLowerCase();
-        final menuMatches = r.menu.any((m) =>
-          m.category.toLowerCase().contains(selectedCatTitle) ||
-          m.name.toLowerCase().contains(selectedCatTitle)
-        );
-        return cuisineLower.contains(selectedCatTitle) ||
-               nameLower.contains(selectedCatTitle) ||
-               menuMatches;
-      }).toList();
+        final cuisineMatches = keywords.any((k) {
+          final kLow = k.toLowerCase();
+          return cuisineLower == kLow || (kLow.length > 3 && (cuisineLower.contains(kLow) || nameLower.contains(kLow)));
+        });
+
+        if (matchingDishes.isNotEmpty || cuisineMatches) {
+          // Reorder menu items so matching dishes appear at the front of the restaurant preview card
+          final reorderedMenu = [...matchingDishes, ...otherDishes];
+          filtered.add(r.copyWith(menu: reorderedMenu));
+        }
+      }
+
+      list = filtered;
     }
 
     // 2. Active Preference Filter
@@ -951,6 +1012,7 @@ class _HomeTabState extends State<_HomeTab> {
                                   );
 
                                   return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
                                     onTap: () {
                                       setState(() {
                                         _selectedCategoryIndex = index;
@@ -1106,38 +1168,45 @@ class _HomeTabState extends State<_HomeTab> {
                       ),
                     ),
                     _isLoadingRestaurants
-                        ? const Center(child: CircularProgressIndicator())
-                        : AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 600),
-                            switchInCurve: Curves.easeOutCubic,
-                            switchOutCurve: Curves.easeInCubic,
-                            transitionBuilder: (child, animation) {
-                              return FadeTransition(
-                                opacity: animation,
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(0.04, 0.0),
-                                    end: Offset.zero,
-                                  ).animate(animation),
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: SizedBox(
-                              key: ValueKey('recommended_shuffle_$_shuffleSeed'),
-                              height: 240,
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                itemCount: _displayRestaurants.length > 5 ? 5 : _displayRestaurants.length,
-                                itemBuilder: (context, index) {
-                                  return _RecommendedRestaurantCard(
-                                    restaurant: _displayRestaurants[index],
+                        ? const SizedBox(
+                            height: 240,
+                            child: Center(
+                              child: CircularProgressIndicator(color: AppColors.primary),
+                            ),
+                          )
+                        : _restaurants.isEmpty
+                            ? const SizedBox.shrink()
+                            : AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 600),
+                                switchInCurve: Curves.easeOutCubic,
+                                switchOutCurve: Curves.easeInCubic,
+                                transitionBuilder: (child, animation) {
+                                  return FadeTransition(
+                                    opacity: animation,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(0.04, 0.0),
+                                        end: Offset.zero,
+                                      ).animate(animation),
+                                      child: child,
+                                    ),
                                   );
                                 },
+                                child: SizedBox(
+                                  key: ValueKey('recommended_shuffle_$_shuffleSeed'),
+                                  height: 240,
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    itemCount: _restaurants.length > 6 ? 6 : _restaurants.length,
+                                    itemBuilder: (context, index) {
+                                      return _RecommendedRestaurantCard(
+                                        restaurant: _restaurants[index],
+                                      );
+                                    },
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
                   ],
 
                   // Favourites Section
@@ -1406,19 +1475,51 @@ class _HomeTabState extends State<_HomeTab> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: _isLoadingRestaurants
-                        ? const Center(child: CircularProgressIndicator())
-                        : _displayRestaurants.isEmpty
+                        ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                        : (!context.watch<LocationProvider>().isServiceable && _restaurants.isEmpty)
                             ? _buildServiceUnavailableCard(context, isDark)
-                            : ListView.builder(
-                                itemCount: _displayRestaurants.length,
-                                physics: const NeverScrollableScrollPhysics(),
-                                shrinkWrap: true,
-                                padding: EdgeInsets.zero,
-                                itemBuilder: (context, index) {
-                                  final r = _displayRestaurants[index];
-                                  return _RestaurantListCard(restaurant: r);
-                                },
-                              ),
+                            : _displayRestaurants.isEmpty
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                                    alignment: Alignment.center,
+                                    child: Column(
+                                      children: [
+                                        Icon(Icons.restaurant_rounded, size: 48, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'No restaurants found in this category',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? Colors.white : Colors.black87,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              _selectedCategoryIndex = 0;
+                                            });
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColors.primary,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                          ),
+                                          child: const Text('View All Restaurants', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    itemCount: _displayRestaurants.length,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    shrinkWrap: true,
+                                    padding: EdgeInsets.zero,
+                                    itemBuilder: (context, index) {
+                                      final r = _displayRestaurants[index];
+                                      return _RestaurantListCard(restaurant: r);
+                                    },
+                                  ),
                   ),
 
                   const SizedBox(height: 16),
@@ -2913,7 +3014,7 @@ class _SliverCategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _SliverCategoryHeaderDelegate oldDelegate) {
-    return oldDelegate.child != child || oldDelegate.height != height;
+    return true;
   }
 }
 

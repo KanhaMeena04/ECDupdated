@@ -11,15 +11,24 @@ import '../cart/cart_page.dart';
 import 'restaurant_profile_screen.dart';
 
 class RestaurantDetailScreen extends StatefulWidget {
-  final Restaurant restaurant;
+  final Restaurant? restaurant;
+  final String? slug;
+  final String? restaurantId;
 
-  const RestaurantDetailScreen({super.key, required this.restaurant});
+  const RestaurantDetailScreen({
+    super.key,
+    this.restaurant,
+    this.slug,
+    this.restaurantId,
+  });
 
   @override
   State<RestaurantDetailScreen> createState() => _RestaurantDetailScreenState();
 }
 
 class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
+  Restaurant? _restaurant;
+  bool _isLoadingRestaurant = true;
   String _selectedCategory = 'All';
   List<MenuItem> _menu = [];
   bool _isLoadingMenu = true;
@@ -31,11 +40,17 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _menu = widget.restaurant.menu;
-    if (_menu.isEmpty) {
-      _fetchMenu();
+    if (widget.restaurant != null) {
+      _restaurant = widget.restaurant;
+      _isLoadingRestaurant = false;
+      _menu = widget.restaurant!.menu;
+      if (_menu.isEmpty) {
+        _fetchMenu();
+      } else {
+        _isLoadingMenu = false;
+      }
     } else {
-      _isLoadingMenu = false;
+      _fetchRestaurantAndMenu();
     }
 
     // Periodic shuffle for recommendations (price, offer, reorders, rating)
@@ -55,16 +70,55 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchMenu() async {
+  Future<void> _fetchRestaurantAndMenu() async {
     try {
-      final identifier = widget.restaurant.id.isNotEmpty ? widget.restaurant.id : widget.restaurant.slug;
-      final menu = await RestaurantApiService.getRestaurantMenu(identifier);
-      setState(() {
-        _menu = menu;
-        _isLoadingMenu = false;
-      });
+      final identifier = (widget.slug != null && widget.slug!.isNotEmpty)
+          ? widget.slug!
+          : ((widget.restaurantId != null && widget.restaurantId!.isNotEmpty) ? widget.restaurantId! : '');
+      if (identifier.isEmpty) {
+        setState(() {
+          _isLoadingRestaurant = false;
+          _isLoadingMenu = false;
+        });
+        return;
+      }
+
+      final restaurant = await RestaurantApiService.getRestaurantDetails(identifier);
+      final menu = await RestaurantApiService.getRestaurantMenu(restaurant.id.isNotEmpty ? restaurant.id : identifier);
+      if (mounted) {
+        setState(() {
+          _restaurant = restaurant;
+          _isLoadingRestaurant = false;
+          _menu = menu;
+          _isLoadingMenu = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoadingMenu = false);
+      debugPrint('Error fetching restaurant details: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingRestaurant = false;
+          _isLoadingMenu = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchMenu() async {
+    if (_restaurant == null) return;
+    try {
+      final identifier = _restaurant!.id.isNotEmpty ? _restaurant!.id : _restaurant!.slug;
+      final menu = await RestaurantApiService.getRestaurantMenu(identifier);
+      if (mounted) {
+        setState(() {
+          _menu = menu;
+          _isLoadingMenu = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMenu = false);
+      }
     }
   }
 
@@ -109,11 +163,41 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final r = widget.restaurant;
+    final isDark = context.watch<ThemeProvider>().isDarkMode;
+
+    if (_isLoadingRestaurant) {
+      return Scaffold(
+        backgroundColor: isDark ? Colors.black : Colors.white,
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+
+    if (_restaurant == null) {
+      return Scaffold(
+        backgroundColor: isDark ? Colors.black : Colors.white,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
+            onPressed: () => Navigator.pop(context),
+          ),
+          backgroundColor: isDark ? Colors.black : Colors.white,
+          elevation: 0,
+        ),
+        body: const Center(
+          child: Text(
+            'Restaurant not found or is currently unavailable',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
+    final r = _restaurant!;
     final cartProvider = context.watch<CartProvider>();
     final cartCount = cartProvider.itemCount;
     final isFree = r.deliveryCharge == 0;
-    final isDark = context.watch<ThemeProvider>().isDarkMode;
 
     return Scaffold(
       backgroundColor: isDark ? Colors.black : const Color(0xFFF5FAF8),
@@ -313,10 +397,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                         return _MenuItemCard(
                           item: _filteredMenu[index],
                           cartProvider: cartProvider,
-                          restaurantId: widget.restaurant.id,
-                          restaurantName: widget.restaurant.name,
-                          restaurantImageUrl: widget.restaurant.imageUrl,
-                          restaurantIsOnline: widget.restaurant.isOnline,
+                          restaurantId: r.id,
+                          restaurantName: r.name,
+                          restaurantImageUrl: r.imageUrl,
+                          restaurantIsOnline: r.isOnline,
                         );
                       },
                       childCount: _filteredMenu.length,
@@ -326,7 +410,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
         ],
       ),
 
-      // â”€â”€ Sticky bottom cart bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // Sticky bottom cart bar
       bottomNavigationBar: cartCount > 0
           ? SafeArea(
               child: Column(
@@ -338,7 +422,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                     onViewCart: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => CartPage(restaurant: widget.restaurant),
+                        builder: (_) => CartPage(restaurant: r),
                       ),
                     ),
                   ),

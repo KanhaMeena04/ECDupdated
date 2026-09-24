@@ -18,6 +18,17 @@ const getRatingCount = (rating) => {
 exports.formatRestaurantForUser = (restaurant) => {
   if (!restaurant) return null;
   const isOverridden = restaurant.adminOverride && restaurant.adminOverride.isOverridden;
+  let userCuisine = [];
+  if (Array.isArray(restaurant.cuisine) && restaurant.cuisine.length > 0) {
+    userCuisine = restaurant.cuisine;
+  } else if (typeof restaurant.cuisine === "string" && restaurant.cuisine.trim()) {
+    userCuisine = [restaurant.cuisine.trim()];
+  } else if (restaurant.storeType) {
+    userCuisine = [restaurant.storeType.charAt(0).toUpperCase() + restaurant.storeType.slice(1)];
+  } else {
+    userCuisine = [];
+  }
+
   return {
     _id: restaurant._id,
     name: restaurant.name,
@@ -26,7 +37,7 @@ exports.formatRestaurantForUser = (restaurant) => {
     image: restaurant.image,
     bannerImage: restaurant.bannerImage,
     restaurantImages: restaurant.restaurantImages || [],
-    cuisine: restaurant.cuisine || [],
+    cuisine: userCuisine,
     rating: normalizeRatingOutput(restaurant.rating),
     ratingCount: getRatingCount(restaurant.rating),
     address: restaurant.address,
@@ -43,10 +54,12 @@ exports.formatRestaurantForUser = (restaurant) => {
     isOnline: isOverridden && restaurant.adminOverride.isOnline !== undefined ? restaurant.adminOverride.isOnline : (restaurant.isOnline !== undefined ? restaurant.isOnline : true),
     isFeatured: isOverridden && restaurant.adminOverride.isFeatured !== undefined ? restaurant.adminOverride.isFeatured : (restaurant.isFeatured || false),
     isTemporarilyClosed: restaurant.isTemporarilyClosed || false,
-    menuApproved: restaurant.menuApproved || false,
-    verificationStatus: restaurant.verificationStatus || 'pending',
+    restaurantApproved: restaurant.restaurantApproved !== false,
+    menuApproved: restaurant.menuApproved !== false,
+    verificationStatus: restaurant.verificationStatus || 'verified',
     timing: restaurant.timing,
-    offers: restaurant.offers || []
+    offers: restaurant.offers || [],
+    menu: restaurant.menu || []
   };
 };
 exports.formatRestaurantForList = (restaurant) => {
@@ -211,12 +224,17 @@ exports.formatProductForUser = (product) => {
   const effectiveDiscountAmount = isOverridden && product.adminPriceOverride.discountAmount !== undefined ? product.adminPriceOverride.discountAmount : (product.discountAmount || 0);
   const effectiveOfferPrice = isOverridden && product.adminPriceOverride.offerPrice !== undefined ? product.adminPriceOverride.offerPrice : product.offerPrice;
 
+  const pName = (product.name && typeof product.name === 'object') ? (product.name.en || product.name.de || Object.values(product.name)[0] || 'Item') : (product.name || 'Item');
+  const pDesc = (product.description && typeof product.description === 'object') ? (product.description.en || product.description.de || Object.values(product.description)[0] || '') : (product.description || '');
+
   return {
     _id: product._id,
+    id: product._id,
     restaurant: product.restaurant,
     category: product.category,
-    name: product.name,
-    description: product.description,
+    name: pName,
+    nameObject: product.name,
+    description: pDesc,
     image: product.image,
     price: effectiveBasePrice,
     basePrice: effectiveBasePrice,
@@ -312,7 +330,25 @@ exports.formatCityForUser = (city) => {
     })),
   };
 };
+const sendError = (res, status, message, details = null) => {
+  return res.status(status).json({
+    success: false,
+    message: message || "An error occurred",
+    ...(details ? { details } : {})
+  });
+};
+
+const sendSuccess = (res, status = 200, message = "Success", data = null) => {
+  return res.status(status).json({
+    success: true,
+    message,
+    ...(data ? (typeof data === 'object' && !Array.isArray(data) ? { ...data, data } : { data }) : {})
+  });
+};
+
 module.exports = {
+  sendError,
+  sendSuccess,
   formatRestaurantForUser: exports.formatRestaurantForUser,
   formatRestaurantForList: exports.formatRestaurantForList,
   formatRestaurantForAdmin: exports.formatRestaurantForAdmin,

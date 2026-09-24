@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect, admin, restaurantOwner } = require('../middleware/authMiddleware');
 const { upload } = require('../utils/upload');
+const { getMenu } = require('../controllers/menuController');
 const {
   getAllRestaurants,
   getRestaurantById,
@@ -51,9 +52,17 @@ const {
   updateOwnerPromocode,
   deleteOwnerPromocode
 } = require('../controllers/promocodeController');
-const { getMenu } = require('../controllers/menuController');
 router.get('/', getAllRestaurants);
 router.get('/list', getAllRestaurants);
+router.get('/by-category/:categorySlug', (req, res) => {
+  req.query.category = req.params.categorySlug;
+  return getAllRestaurants(req, res);
+});
+router.get('/search', (req, res) => {
+  req.query.search = req.query.query || req.query.search || req.query.q;
+  return getAllRestaurants(req, res);
+});
+router.get('/suggestions', require('../controllers/searchController').getSuggestions);
 router.get('/menu/:restaurantId', getMenu);
 router.post('/send-otp', vendorSendOtp);
 router.post('/verify-otp', vendorVerifyOtp);

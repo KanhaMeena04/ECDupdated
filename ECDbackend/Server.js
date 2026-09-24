@@ -167,11 +167,35 @@ app.use('/api/v1/user', userRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/v1/users', userRoutes);
 
+const addressRoutes = require('./routes/addressRoutes');
+app.use('/api/addresses', addressRoutes);
+app.use('/api/v1/addresses', addressRoutes);
+
 app.use('/api/wallet', walletRoutes);
 app.use('/api/v1/wallet', walletRoutes);
 
 app.use('/api/cart', cartRoutes);
 app.use('/api/v1/cart', cartRoutes);
+
+const couponRoutes = require('./routes/couponRoutes');
+app.use('/api/coupons', couponRoutes);
+app.use('/api/v1/coupons', couponRoutes);
+
+const razorpayRoutes = require('./routes/razorpayRoutes');
+app.use('/api/razorpay', razorpayRoutes);
+app.use('/api/v1/razorpay', razorpayRoutes);
+
+const issueRoutes = require('./routes/issueRoutes');
+app.use('/api/issues', issueRoutes);
+app.use('/api/v1/issues', issueRoutes);
+
+const notificationRoutes = require('./routes/notificationRoutes');
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+
+const uploadRoutes = require('./routes/uploadRoutes');
+app.use('/api/upload', uploadRoutes);
+app.use('/api/v1/upload', uploadRoutes);
 
 app.use('/api/incentives', incentiveRoutes);
 app.use('/api/v1/incentives', incentiveRoutes);

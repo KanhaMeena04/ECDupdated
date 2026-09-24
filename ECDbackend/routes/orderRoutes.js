@@ -77,11 +77,17 @@ const {
   completePickupVendor,
   cancelOrderVendor,
   sendPickupOtpVendor,
+  calculateOrderDeliveryFee,
+  verifyRazorpayPayment,
+  failOrderCustomer,
 } = require("../controllers/orderController");
 const { getMyActiveOrder } = require("../controllers/riderController");
 
 router.post("/place", protect, checkServiceAvailability, validatePlaceOrder, handleValidationErrors, placeOrderLimiter, placeOrder);
 router.get("/my-orders", protect, generalOrderLimiter, getMyOrders);
+router.post("/calculate-fee", calculateOrderDeliveryFee);
+router.post("/verify-payment", verifyRazorpayPayment);
+router.get("/tracking/:orderId", protect, trackOrder);
 router.get("/driver/my-orders", protect, rider, getMyActiveOrder);
 router.put("/driver/update-status", protect, rider, updateOrderStatus);
 
@@ -96,6 +102,7 @@ router.post("/restaurant/send-pickup-otp/:orderId", protect, sendPickupOtpVendor
 router.get("/:id/details", protect, generalOrderLimiter, getOrderDetails);
 router.get("/:id/customer", protect, customer, generalOrderLimiter, getOrderDetailsCustomer); // ✅ Explicit customer route
 router.post("/:id/cancel", protect, customer, validateCancelOrder, handleValidationErrors, generalOrderLimiter, customerCancelOrder);
+router.post("/:id/fail", protect, failOrderCustomer);
 router.get("/:id/timeline", protect, generalOrderLimiter, getOrderTimeline);
 router.post("/:id/rate-rider", protect, customer, validateRateRider, handleValidationErrors, generalOrderLimiter, rateRider);
 router.post("/:id/resend-otp", protect, generalOrderLimiter, resendOTP);
@@ -126,3 +133,4 @@ router.put("/admin/:id/cancel", protect, admin, adminCancelOrder);
 router.post('/admin/:id/retry-payment', protect, admin, adminRetryPayment);
 router.put('/admin/:id/resolve', protect, admin, adminResolveFailedOrder);
 module.exports = router;
+

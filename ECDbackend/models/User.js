@@ -1,12 +1,19 @@
 const mongoose = require("mongoose");
 const addressSchema = new mongoose.Schema({
-  label: { type: String, enum: ["Home", "Work", "Other"], required: true },
-  addressLine: { type: String, required: true },
-  city: { type: String },
-  zipCode: { type: String },
+  label: { type: String, default: "Home" },
+  addressLine: { type: String, default: "" },
+  fullAddress: { type: String, default: "" },
+  apartment: { type: String, default: "" },
+  flatNo: { type: String, default: "" },
+  landmark: { type: String, default: "" },
+  city: { type: String, default: "" },
+  state: { type: String, default: "" },
+  zipCode: { type: String, default: "" },
+  pincode: { type: String, default: "" },
+  phone: { type: String, default: "" },
   location: {
     type: { type: String, default: "Point" },
-    coordinates: { type: [Number], required: true }, // [Longitude, Latitude]
+    coordinates: { type: [Number], default: [0, 0] }, // [Longitude, Latitude]
   },
   deliveryInstructions: { type: String, default: "" },
   isDefault: { type: Boolean, default: false },

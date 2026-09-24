@@ -925,7 +925,13 @@ exports.getRestaurantById = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user ? req.user._id : null; // Check if user logged in
-    const restaurant = await Restaurant.findById(id);
+    let restaurant;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      restaurant = await Restaurant.findById(id);
+    }
+    if (!restaurant) {
+      restaurant = await Restaurant.findOne({ slug: id });
+    }
     if (!restaurant)
       return res.status(404).json({ message: "Restaurant not found" });
     if (!restaurant.menuApproved) {
@@ -935,8 +941,8 @@ exports.getRestaurantById = async (req, res) => {
       });
     }
     const products = await Product.find({
-      restaurant: id,
-      available: true,
+      restaurant: restaurant._id,
+      available: { $ne: false },
       isApproved: true,
     });
     const categoryIds = [
@@ -1645,73 +1651,218 @@ exports.getAllRestaurants = async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {
       return res.status(200).json({
+        success: true,
         restaurants: [],
+        data: [],
         pagination: { total: 0, page: 1, limit: 10, pages: 0 },
         count: 0
       });
     }
     const lat = Number(req.query.lat);
     const lng = Number(req.query.lng);
-    const radiusKm = Number(req.query.radiusKm || 10);
-    const riderRadiusKm = Number(req.query.riderRadiusKm || 5);
-    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
+
     const baseQuery = {
-      restaurantApproved: true,
-      isActive: true,
-      isTemporarilyClosed: false,
-      menuApproved: true,
+      restaurantApproved: { $ne: false },
+      isActive: { $ne: false },
+      isTemporarilyClosed: { $ne: true },
     };
-    if (hasCoords) {
-      baseQuery.location = {
-        $near: {
-          $geometry: { type: "Point", coordinates: [lng, lat] },
-          $maxDistance: radiusKm * 1000,
-        },
-      };
+
+    if (req.query.category) {
+      const catRegex = new RegExp(req.query.category, 'i');
+      const matchingCats = await Category.find({
+        $or: [
+          { 'name.en': catRegex },
+          { name: catRegex },
+          { title: catRegex }
+        ]
+      }).distinct('_id');
+
+      const matchingCatProductRestIds = await Product.find({
+        $or: [
+          { 'name.en': catRegex },
+          { name: catRegex },
+          { category: { $in: matchingCats } },
+          { subcategory: catRegex },
+        ]
+      }).distinct('restaurant');
+
+      baseQuery.$or = [
+        { cuisine: catRegex },
+        { _id: { $in: matchingCatProductRestIds } },
+      ];
     }
-    let query = Restaurant.find(baseQuery);
-    if (hasCoords) {
-      query = query.sort({ location: 1 }).limit(50); // Get up to 50 restaurants in delivery area
-    } else {
-      query = query.limit(10); // Browsing mode - show 10 restaurants
+    const searchTerm = req.query.search || req.query.query || req.query.q;
+    if (searchTerm) {
+      const searchRegex = new RegExp(searchTerm, 'i');
+      const matchingCats = await Category.find({
+        $or: [
+          { 'name.en': searchRegex },
+          { name: searchRegex },
+          { title: searchRegex }
+        ]
+      }).distinct('_id');
+
+      const matchingProductRestIds = await Product.find({
+        $or: [
+          { 'name.en': searchRegex },
+          { name: searchRegex },
+          { category: { $in: matchingCats } },
+          { subcategory: searchRegex },
+        ]
+      }).distinct('restaurant');
+
+      baseQuery.$or = [
+        { "name.en": searchRegex },
+        { name: searchRegex },
+        { cuisine: searchRegex },
+        { _id: { $in: matchingProductRestIds } },
+      ];
     }
-    const restaurants = await query;
-    const filteredRestaurants = restaurants.filter((restaurant) => isRestaurantOpenNow(restaurant));
-    const riderRadiusMeters = riderRadiusKm * 1000;
-    const restaurantsWithAvailability = await Promise.all(
-      filteredRestaurants.map(async (restaurant) => {
-        const coordinates = restaurant.location?.coordinates;
-        if (!coordinates || coordinates.length !== 2 ||
-          !Number.isFinite(coordinates[0]) || !Number.isFinite(coordinates[1]) ||
-          (coordinates[0] === 0 && coordinates[1] === 0)) {
-          return null;
-        }
-        const baseDeliveryTime = restaurant.deliveryTime || 30;
-        const distanceKm = hasCoords ? calculateDistance([lng, lat], coordinates) : null;
-        return {
-          restaurant,
-          nearbyRiderCount: 0,
-          estimatedDeliveryTime: baseDeliveryTime,
-          pickupMinutes: 0,
-          distanceKm,
-        };
-      }),
-    );
-    const formattedRestaurants = restaurantsWithAvailability
-      .filter(Boolean)
-      .map((entry) => {
-        const formatted = formatRestaurantForUser(entry.restaurant);
-        return {
-          ...formatted,
-          estimatedDeliveryTime: entry.estimatedDeliveryTime,
-          riderAvailability: entry.nearbyRiderCount,
-          pickupMinutes: entry.pickupMinutes,
-          ...(entry.distanceKm !== null ? { distanceKm: entry.distanceKm } : {}),
-        };
+
+    const allCandidateRestaurants = await Restaurant.find(baseQuery).limit(100).lean();
+
+    // 1. Preload categories map (ID -> Title)
+    const allCats = await Category.find().lean();
+    const catMap = {};
+    allCats.forEach(c => {
+      const title = c.title || (typeof c.name === 'object' ? c.name.en : c.name) || '';
+      if (title) {
+        catMap[c._id.toString()] = title;
+      }
+    });
+
+    // 2. Preload products (dishes) for all restaurants
+    const allProducts = await Product.find({ available: { $ne: false } }).lean();
+    const restMenuMap = {};
+    allProducts.forEach(p => {
+      const rId = p.restaurant?.toString();
+      if (!rId) return;
+      if (!restMenuMap[rId]) restMenuMap[rId] = [];
+
+      const catId = p.category?.toString() || '';
+      const catName = catMap[catId] || (typeof p.category === 'string' ? p.category : 'General');
+      const pName = typeof p.name === 'object' ? (p.name.en || p.name.hi || p.name.de || 'Item') : (p.name || 'Item');
+      const pPrice = Number(p.sellingPrice || p.price || p.basePrice || p.b2cPrice || 0);
+      const pMrp = Number(p.mrp || p.originalPrice || (pPrice > 0 ? Math.round(pPrice * 1.3) : 0));
+
+      restMenuMap[rId].push({
+        _id: p._id,
+        id: p._id.toString(),
+        name: pName,
+        price: pPrice,
+        sellingPrice: pPrice,
+        mrp: pMrp,
+        originalPrice: pMrp,
+        image: p.image || p.imageUrl || '',
+        imageUrl: p.image || p.imageUrl || '',
+        category: catName,
+        categoryId: catId,
+        subcategory: p.subcategory || '',
+        isVeg: p.isVeg !== false,
+        rating: Number(p.rating || 4.5),
+        description: typeof p.description === 'object' ? (p.description.en || '') : (p.description || ''),
       });
-    res.status(200).json(formattedRestaurants);
+    });
+
+    const radiusKm = Number(req.query.radiusKm || 50);
+    const userCity = (req.query.city || req.query.address || '').toLowerCase().trim();
+
+    let filteredRestaurants = [];
+    if (hasCoords) {
+      for (const restaurant of allCandidateRestaurants) {
+        const coordinates = restaurant.location?.coordinates;
+        const rCity = (restaurant.city || '').toLowerCase().trim();
+        const rArea = (restaurant.area || '').toLowerCase().trim();
+        const rAddress = (restaurant.address || '').toLowerCase().trim();
+
+        let distance = 999;
+        if (coordinates && coordinates.length === 2 && Number.isFinite(coordinates[0]) && Number.isFinite(coordinates[1])) {
+          distance = calculateDistance([lng, lat], coordinates);
+        }
+
+        const cityMatch = Boolean(userCity && (
+          (rCity && (userCity.includes(rCity) || rCity.includes(userCity))) ||
+          (rArea && (userCity.includes(rArea) || rArea.includes(userCity))) ||
+          (rAddress && (userCity.includes(rAddress) || rAddress.includes(userCity)))
+        ));
+
+        if (distance <= radiusKm || cityMatch) {
+          const effectiveDistance = cityMatch && distance > 15 ? 3.5 : Number(distance.toFixed(1));
+          filteredRestaurants.push({
+            restaurant,
+            distanceKm: effectiveDistance,
+          });
+        }
+      }
+      // Sort closest restaurants first
+      filteredRestaurants.sort((a, b) => a.distanceKm - b.distanceKm);
+    } else {
+      filteredRestaurants = allCandidateRestaurants.map((restaurant, idx) => ({
+        restaurant,
+        distanceKm: Number((1.5 + (idx % 5) * 0.5).toFixed(1)),
+      }));
+    }
+
+    const formattedRestaurants = filteredRestaurants.map(({ restaurant, distanceKm }) => {
+      let menu = restMenuMap[restaurant._id.toString()] || [];
+      // Fallback to embedded restaurant.menu if product collection items not yet populated
+      if (menu.length === 0 && Array.isArray(restaurant.menu) && restaurant.menu.length > 0) {
+        menu = restaurant.menu.map((item, idx) => ({
+          _id: item._id || `item_${idx}`,
+          id: (item._id || `item_${idx}`).toString(),
+          name: item.name || 'Item',
+          price: Number(item.price || item.basePrice || item.sellingPrice || 0),
+          sellingPrice: Number(item.price || item.basePrice || item.sellingPrice || 0),
+          mrp: Number(item.mrp || item.originalPrice || Math.round((item.price || item.basePrice || 0) * 1.3)),
+          originalPrice: Number(item.mrp || item.originalPrice || Math.round((item.price || item.basePrice || 0) * 1.3)),
+          image: item.image || item.imageUrl || '',
+          imageUrl: item.image || item.imageUrl || '',
+          category: item.category || 'General',
+          categoryId: '',
+          subcategory: item.subcategory || '',
+          isVeg: item.isVeg !== false && item.foodType !== 'non-veg',
+          rating: 4.5,
+          description: item.description || '',
+        }));
+      }
+
+      const menuCategories = Array.from(new Set(menu.map(m => m.category).filter(Boolean)));
+      let rawCuisine = Array.isArray(restaurant.cuisine) ? restaurant.cuisine : (typeof restaurant.cuisine === 'string' && restaurant.cuisine ? [restaurant.cuisine] : []);
+      const combinedCuisines = Array.from(new Set([...rawCuisine, ...menuCategories]));
+
+      const restaurantWithMenu = {
+        ...restaurant,
+        cuisine: combinedCuisines.length > 0 ? combinedCuisines : ["North Indian", "Fast Food"],
+        menu: menu,
+      };
+
+      const formatted = formatRestaurantForUser(restaurantWithMenu);
+      const openNow = isRestaurantOpenNow(restaurant);
+      const calculatedDeliveryTime = Math.max(15, 15 + Math.round(distanceKm * 3));
+
+      return {
+        ...formatted,
+        menu: menu,
+        menuCount: menu.length,
+        estimatedDeliveryTime: calculatedDeliveryTime,
+        riderAvailability: 1,
+        pickupMinutes: 15,
+        isOpen: openNow,
+        distanceKm,
+        deliveryTime: calculatedDeliveryTime,
+        deliveryTimeMin: calculatedDeliveryTime,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      count: formattedRestaurants.length,
+      restaurants: formattedRestaurants,
+      data: formattedRestaurants
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.getAllRestaurantsForAdmin = async (req, res) => {

@@ -168,3 +168,117 @@ exports.deleteOwnerPromocode = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+exports.getActiveCoupons = async (req, res) => {
+  try {
+    const { storeId, restaurantId } = req.query;
+    const now = new Date();
+    const query = {
+      status: { $ne: 'inactive' },
+      $or: [
+        { expiryDate: { $exists: false } },
+        { expiryDate: null },
+        { expiryDate: { $gte: now } }
+      ]
+    };
+
+    if (storeId || restaurantId) {
+      query.$or.push({ restaurant: storeId || restaurantId }, { restaurant: null });
+    }
+
+    const promocodes = await Promocode.find(query).sort({ createdAt: -1 });
+    const formatted = promocodes.map(p => ({
+      _id: p._id,
+      id: p._id,
+      code: p.code,
+      title: p.title || p.code,
+      description: p.description || `Get discount on your order`,
+      discount: p.discountValue || 0,
+      discountValue: p.discountValue || 0,
+      offerType: p.offerType || 'flat',
+      maxDiscount: p.maxDiscountAmount || 0,
+      minOrder: p.minOrderValue || 0,
+      minOrderValue: p.minOrderValue || 0,
+      image: p.image || ''
+    }));
+
+    return res.status(200).json({
+      success: true,
+      coupons: formatted,
+      data: formatted
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.validateCouponCode = async (req, res) => {
+  try {
+    const { code, couponCode, storeId, restaurantId, orderAmount, amount } = req.body;
+    const targetCode = (code || couponCode || "").toString().trim().toUpperCase();
+    const targetAmount = Number(orderAmount || amount || 0);
+
+    if (!targetCode) {
+      return res.status(400).json({ success: false, valid: false, message: "Coupon code is required" });
+    }
+
+    const promo = await Promocode.findOne({ code: targetCode });
+    if (!promo) {
+      return res.status(400).json({ success: false, valid: false, message: "Invalid coupon code" });
+    }
+
+    if (promo.status === 'inactive') {
+      return res.status(400).json({ success: false, valid: false, message: "This coupon is inactive" });
+    }
+
+    if (promo.expiryDate && new Date(promo.expiryDate) < new Date()) {
+      return res.status(400).json({ success: false, valid: false, message: "Coupon has expired" });
+    }
+
+    if (promo.minOrderValue && targetAmount < promo.minOrderValue) {
+      return res.status(400).json({
+        success: false,
+        valid: false,
+        message: `Minimum order amount of ₹${promo.minOrderValue} required for this coupon`
+      });
+    }
+
+    const targetStore = storeId || restaurantId;
+    if (promo.restaurant && targetStore && promo.restaurant.toString() !== targetStore.toString()) {
+      return res.status(400).json({
+        success: false,
+        valid: false,
+        message: "Coupon is not applicable for this restaurant"
+      });
+    }
+
+    let discount = 0;
+    if (promo.offerType === 'percentage' || promo.offerType === 'percent') {
+      discount = (targetAmount * (promo.discountValue || 0)) / 100;
+      if (promo.maxDiscountAmount && discount > promo.maxDiscountAmount) {
+        discount = promo.maxDiscountAmount;
+      }
+    } else {
+      discount = promo.discountValue || 0;
+    }
+
+    discount = Math.min(discount, targetAmount);
+
+    return res.status(200).json({
+      success: true,
+      valid: true,
+      message: `Coupon ${targetCode} applied successfully!`,
+      discountAmount: discount,
+      coupon: {
+        _id: promo._id,
+        id: promo._id,
+        code: targetCode,
+        discount,
+        description: promo.description || ""
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+

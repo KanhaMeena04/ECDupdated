@@ -94,76 +94,6 @@ class UnifiedCoupon {
   }
 }
 
-const List<Map<String, dynamic>> _dummyCouponsData = [
-  {
-    'id': '1',
-    'heading': 'WELCOME OFFER',
-    'title': 'Get ₹50 OFF on your first food order',
-    'discountAmount': '₹50.00',
-    'minSpend': 'Min order: ₹199',
-    'expiryDate': '31 Mar 2026',
-    'code': 'WELCOME50',
-    'tag': 'POPULAR',
-    'termsSummary': 'Terms: Valid on first order per user. Min order ₹199.',
-    'fullTerms': [
-      'Voucher valid for new users on their first completed order.',
-      'Minimum cart value of ₹199 is required.',
-      'Cannot be combined with other promo codes.',
-      'Valid for digital online payment methods.'
-    ]
-  },
-  {
-    'id': '2',
-    'heading': 'SPECIAL OFFER',
-    'title': 'Get ₹100 OFF on orders above ₹499',
-    'discountAmount': '₹100.00',
-    'minSpend': 'Min order: ₹499',
-    'expiryDate': '30 Apr 2026',
-    'code': 'FOODIE100',
-    'tag': 'HOT',
-    'termsSummary': 'Terms: Maximum discount ₹100. Applicable on all orders above ₹499.',
-    'fullTerms': [
-      'Voucher valid on food orders above ₹499.',
-      'Maximum discount applicable is ₹100.',
-      'Applicable across all partner restaurants.',
-      'Subject to restaurant availability.'
-    ]
-  },
-  {
-    'id': '3',
-    'heading': 'FLAT DISCOUNT',
-    'title': "₹500 off on Shakey's Pizza & Starters",
-    'discountAmount': '₹500.00',
-    'minSpend': 'Min order: ₹1,000',
-    'expiryDate': '31 May 2026',
-    'code': 'PICHAPIE',
-    'tag': 'MEGA SAVINGS',
-    'termsSummary': 'Terms: Minimum order value ₹1,000 required.',
-    'fullTerms': [
-      'Valid on orders above ₹1,000.',
-      'Applicable on pizza & side starters.',
-      'Single use per customer account.',
-      'Not redeemable for cash credit.'
-    ]
-  },
-  {
-    'id': '4',
-    'heading': 'FREE DELIVERY',
-    'title': 'Free Delivery on Food & Grocery',
-    'discountAmount': 'FREE DEL',
-    'minSpend': 'Min order: ₹149',
-    'expiryDate': '30 Jun 2026',
-    'code': 'FREEDEL',
-    'tag': 'FREEBIE',
-    'termsSummary': 'Terms: Waives standard delivery fee up to 10km.',
-    'fullTerms': [
-      'Waives full standard delivery fee.',
-      'Minimum order value ₹149 required.',
-      'Valid for delivery distance up to 10km.'
-    ]
-  }
-];
-
 class CouponsBottomSheet extends StatefulWidget {
   final Function(String code)? onApplyCoupon;
   const CouponsBottomSheet({super.key, this.onApplyCoupon});
@@ -204,15 +134,6 @@ class _CouponsBottomSheetState extends State<CouponsBottomSheet> {
           parsed.add(UnifiedCoupon.fromMap(Map<String, dynamic>.from(apiList[i]), i));
         }
       }
-      // Add default dummy coupons if missing
-      final dummyParsed = _dummyCouponsData
-          .asMap()
-          .entries
-          .map((e) => UnifiedCoupon.fromMap(e.value, e.key))
-          .where((d) => !parsed.any((p) => p.code == d.code))
-          .toList();
-
-      parsed.addAll(dummyParsed);
 
       if (mounted) {
         setState(() {
@@ -221,14 +142,9 @@ class _CouponsBottomSheetState extends State<CouponsBottomSheet> {
         });
       }
     } catch (e) {
-      final dummyParsed = _dummyCouponsData
-          .asMap()
-          .entries
-          .map((e) => UnifiedCoupon.fromMap(e.value, e.key))
-          .toList();
       if (mounted) {
         setState(() {
-          _coupons = dummyParsed;
+          _coupons = [];
           _isLoading = false;
         });
       }

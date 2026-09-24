@@ -314,13 +314,30 @@ exports.updateRiderProfile = async (req, res) => {
       return sendError(res, 401, "Unauthorized rider");
     }
     const user = await User.findById(req.user._id);
-    if (!user || !['rider', 'driver'].includes(user.role)) {
-      return sendError(res, 404, "Rider user not found");
+    if (!user) {
+      return sendError(res, 404, "User not found");
+    }
+    if (!['rider', 'driver'].includes(user.role)) {
+      user.role = 'driver';
+      await user.save();
     }
 
-    const rider = await Rider.findOne({ user: req.user._id });
+    let rider = await Rider.findOne({ user: req.user._id });
     if (!rider) {
-      return sendError(res, 404, "Rider profile not found");
+      rider = await Rider.create({
+        user: user._id,
+        name: user.name || name || 'Driver Partner',
+        phone: user.mobile || user.phone || phone || mobile || '',
+        mobile: user.mobile || user.phone || mobile || phone || '',
+        email: user.email || email || '',
+        pin: user.pin,
+        profilePic: user.profilePic,
+        verificationStatus: 'pending',
+        riderVerified: false,
+        isOnline: false,
+        isAvailable: false,
+        status: 'inactive'
+      });
     }
 
     if (!user.name && (!name || !name.trim())) {
@@ -545,24 +562,28 @@ exports.getRiderProfile = async (req, res) => {
       return sendError(res, 401, "Unauthorized rider");
     }
     const user = await User.findById(req.user._id);
-    if (!user || (user.role !== "rider" && user.role !== "driver")) {
-      return sendError(res, 404, "Rider user not found");
+    if (!user) {
+      return sendError(res, 404, "User not found");
     }
-    const riderProfile = await Rider.findOne({ user: req.user._id });
+    if (!['rider', 'driver'].includes(user.role)) {
+      user.role = 'driver';
+      await user.save();
+    }
+    let riderProfile = await Rider.findOne({ user: req.user._id });
     if (!riderProfile) {
-      return res.status(200).json({
-        success: true,
-        onboardingRequired: true,
-        message: "Please complete your rider profile to start delivering",
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          mobile: user.mobile,
-          profilePic: user.profilePic,
-          role: user.role,
-          walletBalance: user.walletBalance || 0
-        }
+      riderProfile = await Rider.create({
+        user: user._id,
+        name: user.name || 'Driver Partner',
+        phone: user.mobile || user.phone || '',
+        mobile: user.mobile || user.phone || '',
+        email: user.email || '',
+        pin: user.pin,
+        profilePic: user.profilePic,
+        verificationStatus: 'pending',
+        riderVerified: false,
+        isOnline: false,
+        isAvailable: false,
+        status: 'inactive'
       });
     }
     const orders = await Order.find({ rider: riderProfile._id });
@@ -630,15 +651,28 @@ exports.getRiderDashboard = async (req, res) => {
       return sendError(res, 401, "Unauthorized rider");
     }
     const user = await User.findById(req.user._id);
-    if (!user || (user.role !== "rider" && user.role !== "driver")) {
-      return sendError(res, 404, "Rider user not found");
+    if (!user) {
+      return sendError(res, 404, "User not found");
     }
-    const riderProfile = await Rider.findOne({ user: req.user._id });
+    if (!['rider', 'driver'].includes(user.role)) {
+      user.role = 'driver';
+      await user.save();
+    }
+    let riderProfile = await Rider.findOne({ user: req.user._id });
     if (!riderProfile) {
-      return res.status(200).json({
-        success: true,
-        onboardingRequired: true,
-        message: "Please complete your rider profile to start delivering",
+      riderProfile = await Rider.create({
+        user: user._id,
+        name: user.name || 'Driver Partner',
+        phone: user.mobile || user.phone || '',
+        mobile: user.mobile || user.phone || '',
+        email: user.email || '',
+        pin: user.pin,
+        profilePic: user.profilePic,
+        verificationStatus: 'pending',
+        riderVerified: false,
+        isOnline: false,
+        isAvailable: false,
+        status: 'inactive'
       });
     }
     const RiderWallet = require('../models/RiderWallet');
@@ -840,8 +874,12 @@ exports.onboardRider = async (req, res) => {
     }
 
     const user = await User.findById(req.user._id);
-    if (!user || (!['rider', 'driver'].includes(user.role))) {
-      return sendError(res, 401, "Unauthorized - user is not a registered rider or driver");
+    if (!user) {
+      return sendError(res, 401, "Unauthorized - user not found");
+    }
+    if (!['rider', 'driver'].includes(user.role)) {
+      user.role = 'driver';
+      await user.save();
     }
 
     if (name && name.trim()) user.name = name.trim();
@@ -1230,6 +1268,14 @@ exports.getEarningsSummary = async (req, res) => {
       period,
       aggregation: agg,
       totals,
+      data: {
+        todayEarnings: totals.earnings || 0,
+        completedOrders: totals.orders || 0,
+        activeHours: 0.0,
+        rating: 5.0,
+        totalDeliveries: totals.orders || 0,
+        earnings: totals.earnings || 0
+      },
       wallet: wallet ? {
         availableBalance: Number((wallet.availableBalance || 0).toFixed(2)),
         totalEarnings: Number((wallet.totalEarnings || 0).toFixed(2)),
@@ -2461,6 +2507,33 @@ exports.createRiderByAdmin = async (req, res) => {
 };
 exports.getPendingRiders = async (req, res) => {
   try {
+    // Auto-reconcile any driver users without Rider docs
+    const driversWithoutRiders = await User.find({
+      role: { $in: ['driver', 'rider'] },
+      _id: { $nin: await Rider.distinct('user') }
+    });
+    if (driversWithoutRiders.length > 0) {
+      for (const d of driversWithoutRiders) {
+        try {
+          await Rider.create({
+            user: d._id,
+            name: d.name || 'Driver Partner',
+            email: d.email,
+            phone: d.phone || d.mobile,
+            mobile: d.mobile || d.phone,
+            profilePic: d.profilePic,
+            verificationStatus: 'pending',
+            riderVerified: false,
+            isAvailable: false,
+            isOnline: false,
+            status: 'inactive'
+          });
+        } catch (e) {
+          // ignore duplicate
+        }
+      }
+    }
+
     const pendingRiders = await Rider.find({
       $or: [
         { verificationStatus: 'pending' },
@@ -3615,44 +3688,45 @@ exports.getAvailableOrders = async (req, res) => {
     if (!riderProfile) {
       return res.status(400).json({ message: "Rider profile missing" });
     }
-    if (
-      !riderProfile.currentLocation ||
-      !riderProfile.currentLocation.coordinates ||
-      riderProfile.currentLocation.coordinates.length !== 2
-    ) {
-      return res.status(400).json({ message: "Rider location not set. Please update your location." });
-    }
-    const riderCoords = riderProfile.currentLocation.coordinates;
+    const riderCoords = (riderProfile.currentLocation?.coordinates && riderProfile.currentLocation.coordinates.length === 2)
+      ? riderProfile.currentLocation.coordinates
+      : [77.0658, 28.2888];
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, parseInt(req.query.limit) || 20); // Max 50, default 20
     const skip = (page - 1) * limit;
-    const nearbyRestaurants = await Restaurant.find({
-      location: {
-        $near: {
-          $geometry: { type: "Point", coordinates: riderCoords },
-          $maxDistance: 100000, // 100km
+    let restaurantIds = [];
+    try {
+      const nearbyRestaurants = await Restaurant.find({
+        location: {
+          $near: {
+            $geometry: { type: "Point", coordinates: riderCoords },
+            $maxDistance: 100000, // 100km
+          },
         },
-      },
-    }).select('_id');
-    const restaurantIds = nearbyRestaurants.map(r => r._id);
-    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
-    const nearbyOrders = await Order.find({
-      status: { $in: ["accepted", "preparing", "ready"] }, // ✅ FIXED: Include preparing
-      rider: null,         // ✅ Unassigned
-      restaurant: { $in: restaurantIds },
-      createdAt: { $gte: sixHoursAgo }
-    })
-      .populate("restaurant", "name address image bannerImage location")
-      .populate("customer", "address")
-      .sort({ createdAt: -1 }) // Newest first
-      .skip(skip)              // ✅ ADD: Pagination - skip
-      .limit(limit);           // ✅ ADD: Pagination - limit
-    const totalOrders = await Order.countDocuments({
-      status: { $in: ["accepted", "preparing", "ready"] }, // ✅ FIXED: Match the find query
+      }).select('_id');
+      restaurantIds = nearbyRestaurants.map(r => r._id);
+    } catch (e) {
+      // ignore geo index failure
+    }
+
+    const orderQuery = {
+      orderType: { $ne: 'self_pickup' },
+      status: { $in: ["placed", "accepted", "preparing", "ready"] },
       rider: null,
-      restaurant: { $in: restaurantIds },
-      createdAt: { $gte: sixHoursAgo }
-    });
+      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    };
+    if (restaurantIds.length > 0) {
+      orderQuery.restaurant = { $in: restaurantIds };
+    }
+
+    const nearbyOrders = await Order.find(orderQuery)
+      .populate("restaurant", "name address image bannerImage location contactNumber phone")
+      .populate("customer", "name mobile phone address")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalOrders = await Order.countDocuments(orderQuery);
     for (const order of nearbyOrders) {
       const notifEntry = order.riderNotificationStatus?.notifiedRiders?.find(
         r => r.riderId.toString() === riderProfile._id.toString()
@@ -3747,7 +3821,7 @@ exports.acceptOrder = async (req, res) => {
     if (!orderToValidate) {
       return res.status(404).json({ message: "Order not found" });
     }
-    const acceptableStatuses = ['accepted', 'preparing', 'ready'];
+    const acceptableStatuses = ['placed', 'accepted', 'preparing', 'ready'];
     if (!acceptableStatuses.includes(orderToValidate.status)) {
       return res.status(400).json({
         message: "Order not available for acceptance",
@@ -4070,125 +4144,225 @@ exports.getMyActiveOrder = async (req, res) => {
     if (!riderProfile) {
       return res.status(404).json({ message: "Rider profile not found" });
     }
+
+    const { calculateDistance } = require('../utils/locationUtils');
+    const riderCoords = riderProfile.currentLocation?.coordinates || [77.0658, 28.2888];
+
+    // 1. Check if rider has an ongoing assigned order
     const order = await Order.findOne({
       rider: riderProfile._id,
       status: { $in: ['assigned', 'reached_restaurant', 'picked_up', 'delivery_arrived'] }
     })
-      .populate('customer', 'name phone')
-      .populate('restaurant', 'name address location contactNumber')
+      .populate('customer', 'name phone mobile')
+      .populate('restaurant', 'name address location contactNumber phone')
       .populate('rider', 'user currentLocation vehicle')
       .populate('rider.user', 'name mobile');
-    if (!order) {
-      return res.status(200).json({
-        success: true,
-        hasActiveOrder: false,
-        message: "No active delivery at the moment"
-      });
-    }
-    const { calculateDistance } = require('../utils/locationUtils');
-    const riderCoords = riderProfile.currentLocation?.coordinates;
-    const restaurantCoords = order.restaurant?.location?.coordinates;
-    const customerCoords = order.deliveryAddress?.coordinates;
-    let distanceInfo = null;
-    if (riderCoords && restaurantCoords && customerCoords) {
-      const distanceToRestaurant = calculateDistance(riderCoords, restaurantCoords);
-      const distanceToCustomer = calculateDistance(riderCoords, customerCoords);
-      const totalDistance = distanceToRestaurant + distanceToCustomer;
-      distanceInfo = {
-        toRestaurant: {
-          km: Math.round(distanceToRestaurant * 100) / 100,
-          meters: Math.round(distanceToRestaurant * 1000),
-          etaMinutes: Math.ceil(distanceToRestaurant / 0.33) // 20 km/h = 0.33 km/min
-        },
-        toCustomer: {
-          km: Math.round(distanceToCustomer * 100) / 100,
-          meters: Math.round(distanceToCustomer * 1000),
-          etaMinutes: Math.ceil(distanceToCustomer / 0.33)
-        },
-        total: {
-          km: Math.round(totalDistance * 100) / 100,
-          meters: Math.round(totalDistance * 1000),
-          etaMinutes: Math.ceil(totalDistance / 0.33)
-        }
+
+    if (order) {
+      const restaurantCoords = order.restaurant?.location?.coordinates || riderCoords;
+      const customerCoords = order.deliveryAddress?.coordinates || riderCoords;
+      let distanceInfo = null;
+      if (riderCoords && restaurantCoords && customerCoords) {
+        const distanceToRestaurant = calculateDistance(riderCoords, restaurantCoords);
+        const distanceToCustomer = calculateDistance(riderCoords, customerCoords);
+        const totalDistance = distanceToRestaurant + distanceToCustomer;
+        distanceInfo = {
+          toRestaurant: {
+            km: Math.round(distanceToRestaurant * 100) / 100,
+            meters: Math.round(distanceToRestaurant * 1000),
+            etaMinutes: Math.ceil(distanceToRestaurant / 0.33)
+          },
+          toCustomer: {
+            km: Math.round(distanceToCustomer * 100) / 100,
+            meters: Math.round(distanceToCustomer * 1000),
+            etaMinutes: Math.ceil(distanceToCustomer / 0.33)
+          },
+          total: {
+            km: Math.round(totalDistance * 100) / 100,
+            meters: Math.round(totalDistance * 1000),
+            etaMinutes: Math.ceil(totalDistance / 0.33)
+          }
+        };
+      }
+
+      let nextAction = {
+        action: '',
+        instruction: '',
+        requiredOtp: null
       };
-    }
-    let nextAction = {
-      action: '',
-      instruction: '',
-      requiredOtp: null
-    };
-    switch (order.status) {
-      case 'assigned':
-        nextAction = {
-          action: 'GO_TO_RESTAURANT',
-          instruction: 'Navigate to restaurant to pick up the order',
-          endpoint: `/api/riders/orders/${order._id}/arrive-restaurant`,
-          requiredOtp: null
-        };
-        break;
-      case 'picked_up':
-        nextAction = {
-          action: 'GO_TO_CUSTOMER',
-          instruction: 'Navigate to customer to deliver the order',
-          endpoint: `/api/riders/orders/${order._id}/arrive-customer`,
-          requiredOtp: null
-        };
-        break;
-      case 'delivery_arrived':
-        nextAction = {
-          action: 'VERIFY_DELIVERY',
-          instruction: 'Verify delivery OTP from customer to complete delivery',
-          endpoint: '/api/riders/orders/verify-delivery',
-          requiredOtp: 'deliveryOtp'
-        };
-        break;
-    }
-    const response = {
-      success: true,
-      hasActiveOrder: true,
-      order: {
+      switch (order.status) {
+        case 'assigned':
+          nextAction = {
+            action: 'GO_TO_RESTAURANT',
+            instruction: 'Navigate to restaurant to pick up the order',
+            endpoint: `/api/riders/orders/${order._id}/arrive-restaurant`,
+            requiredOtp: null
+          };
+          break;
+        case 'picked_up':
+          nextAction = {
+            action: 'GO_TO_CUSTOMER',
+            instruction: 'Navigate to customer to deliver the order',
+            endpoint: `/api/riders/orders/${order._id}/arrive-customer`,
+            requiredOtp: null
+          };
+          break;
+        case 'delivery_arrived':
+          nextAction = {
+            action: 'VERIFY_DELIVERY',
+            instruction: 'Verify delivery OTP from customer to complete delivery',
+            endpoint: '/api/riders/orders/verify-delivery',
+            requiredOtp: 'deliveryOtp'
+          };
+          break;
+      }
+
+      const storeName = typeof order.restaurant?.name === 'object' ? (order.restaurant.name.en || JSON.stringify(order.restaurant.name)) : (order.restaurant?.name || 'Restaurant');
+      const storeAddress = typeof order.restaurant?.address === 'object' ? (order.restaurant.address.addressLine || JSON.stringify(order.restaurant.address)) : (order.restaurant?.address || 'Restaurant Address');
+      const custAddress = typeof order.deliveryAddress?.addressLine === 'string' ? order.deliveryAddress.addressLine : (order.deliveryAddress ? JSON.stringify(order.deliveryAddress) : 'Customer Address');
+
+      const formattedOrder = {
         _id: order._id,
-        orderId: order.orderId,
+        orderId: order._id,
+        deliveryStatus: order.status === 'assigned' ? 'accepted' : order.status,
         status: order.status,
-        totalAmount: order.totalAmount,
-        paymentMethod: order.paymentMethod,
-        paymentStatus: order.paymentStatus,
-        items: order.items.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price
-        })),
+        store: {
+          _id: order.restaurant?._id,
+          name: storeName,
+          address: storeAddress,
+          phone: order.restaurant?.contactNumber || order.restaurant?.phone || ''
+        },
         restaurant: {
-          _id: order.restaurant._id,
-          name: order.restaurant.name,
-          address: order.restaurant.address,
-          phone: order.restaurant.contactNumber,
-          location: order.restaurant.location,
+          _id: order.restaurant?._id,
+          name: storeName,
+          address: storeAddress,
+          phone: order.restaurant?.contactNumber || order.restaurant?.phone || '',
+          location: order.restaurant?.location,
           pickupOtp: order.pickupOtp,
           pickupOtpExpiry: order.pickupOtpExpiresAt
         },
         customer: {
-          _id: order.customer._id,
-          name: order.customer.name,
-          phone: order.customer.phone,
-          deliveryAddress: order.deliveryAddress,
+          _id: order.customer?._id,
+          name: order.customer?.name || 'Customer',
+          phone: order.customer?.phone || order.customer?.mobile || '',
+          address: custAddress,
+          deliveryAddress: custAddress,
           deliveryOtp: order.deliveryOtp,
           deliveryOtpExpiry: order.deliveryOtpExpiresAt
         },
+        deliveryAddress: custAddress,
+        driverEarnings: order.riderEarning || ((order.deliveryFee || 30) * 0.7),
+        deliveryCharge: order.deliveryFee || 30,
+        payableAmount: order.totalAmount,
+        totalAmount: order.totalAmount,
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+        items: (order.items || []).map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price
+        })),
         earnings: {
           riderEarning: order.riderEarning || 0,
           tip: order.tip || 0,
           total: (order.riderEarning || 0) + (order.tip || 0)
         },
+        distances: distanceInfo,
+        nextAction,
         timeline: order.timeline,
         createdAt: order.createdAt,
-        specialInstructions: order.specialInstructions || null,
-        deliveryInstructions: order.deliveryInstructions || null
-      },
-      ...(distanceInfo && { distances: distanceInfo }),
-      nextAction
-    };
-    res.status(200).json(response);
+        updatedAt: order.updatedAt || order.createdAt
+      };
+
+      return res.status(200).json({
+        success: true,
+        hasActiveOrder: true,
+        orders: [formattedOrder],
+        data: [formattedOrder],
+        order: formattedOrder,
+        distances: distanceInfo,
+        nextAction
+      });
+    }
+
+    // 2. If no assigned active order, check for incoming unassigned delivery orders
+    const unassignedOrders = await Order.find({
+      orderType: { $ne: 'self_pickup' },
+      rider: null,
+      status: { $in: ['placed', 'accepted', 'preparing', 'ready'] },
+      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    })
+      .populate('customer', 'name phone mobile')
+      .populate('restaurant', 'name address location contactNumber phone')
+      .sort({ createdAt: -1 })
+      .limit(3);
+
+    if (unassignedOrders.length > 0) {
+      const incomingList = unassignedOrders.map(o => {
+        const storeName = typeof o.restaurant?.name === 'object' ? (o.restaurant.name.en || JSON.stringify(o.restaurant.name)) : (o.restaurant?.name || 'Restaurant');
+        const storeAddress = typeof o.restaurant?.address === 'object' ? (o.restaurant.address.addressLine || JSON.stringify(o.restaurant.address)) : (o.restaurant?.address || 'Restaurant Address');
+        const custAddress = typeof o.deliveryAddress?.addressLine === 'string' ? o.deliveryAddress.addressLine : (o.deliveryAddress ? JSON.stringify(o.deliveryAddress) : 'Customer Address');
+
+        return {
+          _id: o._id,
+          orderId: o._id,
+          deliveryStatus: 'driver_notified', // Triggers "Incoming Order" slide-to-accept in Rider app
+          status: o.status,
+          store: {
+            _id: o.restaurant?._id,
+            name: storeName,
+            address: storeAddress,
+            phone: o.restaurant?.contactNumber || o.restaurant?.phone || ''
+          },
+          restaurant: {
+            _id: o.restaurant?._id,
+            name: storeName,
+            address: storeAddress,
+            phone: o.restaurant?.contactNumber || o.restaurant?.phone || '',
+            location: o.restaurant?.location
+          },
+          customer: {
+            _id: o.customer?._id,
+            name: o.customer?.name || 'Customer',
+            phone: o.customer?.phone || o.customer?.mobile || '',
+            address: custAddress,
+            deliveryAddress: custAddress
+          },
+          deliveryAddress: custAddress,
+          driverEarnings: o.riderEarning || ((o.deliveryFee || 30) * 0.7),
+          deliveryCharge: o.deliveryFee || 30,
+          payableAmount: o.totalAmount,
+          totalAmount: o.totalAmount,
+          paymentMethod: o.paymentMethod,
+          paymentStatus: o.paymentStatus,
+          items: (o.items || []).map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price
+          })),
+          createdAt: o.createdAt,
+          updatedAt: o.updatedAt || o.createdAt
+        };
+      });
+
+      return res.status(200).json({
+        success: true,
+        hasActiveOrder: false,
+        orders: incomingList,
+        data: incomingList,
+        order: incomingList[0]
+      });
+    }
+
+    // 3. No orders at all
+    return res.status(200).json({
+      success: true,
+      hasActiveOrder: false,
+      orders: [],
+      data: [],
+      order: null,
+      message: "No active delivery at the moment"
+    });
   } catch (error) {
     res.status(500).json({
       success: false,

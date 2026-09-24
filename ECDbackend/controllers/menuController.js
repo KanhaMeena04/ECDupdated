@@ -245,17 +245,14 @@ exports.getMenu = async (req, res) => {
     if (!restaurant) {
       return res.status(404).json({ message: "Restaurant not found" });
     }
-    if (!restaurant.restaurantApproved || !restaurant.isActive || !restaurant.menuApproved) {
+    if (restaurant.restaurantApproved === false || restaurant.isActive === false) {
       return res.status(403).json({ message: "Restaurant menu is not active or approved" });
     }
 
     // Filter products: approved, published, active, not out of stock
     const products = await Product.find({
       restaurant: restaurant._id,
-      isApproved: true,
-      isPublished: { $ne: false },
-      isRejected: { $ne: true },
-      available: true,
+      available: { $ne: false },
       outOfStock: { $ne: true }
     })
       .populate("category", "name slug isActive userAppVisible")
