@@ -152,6 +152,34 @@ class MenuApiService {
     return null;
   }
 
+  static Future<List<Map<String, dynamic>>> bulkImportMenuItems(String restaurantId, List<Map<String, dynamic>> items) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? ApiConstants.authToken;
+      final effectiveRestId = restaurantId.isNotEmpty ? restaurantId : (prefs.getString('restaurantId') ?? 'me');
+      final url = '${ApiConstants.baseUrl}/restaurants/vendor/menu/bulk-import/$effectiveRestId';
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+        body: json.encode({'items': items}),
+      ).timeout(const Duration(seconds: 20));
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['products'] is List) {
+          return List<Map<String, dynamic>>.from(data['products']);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error bulk importing menu items: $e');
+    }
+    return [];
+  }
+
   static Future<bool> updateMenuItem(String restaurantId, String itemId, Map<String, dynamic> itemData) async {
     try {
       final prefs = await SharedPreferences.getInstance();

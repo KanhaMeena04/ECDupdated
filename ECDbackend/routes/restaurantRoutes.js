@@ -42,6 +42,7 @@ const {
   getRestaurantProfileById,
   toggleRestaurantActive,
   vendorAddMenuItem,
+  vendorBulkImportMenuItems,
   vendorEditMenuItem,
   vendorToggleMenuItem,
   vendorDeleteMenuItem,
@@ -73,6 +74,7 @@ router.get('/:id/dashboard-stats', protect, getDashboardStats);
 router.post('/vendor/delete-account', protect, deleteAccount);
 router.put('/:id/toggle-active', protect, toggleRestaurantActive);
 router.post('/vendor/menu/add/:id', optionalAuth, vendorAddMenuItem);
+router.post('/vendor/menu/bulk-import/:id', optionalAuth, vendorBulkImportMenuItems);
 router.put('/vendor/menu/edit/:restId/:itemId', optionalAuth, vendorEditMenuItem);
 router.put('/:restId/menu/:itemId', optionalAuth, vendorEditMenuItem);
 router.patch('/vendor/menu/toggle/:restId/:itemId', optionalAuth, vendorToggleMenuItem);

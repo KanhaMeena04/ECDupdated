@@ -2873,6 +2873,153 @@ exports.vendorAddMenuItem = async (req, res) => {
   }
 };
 
+exports.vendorBulkImportMenuItems = async (req, res) => {
+  try {
+    const targetRestId = req.params.id;
+    const items = req.body.items || req.body.dishes || [];
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: "No items provided for bulk import" });
+    }
+
+    const Category = require('../models/Category');
+    const AuditLog = require('../models/AuditLog');
+
+    // Robust Restaurant Resolution
+    let restaurantDoc = null;
+    if (targetRestId && mongoose.Types.ObjectId.isValid(targetRestId)) {
+      restaurantDoc = await Restaurant.findById(targetRestId);
+    }
+    if (!restaurantDoc && req.user) {
+      if (req.user.restaurant && mongoose.Types.ObjectId.isValid(req.user.restaurant)) {
+        restaurantDoc = await Restaurant.findById(req.user.restaurant);
+      }
+      if (!restaurantDoc) {
+        restaurantDoc = await Restaurant.findOne({ owner: req.user._id });
+      }
+    }
+    if (!restaurantDoc && targetRestId && targetRestId !== 'me' && targetRestId !== 'default') {
+      const cleanPhone = String(targetRestId).replace(/\D/g, '');
+      const phone10 = cleanPhone.slice(-10);
+      restaurantDoc = await Restaurant.findOne({
+        $or: [
+          { contactNumber: { $in: [targetRestId, cleanPhone, phone10, `+91${phone10}`, `91${phone10}`] } },
+          { phone: { $in: [targetRestId, cleanPhone, phone10, `+91${phone10}`, `91${phone10}`] } },
+          { restaurantId: targetRestId },
+          { slug: targetRestId }
+        ]
+      });
+    }
+    if (!restaurantDoc) {
+      return res.status(404).json({ success: false, message: "Restaurant not found for bulk import" });
+    }
+
+    const resolvedRestId = restaurantDoc._id;
+    let defaultCat = await Category.findOne({ isMaster: true });
+    if (!defaultCat) defaultCat = await Category.findOne({});
+    if (!defaultCat) {
+      defaultCat = await Category.create({ name: { en: "Main Course" }, slug: "main-course", isActive: true, isMaster: true });
+    }
+
+    const createdProducts = [];
+    const isApprovedByRest = Boolean(restaurantDoc.restaurantApproved || restaurantDoc.menuAutoApproval);
+
+    for (const item of items) {
+      const itemName = (item.name || item.title || "").trim();
+      if (!itemName) continue;
+
+      let catObjId = defaultCat._id;
+      if (item.category) {
+        let foundCat = await Category.findOne({
+          $or: [
+            { "name.en": { $regex: `^${item.category.trim()}$`, $options: 'i' } },
+            { name: { $regex: `^${item.category.trim()}$`, $options: 'i' } },
+            { slug: item.category.toLowerCase().replace(/\s+/g, '-') }
+          ]
+        });
+        if (!foundCat) {
+          foundCat = await Category.create({
+            name: { en: item.category.trim() },
+            slug: item.category.trim().toLowerCase().replace(/\s+/g, '-'),
+            isActive: true
+          }).catch(() => null);
+        }
+        if (foundCat) catObjId = foundCat._id;
+      }
+
+      const itemPrice = Number(item.b2bPrice ?? item.sellingPrice ?? item.price ?? item.basePrice ?? 150);
+      const itemMrp = Number(item.mrp ?? item.b2cMrp ?? itemPrice);
+      const rawFoodType = (item.foodType || (item.isVeg === false ? 'non-veg' : 'veg')).toString().toLowerCase();
+      const foodType = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
+
+      const product = await Product.create({
+        restaurant: resolvedRestId,
+        category: catObjId,
+        subcategory: item.subcategory || "",
+        name: { en: itemName },
+        description: { en: item.description || "" },
+        basePrice: itemPrice,
+        mrp: itemMrp,
+        sellingPrice: itemPrice,
+        pricing: {
+          b2c: { mrp: itemMrp, sellingPrice: itemPrice, discountPercent: 0 },
+          b2b: { mrp: itemMrp, sellingPrice: itemPrice, discountPercent: 0 }
+        },
+        foodType: foodType,
+        isVeg: foodType === 'veg',
+        available: true,
+        isAvailable: true,
+        preparationTime: Number(item.preparationTime || 15),
+        image: item.image || "",
+        variations: Array.isArray(item.flavors) ? item.flavors.map(f => ({ name: { en: typeof f === 'string' ? f : f.name || 'Standard' } })) : [],
+        addOns: Array.isArray(item.addOns) ? item.addOns.map(a => ({ name: { en: a.name || 'Add-on' }, price: Number(a.price || 0) })) : [],
+        isApproved: isApprovedByRest,
+        approvalStatus: isApprovedByRest ? "approved" : "pending",
+        isPublished: true,
+        createdBy: "restaurant_vendor"
+      });
+
+      if (!Array.isArray(restaurantDoc.menu)) {
+        restaurantDoc.menu = [];
+      }
+      restaurantDoc.menu.push({
+        _id: product._id,
+        name: itemName,
+        category: item.category || "Main Course",
+        subcategory: item.subcategory || "",
+        price: itemPrice,
+        isVeg: foodType === 'veg',
+        foodType: foodType,
+        isAvailable: true,
+        isApproved: isApprovedByRest,
+        approvalStatus: isApprovedByRest ? "approved" : "pending"
+      });
+
+      createdProducts.push(product);
+    }
+
+    await restaurantDoc.save();
+
+    await AuditLog.create({
+      action: "RESTAURANT_BULK_MENU_IMPORT",
+      entityType: "Restaurant",
+      entityId: resolvedRestId,
+      userRole: "restaurant_owner",
+      reason: `Bulk imported ${createdProducts.length} menu items from Excel/CSV`,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Successfully imported ${createdProducts.length} menu items.`,
+      count: createdProducts.length,
+      products: createdProducts
+    });
+  } catch (error) {
+    console.error("Error in vendorBulkImportMenuItems:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.vendorEditMenuItem = async (req, res) => {
   try {
     const { restId, itemId } = req.params;

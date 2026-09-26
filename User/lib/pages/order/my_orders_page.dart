@@ -273,14 +273,34 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final restaurant = order['store'] ?? {};
+    final restaurant = order['restaurant'] is Map ? order['restaurant'] : (order['store'] is Map ? order['store'] : {});
     final restaurantName = restaurant['name']?.toString() ?? 'Restaurant';
-    final restaurantImage = restaurant['coverImage']?.toString() ?? restaurant['logo']?.toString() ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600';
-    final items = (order['items'] as List? ?? []).map((i) => i['name']?.toString() ?? 'Item').toList();
-    final total = (order['payableAmount'] as num? ?? order['totalAmount'] as num? ?? 0).toDouble();
+    final restaurantImage = restaurant['image']?.toString() ?? restaurant['coverImage']?.toString() ?? restaurant['logo']?.toString() ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600';
+    
+    final rawItems = (order['items'] as List? ?? []);
+    final itemsList = rawItems.map((i) {
+      if (i is Map) {
+        final name = i['name']?.toString() ?? i['product']?['name']?.toString() ?? 'Food Item';
+        final image = i['image']?.toString() ?? i['product']?['image']?.toString() ?? '';
+        final price = (i['price'] as num?)?.toDouble() ?? (i['product']?['price'] as num?)?.toDouble() ?? 0.0;
+        final qty = (i['quantity'] as num? ?? i['qty'] as num? ?? 1).toInt();
+        final variant = i['variant']?.toString() ?? i['variation']?['name']?.toString() ?? 'Standard';
+        return {
+          'name': name,
+          'image': image,
+          'price': price,
+          'quantity': qty,
+          'variant': variant,
+        };
+      }
+      return {'name': i.toString(), 'image': '', 'price': 0.0, 'quantity': 1, 'variant': 'Standard'};
+    }).toList();
+
+    final double calculatedSubtotal = itemsList.fold<double>(0.0, (sum, i) => sum + ((i['price'] as double) * (i['quantity'] as int)));
+    final double total = (order['totalAmount'] as num? ?? order['payableAmount'] as num? ?? calculatedSubtotal).toDouble();
     final status = order['status']?.toString().toLowerCase() ?? 'pending';
     final placedAt = DateTime.tryParse(order['createdAt']?.toString() ?? '') ?? DateTime.now();
-    final address = order['address']?['fullAddress']?.toString() ?? 'Address';
+    final address = order['address']?['fullAddress']?.toString() ?? order['deliveryAddress']?['addressLine']?.toString() ?? 'Indore, MP';
     final backendId = order['_id']?.toString() ?? '';
     final orderNumber = order['orderNumber']?.toString().toUpperCase() ?? backendId.toUpperCase();
 
@@ -367,17 +387,60 @@ class _OrderCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Items ordered', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isDark ? Colors.grey[400] : const Color(0xFF6B7280))),
-                const SizedBox(height: 6),
-                ...items.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 3),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.circle, size: 5, color: Color(0xFF9CA3AF)),
-                      const SizedBox(width: 8),
-                      Text(item, style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF374151))),
-                    ],
-                  ),
-                )),
+                const SizedBox(height: 8),
+                ...itemsList.map((itemMap) {
+                  final String itemName = itemMap['name'] as String;
+                  final String itemImg = itemMap['image'] as String;
+                  final double itemPrice = itemMap['price'] as double;
+                  final int itemQty = itemMap['quantity'] as int;
+                  final String itemVariant = itemMap['variant'] as String;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: SafeImage(
+                            itemImg,
+                            width: 38,
+                            height: 38,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 38,
+                              height: 38,
+                              color: isDark ? Colors.white10 : Colors.grey[100],
+                              child: const Icon(Icons.fastfood, size: 18, color: AppColors.primary),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                itemName,
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF374151)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '$itemVariant • Qty: $itemQty',
+                                style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : const Color(0xFF9CA3AF)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (itemPrice > 0)
+                          Text(
+                            '₹${(itemPrice * itemQty).toStringAsFixed(0)}',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF1F2937)),
+                          ),
+                      ],
+                    ),
+                  );
+                }),
               ],
             ),
           ),
@@ -619,7 +682,7 @@ class _OrderCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (['pending', 'preparing', 'ready', 'accepted'].contains(status))
+                if (['pending', 'placed', 'preparing', 'ready', 'accepted', 'assigned', 'reached_restaurant', 'picked_up', 'out_for_delivery', 'on the way', 'on_the_way'].contains(status))
                   _CancelOrTrackButton(
                     order: order,
                     orderId: backendId, // Changed to backendId
@@ -944,10 +1007,10 @@ class _CancelOrTrackButtonState extends State<_CancelOrTrackButton> {
   @override
   Widget build(BuildContext context) {
     final status = widget.order['status']?.toString().toLowerCase() ?? '';
-    final isCancelableStatus = status == 'pending' || status == 'preparing';
+    final isCancelableStatus = status == 'pending' || status == 'placed' || status == 'preparing';
     const primaryGreen = Color(0xFF248C70);
     
-    final bool showTrack = ['pending', 'preparing', 'ready', 'accepted', 'on the way', 'out for delivery'].contains(status);
+    final bool showTrack = ['pending', 'placed', 'preparing', 'ready', 'accepted', 'assigned', 'reached_restaurant', 'picked_up', 'out_for_delivery', 'on the way', 'on_the_way'].contains(status);
     final bool showCancel = isCancelableStatus && _canCancel;
 
     return Padding(

@@ -48,7 +48,7 @@ class Order {
     this.orderType = 'delivery',
     this.pickupTime,
     this.createdAt,
-    this.address = '13 Amsterdam st',
+    this.address = '',
     this.customerArrived = false,
     this.customerArrivedAt,
     this.prepTimeMinutes = 15,
@@ -65,7 +65,7 @@ class Order {
 
   int get totalEstimatedPrepMinutes => (prepTimeMinutes ?? 15) + bufferTimeMinutes;
 
-  bool get isSelfPickup => orderType.toLowerCase() == 'pickup';
+  bool get isSelfPickup => orderType.toLowerCase() == 'pickup' || orderType.toLowerCase() == 'self_pickup';
 
   bool get isWithinCancellationWindow {
     if (createdAt == null) return true;
@@ -98,7 +98,7 @@ class Order {
   }
 
   factory Order.fromJson(Map<String, dynamic> json) {
-    String cName = 'Unknown Customer';
+    String cName = 'Customer';
     if (json['customer'] != null && json['customer'] is Map && json['customer']['name'] != null) {
       cName = json['customer']['name'].toString();
     }
@@ -107,27 +107,43 @@ class Order {
     int oQty = 0;
     List<dynamic> parsedItems = [];
     if (json['items'] != null && json['items'] is List && (json['items'] as List).isNotEmpty) {
-      parsedItems = json['items'] as List<dynamic>;
+      final rawList = json['items'] as List<dynamic>;
+      parsedItems = rawList.map((item) {
+        if (item is Map<String, dynamic>) {
+          final prod = item['product'] is Map ? item['product'] as Map<String, dynamic> : {};
+          return {
+            'name': item['name']?.toString() ?? prod['name']?.toString() ?? 'Food Item',
+            'image': item['image']?.toString() ?? prod['image']?.toString() ?? '',
+            'price': (item['price'] as num?)?.toDouble() ?? (prod['price'] as num?)?.toDouble() ?? 0.0,
+            'quantity': (item['quantity'] as num? ?? item['qty'] as num? ?? 1).toInt(),
+            'variant': item['variant']?.toString() ?? item['variation']?['name']?.toString() ?? 'Standard',
+          };
+        }
+        return item;
+      }).toList();
+
       if (parsedItems.isNotEmpty && parsedItems[0] is Map) {
-        oName = parsedItems[0]['name'] ?? 'Item';
-        oQty = parsedItems[0]['qty'] ?? parsedItems[0]['quantity'] ?? 1;
+        oName = parsedItems[0]['name']?.toString() ?? 'Food Item';
+        oQty = (parsedItems[0]['quantity'] as num? ?? 1).toInt();
       }
       if (parsedItems.length > 1) {
         oName += ' + ${parsedItems.length - 1} more';
       }
     }
 
-    String parsedStatus = 'Pending';
+    String parsedStatus = 'Placed';
     final rawStatus = json['status']?.toString().toLowerCase();
     final rawDeliveryStatus = json['deliveryStatus']?.toString().toLowerCase();
 
-    if (rawStatus == 'preparing') {
+    if (rawStatus == 'placed' || rawStatus == 'pending' || rawStatus == 'confirmed') {
+      parsedStatus = 'Placed';
+    } else if (rawStatus == 'preparing') {
       parsedStatus = 'Preparing';
     } else if (rawStatus == 'ready') {
       if (rawDeliveryStatus == 'driver_not_found') {
         parsedStatus = 'Rider Not Found';
       } else {
-        parsedStatus = 'Assigning Rider';
+        parsedStatus = 'Ready';
       }
     } else if (rawStatus == 'cancelled') {
       parsedStatus = 'Cancelled';
@@ -135,7 +151,7 @@ class Order {
       parsedStatus = 'Failed';
     } else if (rawStatus == 'refunded') {
       parsedStatus = 'Refunded';
-    } else if (rawStatus == 'picked_up') {
+    } else if (rawStatus == 'picked_up' || rawStatus == 'out_for_delivery') {
       parsedStatus = 'Picked Up';
     } else if (rawStatus == 'delivered') {
       parsedStatus = 'Delivered';
@@ -149,8 +165,8 @@ class Order {
       parsedStatus = 'Delivered';
     }
 
-    if (json['orderType']?.toString().toLowerCase() == 'pickup' && rawStatus == 'ready') {
-      parsedStatus = 'Ready for Pickup';
+    if ((json['orderType']?.toString().toLowerCase() == 'pickup' || json['orderType']?.toString().toLowerCase() == 'self_pickup') && (rawStatus == 'ready' || rawStatus == 'preparing')) {
+      parsedStatus = rawStatus == 'ready' ? 'Ready for Pickup' : 'Preparing';
     }
 
     String? parsedRiderName;
@@ -160,6 +176,11 @@ class Order {
       parsedRiderName = json['assignedDriver']['name']?.toString();
       parsedRiderId = json['assignedDriver']['riderId']?.toString() ?? '#RID-${json['assignedDriver']['_id']?.toString().substring(0, 4)}';
       parsedRiderPhone = json['assignedDriver']['phone']?.toString();
+    } else if (json['rider'] != null && json['rider'] is Map) {
+      final rMap = json['rider'] as Map;
+      final uMap = rMap['user'] is Map ? rMap['user'] as Map : {};
+      parsedRiderName = uMap['name']?.toString() ?? rMap['name']?.toString();
+      parsedRiderPhone = uMap['mobile']?.toString() ?? rMap['phone']?.toString();
     }
 
     double parsedAmount = 0.0;
@@ -174,15 +195,21 @@ class Order {
       parsedEarnings = double.tryParse(json['restaurantEarnings'].toString());
     }
 
-    String parsedAddress = 'Indore, MP';
+    final isPickup = json['orderType']?.toString().toLowerCase() == 'pickup' || json['orderType']?.toString().toLowerCase() == 'self_pickup';
+    String parsedAddress = isPickup ? 'Self Pickup Counter' : 'Customer Delivery Location';
+
     if (json['deliveryAddress'] != null) {
       if (json['deliveryAddress'] is Map) {
-        parsedAddress = json['deliveryAddress']['address'] ?? json['deliveryAddress']['street'] ?? json['deliveryAddress']['formattedAddress'] ?? 'Indore, MP';
+        parsedAddress = json['deliveryAddress']['address'] ?? json['deliveryAddress']['addressLine'] ?? json['deliveryAddress']['street'] ?? json['deliveryAddress']['formattedAddress'] ?? parsedAddress;
       } else {
         parsedAddress = json['deliveryAddress'].toString();
       }
     } else if (json['address'] != null) {
-      parsedAddress = json['address'].toString();
+      if (json['address'] is Map) {
+        parsedAddress = json['address']['fullAddress'] ?? json['address']['addressLine'] ?? parsedAddress;
+      } else {
+        parsedAddress = json['address'].toString();
+      }
     }
 
     return Order(

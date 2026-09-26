@@ -461,19 +461,92 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _acceptOrder(Order order) async {
-    setState(() {
-      order.status = 'Preparing';
-    });
-    await RestaurantApiService.prepareOrder(order.id);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Order accepted! Moved to Preparing state.'),
-          backgroundColor: AppColors.primaryGreen,
-          duration: Duration(seconds: 2),
-        ),
-      );
+    int selectedPrepTime = 15;
+    if (order.items.isNotEmpty) {
+      for (var item in order.items) {
+        if (item is Map) {
+          final pTime = int.tryParse(item['preparationTime']?.toString() ?? item['prepTime']?.toString() ?? '15') ?? 15;
+          if (pTime > selectedPrepTime) selectedPrepTime = pTime;
+        }
+      }
     }
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        int tempTime = selectedPrepTime;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text('Select Preparation Time', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Set food preparation time for Order #${order.id}:', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [15, 20, 25, 30, 45, 60].map((mins) {
+                      final isSel = tempTime == mins;
+                      return ChoiceChip(
+                        label: Text('$mins mins'),
+                        selected: isSel,
+                        selectedColor: AppColors.primaryGreen,
+                        labelStyle: TextStyle(color: isSel ? Colors.white : Colors.black87, fontWeight: FontWeight.bold),
+                        onSelected: (selected) {
+                          if (selected) setDialogState(() => tempTime = mins);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey[700])),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(dialogCtx);
+                    setState(() {
+                      order.status = 'Preparing';
+                      order.prepTimeMinutes = tempTime;
+                    });
+                    try {
+                      final token = (await SharedPreferences.getInstance()).getString('token') ?? '';
+                      await http.post(
+                        Uri.parse('${ApiConstants.baseUrl}/orders/restaurant/prepare/${order.backendId.isNotEmpty ? order.backendId : order.id}'),
+                        headers: {
+                          'Content-Type': 'application/json',
+                          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+                        },
+                        body: jsonEncode({'prepTime': tempTime, 'status': 'preparing'}),
+                      ).timeout(const Duration(seconds: 5));
+                    } catch (_) {}
+                    await RestaurantApiService.prepareOrder(order.id);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Order Accepted! Preparation time set to $tempTime mins.'),
+                          backgroundColor: AppColors.primaryGreen,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
+                  child: Text('ACCEPT & PREPARE', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _rejectOrder(Order order) async {
@@ -1407,7 +1480,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
 
-    if (order.status == 'Placed') {
+    final s = order.status.toLowerCase();
+    if (s == 'placed' || s == 'pending' || order.status == 'Placed' || order.status == 'Pending') {
       return Row(
         children: [
           Expanded(

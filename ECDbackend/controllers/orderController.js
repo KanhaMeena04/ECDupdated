@@ -424,9 +424,10 @@ exports.placeOrder = async (req, res) => {
       deliveryOtpExpiresAt: new Date(Date.now() + otpExpiry),
       items: cart.items.map((item) => ({
         product: item.product,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
+        name: item.name || item.product?.name,
+        image: item.image || item.product?.image || "",
+        quantity: item.quantity || 1,
+        price: item.price || item.product?.price || 0,
         variation: item.variation ? { name: item.variation.name, price: item.variation.price } : undefined,
         addOns: item.addOns,
         restaurant: restaurantId
@@ -569,6 +570,21 @@ exports.getMyOrders = async (req, res) => {
       .sort({ createdAt: -1 });
     const formattedOrders = orders.map(order => {
       const orderObj = order.toObject();
+      if (orderObj.items && Array.isArray(orderObj.items)) {
+        orderObj.items = orderObj.items.map(item => {
+          const name = item.name || (item.product && item.product.name) || "Food Item";
+          const image = item.image || (item.product && item.product.image) || "";
+          const price = typeof item.price === 'number' ? item.price : ((item.product && typeof item.product.price === 'number') ? item.product.price : 0);
+          const quantity = item.quantity || item.qty || 1;
+          return {
+            ...item,
+            name,
+            image,
+            price,
+            quantity
+          };
+        });
+      }
       if (orderObj.restaurant) {
         orderObj.restaurant = formatRestaurantForUser(orderObj.restaurant);
       }
@@ -980,12 +996,28 @@ exports.getRestaurantOrders = async (req, res) => {
     if (!restaurant) return sendError(res, 404, "Restaurant not found");
     const orders = await Order.find({ restaurant: restaurant._id })
       .populate("customer", "name email mobile phone")
+      .populate("items.product", "name image price")
       .populate("rider", "user rating")
       .populate("rider.user", "name mobile profilePic")
       .select('-timeline -riderNotificationStatus')
       .sort({ createdAt: -1 });
     const formattedOrders = orders.map((order) => {
       const orderObj = order.toObject();
+      if (orderObj.items && Array.isArray(orderObj.items)) {
+        orderObj.items = orderObj.items.map(item => {
+          const name = item.name || (item.product && item.product.name) || "Food Item";
+          const image = item.image || (item.product && item.product.image) || "";
+          const price = typeof item.price === 'number' ? item.price : ((item.product && typeof item.product.price === 'number') ? item.product.price : 0);
+          const quantity = item.quantity || item.qty || 1;
+          return {
+            ...item,
+            name,
+            image,
+            price,
+            quantity
+          };
+        });
+      }
       if (orderObj.rider && orderObj.rider.rating !== undefined) {
         const ratingValue = orderObj.rider.rating;
         orderObj.rider.rating = getAverageRating(ratingValue);

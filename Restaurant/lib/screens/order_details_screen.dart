@@ -1321,12 +1321,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildItemsSectionCard() {
-    final items = widget.order.items.isNotEmpty
-        ? widget.order.items
-        : [
-            {'name': '6 pcs chicken Wings', 'variant': 'Original', 'price': 150.0},
-            {'name': 'Margherita Pizza', 'variant': 'Regular', 'price': 150.0},
-          ];
+    final items = widget.order.items;
 
     return Container(
       width: double.infinity,
@@ -1342,45 +1337,61 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         children: [
           Text('Items (${items.length})', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 12),
-          ...items.map((item) {
-            final String name = item['name'] ?? 'Food Item';
-            final String variant = item['variant'] ?? 'Standard';
-            final double price = (item['price'] as num?)?.toDouble() ?? 120.0;
+          if (items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text('No item details available', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
+            )
+          else
+            ...items.map((item) {
+              final Map itemMap = item is Map ? item : {};
+              final String name = itemMap['name']?.toString() ?? itemMap['product']?['name']?.toString() ?? 'Food Item';
+              final String variant = itemMap['variant']?.toString() ?? itemMap['variation']?['name']?.toString() ?? 'Standard';
+              final double price = (itemMap['price'] as num?)?.toDouble() ?? (itemMap['product']?['price'] as num?)?.toDouble() ?? 0.0;
+              final String image = itemMap['image']?.toString() ?? itemMap['product']?['image']?.toString() ?? '';
+              final int qty = (itemMap['quantity'] as num? ?? itemMap['qty'] as num? ?? 1).toInt();
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.asset(
-                      name.toLowerCase().contains('chicken') ? 'assets/images/restaurant_chicken_item.jpg' : 'assets/images/restaurant_pizza_item.jpg',
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 50,
-                        height: 50,
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.fastfood, color: Colors.grey),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: image.isNotEmpty && (image.startsWith('http://') || image.startsWith('https://'))
+                          ? Image.network(
+                              image,
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 50,
+                                height: 50,
+                                color: Colors.grey[100],
+                                child: const Icon(Icons.fastfood, color: AppColors.primaryGreen),
+                              ),
+                            )
+                          : Container(
+                              width: 50,
+                              height: 50,
+                              color: Colors.grey[100],
+                              child: const Icon(Icons.fastfood, color: AppColors.primaryGreen),
+                            ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          Text('$variant  •  Qty: $qty', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[500])),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(name, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
-                        Text(variant, style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[500])),
-                      ],
-                    ),
-                  ),
-                  Text('₹${price.toStringAsFixed(1)}', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
-                ],
-              ),
-            );
-          }),
+                    Text('₹${(price * qty).toStringAsFixed(1)}', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );
@@ -1435,6 +1446,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildBillDetailsCard() {
+    final subtotal = widget.order.items.fold<double>(0.0, (sum, i) {
+      if (i is Map) {
+        final pr = (i['price'] as num?)?.toDouble() ?? (i['product']?['price'] as num?)?.toDouble() ?? 0.0;
+        final qty = (i['quantity'] as num? ?? i['qty'] as num? ?? 1).toInt();
+        return sum + (pr * qty);
+      }
+      return sum;
+    });
+    final grandTotal = widget.order.totalAmount > 0 ? widget.order.totalAmount : subtotal;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1449,19 +1470,21 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         children: [
           Text('Bill Details', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 12),
-          _buildBillRow('Subtotal', '₹${widget.order.totalAmount.toStringAsFixed(2)}'),
+          _buildBillRow('Subtotal', '₹${subtotal > 0 ? subtotal.toStringAsFixed(2) : grandTotal.toStringAsFixed(2)}'),
           const SizedBox(height: 8),
           _buildBillRow('Delivery Charge', widget.order.isSelfPickup ? '₹0.00 (Self Pickup)' : 'Free', isAccent: widget.order.isSelfPickup),
           const SizedBox(height: 8),
-          _buildBillRow('Service Fee', '₹5.00'),
+          _buildBillRow('Service Fee', '₹0.00'),
           const Divider(height: 20),
-          _buildBillRow('Grand Total', '₹${widget.order.totalAmount.toStringAsFixed(2)}', isBold: true),
+          _buildBillRow('Grand Total', '₹${grandTotal.toStringAsFixed(2)}', isBold: true),
         ],
       ),
     );
   }
 
   Widget _buildRiderDetailsCard() {
+    final hasRider = widget.order.riderName != null && widget.order.riderName!.isNotEmpty;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1476,30 +1499,48 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         children: [
           Text('Rider Details', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              const CircleAvatar(
-                radius: 20,
-                backgroundImage: NetworkImage('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(widget.order.riderName ?? 'Rohit (Rider)', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
-                    Text('5.0 (2.7k Ratings)', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600])),
-                  ],
+          if (!hasRider) ...[
+            Row(
+              children: [
+                const Icon(Icons.directions_bike, color: Colors.grey, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Searching nearby delivery rider...',
+                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                  ),
                 ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-                icon: const Icon(Icons.call, size: 14, color: Colors.white),
-                label: Text('Call Now', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ] else ...[
+            Row(
+              children: [
+                const CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppColors.primaryGreen,
+                  child: Icon(Icons.person, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.order.riderName!, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      if (widget.order.riderPhone != null)
+                        Text(widget.order.riderPhone!, style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600])),
+                    ],
+                  ),
+                ),
+                if (widget.order.riderPhone != null && widget.order.riderPhone!.isNotEmpty)
+                  ElevatedButton.icon(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                    icon: const Icon(Icons.call, size: 14, color: Colors.white),
+                    label: Text('Call Now', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );

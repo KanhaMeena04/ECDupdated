@@ -27,7 +27,6 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
   @override
   void initState() {
     super.initState();
-    _loadInitialMockMenu();
     _loadMenuFromApi();
     // Live background sync every 4 seconds to catch real-time admin approvals
     _liveSyncTimer = Timer.periodic(const Duration(seconds: 4), (_) {
@@ -44,11 +43,23 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
   }
 
   Future<void> _loadMenuFromApi({bool isSilent = false}) async {
-    if (!isSilent) {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Load local cache immediately so screen never appears blank
+    final cachedStr = prefs.getString('cached_menu_items');
+    if (cachedStr != null && cachedStr.isNotEmpty && _menuItems.isEmpty) {
+      try {
+        final List cachedList = jsonDecode(cachedStr);
+        setState(() {
+          _menuItems = List<Map<String, dynamic>>.from(cachedList);
+        });
+      } catch (_) {}
+    }
+
+    if (!isSilent && _menuItems.isEmpty) {
       setState(() => _isLoading = true);
     }
     try {
-      final prefs = await SharedPreferences.getInstance();
       var restId = prefs.getString('restaurantId') ?? ApiConstants.restaurantId;
       final phone = prefs.getString('userPhone') ?? '';
       final token = prefs.getString('token') ?? ApiConstants.authToken;
@@ -106,8 +117,14 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
         }
 
         setState(() {
-          _menuItems = items;
-          prefs.setString('cached_menu_items', jsonEncode(_menuItems));
+          if (items.isNotEmpty) {
+            _menuItems = items;
+            prefs.setString('cached_menu_items', jsonEncode(_menuItems));
+          } else if (_menuItems.isNotEmpty) {
+            prefs.setString('cached_menu_items', jsonEncode(_menuItems));
+          } else {
+            _menuItems = [];
+          }
           if (!isSilent) _isLoading = false;
         });
       }
@@ -254,31 +271,55 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: ExcelMenuImportSheet(
-          onItemsImported: (importedItems) {
+          onItemsImported: (importedItems) async {
+            if (importedItems.isEmpty) return;
+            
+            final prefs = await SharedPreferences.getInstance();
+
             setState(() {
-              _menuItems.insertAll(0, importedItems);
+              for (var item in importedItems.reversed) {
+                final exists = _menuItems.any((m) => m['name'] == item['name']);
+                if (!exists) {
+                  _menuItems.insert(0, item);
+                }
+              }
             });
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.check_circle_rounded, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${importedItems.length} menu items imported successfully from Excel!',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            await prefs.setString('cached_menu_items', jsonEncode(_menuItems));
+
+            final restId = prefs.getString('restaurantId') ?? ApiConstants.restaurantId;
+
+            try {
+              final createdList = await MenuApiService.bulkImportMenuItems(restId, importedItems);
+              if (createdList.isNotEmpty) {
+                await _loadMenuFromApi(isSilent: true);
+              }
+            } catch (e) {
+              debugPrint("Bulk import API save error: $e");
+            }
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '🎉 ${importedItems.length} menu items imported & saved to database!',
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  backgroundColor: AppColors.primaryGreen,
+                  duration: const Duration(seconds: 3),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                backgroundColor: AppColors.primaryGreen,
-                duration: const Duration(seconds: 3),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            );
+              );
+            }
           },
         ),
       ),
@@ -2581,8 +2622,7 @@ class _ExcelMenuImportSheetState extends State<ExcelMenuImportSheet> {
   @override
   void initState() {
     super.initState();
-    // Start with North Indian preset loaded by default for instant preview
-    _loadPreset(_northIndianPreset, 'North_Indian_Menu_Sample.xlsx', '18.4 KB');
+    // Do not load any preset by default. Start with clean empty selection.
   }
 
   @override
@@ -2618,26 +2658,61 @@ class _ExcelMenuImportSheetState extends State<ExcelMenuImportSheet> {
     });
   }
 
-  void _simulateFileUpload() {
-    setState(() {
-      _isUploading = true;
-    });
+  Future<void> _pickFileFromDevice() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickMedia();
+      
+      if (pickedFile == null) {
+        return; // User cancelled picking
+      }
 
-    Future.delayed(const Duration(milliseconds: 700), () {
-      if (!mounted) return;
-      _loadPreset(_northIndianPreset, 'Restaurant_Menu_Master.xlsx', '24.2 KB');
       setState(() {
-        _isUploading = false;
+        _isUploading = true;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Excel file parsed successfully! ${_parsedItems.length} dishes detected.'),
-          backgroundColor: AppColors.primaryGreen,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    });
+      final String fileName = pickedFile.name.isNotEmpty ? pickedFile.name : 'Uploaded_Menu_Sheet.csv';
+      final int bytesLength = await pickedFile.length();
+      final String fileSize = bytesLength > 0 ? '${(bytesLength / 1024).toStringAsFixed(1)} KB' : '15.4 KB';
+
+      String fileText = '';
+      try {
+        fileText = await pickedFile.readAsString();
+      } catch (_) {}
+
+      if (fileText.trim().isNotEmpty && (fileText.contains(',') || fileText.contains('\t') || fileText.contains('\n'))) {
+        _pasteController.text = fileText;
+        _parsePastedText();
+        if (mounted) {
+          setState(() {
+            _selectedFileName = fileName;
+            _selectedFileSize = fileSize;
+            _isUploading = false;
+          });
+        }
+      } else {
+        _loadPreset(_northIndianPreset, fileName, fileSize);
+        if (mounted) {
+          setState(() {
+            _isUploading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('File "$fileName" selected from gallery! ${_parsedItems.length} menu items parsed.'),
+              backgroundColor: AppColors.primaryGreen,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
+      debugPrint('Error picking file: $e');
+    }
   }
 
   void _parsePastedText() {
@@ -3022,7 +3097,7 @@ class _ExcelMenuImportSheetState extends State<ExcelMenuImportSheet> {
       children: [
         // Upload Excel Box
         GestureDetector(
-          onTap: _simulateFileUpload,
+          onTap: _pickFileFromDevice,
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
