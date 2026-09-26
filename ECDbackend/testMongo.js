@@ -3,7 +3,9 @@ require('dotenv').config();
 const Restaurant = require('./models/Restaurant');
 
 async function test() {
-  await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/ecdkart');
+  const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  if (!mongoUri) throw new Error('MONGODB_URI environment variable is required.');
+  await mongoose.connect(mongoUri);
   
   console.log('=== STEP 1: VERIFY MONGODB RECORDS ===');
   const allRestaurants = await Restaurant.find({ city: /Indore/i });

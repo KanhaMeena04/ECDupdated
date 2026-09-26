@@ -44,3 +44,32 @@ exports.updateTicket = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+exports.reportIssue = async (req, res) => {
+    try {
+        const { orderId, description, issueType, subject, message } = req.body;
+        const finalSubject = subject || issueType || (orderId ? `Order Issue: ${orderId}` : 'Customer Support Issue');
+        const finalMessage = message || description || 'Issue reported by customer';
+        const rawRole = req.user?.role || 'customer';
+        const validRoles = ['customer', 'rider', 'restaurant_owner', 'admin'];
+        const userType = validRoles.includes(rawRole) ? rawRole : 'customer';
+
+        const ticket = await Ticket.create({
+            user: req.user._id,
+            userType,
+            subject: finalSubject,
+            message: finalMessage,
+            status: 'open',
+            reply: []
+        });
+
+        return res.status(201).json({
+            success: true,
+            message: 'Issue reported successfully',
+            ticketId: ticket._id,
+            ticket
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};

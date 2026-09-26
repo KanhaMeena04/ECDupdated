@@ -6,6 +6,11 @@ const orderSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    orderNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
     restaurant: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",
@@ -42,9 +47,16 @@ const orderSchema = new mongoose.Schema(
     totalAmount: { type: Number, required: true },
     orderType: {
       type: String,
-      enum: ["delivery", "self_pickup"],
+      enum: ["delivery", "self_pickup", "pickup"],
       default: "delivery",
     },
+    prepTimeMinutes: { type: Number, default: 15 },
+    bufferTimeMinutes: { type: Number, default: 0 },
+    bufferReason: { type: String },
+    prepNote: { type: String },
+    readyAt: { type: Date },
+    scheduledAt: { type: Date },
+    gracePeriodMinutes: { type: Number, default: 15 },
     selfPickupCode: { type: String },
     selfPickupVerifiedAt: { type: Date },
     paymentMethod: {

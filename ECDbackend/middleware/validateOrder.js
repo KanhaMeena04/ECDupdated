@@ -3,11 +3,10 @@ const { sendError } = require('../utils/responseFormatter');
 const { isValidObjectId } = require('mongoose');
 const validatePlaceOrder = [
     body('addressId')
-        .notEmpty().withMessage('addressId is required')
-        .custom(val => isValidObjectId(val)).withMessage('Invalid addressId'),
+        .optional(),
     body('paymentMethod')
-        .notEmpty().withMessage('paymentMethod is required')
-        .isIn(['wallet', 'online', 'cod']).withMessage('Invalid paymentMethod. Must be wallet, online, or cod'),
+        .optional()
+        .customSanitizer(val => typeof val === 'string' ? val.toLowerCase() : val),
     body('paymentId')
         .optional()
         .isString().withMessage('paymentId must be a string'),

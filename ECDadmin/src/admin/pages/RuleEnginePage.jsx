@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Switch, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { API_BASE_URL } from '../../utils/utils';
 
 export default function RuleEnginePage() {
   const [rules, setRules] = useState([]);
@@ -20,7 +21,7 @@ export default function RuleEnginePage() {
 
   const fetchRules = async () => {
     try {
-      const res = await axios.get('/api/rules');
+      const res = await axios.get(`${API_BASE_URL}/api/rules`);
       if (res.data.success) {
         setRules(res.data.rules || []);
       }
@@ -37,7 +38,7 @@ export default function RuleEnginePage() {
 
   const handleToggle = async (id) => {
     try {
-      const res = await axios.patch(`/api/rules/${id}/toggle`);
+      const res = await axios.patch(`${API_BASE_URL}/api/rules/${id}/toggle`);
       if (res.data.success) {
         toast.success(res.data.message);
         fetchRules();
@@ -49,7 +50,7 @@ export default function RuleEnginePage() {
 
   const handleCreate = async () => {
     try {
-      const res = await axios.post('/api/rules', formData);
+      const res = await axios.post(`${API_BASE_URL}/api/rules`, formData);
       if (res.data.success) {
         toast.success('Rule created');
         setOpenModal(false);

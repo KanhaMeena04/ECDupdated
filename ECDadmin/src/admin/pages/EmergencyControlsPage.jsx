@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Paper, Grid, Switch, FormControlLabel, Button, Divider, TextField } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { API_BASE_URL } from '../../utils/utils';
 
 export default function EmergencyControlsPage() {
   const [controls, setControls] = useState({
@@ -19,7 +20,7 @@ export default function EmergencyControlsPage() {
 
   const fetchControls = async () => {
     try {
-      const res = await axios.get('/api/emergency');
+      const res = await axios.get(`${API_BASE_URL}/api/emergency`);
       if (res.data.controls) {
         setControls(res.data.controls);
       }
@@ -40,7 +41,7 @@ export default function EmergencyControlsPage() {
 
   const handleSave = async () => {
     try {
-      const res = await axios.put('/api/emergency', controls);
+      const res = await axios.put(`${API_BASE_URL}/api/emergency`, controls);
       if (res.data.success) {
         toast.success('Emergency switches updated successfully!');
       }

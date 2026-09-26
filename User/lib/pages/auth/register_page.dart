@@ -1,13 +1,21 @@
+import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:ecdkart_app/core/theme/app_colors.dart';
 import 'package:ecdkart_app/core/theme/app_text_styles.dart';
 import 'package:ecdkart_app/pages/profile/policy_page.dart';
+import 'package:ecdkart_app/services/auth_service.dart';
+import 'package:ecdkart_app/services/user_api_service.dart';
+import 'package:ecdkart_app/providers/user_provider.dart';
+import 'package:ecdkart_app/providers/location_provider.dart';
+import 'package:ecdkart_app/routes/app_routes.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+  final String? initialMobile;
+  const RegisterPage({super.key, this.initialMobile});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -15,15 +23,13 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
 
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _mobileController = TextEditingController();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+
+  bool _isLoading = false;
 
   TapGestureRecognizer? _termsRecognizer;
   TapGestureRecognizer? _privacyRecognizer;
@@ -33,6 +39,14 @@ class _RegisterPageState extends State<RegisterPage> {
 
   TapGestureRecognizer get privacyRecognizer =>
       _privacyRecognizer ??= (TapGestureRecognizer()..onTap = _showPrivacyBottomSheet);
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialMobile != null && widget.initialMobile!.isNotEmpty) {
+      _mobileController.text = widget.initialMobile!;
+    }
+  }
 
   static const List<PolicySection> _termsSections = [
     PolicySection(
@@ -123,8 +137,6 @@ class _RegisterPageState extends State<RegisterPage> {
     _lastNameController.dispose();
     _mobileController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -243,6 +255,178 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  void _onCreateAccount() async {
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final mobile = _mobileController.text.trim();
+    final email = _emailController.text.trim();
+
+    if (firstName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your First Name')),
+      );
+      return;
+    }
+
+    if (mobile.length != 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid 10-digit mobile number')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    // Send OTP to user's mobile number
+    final res = await AuthService.sendOtp(mobile);
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (!res.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(res.message), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+
+    // Show OTP dialog
+    _showOtpModal(firstName, lastName, mobile, email);
+  }
+
+  void _showOtpModal(String firstName, String lastName, String mobile, String email) {
+    final List<TextEditingController> otpCtrls = List.generate(6, (_) => TextEditingController());
+    bool isVerifying = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text(
+                'Enter 6-Digit OTP',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'OTP sent to +91 $mobile',
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(6, (i) {
+                      return SizedBox(
+                        width: 38,
+                        height: 48,
+                        child: TextField(
+                          controller: otpCtrls[i],
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          maxLength: 1,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          decoration: InputDecoration(
+                            counterText: '',
+                            contentPadding: EdgeInsets.zero,
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFF248C70), width: 2),
+                            ),
+                          ),
+                          onChanged: (val) {
+                            if (val.isNotEmpty && i < 5) {
+                              FocusScope.of(dialogCtx).nextFocus();
+                            } else if (val.isEmpty && i > 0) {
+                              FocusScope.of(dialogCtx).previousFocus();
+                            }
+                          },
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 20),
+                  if (isVerifying)
+                    const CircularProgressIndicator(color: Color(0xFF248C70))
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF248C70),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () async {
+                          final otpCode = otpCtrls.map((c) => c.text).join();
+                          if (otpCode.length < 6) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter full 6-digit OTP')),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isVerifying = true);
+
+                          final authRes = await AuthService.verifyOtp(mobile, otpCode);
+                          if (!ctx.mounted) return;
+
+                          if (authRes.success) {
+                            // Update profile in backend
+                            final fullName = '$firstName $lastName'.trim();
+                            await UserApiService.updateProfile(fullName, email: email, phone: mobile);
+
+                            if (mounted) {
+                              context.read<UserProvider>().setUserInfo(
+                                    name: fullName,
+                                    email: email,
+                                    phone: mobile,
+                                  );
+                            }
+
+                            Navigator.pop(ctx);
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Account registered & verified successfully!'),
+                                backgroundColor: Color(0xFF248C70),
+                              ),
+                            );
+
+                            if (Navigator.canPop(context)) {
+                              Navigator.pop(context, true);
+                            } else {
+                              context.go(AppRoutes.home);
+                            }
+                          } else {
+                            setDialogState(() => isVerifying = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(authRes.message), backgroundColor: AppColors.error),
+                            );
+                          }
+                        },
+                        child: const Text('Verify OTP & Register', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -326,7 +510,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       children: [
                         Expanded(
                           child: _buildTextField(
-                            label: 'First Name',
+                            label: 'First Name*',
                             hint: 'First Name',
                             controller: _firstNameController,
                           ),
@@ -334,7 +518,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _buildTextField(
-                            label: 'Last Name',
+                            label: 'Last Name*',
                             hint: 'Last Name',
                             controller: _lastNameController,
                           ),
@@ -343,7 +527,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                     const SizedBox(height: 12),
                     _buildTextField(
-                      label: 'Mobile Number',
+                      label: 'Mobile Number*',
                       hint: 'Enter Mobile Number',
                       keyboardType: TextInputType.phone,
                       maxLength: 10,
@@ -357,32 +541,14 @@ class _RegisterPageState extends State<RegisterPage> {
                       keyboardType: TextInputType.emailAddress,
                       controller: _emailController,
                     ),
-                    const SizedBox(height: 12),
-                    _buildPasswordField(
-                      label: 'Password',
-                      hint: '........',
-                      obscure: _obscurePassword,
-                      controller: _passwordController,
-                      onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildPasswordField(
-                      label: 'Confirm Password',
-                      hint: '........',
-                      obscure: _obscureConfirmPassword,
-                      controller: _confirmPasswordController,
-                      onToggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                    ),
                     
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     
                     // Create Account Button
                     SizedBox(
                       height: 46,
                       child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: implement registration
-                        },
+                        onPressed: _isLoading ? null : _onCreateAccount,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF248C70),
                           foregroundColor: Colors.white,
@@ -390,27 +556,17 @@ class _RegisterPageState extends State<RegisterPage> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           elevation: 0,
-                        ).copyWith(
-                          overlayColor: WidgetStateProperty.resolveWith<Color?>(
-                            (Set<WidgetState> states) {
-                              if (states.contains(WidgetState.hovered)) {
-                                return const Color(0xFF238E66);
-                              }
-                              if (states.contains(WidgetState.pressed)) {
-                                return const Color(0xFF1E7554);
-                              }
-                              return null;
-                            },
-                          ),
                         ),
-                        child: const Text(
-                          'Create Account',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text(
+                                'Create Account',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -526,60 +682,6 @@ class _RegisterPageState extends State<RegisterPage> {
               fillColor: Colors.white,
             ),
             validator: validator,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPasswordField({
-    required String label,
-    required String hint,
-    required bool obscure,
-    required VoidCallback onToggle,
-    TextEditingController? controller,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 6),
-        SizedBox(
-          height: 48,
-          child: TextFormField(
-            controller: controller,
-            obscureText: obscure,
-            style: const TextStyle(fontSize: 14),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF248C70), width: 1.5),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                  color: Colors.grey.shade400,
-                  size: 20,
-                ),
-                onPressed: onToggle,
-              ),
-            ),
           ),
         ),
       ],

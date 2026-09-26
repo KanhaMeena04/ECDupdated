@@ -105,47 +105,42 @@ const useChangePassword = () => {
   return { changePassword, isLoading, error, success };
 };
 
+export const authAPI = {
+  logout: () => {
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    } catch (e) {
+      console.warn('Failed to clear auth storage', e);
+    }
+  },
+  getCurrentUser: () => {
+    try {
+      const user = localStorage.getItem('user');
+      return user ? JSON.parse(user) : null;
+    } catch (e) {
+      return null;
+    }
+  },
+  isAuthenticated: () => {
+    try {
+      return !!localStorage.getItem('token');
+    } catch (e) {
+      return false;
+    }
+  },
+  getToken: () => {
+    try {
+      return localStorage.getItem('token');
+    } catch (e) {
+      return null;
+    }
+  }
+};
+
 export {
-   useAdminAuth,
- useChangePassword}
+  useAdminAuth,
+  useChangePassword
+};
 
-//   register: async (userData) => {
-//     try {
-//       const response = await fetch(`${API_BASE_URL}/auth/register`, {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify(userData),
-//       });
-
-//       if (!response.ok) {
-//         throw new Error('Registration failed');
-//       }
-
-//       const data = await response.json();
-//       return data;
-//     } catch (error) {
-//       console.error('Registration error:', error);
-//       throw error;
-//     }
-//   },
-
-//   logout: () => {
-//     localStorage.removeItem('token');
-//     localStorage.removeItem('user');
-//   },
-
-//   getCurrentUser: () => {
-//     const user = localStorage.getItem('user');
-//     return user ? JSON.parse(user) : null;
-//   },
-
-//   isAuthenticated: () => {
-//     return !!localStorage.getItem('token');
-//   },
-
-//   getToken: () => {
-//     return localStorage.getItem('token');
-//   }
 // };

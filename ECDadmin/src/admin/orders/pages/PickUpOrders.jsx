@@ -83,17 +83,8 @@ const pickUpOrdersColumns = [
   {
     key: "total",
     label: "Total",
-    render: (row) => `RM ${row.total.toFixed(2)}`,
+    render: (row) => `₹ ${Number(row.total).toFixed(2)}`,
   },
-  // {
-  //   key: "action",
-  //   label: "Action",
-  //   render: () => (
-  //     <button className="p-2 hover:bg-gray-100 rounded">
-  //       <MoreVertical size={16} />
-  //     </button>
-  //   ),
-  // },
 ];
 	const navigate=useNavigate()
 	

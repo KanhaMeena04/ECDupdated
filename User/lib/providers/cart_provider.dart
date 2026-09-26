@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../services/cart_api_service.dart';
 import '../services/coupon_api_service.dart';
 import '../services/order_api_service.dart';
+import '../services/settings_api_service.dart';
 
 class CartProvider with ChangeNotifier {
   List<CartItem> _items = [];
@@ -13,6 +14,7 @@ class CartProvider with ChangeNotifier {
   String? _restaurantId;
   String? _restaurantName;
   String? _restaurantImageUrl;
+  int _restaurantDeliveryTimeMin = 25;
 
   // ── Order Type (Delivery / Pickup) & Slot Selection ────────────────────────
   String _orderType = 'delivery';
@@ -69,14 +71,43 @@ class CartProvider with ChangeNotifier {
   String? get restaurantId => _restaurantId;
   String? get restaurantName => _restaurantName;
   String? get restaurantImageUrl => _restaurantImageUrl;
+  int get restaurantDeliveryTimeMin => _restaurantDeliveryTimeMin;
+  void setRestaurantDeliveryTime(int mins) {
+    _restaurantDeliveryTimeMin = mins;
+    notifyListeners();
+  }
+
 
   double _deliveryFee = 14.0;
-  double _platformFee = 6.0;
+  double _platformFee = 5.0;
   double _packagingFee = 10.0;
+  double _gstPercent = 5.0;
+  double _selectedTip = 0.0;
+  List<double> _tipOptions = [5.0, 10.0, 20.0];
 
-  double get deliveryFee => _orderType == 'pickup' ? 0.0 : _deliveryFee;
-  double get platformFee => _platformFee;
-  double get packagingFee => _packagingFee;
+  bool _isDeliveryFeeEnabled = true;
+  bool _isPlatformFeeEnabled = true;
+  bool _isPackagingFeeEnabled = true;
+  bool _isTaxEnabled = true;
+  bool _isTipEnabled = true;
+
+  double get deliveryFee => (_orderType == 'pickup' || !_isDeliveryFeeEnabled) ? 0.0 : _deliveryFee;
+  double get platformFee => _isPlatformFeeEnabled ? _platformFee : 0.0;
+  double get packagingFee => _isPackagingFeeEnabled ? _packagingFee : 0.0;
+  double get gstAmount => _isTaxEnabled ? (totalAmount * (_gstPercent / 100)) : 0.0;
+  double get tipAmount => _isTipEnabled ? _selectedTip : 0.0;
+  List<double> get tipOptions => _tipOptions;
+  bool get isTipEnabled => _isTipEnabled;
+  bool get isPlatformFeeEnabled => _isPlatformFeeEnabled;
+  bool get isPackagingFeeEnabled => _isPackagingFeeEnabled;
+  bool get isTaxEnabled => _isTaxEnabled;
+  bool get isDeliveryFeeEnabled => _isDeliveryFeeEnabled;
+  double get selectedTip => _selectedTip;
+
+  void setSelectedTip(double tip) {
+    _selectedTip = tip;
+    notifyListeners();
+  }
 
   List<CartItem> get items => _items;
   bool get isLoading => _isLoading;
@@ -86,11 +117,25 @@ class CartProvider with ChangeNotifier {
   double get totalAmount =>
       _items.fold(0, (sum, item) => sum + item.totalPrice);
 
-  double get gstAmount => totalAmount * 0.05;
+  static double safeNum(num? val) {
+    if (val == null) return 0.0;
+    final d = val.toDouble();
+    if (d.isNaN || d.isInfinite) return 0.0;
+    return d;
+  }
 
   double get grandTotalRaw {
-    double base = totalAmount + deliveryFee + platformFee + packagingFee + gstAmount;
-    return (base - _discountAmount) < 0 ? 0 : (base - _discountAmount);
+    final subtotal = safeNum(totalAmount);
+    final delivery = safeNum(deliveryFee);
+    final platform = safeNum(platformFee);
+    final packaging = safeNum(packagingFee);
+    final gst = safeNum(gstAmount);
+    final tip = safeNum(tipAmount);
+    final discount = safeNum(_discountAmount);
+
+    double base = subtotal + delivery + platform + packaging + gst + tip;
+    double res = base - discount;
+    return safeNum(res < 0 ? 0.0 : res);
   }
 
   double get cashRoundOff => grandTotalRaw.roundToDouble() - grandTotalRaw;
@@ -140,7 +185,52 @@ class CartProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Error syncing cart: $e');
     } finally {
+      await fetchDynamicSettings();
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Fetch dynamic pricing, platform fee, packaging fee, tax, and tip config from Admin Settings API
+  Future<void> fetchDynamicSettings() async {
+    try {
+      final settings = await SettingsApiService.fetchSettings();
+      if (settings != null) {
+        if (settings['platformFeeConfig'] != null) {
+          final p = settings['platformFeeConfig'];
+          _isPlatformFeeEnabled = p['enabled'] != false;
+          _platformFee = _isPlatformFeeEnabled ? ((p['fee'] as num?)?.toDouble() ?? 5.0) : 0.0;
+        }
+        if (settings['packagingFeeConfig'] != null) {
+          final pk = settings['packagingFeeConfig'];
+          _isPackagingFeeEnabled = pk['enabled'] != false;
+          _packagingFee = _isPackagingFeeEnabled ? ((pk['globalPackagingFee'] as num?)?.toDouble() ?? 10.0) : 0.0;
+        }
+        if (settings['deliveryFeeConfig'] != null) {
+          final d = settings['deliveryFeeConfig'];
+          _isDeliveryFeeEnabled = d['enabled'] != false;
+          if (!_isDeliveryFeeEnabled) {
+            _deliveryFee = 0.0;
+          } else if (d['baseFee'] != null) {
+            _deliveryFee = (d['baseFee'] as num).toDouble();
+          }
+        }
+        if (settings['tipConfig'] != null) {
+          final t = settings['tipConfig'];
+          _isTipEnabled = t['enabled'] != false;
+          if (t['options'] != null && t['options'] is List) {
+            _tipOptions = (t['options'] as List).map((e) => (e as num).toDouble()).toList();
+          }
+        }
+        if (settings['taxConfig'] != null) {
+          final tx = settings['taxConfig'];
+          _isTaxEnabled = tx['enabled'] != false;
+          _gstPercent = _isTaxEnabled ? ((tx['gstPercent'] as num?)?.toDouble() ?? 5.0) : 0.0;
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching dynamic cart settings: $e");
+    } finally {
       notifyListeners();
     }
   }
@@ -156,11 +246,15 @@ class CartProvider with ChangeNotifier {
     required String restaurantId,
     required String restaurantName,
     required String restaurantImageUrl,
+    int deliveryTimeMin = 25,
     String imageUrl = '',
   }) async {
     _restaurantId = restaurantId;
     _restaurantName = restaurantName;
     _restaurantImageUrl = restaurantImageUrl;
+    if (deliveryTimeMin > 0) {
+      _restaurantDeliveryTimeMin = deliveryTimeMin;
+    }
 
     final existingIndex =
         _items.indexWhere((item) => item.product.id == product.id);
@@ -184,6 +278,7 @@ class CartProvider with ChangeNotifier {
     required String restaurantId,
     required String restaurantName,
     required String restaurantImageUrl,
+    int deliveryTimeMin = 25,
     String imageUrl = '',
   }) async {
     _items.clear();
@@ -191,6 +286,9 @@ class CartProvider with ChangeNotifier {
     _restaurantId = restaurantId;
     _restaurantName = restaurantName;
     _restaurantImageUrl = restaurantImageUrl;
+    if (deliveryTimeMin > 0) {
+      _restaurantDeliveryTimeMin = deliveryTimeMin;
+    }
     
     _items.add(CartItem(product: product, imageUrl: imageUrl));
     notifyListeners();
@@ -244,6 +342,7 @@ class CartProvider with ChangeNotifier {
     _restaurantId = null;
     _restaurantName = null;
     _restaurantImageUrl = null;
+    _restaurantDeliveryTimeMin = 25;
     _orderType = 'delivery';
     _pickupDate = 'Today, Sep 14';
     _pickupTimeSlot = '9:30 AM - 9:45 AM';

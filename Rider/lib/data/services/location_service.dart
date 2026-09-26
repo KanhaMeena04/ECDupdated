@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -48,13 +49,13 @@ class LocationService {
 
       // Get current position
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
 
       _lastPosition = position;
       return position;
     } catch (e) {
-      print('Error getting location: $e');
+      debugPrint('Error getting location: $e');
       return null;
     }
   }
@@ -97,7 +98,7 @@ class LocationService {
 
       return positionStream;
     } catch (e) {
-      print('Error starting location updates: $e');
+      debugPrint('Error starting location updates: $e');
       return null;
     }
   }

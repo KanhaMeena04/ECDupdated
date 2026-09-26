@@ -3,11 +3,6 @@ const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const dns = require('dns');
 
-// Configure Cloudflare primary DNS and Google fallback DNS for reliable MongoDB SRV lookups
-const primaryDNS = ['1.1.1.1', '1.0.0.1'];
-const fallbackDNS = ['8.8.4.4', '8.8.8.8'];
-dns.setServers(primaryDNS);
-
 dotenv.config({ path: __dirname + '/../.env' });
 
 const User = require('../models/User');
@@ -20,33 +15,25 @@ const Promocode = require('../models/Promocode');
 const AdminSetting = require('../models/AdminSetting');
 const Rider = require('../models/Rider');
 
-const mongoURI = process.env.MONGO_URI || "mongodb+srv://rishi_solanki:Indore%40123@rishiserver.kdybcms.mongodb.net/ecdkart_local_dev";
+const mongoURI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/ecdkart_local_dev";
 
 async function seedData() {
   try {
     console.log("🌱 Connecting to MongoDB for local seed...");
     const options = {
-      serverSelectionTimeoutMS: 15000,
-      socketTimeoutMS: 45000,
-      connectTimeoutMS: 15000,
-      maxPoolSize: 10,
-      minPoolSize: 2,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 15000,
+      connectTimeoutMS: 5000,
     };
-    try {
-      await mongoose.connect(mongoURI, options);
-    } catch (firstErr) {
-      console.log("🔄 Switching to fallback DNS (Google)...");
-      dns.setServers(fallbackDNS);
-      await mongoose.connect(mongoURI, options);
-    }
+    await mongoose.connect(mongoURI, options);
     console.log("✅ MongoDB Connected for Seeding.");
 
     const salt = await bcrypt.genSalt(10);
     const defaultPassword = await bcrypt.hash("admin123", salt);
 
-    // 1. Seed / Ensure Admin, Owner, Rider and Customer Users
-    console.log("👤 Seeding Users...");
-    const adminUser = await User.findOneAndUpdate(
+    // 1. Seed Users (Admin + 14 Restaurant Owners + Rider + Customer)
+    console.log("👤 Seeding Users for 14 Restaurants...");
+    await User.findOneAndUpdate(
       { email: "admin@gmail.com" },
       {
         $set: {
@@ -54,6 +41,7 @@ async function seedData() {
           mobile: "+919999999999",
           password: defaultPassword,
           role: "admin",
+          pin: "1234",
           isVerified: true,
           isDeleted: false,
           isBlocked: false,
@@ -62,43 +50,51 @@ async function seedData() {
       { upsert: true, new: true }
     );
 
-    const ownerUser1 = await User.findOneAndUpdate(
-      { email: "owner1@ecdkart.com" },
-      {
-        $set: {
-          name: "Rajesh Gourmet",
-          mobile: "+919876543210",
-          password: defaultPassword,
-          role: "restaurant_owner",
-          isVerified: true,
-          isDeleted: false,
-        }
-      },
-      { upsert: true, new: true }
-    );
+    const rawRestaurantsList = [
+      { slug: "the-gourmet-kitchen", name: "The Gourmet Kitchen", ownerName: "Rajesh Gourmet", email: "gourmet@ecdkart.com", mobile: "+919876543210", address: "Shop 12, Main Market, Sohna", rating: 4.5, cuisine: ["North Indian", "Fast Food", "Chinese"] },
+      { slug: "pizza-perfection", name: "Pizza Perfection", ownerName: "Vikram Pizza", email: "pizza@ecdkart.com", mobile: "+919876543211", address: "Plot 45, Sector 4, Sohna", rating: 4.6, cuisine: ["Italian", "Pizza", "Pasta"] },
+      { slug: "sohna-sweets-snacks", name: "Sohna Sweets & Snacks", ownerName: "Ramesh Sweets", email: "sweets@ecdkart.com", mobile: "+919876543212", address: "Clock Tower Chowk, Sohna", rating: 4.4, cuisine: ["Sweets", "Street Food", "Snacks"] },
+      { slug: "royal-biryani-house", name: "Royal Biryani House", ownerName: "Salman Khan", email: "biryani@ecdkart.com", mobile: "+919876543213", address: "88 Royal Plaza, Sohna Road", rating: 4.7, cuisine: ["Hyderabadi Biryani", "Mughlai"] },
+      { slug: "chinese-wok-noodles", name: "Chinese Wok & Noodles", ownerName: "Chen Wei", email: "chinesewok@ecdkart.com", mobile: "+919876543214", address: "Food Court Block B, Sohna Market", rating: 4.3, cuisine: ["Asian", "Chinese", "Dimsum"] },
+      { slug: "burger-king-delight", name: "Burger King Delight", ownerName: "Sunita Sharma", email: "burgerking@ecdkart.com", mobile: "+919876543215", address: "Shop 3, City Center Mall, Sohna", rating: 4.2, cuisine: ["Burgers", "American", "Fries"] },
+      { slug: "tandoori-nights-barbecue", name: "Tandoori Nights & Barbecue", ownerName: "Harpreet Singh", email: "tandoori@ecdkart.com", mobile: "+919876543216", address: "GT Road Near Highway Toll, Sohna", rating: 4.8, cuisine: ["Kebabs", "North Indian", "Barbecue"] },
+      { slug: "south-indian-cafe", name: "South Indian Cafe", ownerName: "Venkatesh Iyer", email: "southindian@ecdkart.com", mobile: "+919876543217", address: "14 Temple Street, Sohna", rating: 4.5, cuisine: ["Dosa", "Idli", "South Indian"] },
+      { slug: "indori-chaska-poha", name: "Indori Chaska & Poha", ownerName: "Anand Sharma", email: "indori@ecdkart.com", mobile: "+919876543218", address: "Chappan Gali, Sohna", rating: 4.6, cuisine: ["Indori Snacks", "Poha", "Jalebi"] },
+      { slug: "punjabi-rasoi", name: "Punjabi Rasoi", ownerName: "Gurmeet Singh", email: "punjabi@ecdkart.com", mobile: "+919876543219", address: "Highway Hub Complex, Sohna", rating: 4.4, cuisine: ["Punjabi", "Parathas", "Lassi"] },
+      { slug: "baskin-ice-cream-parlour", name: "Baskin & Ice Cream Parlour", ownerName: "Priya Verma", email: "icecream@ecdkart.com", mobile: "+919876543220", address: "Corner Arcade, Sector 2, Sohna", rating: 4.9, cuisine: ["Desserts", "Ice Cream", "Shakes"] },
+      { slug: "momos-corner-cafe", name: "Momos Corner & Cafe", ownerName: "Tenzin Norbu", email: "momos@ecdkart.com", mobile: "+919876543221", address: "Student Hub Market, Sohna", rating: 4.1, cuisine: ["Tibetan", "Momos", "Thukpa"] },
+      { slug: "health-salad-hub", name: "Health & Salad Hub", ownerName: "Ananya Roy", email: "health@ecdkart.com", mobile: "+919876543222", address: "Fitness Center Complex, Sohna", rating: 4.5, cuisine: ["Healthy", "Salads", "Juices"] },
+      { slug: "chai-sutta-snacks-bar", name: "Chai Sutta & Snacks Bar", ownerName: "Mohit Gupta", email: "chaisutta@ecdkart.com", mobile: "+919876543223", address: "University Gate 1, Sohna", rating: 4.7, cuisine: ["Tea", "Coffee", "Fast Food"] },
+    ];
 
-    const ownerUser2 = await User.findOneAndUpdate(
-      { email: "owner2@ecdkart.com" },
-      {
-        $set: {
-          name: "Vikram Pizza",
-          mobile: "+919876543211",
-          password: defaultPassword,
-          role: "restaurant_owner",
-          isVerified: true,
-          isDeleted: false,
-        }
-      },
-      { upsert: true, new: true }
-    );
+    const ownerUserDocs = {};
+    for (const r of rawRestaurantsList) {
+      const u = await User.findOneAndUpdate(
+        { email: r.email },
+        {
+          $set: {
+            name: r.ownerName,
+            mobile: r.mobile,
+            password: defaultPassword,
+            pin: "1234",
+            role: "restaurant_owner",
+            isVerified: true,
+            isDeleted: false,
+          }
+        },
+        { upsert: true, new: true }
+      );
+      ownerUserDocs[r.slug] = u;
+    }
 
     const riderUser = await User.findOneAndUpdate(
       { email: "rider1@ecdkart.com" },
       {
         $set: {
           name: "Amit Rider",
-          mobile: "+919876543212",
+          mobile: "+919876543299",
           password: defaultPassword,
+          pin: "1234",
           role: "rider",
           isVerified: true,
           isDeleted: false,
@@ -126,8 +122,9 @@ async function seedData() {
       {
         $set: {
           name: "Kanha Customer",
-          mobile: "+919876543213",
+          mobile: "+919876543298",
           password: defaultPassword,
+          pin: "1234",
           role: "customer",
           isVerified: true,
           isDeleted: false,
@@ -146,94 +143,43 @@ async function seedData() {
       { upsert: true, new: true }
     );
 
-    // 2. Seed Restaurants
-    console.log("🏪 Seeding Restaurants...");
-    const restaurantsData = [
-      {
-        slug: "the-gourmet-kitchen",
-        name: { en: "The Gourmet Kitchen", de: "The Gourmet Kitchen", ar: "ذا جورميه كيتشن" },
-        description: { en: "Multi-Cuisine Delights, Fast Food, & Authentic North Indian Thalis", de: "", ar: "" },
-        owner: ownerUser1._id,
-        email: "gourmet@ecdkart.com",
-        contactNumber: "+919876543210",
-        address: "Shop 12, Main Market, Sohna",
+    // 2. Seed All 14 Restaurants
+    console.log("🏪 Seeding All 14 Restaurants...");
+    const seededRestaurants = {};
+    for (const r of rawRestaurantsList) {
+      const ownerDoc = ownerUserDocs[r.slug];
+      const restPayload = {
+        slug: r.slug,
+        name: { en: r.name, de: r.name, ar: r.name },
+        description: { en: `${r.name} serving delicious ${r.cuisine.join(', ')} in Sohna.`, de: "", ar: "" },
+        owner: ownerDoc._id,
+        email: r.email,
+        contactNumber: r.mobile,
+        address: r.address,
         city: "Sohna",
-        area: "Main Market",
+        area: "Central",
         location: { type: "Point", coordinates: [77.081, 28.248] },
         deliveryTime: 25,
         baseDeliveryFee: 30,
         packagingCharge: 10,
-        adminCommission: 15,
-        cuisine: ["North Indian", "Fast Food", "Chinese", "Desserts"],
+        adminCommission: 10,
+        cuisine: r.cuisine,
         image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600",
         bannerImage: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800",
-        rating: 4.5,
-        totalReviews: 128,
+        rating: r.rating,
+        totalReviews: 85,
         isActive: true,
         isOnline: true,
         restaurantApproved: true,
         menuApproved: true,
-      },
-      {
-        slug: "pizza-perfection",
-        name: { en: "Pizza Perfection", de: "Pizza Perfection", ar: "بيتزا بيرفيكشن" },
-        description: { en: "Wood-fired Cheeseburst Pizzas, Garlic Bread, & Italian Pastas", de: "", ar: "" },
-        owner: ownerUser2._id,
-        email: "pizza@ecdkart.com",
-        contactNumber: "+919876543211",
-        address: "Plot 45, Sector 4, Sohna",
-        city: "Sohna",
-        area: "Sector 4",
-        location: { type: "Point", coordinates: [77.085, 28.250] },
-        deliveryTime: 20,
-        baseDeliveryFee: 35,
-        packagingCharge: 15,
-        adminCommission: 18,
-        cuisine: ["Italian", "Pizza", "Pasta", "Beverages"],
-        image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600",
-        bannerImage: "https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=800",
-        rating: 4.6,
-        totalReviews: 210,
-        isActive: true,
-        isOnline: true,
-        restaurantApproved: true,
-        menuApproved: true,
-      },
-      {
-        slug: "sohna-sweets-snacks",
-        name: { en: "Sohna Sweets & Snacks", de: "Sohna Sweets", ar: "حلويات سوهنا" },
-        description: { en: "Fresh Indori Poha, Hot Samosa, Jalebi, & Traditional Indian Sweets", de: "", ar: "" },
-        owner: ownerUser1._id,
-        email: "sweets@ecdkart.com",
-        contactNumber: "+919876543212",
-        address: "Clock Tower Chowk, Sohna",
-        city: "Sohna",
-        area: "Clock Tower",
-        location: { type: "Point", coordinates: [77.082, 28.249] },
-        deliveryTime: 15,
-        baseDeliveryFee: 25,
-        packagingCharge: 5,
-        adminCommission: 12,
-        cuisine: ["Sweets", "Street Food", "Breakfast", "Snacks"],
-        image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600",
-        bannerImage: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800",
-        rating: 4.4,
-        totalReviews: 95,
-        isActive: true,
-        isOnline: true,
-        restaurantApproved: true,
-        menuApproved: true,
-      }
-    ];
-
-    const seededRestaurants = {};
-    for (const rest of restaurantsData) {
+        verificationStatus: "verified",
+      };
       const doc = await Restaurant.findOneAndUpdate(
-        { email: rest.email },
-        { $set: rest },
+        { email: r.email },
+        { $set: restPayload },
         { upsert: true, new: true }
       );
-      seededRestaurants[rest.slug] = doc;
+      seededRestaurants[r.slug] = doc;
     }
 
     // 3. Seed Categories

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+
 const riderSchema = new mongoose.Schema({
     user: { 
         type: mongoose.Schema.Types.ObjectId, 
@@ -6,114 +7,42 @@ const riderSchema = new mongoose.Schema({
         required: true, 
         unique: true 
     },
+    name: { type: String },
+    email: { type: String },
+    mobile: { type: String },
+    phone: { type: String },
+    profilePic: { type: String },
+    pin: { type: String },
     associatedRestaurant: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Restaurant' // Optional
     },
     address: {
-        street: String,
-        city: String,
-        state: String,
-        country: String,
-        zipCode: String
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
     },
-    workCity: { type: String }, 
-    workZone: { type: String },
+    workCity: { type: String, default: "" }, 
+    workZone: { type: String, default: "" },
     vehicle: {
-        type: { 
-            type: String, 
-            enum: ['bike', 'car', 'scooter', 'other'],
-            required: true
-        },
-        model: { type: String }, 
-        number: { type: String, required: true },
-        vehicleVerified: { type: Boolean, default: false },
-        vehicleApproval: {
-            status: { type: String, enum: ['pending','approved','rejected'], default: 'pending' },
-            reason: { type: String },
-            approvedAt: { type: Date },
-            approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-        }
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
     },
     documents: {
-        license: {
-            frontImage: { type: String },
-            backImage: { type: String },
-            number: { type: String },
-            expiryDate: { type: Date },
-            verifiedAt: { type: Date },
-            verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-        },
-        rc: {
-            number: { type: String },
-            image: { type: String },
-            expiryDate: { type: Date },
-            verifiedAt: { type: Date },
-            verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-        },
-        insurance: {
-            number: { type: String },
-            image: { type: String },
-            expiryDate: { type: Date },
-            verifiedAt: { type: Date },
-            verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-        },
-        panCard: {
-            number: { type: String },
-            image: { type: String },
-            verifiedAt: { type: Date },
-            verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-        },
-        aadharCard: {
-            number: { type: String },
-            image: { type: String },
-            verifiedAt: { type: Date },
-            verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-        },
-        medicalCertificate: {
-            image: { type: String },
-            expiryDate: { type: Date },
-            verifiedAt: { type: Date },
-            verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-        },
-        policyVerification: {
-            image: { type: String },
-            expiryDate: { type: Date },
-            verifiedAt: { type: Date },
-            verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
-        },
-        gst: { type: String }
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
     },
     permanentAddress: {
-        street: String,
-        city: String,
-        state: String,
-        zipCode: String
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
     },
     localAddress: {
-        street: String,
-        city: String,
-        state: String,
-        zipCode: String
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
     },
     emergencyContactNumber: { type: String },
     bankDetails: {
-        accountName: { type: String },
-        accountNumber: { type: String },
-        bankName: { type: String },
-        branchName: { type: String },
-        branchAddress: { type: String },
-        swiftCode: { type: String },
-        routingNumber: { type: String },
-        verified: { type: Boolean, default: false },
-        verificationStatus: { 
-            type: String, 
-            enum: ['pending', 'approved', 'rejected'], 
-            default: 'pending' 
-        },
-        rejectionReason: { type: String },
-        approvedAt: { type: Date },
-        approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
     },
     pendingUpdate: {
         email: { type: String },
@@ -124,7 +53,7 @@ const riderSchema = new mongoose.Schema({
     },
     riderVerified: { type: Boolean, default: false }, 
     isOnline: { type: Boolean, default: false },      
-    isAvailable: { type: Boolean, default: true },    
+    isAvailable: { type: Boolean, default: false },    
     breakMode: { type: Boolean, default: false },
     breakReason: { type: String },
     sosActive: { type: Boolean, default: false },
@@ -132,7 +61,7 @@ const riderSchema = new mongoose.Schema({
     sosLocation: { type: { type: String, default: 'Point' }, coordinates: { type: [Number], default: [0,0] } },
     verificationStatus: { 
         type: String, 
-        enum: ['pending', 'approved', 'rejected', 'suspended'], 
+        enum: ['pending', 'approved', 'rejected', 'suspended', 'verified'], 
         default: 'pending' 
     },
     rejectionReason: { type: String },
@@ -140,11 +69,11 @@ const riderSchema = new mongoose.Schema({
     rejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     currentLocation: {
         type: { type: String, default: 'Point' },
-        coordinates: { type: [Number], default: [0, 0], index: '2dsphere' } 
+        coordinates: { type: [Number], default: [77.0658, 28.2888], index: '2dsphere' } 
     },
     lastLocationUpdateAt: { type: Date },
     rating: { 
-        average: { type: Number, default: 0, min: 0, max: 5 },
+        average: { type: Number, default: 4.8, min: 0, max: 5 },
         count: { type: Number, default: 0 },
         breakdown: {
             five: { type: Number, default: 0 },
@@ -160,11 +89,13 @@ const riderSchema = new mongoose.Schema({
     totalOrders: { type: Number, default: 0 },
     totalDeliveries: { type: Number, default: 0 },
     cancelledOrders: { type: Number, default: 0 },
-    averageRating: { type: Number, default: 0 }
-}, { timestamps: true });
+    averageRating: { type: Number, default: 4.8 }
+}, { timestamps: true, strict: false });
+
 riderSchema.index({ "currentLocation": "2dsphere" });
 riderSchema.index({ isOnline: 1 });
 riderSchema.index({ isAvailable: 1 });
 riderSchema.index({ verificationStatus: 1 });
 riderSchema.index({ workCity: 1, workZone: 1 });
+
 module.exports = mongoose.model('Rider', riderSchema);

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:vegbox_driver_app/presentation/screens/auth/login_screen.dart';
-import 'package:vegbox_driver_app/presentation/screens/auth/documentation_screen.dart';
 import 'package:vegbox_driver_app/presentation/screens/home/driver_home_screen.dart';
+import 'auth/login_screen.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../logic/blocs/auth/auth_bloc.dart';
 import '../../../logic/blocs/auth/auth_event.dart';
 import '../../../logic/blocs/auth/auth_state.dart';
@@ -25,6 +25,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late Animation<Offset> _textSlideAnimation;
 
   bool _animationCompleted = false;
+  bool _hasNavigated = false;
   AuthState? _pendingState;
 
   @override
@@ -33,7 +34,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 1800),
     );
 
     _pulseController = AnimationController(
@@ -64,12 +65,18 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
     _animationController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          if (mounted) {
-            _animationCompleted = true;
-            _navigateIfReady();
-          }
-        });
+        if (mounted && !_hasNavigated) {
+          _animationCompleted = true;
+          _navigateIfReady();
+        }
+      }
+    });
+
+    // Safety timeout: Maximum 2.2 seconds
+    Future.delayed(const Duration(milliseconds: 2200), () {
+      if (mounted && !_hasNavigated) {
+        _animationCompleted = true;
+        _navigateIfReady();
       }
     });
 
@@ -79,15 +86,21 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     context.read<AuthBloc>().add(const CheckAuthStatus());
   }
 
-  void _navigateIfReady() {
-    if (_animationCompleted && _pendingState != null) {
-      if (_pendingState is Authenticated) {
+  void _navigateIfReady() async {
+    if (_hasNavigated || !mounted) return;
+    if (_animationCompleted) {
+      _hasNavigated = true;
+      final state = _pendingState ?? context.read<AuthBloc>().state;
+      if (state is Authenticated) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const DriverHomeScreen()),
         );
-      } else if (_pendingState is Unauthenticated || _pendingState is AuthError) {
+      } else {
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          MaterialPageRoute(
+            builder: (_) => const LoginScreen(),
+          ),
         );
       }
     }
@@ -132,7 +145,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                 height: 140,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: const Color(0xFF248C70).withOpacity(0.1),
+                                  color: const Color(0xFF248C70).withValues(alpha: 0.1),
                                 ),
                               ),
                             ),
@@ -144,7 +157,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                 height: 140,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: const Color(0xFF248C70).withOpacity(0.2),
+                                  color: const Color(0xFF248C70).withValues(alpha: 0.2),
                                 ),
                               ),
                             ),
@@ -156,7 +169,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF248C70).withOpacity(0.2),
+                                    color: const Color(0xFF248C70).withValues(alpha: 0.2),
                                     blurRadius: 30,
                                     spreadRadius: 5,
                                   )
@@ -264,7 +277,7 @@ class _DotLoadingIndicatorState extends State<_DotLoadingIndicator> with SingleT
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.3),
+                  color: color.withValues(alpha: 0.3),
                   blurRadius: 6,
                   offset: const Offset(0, 4),
                 )

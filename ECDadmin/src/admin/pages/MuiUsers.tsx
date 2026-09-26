@@ -85,12 +85,14 @@ const MuiUsers: React.FC = () => {
       }
       
       console.log('🔑 Token from localStorage:', token);
-      console.log('🌐 Making API call to:', `${API_BASE_URL}/api/data/users`);
+      console.log('🌐 Making API call to:', `${API_BASE_URL}/api/admin/users`);
       
-      const response = await fetch(`${API_BASE_URL}/api/data/users`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
         headers: {
-          'x-auth-token': token
-        }
+          'Authorization': token ? `Bearer ${token}` : '',
+          'x-auth-token': token || ''
+        },
+        credentials: 'include'
       });
 
       console.log('📡 Response status:', response.status);

@@ -14,28 +14,42 @@ exports.findAndNotifyRider = async (orderId) => {
         const order = await Order.findById(orderId);
         if (!order) return console.error('Order not found for dispatch:', orderId);
         if (order.rider || ['cancelled', 'delivered', 'picked_up'].includes(order.status)) return;
-        if (!['accepted', 'ready'].includes(order.status)) return;
+        if (!['placed', 'accepted', 'preparing', 'ready'].includes(order.status)) return;
         const restaurant = await Restaurant.findById(order.restaurant);
         if (!restaurant?.location?.coordinates) {
             return console.error('Restaurant location missing for dispatch');
         }
         const previousRequests = await RideRequest.find({ order: orderId }).select('rider');
         const alreadyNotifiedRiderIds = previousRequests.map(r => r.rider);
-        const nearbyRiders = await Rider.find({
-            _id: { $nin: alreadyNotifiedRiderIds },
-            isOnline: true,
-            isAvailable: true,
-            verificationStatus: 'approved',
-            currentLocation: {
-                $near: {
-                    $geometry: {
-                        type: 'Point',
-                        coordinates: restaurant.location.coordinates
-                    },
-                    $maxDistance: SEARCH_RADIUS_KM * 1000
+        let nearbyRiders = [];
+        try {
+            nearbyRiders = await Rider.find({
+                _id: { $nin: alreadyNotifiedRiderIds },
+                isOnline: true,
+                isAvailable: true,
+                verificationStatus: 'approved',
+                currentLocation: {
+                    $near: {
+                        $geometry: {
+                            type: 'Point',
+                            coordinates: restaurant.location.coordinates
+                        },
+                        $maxDistance: SEARCH_RADIUS_KM * 1000
+                    }
                 }
-            }
-        }).populate('user', 'name mobile').limit(BATCH_SIZE);
+            }).populate('user', 'name mobile').limit(BATCH_SIZE);
+        } catch (geoErr) {
+            console.warn('[Dispatch] GeoNear error, falling back to online riders:', geoErr.message);
+        }
+
+        if (nearbyRiders.length === 0) {
+            nearbyRiders = await Rider.find({
+                _id: { $nin: alreadyNotifiedRiderIds },
+                isOnline: true,
+                verificationStatus: 'approved'
+            }).populate('user', 'name mobile').limit(BATCH_SIZE);
+        }
+
         if (nearbyRiders.length === 0) {
             console.log(`[Dispatch] No more riders found for Order ${orderId} — all batches exhausted`);
             socketService.emitToRestaurant(order.restaurant.toString(), 'order:no_rider_found', {

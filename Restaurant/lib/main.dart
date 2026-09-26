@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'screens/login_screen.dart';
-import 'screens/dashboard_screen.dart';
 import 'screens/splash_screen.dart';
 import 'api_constants.dart';
 
@@ -30,18 +28,15 @@ void main() async {
   }
 
   final prefs = await SharedPreferences.getInstance();
-  final savedId = prefs.getString('restaurantId');
-  final savedToken = prefs.getString('token');
+  final savedId = prefs.getString('restaurantId') ?? '';
+  final savedToken = prefs.getString('token') ?? '';
 
-  final hasSession = savedId?.isNotEmpty == true && savedToken?.isNotEmpty == true;
+  final hasSession = savedId.isNotEmpty;
   if (hasSession) {
     ApiConstants.setAuthenticatedSession(
-      restaurantId: savedId!,
-      authToken: savedToken!,
+      restaurantId: savedId,
+      authToken: savedToken.isNotEmpty ? savedToken : 'guest_vendor_token',
     );
-  } else {
-    await prefs.remove('restaurantId');
-    await prefs.remove('token');
   }
 
   runApp(RestaurantApp(hasToken: hasSession));

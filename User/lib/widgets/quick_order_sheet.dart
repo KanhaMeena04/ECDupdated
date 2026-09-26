@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../core/models/product.dart';
 import '../providers/cart_provider.dart';
 import '../providers/theme_provider.dart';
-import '../services/dummy_data.dart';
 import '../services/restaurant_api_service.dart';
 import '../routes/app_routes.dart';
 import 'safe_image.dart';
@@ -51,23 +50,20 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
 
   Future<void> _loadProducts() async {
     try {
-      final menuItems = await RestaurantApiService.getRestaurantMenu('gourmet-kitchen');
-      if (menuItems.isNotEmpty) {
-        _allProducts = menuItems.map((item) => Product(
+      final popularDishes = await RestaurantApiService.getPopularDishes();
+      if (popularDishes.isNotEmpty) {
+        _allProducts = popularDishes.map((item) => Product(
           id: item.id,
           name: item.name,
           description: item.description,
-          price: item.price.toDouble(),
+          price: item.price > 0 ? item.price : 149.0,
           image: item.imageUrl,
-          category: item.category,
-          rating: item.rating,
-          isVeg: item.isVeg,
+          category: item.category.isNotEmpty ? item.category : 'General',
+          rating: 4.5,
+          isVeg: true,
         )).toList();
-      } else {
-        _allProducts = DummyData.getProducts();
       }
     } catch (_) {
-      _allProducts = DummyData.getProducts();
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

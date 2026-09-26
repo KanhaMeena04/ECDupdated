@@ -63,40 +63,40 @@ Future<Map<String, double>?> getCoordinatesFromAddress(String address) async {
 }
 
 Future<String> getCurrentLocationName() async {
-  if (kFrontendPreviewMode) {
-    return "Vijay Nagar, Indore";
-  }
-
   try {
     final position = await getCurrentPositionSafe();
     if (position == null) {
-      return "Vijay Nagar, Indore";
+      return "Current Location";
     }
 
     return await reverseGeocode(position.latitude, position.longitude);
   } catch (_) {
-    return "Vijay Nagar, Indore";
+    return "Current Location";
   }
 }
 
 Future<String> reverseGeocode(double lat, double lng) async {
-  if (kFrontendPreviewMode) {
-    return "Vijay Nagar, Indore";
-  }
   try {
     List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng).timeout(
-      const Duration(seconds: 3),
+      const Duration(seconds: 4),
     );
     if (placemarks.isNotEmpty) {
       Placemark place = placemarks[0];
-      final parts = [
-        place.subLocality,
-        place.locality,
-      ].where((p) => p != null && p.isNotEmpty).toList();
+      final List<String> parts = [];
+      if (place.name != null && place.name!.trim().isNotEmpty && place.name != place.locality) {
+        parts.add(place.name!.trim());
+      }
+      if (place.subLocality != null && place.subLocality!.trim().isNotEmpty && place.subLocality != place.locality) {
+        parts.add(place.subLocality!.trim());
+      }
+      if (place.locality != null && place.locality!.trim().isNotEmpty) {
+        parts.add(place.locality!.trim());
+      }
 
-      if (parts.isNotEmpty) return parts.join(', ');
-      return place.administrativeArea ?? "Vijay Nagar, Indore";
+      if (parts.isNotEmpty) return parts.toSet().join(', ');
+      return place.locality ?? place.administrativeArea ?? "Current Location";
     }
   } catch (_) {}
-  return "Vijay Nagar, Indore";
+  return "Current Location";
 }
+

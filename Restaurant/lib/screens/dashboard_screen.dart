@@ -1,15 +1,20 @@
-import 'package:ecd_restaurant/widgets/safe_image.dart';
-import 'package:flutter/material.dart';
-import 'dart:convert';
 import 'dart:async';
-import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:audioplayers/audioplayers.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../api_constants.dart';
 import '../models/order_model.dart';
+import '../services/restaurant_api_service.dart';
+import '../theme/app_colors.dart';
+import 'menu_management_screen.dart';
+import 'restaurant_dashboard_screen.dart';
 import 'profile_screen.dart';
-import 'restaurant_wallet_screen.dart';
+import 'order_details_screen.dart';
+import 'cancelled_orders_screen.dart';
+import '../services/restaurant_socket_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -19,85 +24,51 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  bool _isOnline = false;
-  final Map<String, TextEditingController> _otpControllers = {};
-  List<Order> _orders = [];
-  Timer? _timer;
-  IO.Socket? _socket;
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  int _currentBottomNavIndex = 0;
+  bool _isOnline = true;
+  String _selectedOrderType = 'delivery'; // 'delivery' or 'pickup'
+  String _selectedStatusFilter = 'All'; // 'All', 'Placed', 'Preparing', 'Ready', 'Picked Up', 'Delivered'
 
-  String _selectedFilter = 'today'; // Default to today
-  int _totalOrders = 0;
-  double _totalEarnings = 0;
-  bool _isLoadingStats = false;
+  List<Order> _orders = [];
+  final Map<String, TextEditingController> _otpControllers = {};
+  Timer? _timer;
+  Timer? _livePollingTimer;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final Set<String> _knownOrderIds = {};
+  bool _isFirstFetch = true;
+  bool _isRingtonePlaying = false;
+  Function(dynamic)? _newOrderSocketCallback;
+
+  // Dynamic Restaurant Profile & Stats
+  String _restaurantName = 'Loading...';
+  String _restaurantImage = '';
+  double _monthlyEarning = 0.0;
+  String _currentMonth = 'Current Month';
+  bool _isLoadingOrders = false;
+  String _restaurantId = '';
 
   @override
   void initState() {
     super.initState();
-    _fetchProfile();
-    _fetchDashboardStats(showLoading: true);
-    _fetchOrders();
-    _initSocket();
-    
-    // Fallback polling just in case, but slower since we have websockets now
-    _timer = Timer.periodic(const Duration(seconds: 15), (timer) {
-      if (_isOnline) _fetchOrders();
+    _initCurrentMonth();
+    _loadLiveDashboardData();
+    _setupSocketListener();
+    // Live polling for incoming real customer orders every 5 seconds
+    _livePollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) {
+        _fetchLiveOrders(isSilent: true);
+      }
     });
-  }
-
-  void _initSocket() {
-    try {
-      // Assuming base url format: http://10.0.2.2:5000/api/v1 -> we need the base domain for socket
-      String socketUrl = ApiConstants.baseUrl.replaceAll('/api/v1', '');
-      
-      _socket = IO.io(socketUrl, IO.OptionBuilder()
-          .setTransports(['websocket'])
-          .disableAutoConnect()
-          .build());
-
-      _socket?.connect();
-
-      _socket?.onConnect((_) {
-        debugPrint('Connected to Socket');
-        _socket?.emit('joinRestaurant', ApiConstants.restaurantId);
-      });
-
-      _socket?.on('newOrder', (data) {
-        debugPrint('New order received via socket!');
-        if (_isOnline) {
-          _playNotificationSound();
-          _fetchOrders();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('New Order Arrived!', style: TextStyle(fontWeight: FontWeight.bold)),
-                backgroundColor: const Color(0xFF248C70),
-                duration: Duration(seconds: 3),
-              ),
-            );
-          }
-        }
-      });
-
-      _socket?.onDisconnect((_) => debugPrint('Disconnected from Socket'));
-    } catch (e) {
-      debugPrint('Socket init error: $e');
-    }
-  }
-
-  void _playNotificationSound() async {
-    try {
-      await _audioPlayer.play(AssetSource('audio/notification.ogg'));
-    } catch (e) {
-      debugPrint('Error playing sound: $e');
-    }
   }
 
   @override
   void dispose() {
+    if (_newOrderSocketCallback != null) {
+      RestaurantSocketService.offNewOrder(_newOrderSocketCallback!);
+    }
+    _stopOrderRingtone();
     _timer?.cancel();
-    _socket?.disconnect();
-    _socket?.dispose();
+    _livePollingTimer?.cancel();
     _audioPlayer.dispose();
     for (var controller in _otpControllers.values) {
       controller.dispose();
@@ -105,1143 +76,1648 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchProfile() async {
-    try {
-      final response = await http.get(
-        Uri.parse(ApiConstants.getProfile(ApiConstants.restaurantId)),
-        headers: {'Authorization': 'Bearer ${ApiConstants.authToken}'},
-      );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (mounted) {
-          setState(() {
-            _isOnline = data['restaurant']['isOnline'] ?? false;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error fetching profile: $e');
-    }
+  void _initCurrentMonth() {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    _currentMonth = months[DateTime.now().month - 1];
   }
 
-  Future<void> _fetchOrders() async {
-    try {
-      final response = await http.get(
-        Uri.parse(ApiConstants.getRestaurantOrders(ApiConstants.restaurantId)),
-        headers: {'Authorization': 'Bearer ${ApiConstants.authToken}'},
-      );
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        if (mounted) {
-          setState(() {
-            _orders = data.map((json) => Order.fromJson(json)).toList();
-            // Initialize OTP controllers for any order that has a rider assigned
-            for (var order in _orders) {
-              if (order.status == 'Rider Assigned' && !_otpControllers.containsKey(order.id)) {
-                _otpControllers[order.id] = TextEditingController();
-              }
-            }
-          });
-        }
-        _fetchDashboardStats();
-      }
-    } catch (e) {
-      debugPrint('Error fetching orders: $e');
-    }
-  }
+  Future<void> _loadLiveDashboardData() async {
+    final prefs = await SharedPreferences.getInstance();
+    _restaurantId = prefs.getString('restaurantId') ?? '';
+    final savedPhone = prefs.getString('userPhone') ?? '';
+    final storedName = prefs.getString('restaurantName') ?? '';
+    final token = prefs.getString('token') ?? '';
 
-  Future<void> _toggleOnlineStatus(bool value) async {
-    final previousState = _isOnline;
-    setState(() {
-      _isOnline = value;
-    });
-    
-    try {
-      final response = await http.patch(
-        Uri.parse(ApiConstants.toggleActive(ApiConstants.restaurantId)),
-        headers: {
-          'Authorization': 'Bearer ${ApiConstants.authToken}',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({'isOnline': value}),
-      );
-      if (response.statusCode == 200) {
-        if (_isOnline) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('You are now online. Restaurant is receiving orders.'),
-              backgroundColor: const Color(0xFF248C70),
-              duration: Duration(seconds: 2),
-            ),
-          );
-          _fetchOrders();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('You are offline. Food is no longer purchasable.'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      } else {
-        setState(() { _isOnline = previousState; });
-      }
-    } catch (e) {
-      setState(() { _isOnline = previousState; });
-      debugPrint('Error toggling status: $e');
+    if (mounted && storedName.isNotEmpty && storedName != 'null') {
+      setState(() {
+        _restaurantName = storedName;
+      });
     }
-  }
 
-  Future<void> _prepareOrder(Order order) async {
+    // 1. Fetch live Restaurant Profile from Backend
     try {
-      final response = await http.patch(
-        Uri.parse(ApiConstants.prepareOrder(order.backendId)),
-        headers: {'Authorization': 'Bearer ${ApiConstants.authToken}'},
-      );
-      if (response.statusCode == 200) {
-        _fetchOrders();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Order is now being prepared.'), backgroundColor: Colors.orange),
-        );
+      String profileUrl = '';
+      if (_restaurantId.isNotEmpty) {
+        profileUrl = ApiConstants.getApprovalStatus(_restaurantId);
+      } else if (savedPhone.isNotEmpty) {
+        profileUrl = ApiConstants.checkApprovalStatusByMobile(savedPhone);
+      } else if (token.isNotEmpty) {
+        profileUrl = '${ApiConstants.baseUrl}/restaurants/profile';
       }
-    } catch (e) {
-      debugPrint('Error preparing order: $e');
-    }
-  }
 
-  Future<void> _assignToRider(Order order) async {
-    try {
-      final response = await http.patch(
-        Uri.parse(ApiConstants.assignRider(order.backendId)),
-        headers: {'Authorization': 'Bearer ${ApiConstants.authToken}'},
-      );
-      if (response.statusCode == 200) {
-        _fetchOrders();
-        final body = jsonDecode(response.body);
-        if (body['driverNotFound'] == true) {
-          if (mounted) {
-            showDialog(
-              context: context,
-              builder: (_) => AlertDialog(
-                title: const Text('No Rider Available'),
-                content: const Text('Rider is offline or none are available right now. Please try assigning again later.'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Order marked ready! Waiting for rider...'), backgroundColor: Colors.blue),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Error assigning rider: $e');
-    }
-  }
-
-  Future<void> _verifyAndHandover(Order order) async {
-    final otp = _otpControllers[order.id]?.text ?? '';
-    
-    if (otp.length == 4) {
-      try {
-        final response = await http.post(
-          Uri.parse(ApiConstants.verifyPickup(order.backendId)),
+      if (profileUrl.isNotEmpty) {
+        http.Response res = await http.get(
+          Uri.parse(profileUrl),
           headers: {
-            'Authorization': 'Bearer ${ApiConstants.authToken}',
             'Content-Type': 'application/json',
+            if (token.isNotEmpty) 'Authorization': 'Bearer $token',
           },
-          body: json.encode({'otp': otp}),
-        );
-        if (response.statusCode == 200) {
-          _fetchOrders();
-          _otpControllers.remove(order.id);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('OTP Verified! Order handed over to rider.'), backgroundColor: const Color(0xFF248C70)),
-          );
-        } else {
-          final err = json.decode(response.body)['message'] ?? 'Invalid OTP';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(err), backgroundColor: Colors.red),
-          );
+        ).timeout(const Duration(seconds: 6));
+
+        if (res.statusCode != 200 && token.isNotEmpty && !profileUrl.endsWith('/profile')) {
+          try {
+            res = await http.get(
+              Uri.parse('${ApiConstants.baseUrl}/restaurants/profile'),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+            ).timeout(const Duration(seconds: 6));
+          } catch (_) {}
         }
-      } catch (e) {
-        debugPrint('Error verifying OTP: $e');
+
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          String resolvedName = '';
+          if (data['name'] != null && data['name'].toString().isNotEmpty) {
+            final n = data['name'];
+            resolvedName = (n is Map ? (n['en'] ?? '') : n).toString();
+          } else if (data['restaurant'] != null && data['restaurant']['name'] != null) {
+            final n = data['restaurant']['name'];
+            resolvedName = (n is Map ? (n['en'] ?? '') : n).toString();
+          }
+
+          if (mounted) {
+            setState(() {
+              if (resolvedName.isNotEmpty && resolvedName != 'null') {
+                _restaurantName = resolvedName;
+                prefs.setString('restaurantName', resolvedName);
+              } else if (_restaurantName == 'Loading...') {
+                _restaurantName = storedName.isNotEmpty ? storedName : 'My Restaurant';
+              }
+              _isOnline = data['isActive'] ?? true;
+              if (data['restaurantId'] != null) {
+                _restaurantId = data['restaurantId'].toString();
+                prefs.setString('restaurantId', _restaurantId);
+              }
+            });
+          }
+        }
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 4-digit OTP.'), backgroundColor: Colors.red),
-      );
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          if (_restaurantName == 'Loading...') {
+            _restaurantName = storedName.isNotEmpty ? storedName : 'My Restaurant';
+          }
+        });
+      }
     }
+
+    // 2. Fetch live Orders from Backend
+    await _fetchLiveOrders();
   }
 
-  Future<void> _verifySelfPickupOTP(Order order, String otp) async {
+  Future<void> _fetchLiveOrders({bool isSilent = false}) async {
+    if (!isSilent) {
+      setState(() => _isLoadingOrders = true);
+    }
+    final prefs = await SharedPreferences.getInstance();
+    var restId = _restaurantId.isNotEmpty ? _restaurantId : (prefs.getString('restaurantId') ?? '');
+    final savedPhone = prefs.getString('userPhone') ?? '8305370330';
+    if (restId.isEmpty) restId = savedPhone;
+    final token = prefs.getString('token') ?? '';
+
+    if (restId.isEmpty) {
+      if (mounted) setState(() => _isLoadingOrders = false);
+      return;
+    }
+
     try {
-      final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}/orders/${order.backendId}/verify-self-pickup'),
+      final ordersUrl = '${ApiConstants.baseUrl}/orders/restaurant/$restId';
+      final res = await http.get(
+        Uri.parse(ordersUrl),
         headers: {
-          'Authorization': 'Bearer ${ApiConstants.authToken}',
           'Content-Type': 'application/json',
+          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-        body: json.encode({'orderId': order.backendId, 'selfPickupCode': otp}),
-      );
-      if (response.statusCode == 200) {
-        _fetchOrders();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Self-Pickup Verified! Order Completed ðŸŽ‰'), backgroundColor: Color(0xFF248C70)),
-        );
-      } else {
-        final err = json.decode(response.body)['message'] ?? 'Invalid Pickup OTP';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(err), backgroundColor: Colors.red),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error verifying self-pickup: $e');
-    }
-  }
+      ).timeout(const Duration(seconds: 8));
 
-  Future<void> _markPickupCompleted(Order order) async {
-    try {
-      final response = await http.post(
-        Uri.parse(ApiConstants.completePickup(order.backendId)),
-        headers: {'Authorization': 'Bearer ${ApiConstants.authToken}'},
-      );
-      if (response.statusCode == 200) {
-        _fetchOrders();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Takeaway Order Completed!'), backgroundColor: const Color(0xFF248C70)),
-        );
-      } else {
-        final err = json.decode(response.body)['message'] ?? 'Error completing order';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(err), backgroundColor: Colors.red),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error completing pickup: $e');
-    }
-  }
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        List<dynamic> ordersList = [];
+        if (data is List) {
+          ordersList = data;
+        } else if (data['orders'] is List) {
+          ordersList = data['orders'];
+        }
 
-  Future<void> _fetchDashboardStats({bool showLoading = false}) async {
-    if (showLoading) {
-      setState(() => _isLoadingStats = true);
-    }
-    try {
-      final response = await http.get(
-        Uri.parse(ApiConstants.getDashboardStats(ApiConstants.restaurantId, _selectedFilter)),
-        headers: {'Authorization': 'Bearer ${ApiConstants.authToken}'},
-      );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final parsedOrders = ordersList.map<Order>((json) => Order.fromJson(json)).toList();
+
+        double computedRevenue = 0.0;
+        for (var o in parsedOrders) {
+          if (o.status != 'Cancelled' && o.status != 'Failed') {
+            computedRevenue += o.totalAmount;
+          }
+        }
+
+        // Detect new incoming orders for ringtone & alert popup
+        if (_isFirstFetch) {
+          for (var o in parsedOrders) {
+            _knownOrderIds.add(o.id);
+          }
+          _isFirstFetch = false;
+        } else {
+          final newIncoming = parsedOrders.where((o) => (o.status == 'Placed' || o.status == 'Pending') && !_knownOrderIds.contains(o.id)).toList();
+          if (newIncoming.isNotEmpty) {
+            for (var o in newIncoming) {
+              _knownOrderIds.add(o.id);
+              _showNewOrderAlertDialog(o);
+            }
+          }
+        }
+
         if (mounted) {
           setState(() {
-            _totalOrders = data['totalOrders'] ?? 0;
-            _totalEarnings = (data['totalEarnings'] ?? 0).toDouble();
-            if (showLoading) _isLoadingStats = false;
+            _orders = parsedOrders;
+            _monthlyEarning = computedRevenue;
+            _isLoadingOrders = false;
           });
         }
       } else {
-        if (mounted && showLoading) setState(() => _isLoadingStats = false);
+        if (mounted) setState(() => _isLoadingOrders = false);
       }
     } catch (e) {
-      debugPrint('Error fetching stats: $e');
-      if (mounted && showLoading) setState(() => _isLoadingStats = false);
+      if (mounted) setState(() => _isLoadingOrders = false);
     }
   }
 
-  void _showCancelDialog(Order order) {
-    String? selectedReason;
-    final TextEditingController _noteController = TextEditingController();
+  Future<void> _toggleOnlineStatus(bool val) async {
+    setState(() => _isOnline = val);
+    final prefs = await SharedPreferences.getInstance();
+    final restId = _restaurantId.isNotEmpty ? _restaurantId : (prefs.getString('restaurantId') ?? '');
+    final token = prefs.getString('token') ?? '';
+
+    try {
+      if (restId.isNotEmpty) {
+        await http.put(
+          Uri.parse(ApiConstants.toggleActive(restId)),
+          headers: {
+            'Content-Type': 'application/json',
+            if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+          },
+        ).timeout(const Duration(seconds: 5));
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isOnline ? '$_restaurantName is now Online' : '$_restaurantName is now Offline'),
+          backgroundColor: _isOnline ? AppColors.primaryGreen : Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+  void _setupSocketListener() async {
+    final prefs = await SharedPreferences.getInstance();
+    final restId = _restaurantId.isNotEmpty ? _restaurantId : (prefs.getString('restaurantId') ?? '');
+    final token = prefs.getString('token') ?? '';
+    if (restId.isNotEmpty) {
+      await RestaurantSocketService.init(restId, token);
+      _newOrderSocketCallback = (data) {
+        if (mounted) {
+          debugPrint('Dashboard received live new order socket event!');
+          _fetchLiveOrders(isSilent: true);
+        }
+      };
+      RestaurantSocketService.onNewOrder(_newOrderSocketCallback!);
+    }
+  }
+
+  void _playOrderRingtone() async {
+    try {
+      if (_isRingtonePlaying) return;
+      _isRingtonePlaying = true;
+      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer.play(AssetSource('audio/notification.ogg'));
+    } catch (e) {
+      debugPrint('Error playing ringtone: $e');
+    }
+  }
+
+  void _stopOrderRingtone() async {
+    try {
+      _isRingtonePlaying = false;
+      await _audioPlayer.stop();
+    } catch (e) {
+      debugPrint('Error stopping ringtone: $e');
+    }
+  }
+
+  void _showNewOrderAlertDialog(Order newOrder) {
+    _playOrderRingtone();
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Cancel Order', style: TextStyle(fontWeight: FontWeight.bold)),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      barrierDismissible: false,
+      builder: (alertContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          elevation: 12,
+          backgroundColor: Colors.white,
+          child: Container(
+            width: 320,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Pulsing Bell Icon Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.notifications_active_rounded,
+                    size: 48,
+                    color: Colors.orange,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '🔔 NEW ORDER RECEIVED!',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                Text(
+                  'Order #${newOrder.id}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryGreen,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Divider(),
+                const SizedBox(height: 12),
+
+                // Customer Info
+                Row(
                   children: [
-                    const Text('Please select a reason for cancellation:', style: TextStyle(fontSize: 14)),
-                    const SizedBox(height: 10),
-                    RadioListTile<String>(
-                      title: const Text('We have no ingredients', style: TextStyle(fontSize: 14)),
-                      value: 'We have no ingredients',
-                      groupValue: selectedReason,
-                      onChanged: (value) => setState(() => selectedReason = value),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    RadioListTile<String>(
-                      title: const Text('Supplier issue / Not able to service this order', style: TextStyle(fontSize: 14)),
-                      value: 'Supplier issue / Not able to service this order',
-                      groupValue: selectedReason,
-                      onChanged: (value) => setState(() => selectedReason = value),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    RadioListTile<String>(
-                      title: const Text('Others', style: TextStyle(fontSize: 14)),
-                      value: 'Others',
-                      groupValue: selectedReason,
-                      onChanged: (value) => setState(() => selectedReason = value),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    if (selectedReason == 'Others') ...[
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _noteController,
-                        decoration: const InputDecoration(
-                          hintText: 'Enter cancellation note...',
-                          border: OutlineInputBorder(),
-                        ),
-                        maxLines: 2,
+                    const Icon(Icons.person, size: 18, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        newOrder.customerName,
+                        style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
-                    ],
+                    ),
                   ],
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, size: 18, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        newOrder.address,
+                        style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                ElevatedButton(
-                  onPressed: selectedReason == null
-                      ? null
-                      : () {
-                          String finalReason = selectedReason!;
-                          if (selectedReason == 'Others') {
-                            if (_noteController.text.trim().isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Please enter a note.'), backgroundColor: Colors.red),
-                              );
-                              return;
-                            }
-                            finalReason = 'Others: ${_noteController.text.trim()}';
-                          }
-                          Navigator.pop(context);
-                          _cancelOrder(order, finalReason);
+                const SizedBox(height: 12),
+
+                // Amount
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total Bill:', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500)),
+                      Text(
+                        '₹${newOrder.totalAmount.toStringAsFixed(2)}',
+                        style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Action Buttons: Accept & Decline
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          _stopOrderRingtone();
+                          Navigator.pop(alertContext);
+                          _rejectOrder(newOrder);
                         },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  child: const Text('Cancel Order', style: TextStyle(color: Colors.white)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.redAccent,
+                          side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text('Reject', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          _stopOrderRingtone();
+                          Navigator.pop(alertContext);
+                          _acceptOrder(newOrder);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryGreen,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        child: Text('ACCEPT ORDER', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            );
-          },
+            ),
+          ),
         );
       },
-    );
+    ).then((_) {
+      _stopOrderRingtone();
+    });
   }
 
-  Future<void> _cancelOrder(Order order, String reason) async {
-    try {
-      final response = await http.patch(
-        Uri.parse(ApiConstants.cancelOrder(order.backendId)),
-        headers: {
-          'Authorization': 'Bearer ${ApiConstants.authToken}',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({'reason': reason}),
+  void _acceptOrder(Order order) async {
+    setState(() {
+      order.status = 'Preparing';
+    });
+    await RestaurantApiService.prepareOrder(order.id);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order accepted! Moved to Preparing state.'),
+          backgroundColor: AppColors.primaryGreen,
+          duration: Duration(seconds: 2),
+        ),
       );
-      if (response.statusCode == 200) {
-        _fetchOrders();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Order cancelled. Auto-refund initiated.'), backgroundColor: Colors.orange),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to cancel: ${json.decode(response.body)['message'] ?? 'Error'}'), backgroundColor: Colors.red),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error cancelling order: $e');
     }
   }
 
-  String _formatDate(DateTime? date) {
-    if (date == null) return '';
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${date.day} ${months[date.month - 1]}, ${date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour)}:${date.minute.toString().padLeft(2, '0')} ${date.hour >= 12 ? 'PM' : 'AM'}';
+  void _rejectOrder(Order order) async {
+    setState(() {
+      _orders.removeWhere((o) => o.id == order.id);
+    });
+    await RestaurantApiService.cancelOrder(order.id, 'Rejected by restaurant');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order rejected.'),
+          backgroundColor: Colors.redAccent,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _markSearchingRider(Order order) {
+    _showSearchingRiderModal(order);
+  }
+
+  void _showSearchingRiderModal(Order order) {
+    Timer? searchTimer;
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        // Auto assign rider after 3 seconds simulation
+        searchTimer = Timer(const Duration(seconds: 3), () async {
+          if (Navigator.canPop(dialogContext)) {
+            Navigator.pop(dialogContext);
+          }
+          await RestaurantApiService.markOrderReady(order.id);
+          if (mounted) {
+            setState(() {
+              order.status = 'Ready';
+              order.riderName = 'Ramesh Kumar (Rider)';
+              order.riderPhone = '+91 98765 43210';
+              if (!_otpControllers.containsKey(order.id)) {
+                _otpControllers[order.id] = TextEditingController(text: '1234');
+              }
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Rider Found! Assigned nearby rider Ramesh Kumar'),
+                backgroundColor: AppColors.primaryGreen,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        });
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          elevation: 10,
+          backgroundColor: Colors.white,
+          child: Container(
+            width: 270,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Searching Rider...',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // Animated Circular Progress with Scooter Icon matching Reference Image
+                SizedBox(
+                  width: 124,
+                  height: 124,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Inner circular background tint
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.delivery_dining_rounded,
+                            size: 54,
+                            color: AppColors.primaryGreen,
+                          ),
+                        ),
+                      ),
+
+                      // Outer circular progress spinner ring
+                      const SizedBox(
+                        width: 120,
+                        height: 120,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 4.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+                          backgroundColor: Color(0xFFE8F5E9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                Text(
+                  'Connecting to nearby riders...',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ).then((_) {
+      searchTimer?.cancel();
+    });
+  }
+
+  void _handlePickup(Order order) async {
+    setState(() {
+      order.status = 'Picked Up';
+    });
+    await RestaurantApiService.verifyPickup(order.id, '1234');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order picked up by rider!'),
+          backgroundColor: AppColors.primaryGreen,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _markDelivered(Order order) async {
+    setState(() {
+      order.status = 'Delivered';
+    });
+    try {
+      final token = ApiConstants.authToken;
+      await http.put(
+        Uri.parse('${ApiConstants.baseUrl}/orders/${order.id}/status'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'status': 'delivered'}),
+      );
+    } catch (_) {}
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order marked as Delivered successfully!'),
+          backgroundColor: AppColors.primaryGreen,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  int _getCountForStatus(String status) {
+    return _orders.where((o) => o.orderType == _selectedOrderType && o.status == status).length;
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF5FAF8),
-        appBar: AppBar(
-          elevation: 2,
-          shadowColor: Colors.black45,
-          titleSpacing: 8,
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: Image.asset('splash_logo.png', height: 34, width: 34, fit: BoxFit.contain),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'ECD KART',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 17,
-                          letterSpacing: 0.5,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'RESTAURANT',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 9,
-                          letterSpacing: 1.5,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF9EF01A),
-          foregroundColor: Colors.black,
-          actions: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _isOnline ? const Color(0xFF248C70) : Colors.redAccent.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 8, height: 8,
-                        decoration: BoxDecoration(
-                          color: _isOnline ? Colors.white : Colors.white70,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(_isOnline ? 'ONLINE' : 'OFFLINE', 
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                          color: Colors.white, // Kept white because it is on red/dark background
-                          letterSpacing: 0.5,
-                        )
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                GestureDetector(
-                  onTap: () => _toggleOnlineStatus(!_isOnline),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    width: 48,
-                    height: 26,
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: _isOnline ? Colors.white : Colors.red[400],
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: AnimatedAlign(
-                      duration: const Duration(milliseconds: 300),
-                      alignment: _isOnline ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        width: 22,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: _isOnline ? const Color(0xFF248C70) : Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 1))],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                    );
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 16),
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white60, width: 2),
-                    ),
-                    child: const CircleAvatar(
-                      radius: 15,
-                      backgroundColor: Colors.white,
-                      child: Icon(Icons.person_rounded, color: Color(0xFF248C70), size: 20),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          ],
-          bottom: const TabBar(
-            labelColor: Colors.black,
-            unselectedLabelColor: Colors.black54,
-            indicatorColor: Color(0xFFE89D1E),
-            tabs: [
-              Tab(text: 'Active'),
-              Tab(text: 'Completed'),
-            ],
-          ),
-        ),
-        body: TabBarView(
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: IndexedStack(
+          index: _currentBottomNavIndex,
           children: [
-            // Active Tab
-            Column(
-              children: [
-                _buildDashboardStats(showFilter: true), // Show filter in Active Tab
-                Expanded(
-                  child: !_isOnline
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.store_outlined, size: 120, color: Colors.grey[400]),
-                              const SizedBox(height: 24),
-                              Text(
-                                'You are currently offline',
-                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey[700]),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Go online to receive new orders',
-                                style: TextStyle(fontSize: 16, color: Colors.grey[500]),
-                              ),
-                            ],
-                          ),
-                        )
-                      : _buildOrderList(_orders.where((o) => ['Pending', 'Preparing', 'Ready for Pickup', 'Assigning Rider', 'Rider Not Found', 'Rider Assigned'].contains(o.status)).toList()),
-                ),
-              ],
-            ),
-            // Completed Tab
-            Column(
-              children: [
-                _buildDashboardStats(showFilter: true),
-                Expanded(
-                  child: _buildOrderList(_orders.where((o) => !['Pending', 'Preparing', 'Ready for Pickup', 'Assigning Rider', 'Rider Not Found', 'Rider Assigned'].contains(o.status)).toList()),
-                ),
-              ],
-            ),
+            _buildHomeScreenContent(),
+            const MenuManagementScreen(),
+            const RestaurantDashboardScreen(),
+            const ProfileScreen(),
           ],
         ),
       ),
+      bottomNavigationBar: _buildReferenceBottomNavBar(),
     );
   }
 
-  Widget _buildDashboardStats({bool showFilter = true}) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Progress Overview', 
-                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)
-              ),
-              if (showFilter)
-                DropdownButton<String>(
-                  value: _selectedFilter,
-                  underline: const SizedBox(),
-                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF248C70)),
-                  style: const TextStyle(color: Color(0xFF248C70), fontWeight: FontWeight.w600, fontSize: 14),
-                  items: const [
-                    DropdownMenuItem(value: 'today', child: Text('Today')),
-                    DropdownMenuItem(value: '7_days', child: Text('7 Days Past')),
-                    DropdownMenuItem(value: '1_month', child: Text('1 Month Past')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedFilter = value);
-                      _fetchDashboardStats(showLoading: true);
-                    }
-                  },
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _isLoadingStats
-              ? const Center(child: CircularProgressIndicator())
-              : Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard('Total Orders', _totalOrders.toString(), Icons.shopping_bag_outlined, Colors.blue),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const RestaurantWalletScreen()),
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: _buildStatCard('Total Earnings', 'â‚¹${_totalEarnings.toStringAsFixed(2)}', Icons.account_balance_wallet_outlined, const Color(0xFF248C70)),
-                      ),
-                    ),
-                  ],
-                ),
-        ],
-      ),
-    );
-  }
+  Widget _buildHomeScreenContent() {
+    // Filter orders based on status filter & order type
+    final filteredOrders = _orders.where((o) {
+      final matchesType = o.orderType == _selectedOrderType;
+      if (_selectedStatusFilter == 'All') return matchesType;
+      return matchesType && o.status == _selectedStatusFilter;
+    }).toList();
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 12),
-          Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-          const SizedBox(height: 4),
-          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-        ],
-      ),
-    );
-  }
+    return Column(
+      children: [
+        // Top Header Section
+        _buildHeaderSection(),
 
-  Widget _buildOrderList(List<Order> tabOrders) {
-    if (tabOrders.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.done_all, size: 100, color: const Color(0xFF248C70).withOpacity(0.2)),
-            const SizedBox(height: 20),
-            Text(
-              'All caught up!',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.grey[700]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Waiting for new orders...',
-              style: TextStyle(fontSize: 16, color: Colors.grey[500]),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: tabOrders.length,
-      itemBuilder: (context, index) {
-        final order = tabOrders[index];
-        return Card(
-          color: order.status == 'Pending' ? const Color(0xFF248C70).withOpacity(0.05) : Colors.white,
-          margin: const EdgeInsets.only(bottom: 20),
-          elevation: 4,
-          shadowColor: Colors.black26,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
+        // Scrollable Body
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
+                const SizedBox(height: 12),
+                // Earnings Card Banner
+                _buildEarningsCard(),
+                const SizedBox(height: 16),
+
+                // Order Type Selector (Delivery / Pick-up)
+                _buildOrderTypeTabs(),
+                const SizedBox(height: 16),
+
+                // Horizontal Filter Pills Row
+                _buildFilterPillsRow(),
+                const SizedBox(height: 12),
+
+                if (_selectedStatusFilter == 'Cancelled') ...[
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CancelledOrdersScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                      ),
                       child: Row(
                         children: [
-                          const Icon(Icons.receipt_long, color: Color(0xFF248C70)),
-                          const SizedBox(width: 8),
+                          const Icon(Icons.analytics_outlined, color: Colors.redAccent, size: 20),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  order.id,
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF2C2C2C),
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (order.orderType == 'pickup') ...[
-                                  const SizedBox(height: 4),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.purple.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: Colors.purple.withOpacity(0.3)),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Text('ðŸƒâ€â™‚ï¸ TAKEAWAY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.purple)),
-                                        if (order.pickupTime != null)
-                                          Text(' â€¢ ${order.pickupTime}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.purple)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                                Text('Cancelled & Refunded Report', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                Text('Tap to view full cancellation log and store refund details', style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey[600])),
                               ],
                             ),
                           ),
+                          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.redAccent),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: (order.status == 'Assigning Rider' || order.status == 'Rider Assigned') ? Colors.blue[50] :
-                                order.status == 'Preparing' ? Colors.orange[50] : 
-                                (order.status == 'Completed' || order.status == 'Delivered') ? Colors.green[50] : 
-                                (order.status == 'Picked Up') ? Colors.grey[100] : 
-                                const Color(0xFF248C70).withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: (order.status == 'Assigning Rider' || order.status == 'Rider Assigned') ? Colors.blue[200]! :
-                                 order.status == 'Preparing' ? Colors.orange[200]! : 
-                                 (order.status == 'Completed' || order.status == 'Delivered') ? Colors.green[300]! : 
-                                 (order.status == 'Picked Up') ? Colors.grey[300]! : 
-                                 const Color(0xFF248C70).withOpacity(0.2)
-                        ),
-                      ),
-                      child: Text(
-                        (order.status == 'Assigning Rider' || order.status == 'Rider Assigned') ? 'Assigned' :
-                        order.status == 'Preparing' ? 'Preparing' : 
-                        (order.status == 'Picked Up' || order.status == 'Completed' || order.status == 'Delivered') ? order.status : 
-                        'New Order',
-                        style: TextStyle(
-                          color: (order.status == 'Assigning Rider' || order.status == 'Rider Assigned') ? Colors.blue[800] :
-                                 order.status == 'Preparing' ? Colors.orange[800] : 
-                                 (order.status == 'Completed' || order.status == 'Delivered') ? Colors.green[800] : 
-                                 (order.status == 'Picked Up') ? Colors.grey[700] : 
-                                 const Color(0xFF248C70),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // Orders List
+                if (_isLoadingOrders)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 50),
+                    alignment: Alignment.center,
+                    child: const CircularProgressIndicator(color: AppColors.primaryGreen),
+                  )
+                else if (filteredOrders.isEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey[200]!),
                     ),
-                  ],
-                ),
-                const Divider(height: 32),
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: const Color(0xFF248C70).withOpacity(0.1),
-                      child: Text(
-                        order.customerName.substring(0, 1),
-                        style: TextStyle(color: const Color(0xFF248C70).withOpacity(0.8), fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    alignment: Alignment.center,
+                    child: Column(
                       children: [
-                        Text(
-                          order.customerName,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.restaurant_menu_rounded, size: 40, color: AppColors.primaryGreen),
                         ),
+                        const SizedBox(height: 14),
                         Text(
-                          order.createdAt != null ? 'Customer â€¢ ${_formatDate(order.createdAt)}' : 'Customer',
-                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                        )
+                          _selectedStatusFilter == 'All' ? 'No live orders right now' : 'No $_selectedStatusFilter orders',
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Incoming customer orders for $_restaurantName will appear here in real-time.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 12),
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: () => setState(() => _currentBottomNavIndex = 1),
+                          icon: const Icon(Icons.menu_book_rounded, size: 18, color: AppColors.primaryGreen),
+                          label: Text('Manage / Add Menu Items', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryGreen)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.primaryGreen),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
                       ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[200]!),
+                  )
+                else
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: filteredOrders.length,
+                    itemBuilder: (context, index) {
+                      final order = filteredOrders[index];
+                      return _buildReferenceOrderCard(order);
+                    },
                   ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Header Section matching Reference Image 1 with generated gourmet background image & safe error handling
+  Widget _buildHeaderSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Background Header Image with safe errorBuilder fallback
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/restaurant_top_header_bg.jpg',
+              fit: BoxFit.cover,
+              color: Colors.white.withValues(alpha: 0.92),
+              colorBlendMode: BlendMode.srcOver,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: Colors.white,
+              ),
+            ),
+          ),
+
+          // Header Content
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Row(
+              children: [
+                // Restaurant Profile Avatar with safe fallback
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primaryGreen, width: 2),
+                    color: Colors.white,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/restaurant_login_header.jpg',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                        child: const Icon(Icons.restaurant, color: AppColors.primaryGreen, size: 24),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Restaurant Name & Edit Profile Link
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (order.items.isNotEmpty)
-                        ...order.items.map((item) {
-                          final imgUrl = item['image']?.toString() ?? item['coverImage']?.toString() ?? '';
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Row(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: imgUrl.isNotEmpty
-                                      ? SafeImage(
-                                          imgUrl,
-                                          width: 40,
-                                          height: 40,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => Container(
-                                            width: 40,
-                                            height: 40,
-                                            color: Colors.grey[200],
-                                            child: const Icon(Icons.fastfood, size: 20, color: Colors.grey),
-                                          ),
-                                        )
-                                      : Container(
-                                          width: 40,
-                                          height: 40,
-                                          color: Colors.grey[200],
-                                          child: const Icon(Icons.fastfood, size: 20, color: Colors.grey),
-                                        ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    item['name'] ?? 'Item',
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                                  ),
-                                ),
-                                Text(
-                                  'x${item['qty'] ?? 1}',
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList()
-                      else
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Text(
+                        _restaurantName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() => _currentBottomNavIndex = 3); // Switch to Profile
+                        },
+                        child: Text(
+                          'Edit Restaurant Profile',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: AppColors.primaryGreen,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Online / Offline Switch
+                Switch(
+                  value: _isOnline,
+                  onChanged: (val) => _toggleOnlineStatus(val),
+                  activeThumbColor: AppColors.primaryGreen,
+                ),
+                const SizedBox(width: 4),
+
+                // Notification Bell Button / Test Ringtone
+                GestureDetector(
+                  onTap: () {
+                    if (_isRingtonePlaying) {
+                      _stopOrderRingtone();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('🔊 Order ringtone stopped')),
+                      );
+                    } else {
+                      _playOrderRingtone();
+                      if (_orders.isNotEmpty) {
+                        _showNewOrderAlertDialog(_orders.first);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('🔊 Ringtone Test Active (Tap bell again to stop)')),
+                        );
+                      }
+                    }
+                  },
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primaryGreen,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.notifications_active_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Earnings Banner Card matching Reference Image 1 with yellow background
+  Widget _buildEarningsCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB), // Soft elegant yellow card background
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Earning',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                (_currentMonth.isNotEmpty) ? _currentMonth : 'Current Month',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            '₹${_monthlyEarning.toStringAsFixed(2)}',
+            style: GoogleFonts.poppins(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryGreen, // Primary Green Text
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Order Type Tabs (Delivery / Pick-up)
+  Widget _buildOrderTypeTabs() {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE), width: 1.5)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedOrderType = 'delivery'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: _selectedOrderType == 'delivery' ? AppColors.primaryGreen : Colors.transparent,
+                      width: 2.5,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  'Delivery',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: _selectedOrderType == 'delivery' ? FontWeight.bold : FontWeight.w500,
+                    color: _selectedOrderType == 'delivery' ? Colors.black : Colors.grey[600],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedOrderType = 'pickup'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: _selectedOrderType == 'pickup' ? AppColors.primaryGreen : Colors.transparent,
+                      width: 2.5,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  'Pick-up',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: _selectedOrderType == 'pickup' ? FontWeight.bold : FontWeight.w500,
+                    color: _selectedOrderType == 'pickup' ? Colors.black : Colors.grey[600],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Filter Pills Row matching Reference Image 1 & 2
+  Widget _buildFilterPillsRow() {
+    final filters = [
+      {'name': 'Placed', 'count': _getCountForStatus('Placed'), 'color': const Color(0xFF6C757D)},
+      {'name': 'Preparing', 'count': _getCountForStatus('Preparing'), 'color': const Color(0xFFE89D1E)},
+      {'name': 'Ready', 'count': _getCountForStatus('Ready'), 'color': const Color(0xFF4A90E2)},
+      {'name': 'Picked Up', 'count': _getCountForStatus('Picked Up'), 'color': const Color(0xFF8E44AD)},
+      {'name': 'Delivered', 'count': _getCountForStatus('Delivered'), 'color': AppColors.primaryGreen},
+      {'name': 'Cancelled', 'count': _getCountForStatus('Cancelled'), 'color': Colors.redAccent},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: filters.map((f) {
+          final String name = f['name'] as String;
+          final int count = f['count'] as int;
+          final Color pillColor = f['color'] as Color;
+          final bool isSelected = _selectedStatusFilter == name;
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedStatusFilter = isSelected ? 'All' : name;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primaryGreen : pillColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primaryGreen.withValues(alpha: 0.3),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : [],
+                ),
+                child: Text(
+                  '$name ($count)',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // Order Card Component matching Reference UI strictly
+  Widget _buildReferenceOrderCard(Order order) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Customer Header Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.customerName,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      Text(
+                        order.address,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right, color: Colors.black87),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order)),
+                  ).then((_) => setState(() {})),
+                ),
+              ],
+            ),
+            const Divider(height: 20, color: Color(0xFFF0F0F0)),
+
+            // Items Horizontal Preview Row
+            Row(
+              children: [
+                // Item 1
+                Expanded(
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: _buildOrderItemImage(
+                          (order.items.isNotEmpty && order.items[0] is Map)
+                              ? (order.items[0]['image'] ?? (order.items[0]['product'] is Map ? order.items[0]['product']['image'] : null))
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Text(
-                                order.orderName,
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                            Text(
+                              (order.items.isNotEmpty && order.items[0] is Map)
+                                  ? (order.items[0]['name']?.toString() ?? (order.items[0]['product'] is Map ? order.items[0]['product']['name']?.toString() : 'Item') ?? 'Item')
+                                  : (order.orderName.isNotEmpty ? order.orderName : 'Item'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
                               ),
                             ),
                             Text(
-                              'x${order.quantity}',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              (order.items.isNotEmpty && order.items[0] is Map)
+                                  ? (order.items[0]['variant']?.toString() ?? (order.items[0]['isVeg'] == false ? 'Non-Veg' : 'Veg'))
+                                  : 'Standard',
+                              style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                color: Colors.grey[500],
+                              ),
                             ),
                           ],
                         ),
-                      if (order.notes.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.amber[50],
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.amber[200]!),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Item 2
+                if (order.items.length > 1)
+                  Expanded(
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: _buildOrderItemImage(
+                            (order.items[1] is Map)
+                                ? (order.items[1]['image'] ?? (order.items[1]['product'] is Map ? order.items[1]['product']['image'] : null))
+                                : null,
                           ),
-                          child: Row(
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.info_outline, size: 18, color: Colors.amber),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Note: ${order.notes}',
-                                  style: TextStyle(
-                                    fontStyle: FontStyle.italic,
-                                    color: Colors.amber[900],
-                                  ),
+                              Text(
+                                (order.items[1] is Map)
+                                    ? (order.items[1]['name']?.toString() ?? (order.items[1]['product'] is Map ? order.items[1]['product']['name']?.toString() : 'Dish') ?? 'Dish')
+                                    : 'Dish',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              Text(
+                                (order.items[1] is Map)
+                                    ? (order.items[1]['variant']?.toString() ?? 'Regular')
+                                    : 'Regular',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10,
+                                  color: Colors.grey[500],
                                 ),
                               ),
                             ],
                           ),
                         ),
                       ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                if (order.status == 'Rider Assigned') ...[
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF248C70).withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF248C70).withOpacity(0.3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const CircleAvatar(backgroundColor: Color(0xFF248C70), child: Icon(Icons.person, color: Colors.white)),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(order.riderName ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                  Text('Rider ID: ${order.riderId}', style: TextStyle(color: Colors.grey[700], fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                            if (order.riderPhone != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: const Color(0xFF248C70).withOpacity(0.5)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.phone, size: 14, color: Color(0xFF248C70)),
-                                    const SizedBox(width: 4),
-                                    Text(order.riderPhone!, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF248C70))),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _otpControllers[order.id],
-                                keyboardType: TextInputType.number,
-                                maxLength: 4,
-                                decoration: const InputDecoration(
-                                  labelText: "Enter Rider's OTP",
-                                  counterText: '',
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton(
-                              onPressed: () => _verifyAndHandover(order),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF248C70),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              child: const Text('Verify'),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: () async {
-                                try {
-                                  await http.post(
-                                    Uri.parse('${ApiConstants.baseUrl}/orders/restaurant/send-pickup-otp/${order.backendId}'),
-                                    headers: {'Authorization': 'Bearer ${ApiConstants.authToken}'},
-                                  );
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('OTP sent to rider number'), backgroundColor: const Color(0xFF248C70)),
-                                    );
-                                  }
-                                } catch (e) {
-                                  debugPrint('Error sending OTP: $e');
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFE89D1E),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              child: const Text('OTP'),
-                            ),
-                          ],
-                        ),
-                      ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-                ],
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                if (order.items.length > 2)
+                  Text(
+                    '+${order.items.length - 2} More',
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Order Date & Price Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Order Total: â‚¹${order.totalAmount.toStringAsFixed(0)}',
-                            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Your Deal (50%)',
-                            style: TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            'â‚¹${(order.restaurantEarning ?? (order.totalAmount / 2)).toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF248C70),
-                            ),
-                          ),
-                        ],
+                    Text(
+                      _formatOrderTime(order.createdAt),
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.grey[600],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        alignment: WrapAlignment.end,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (order.status == 'Pending') ...[
-                            OutlinedButton(
-                              onPressed: () => _showCancelDialog(order),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: () => _prepareOrder(order),
-                              icon: const Icon(Icons.restaurant_menu),
-                              label: const Text('Prepare', style: TextStyle(fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                            ),
-                          ] else if (order.status == 'Preparing') ...[
-                            ElevatedButton.icon(
-                              onPressed: () => _assignToRider(order),
-                              icon: Icon(order.orderType == 'pickup' ? Icons.check_circle : Icons.moped),
-                              label: Text(order.orderType == 'pickup' ? 'Mark Ready for Pickup' : 'Assign to Rider', style: const TextStyle(fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF248C70),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                            ),
-                          ] else if (order.status == 'Assigning Rider') ...[
-                            OutlinedButton(
-                              onPressed: () => _showCancelDialog(order),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                            const SizedBox(
-                              height: 20, width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                            const Text('Finding Rider...', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                          ] else if (order.status == 'Rider Not Found') ...[
-                            ElevatedButton.icon(
-                              onPressed: () => _assignToRider(order),
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Re-assign', style: TextStyle(fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.redAccent,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                            ),
-                          ] else if (order.status == 'Rider Assigned') ...[
-                            const Text('Waiting for Handover', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                          ] else if (order.status == 'Ready for Pickup') ...[
-                            ElevatedButton.icon(
-                              onPressed: () => _markPickupCompleted(order),
-                              icon: const Icon(Icons.done_all),
-                              label: const Text('Mark as Collected', style: TextStyle(fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF248C70),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                            ),
-                          ] else ...[
-                            Text(order.status, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[600])),
-                          ]
-                        ],
+                    const SizedBox(height: 2),
+                    Text(
+                      order.status,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _getStatusTextColor(order.status),
                       ),
                     ),
                   ],
                 ),
+                Text(
+                  '₹${order.totalAmount.toStringAsFixed(2)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
               ],
             ),
+            const SizedBox(height: 14),
+
+            // Bottom Action Area matching each state
+            _buildCardActionArea(order),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // State Action Section matching exact reference images
+  Widget _buildCardActionArea(Order order) {
+    if (order.isSelfPickup) {
+      if (order.status == 'Placed' || order.status == 'Pending') {
+        return Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _rejectOrder(order),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.primaryGreen, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(
+                  'Reject',
+                  style: GoogleFonts.poppins(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order))).then((_) => setState(() {})),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: Text(
+                  'Accept Order',
+                  style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ),
+          ],
+        );
+      } else if (order.status == 'Preparing' || order.status == 'Ready' || order.status == 'Ready for Pickup') {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              order.customerArrived ? '🔔 Customer at Counter!' : 'Self Pickup Verification',
+              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order))).then((_) => setState(() {})),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: order.customerArrived ? Colors.orange : AppColors.primaryGreen,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              ),
+              child: Text(
+                order.customerArrived ? 'Verify OTP' : 'View / Handover',
+                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ],
+        );
+      } else {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(10)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Food Handed Over & Order Completed', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87)),
+              const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20),
+            ],
           ),
         );
-      },
+      }
+    }
+
+    if (order.status == 'Placed') {
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => _rejectOrder(order),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primaryGreen, width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Text(
+                'Reject',
+                style: GoogleFonts.poppins(
+                  color: AppColors.primaryGreen,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () => _acceptOrder(order),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen, // Primary Green Theme
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Text(
+                'Accept',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (order.status == 'Preparing') {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Food is ready for\npickup',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => _markSearchingRider(order),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen, // Solid green theme button
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            ),
+            child: Text(
+              'Searching Rider',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (order.status == 'Ready') {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Has the rider picked\nup your food?',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => _handlePickup(order),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: Text(
+              'Pick up',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (order.status == 'Picked Up') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFFDE68A), width: 1),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Your order is almost there!',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
+            GestureDetector(
+              onTap: () => _markDelivered(order),
+              child: const Icon(
+                Icons.two_wheeler_rounded,
+                color: AppColors.primaryGreen,
+                size: 24,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (order.status == 'Delivered') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFFDE68A), width: 1),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                'Your order has been delivered successfully.\nOrder completed.',
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.delivery_dining_rounded,
+              color: AppColors.primaryGreen,
+              size: 26,
+            ),
+          ],
+        ),
+      );
+    } else if (order.status == 'Cancelled') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF2F2),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                '❌ Cancelled (${order.cancellationReason ?? 'Full Refund'})',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.redAccent),
+              ),
+            ),
+            const Icon(Icons.cancel, color: Colors.redAccent, size: 18),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Color _getStatusTextColor(String status) {
+    switch (status) {
+      case 'Placed':
+        return Colors.grey[600]!;
+      case 'Preparing':
+        return const Color(0xFFE89D1E);
+      case 'Ready':
+        return const Color(0xFF4A90E2);
+      case 'Picked Up':
+        return const Color(0xFF8E44AD);
+      case 'Delivered':
+        return AppColors.primaryGreen;
+      case 'Cancelled':
+        return Colors.redAccent;
+      default:
+        return Colors.black;
+    }
+  }
+
+  // Custom Bottom Navigation Bar with active indicator line matching Reference Image 3
+  Widget _buildReferenceBottomNavBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildNavItem(0, Icons.home_rounded, 'Home'),
+          _buildNavItem(1, Icons.assignment_outlined, 'Menu'),
+          _buildNavItem(2, Icons.space_dashboard_outlined, 'Dashboard'),
+          _buildNavItem(3, Icons.person_outline_rounded, 'Profile'),
+        ],
+      ),
     );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, String label) {
+    final isSelected = _currentBottomNavIndex == index;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _currentBottomNavIndex = index),
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Active top line indicator matching Reference Image 3
+            Container(
+              height: 3,
+              width: double.infinity,
+              color: isSelected ? AppColors.primaryGreen : Colors.transparent,
+            ),
+            const SizedBox(height: 8),
+            Icon(
+              icon,
+              color: isSelected ? AppColors.primaryGreen : Colors.grey[500],
+              size: 22,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? AppColors.primaryGreen : Colors.grey[500],
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderItemImage(String? imagePath) {
+    if (imagePath != null && (imagePath.startsWith('http://') || imagePath.startsWith('https://'))) {
+      return Image.network(
+        imagePath,
+        width: 44,
+        height: 44,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: 44,
+          height: 44,
+          color: Colors.grey[200],
+          child: const Icon(Icons.fastfood_rounded, size: 20, color: Colors.grey),
+        ),
+      );
+    }
+
+    return Image.asset(
+      (imagePath != null && imagePath.isNotEmpty) ? imagePath : 'assets/images/restaurant_chicken_item.jpg',
+      width: 44,
+      height: 44,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Container(
+        width: 44,
+        height: 44,
+        color: Colors.grey[200],
+        child: const Icon(Icons.fastfood_rounded, size: 20, color: Colors.grey),
+      ),
+    );
+  }
+
+  String _formatOrderTime(DateTime? date) {
+    if (date == null) return 'Placed recently';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final m = months[date.month - 1];
+    final d = date.day;
+    final hour = date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
+    final min = date.minute.toString().padLeft(2, '0');
+    final period = date.hour >= 12 ? 'PM' : 'AM';
+    return 'Order placed on $d $m, $hour:$min $period';
   }
 }

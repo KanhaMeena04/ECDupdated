@@ -36,24 +36,30 @@ const EditRestaurantForm = () => {
   const { cuisines, loading: cuisinesLoading, error: cuisinesError } = useCuisine();
   const {cities}=useCities()
   const toggleCuisine = (value) => {
+    const currentList = Array.isArray(data?.cuisine) ? data.cuisine : [];
     handleChange({
       target: {
         name: "cuisine",
-        value: data.cuisine.includes(value)
-          ? data.cuisine.filter((c) => c !== value)
-          : [...data?.cuisine, value],
+        value: currentList.includes(value)
+          ? currentList.filter((c) => c !== value)
+          : [...currentList, value],
       },
     });
   };
 
+  if (loading || !data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <CircularProgress sx={{ color: "#00a67e" }} />
+      </div>
+    );
+  }
 
-  if (loading || !data || !data.name) {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <CircularProgress />
-    </div>
-  );
-}
+  const displayName = typeof data.name === 'object'
+    ? (data.name?.en || Object.values(data.name)[0] || "")
+    : (data.name || "");
+
+  const safeCuisines = Array.isArray(data.cuisine) ? data.cuisine : [];
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12 font-sans text-gray-700">
@@ -66,7 +72,7 @@ const EditRestaurantForm = () => {
           </Breadcrumbs>
           <div className="flex justify-between items-center">
             <h1 className="text-white text-3xl font-extrabold flex items-center gap-3">
-              <Store size={32} /> {data?.name?.en || "Loading Restaurant..."}
+              <Store size={32} /> {displayName || "Edit Restaurant"}
             </h1>
             <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg border border-white/30 text-white text-sm flex items-center gap-2">
               <History size={16} /> Last Updated: Dec 31, 2025
@@ -77,7 +83,7 @@ const EditRestaurantForm = () => {
 
       <div className="-mt-12 max-w-7xl mx-auto px-4 md:px-10">
         {/* Reuse your existing Image Section */}
-        <ImageUploadSection  className="bg-[#fe3f3f]" isEdit={true} />
+        <ImageUploadSection className="bg-[#fe3f3f]" isEdit={true} />
 
         <Paper elevation={0} className="mt-8 rounded-2xl border border-gray-100 overflow-hidden shadow-xl">
           {error && (
@@ -87,7 +93,7 @@ const EditRestaurantForm = () => {
             </div>
           )}
 
-          <form className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-10">
+          <form className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-10" onSubmit={(e) => e.preventDefault()}>
             
             {/* LEFT COLUMN: Business Identity */}
             <div className="space-y-8">
@@ -96,8 +102,23 @@ const EditRestaurantForm = () => {
                    Information Details
                 </div>
                 <div className="grid gap-6">
-                  <TextField fullWidth variant="filled" label="Restaurant Name" name="name.en" value={data.name.en} onChange={handleChange} size="small" />
-                  <TextField fullWidth variant="filled" label="Brand Name" name="brand" value={data.brand} onChange={handleChange} size="small" />
+                  <TextField 
+                    fullWidth 
+                    variant="filled" 
+                    label="Restaurant Name" 
+                    name="name" 
+                    value={displayName} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (typeof data.name === 'object') {
+                        handleChange({ target: { name: "name", value: { ...data.name, en: val } } });
+                      } else {
+                        handleChange({ target: { name: "name", value: val } });
+                      }
+                    }} 
+                    size="small" 
+                  />
+                  <TextField fullWidth variant="filled" label="Brand Name" name="brand" value={data.brand || ""} onChange={handleChange} size="small" />
                 </div>
               </section>
               
@@ -108,12 +129,12 @@ const EditRestaurantForm = () => {
                    Legal Owner Contact
                 </div>
                 <div className="grid gap-6">
-                  <TextField fullWidth label="Owner Full Name" name="ownerName" value={data.ownerName} onChange={handleChange} size="small" />
+                  <TextField fullWidth label="Owner Full Name" name="ownerName" value={data.ownerName || ""} onChange={handleChange} size="small" />
                   <div className="grid grid-cols-2 gap-4">
-                    <TextField fullWidth label="Email Address" name="ownerEmail" value={data.ownerEmail} onChange={handleChange} size="small" />
-                    <TextField fullWidth label="Mobile Number" name="ownerMobile" value={data.ownerMobile} onChange={handleChange} size="small" />
+                    <TextField fullWidth label="Email Address" name="ownerEmail" value={data.ownerEmail || data.email || ""} onChange={handleChange} size="small" />
+                    <TextField fullWidth label="Mobile Number" name="ownerMobile" value={data.ownerMobile || data.contactNumber || ""} onChange={handleChange} size="small" />
                   </div>
-                  <TextField fullWidth label="Update Password" type="password" name="ownerPassword" value={data.ownerPassword} onChange={handleChange} size="small" placeholder="Leave blank to keep current" />
+                  <TextField fullWidth label="Update Password" type="password" name="ownerPassword" value={data.ownerPassword || ""} onChange={handleChange} size="small" placeholder="Leave blank to keep current" />
                 </div>
               </section>
 
@@ -122,8 +143,8 @@ const EditRestaurantForm = () => {
                    <ShieldCheck size={14} /> Revenue Settings
                 </div>
                 <div className="grid grid-cols-2 gap-6">
-                  <TextField fullWidth label="Packaging Fee (%)" name="packagingCharge" value={data.packagingCharge} onChange={handleChange} size="small" />
-                  <TextField fullWidth label="Admin Comm (%)" name="adminCommission" value={data.adminCommission} onChange={handleChange} size="small" />
+                  <TextField fullWidth label="Packaging Fee (%)" name="packagingCharge" value={data.packagingCharge || ""} onChange={handleChange} size="small" />
+                  <TextField fullWidth label="Admin Comm (%)" name="adminCommission" value={data.adminCommission || ""} onChange={handleChange} size="small" />
                 </div>
               </section>
             </div>
@@ -138,20 +159,20 @@ const EditRestaurantForm = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <FormControl fullWidth size="small">
                       <InputLabel>Operational City</InputLabel>
-                      <Select label="Operational City" name="city" value={data.city} onChange={handleChange}>
-                        {
-                          cities.map((city)=>(
-                            <>
-                            <MenuItem value="city1">{city}</MenuItem>
-
-                            </>
-                          )) 
-                        }
+                      <Select label="Operational City" name="city" value={data.city || (cities[0] || "Sohna")} onChange={handleChange}>
+                        {cities && cities.map((cityItem, idx) => {
+                          const cityName = typeof cityItem === 'object' ? cityItem.name : cityItem;
+                          return (
+                            <MenuItem key={idx} value={cityName}>
+                              {cityName}
+                            </MenuItem>
+                          );
+                        })}
                       </Select>
                     </FormControl>
-                    <TextField fullWidth label="Zone Area" name="area" value={data.area} onChange={handleChange} size="small" />
+                    <TextField fullWidth label="Zone Area" name="area" value={data.area || ""} onChange={handleChange} size="small" />
                   </div>
-                  <TextField fullWidth label="Full Physical Address" name="address" value={data.address} onChange={handleChange} size="small" />
+                  <TextField fullWidth label="Full Physical Address" name="address" value={data.address || ""} onChange={handleChange} size="small" />
                 </div>
               </section>
 
@@ -181,7 +202,7 @@ const EditRestaurantForm = () => {
                       key={item}
                       control={
                         <Checkbox 
-                          checked={data.cuisine.includes(item)} 
+                          checked={safeCuisines.includes(item)} 
                           onChange={() => toggleCuisine(item)} 
                           size="small" 
                           sx={{ color: '#00a67e', '&.Mui-checked': { color: '#00a67e' } }} 

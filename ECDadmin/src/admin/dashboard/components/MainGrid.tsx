@@ -32,7 +32,7 @@ const MainGrid = () => {
   const { totals, salesSeries: apiSalesSeries, loading, error } = useDashboardData();
 
   // Define default/initial fallback values if API returns empty data
-  const rawDashboard = totals || {};
+  const rawDashboard: any = totals || {};
   const dashboard = {
     totalUsers: Number(rawDashboard.totalUsers ?? 0),
     totalRiders: Number(rawDashboard.totalRiders ?? 0),

@@ -65,7 +65,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   'Last updated: June 2025',
                   style: GoogleFonts.poppins(
                     fontSize: 13,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -86,7 +86,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -118,7 +118,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                                 width: 28,
                                 height: 28,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF248C70).withOpacity(0.12),
+                                  color: const Color(0xFF248C70).withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Center(
@@ -166,7 +166,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Divider(
-                                  color: const Color(0xFF248C70).withOpacity(0.15),
+                                  color: const Color(0xFF248C70).withValues(alpha: 0.15),
                                   height: 1,
                                 ),
                                 const SizedBox(height: 12),

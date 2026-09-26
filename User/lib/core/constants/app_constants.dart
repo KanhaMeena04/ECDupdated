@@ -13,7 +13,7 @@ class AppConstants {
     }
     if (kIsWeb) return 'http://localhost:5000/api';
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:5000/api';
+      return 'http://192.168.1.11:5000/api';
     }
     return 'http://localhost:5000/api';
   }

@@ -1,0 +1,174 @@
+[
+  {
+    "_id": "6ab3b47958f7ee2e81d5aa90",
+    "state": "Madhya Pradesh",
+    "district": "Indore",
+    "city": "Indore",
+    "zone": "Vijay Nagar",
+    "village": "",
+    "pincode": "452010",
+    "isServiceActive": true,
+    "deliveryRadiusKm": 10,
+    "baseDeliveryFee": 25,
+    "minimumOrderValue": 99,
+    "peakCharge": 0,
+    "coordinates": {
+      "lat": 22.7533,
+      "lng": 75.8937
+    },
+    "createdAt": "2026-09-23T11:14:01.571Z",
+    "updatedAt": "2026-09-23T11:14:01.571Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3b47958f7ee2e81d5aa93",
+    "state": "Madhya Pradesh",
+    "district": "Indore",
+    "city": "Indore",
+    "zone": "Palasia / Old Palasia",
+    "village": "",
+    "pincode": "452001",
+    "isServiceActive": true,
+    "deliveryRadiusKm": 8,
+    "baseDeliveryFee": 25,
+    "minimumOrderValue": 99,
+    "peakCharge": 0,
+    "coordinates": {
+      "lat": 22.7244,
+      "lng": 75.8839
+    },
+    "createdAt": "2026-09-23T11:14:01.658Z",
+    "updatedAt": "2026-09-23T11:14:01.658Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3b47958f7ee2e81d5aa96",
+    "state": "Madhya Pradesh",
+    "district": "Indore",
+    "city": "Indore",
+    "zone": "Bhawarkua / Sapna Sangeeta",
+    "village": "",
+    "pincode": "452014",
+    "isServiceActive": true,
+    "deliveryRadiusKm": 8,
+    "baseDeliveryFee": 30,
+    "minimumOrderValue": 99,
+    "peakCharge": 0,
+    "coordinates": {
+      "lat": 22.6926,
+      "lng": 75.8676
+    },
+    "createdAt": "2026-09-23T11:14:01.722Z",
+    "updatedAt": "2026-09-23T11:34:41.122Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3b47958f7ee2e81d5aa99",
+    "state": "Madhya Pradesh",
+    "district": "Indore",
+    "city": "Indore",
+    "zone": "Rau / Silicon City",
+    "village": "",
+    "pincode": "453331",
+    "isServiceActive": true,
+    "deliveryRadiusKm": 12,
+    "baseDeliveryFee": 35,
+    "minimumOrderValue": 120,
+    "peakCharge": 0,
+    "coordinates": {
+      "lat": 22.6288,
+      "lng": 75.8085
+    },
+    "createdAt": "2026-09-23T11:14:01.792Z",
+    "updatedAt": "2026-09-23T11:14:01.792Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3b4a24cef86c186fc2adb",
+    "state": "Madhya Pradesh",
+    "district": "Indore",
+    "city": "Indore",
+    "zone": "Bhawarkua Square",
+    "village": "",
+    "pincode": "452001",
+    "isServiceActive": true,
+    "deliveryRadiusKm": 8,
+    "baseDeliveryFee": 30,
+    "minimumOrderValue": 100,
+    "peakCharge": 0,
+    "coordinates": {
+      "lat": 0,
+      "lng": 0
+    },
+    "createdBy": null,
+    "createdAt": "2026-09-23T11:14:42.250Z",
+    "updatedAt": "2026-09-23T11:14:42.250Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3b7b5feb07c2eaae6b15d",
+    "state": "Madhya Pradesh",
+    "district": "Indore",
+    "city": "Indore",
+    "zone": "PU4 Sceme No 54",
+    "village": "",
+    "pincode": "452010",
+    "isServiceActive": true,
+    "deliveryRadiusKm": 8,
+    "baseDeliveryFee": 30,
+    "minimumOrderValue": 100,
+    "peakCharge": 0,
+    "coordinates": {
+      "lat": 0,
+      "lng": 0
+    },
+    "createdBy": null,
+    "createdAt": "2026-09-23T11:27:49.978Z",
+    "updatedAt": "2026-09-23T11:27:49.978Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab4af07157af7a6ed06f48f",
+    "state": "Madhya Pradesh",
+    "district": "Dewas",
+    "city": "Dewas",
+    "zone": "Vikas Nagar",
+    "village": "",
+    "pincode": "455336",
+    "isServiceActive": true,
+    "deliveryRadiusKm": 8,
+    "baseDeliveryFee": 30,
+    "minimumOrderValue": 100,
+    "peakCharge": 0,
+    "coordinates": {
+      "lat": 0,
+      "lng": 0
+    },
+    "createdBy": null,
+    "createdAt": "2026-09-24T05:03:03.017Z",
+    "updatedAt": "2026-09-24T05:03:03.017Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab4e4f837f12ba55d9670bb",
+    "state": "Madhya Pradesh",
+    "district": "Indore",
+    "city": "Indore",
+    "zone": "Vijay Nagar",
+    "village": "",
+    "pincode": "452010",
+    "isServiceActive": true,
+    "deliveryRadiusKm": 8,
+    "baseDeliveryFee": 30,
+    "minimumOrderValue": 100,
+    "peakCharge": 0,
+    "coordinates": {
+      "lat": 0,
+      "lng": 0
+    },
+    "createdBy": "6a79b491f94ea206034b4029",
+    "createdAt": "2026-09-24T08:53:12.168Z",
+    "updatedAt": "2026-09-24T08:53:12.168Z",
+    "__v": 0
+  }
+]

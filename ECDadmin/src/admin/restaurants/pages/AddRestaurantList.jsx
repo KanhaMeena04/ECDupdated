@@ -5,10 +5,10 @@ export default function AddRestaurantsList() {
   return (
 	 <div className="w-full  lg:mt-0 p-2 xs:p-5">
 		<PageHeader
-	  title="Active Restaurant List"
+	  title="Add New Restaurant Partner"
 	  breadcrumbs={[
-		{ label: "Active Restaurant List" },
-		{ label: "Restaurants", active: true }
+		{ label: "Restaurants" },
+		{ label: "Add Restaurant", active: true }
 	  ]}
 	/>
 	

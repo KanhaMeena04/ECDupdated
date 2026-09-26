@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/safe_image.dart';
+import '../../services/category_service.dart';
 
 class CategoryPrefItem {
   final String id;
@@ -34,71 +35,29 @@ class FoodPreferencesPage extends StatefulWidget {
 }
 
 class _FoodPreferencesPageState extends State<FoodPreferencesPage> {
-  // Start empty so user has full freedom to select/unselect any item
   final Set<String> _selectedCategories = {};
+  List<CategoryPrefItem> _categoryItems = [];
+  bool _isLoading = true;
 
-  final List<CategoryPrefItem> _categoryItems = const [
-    CategoryPrefItem(
-      id: 'italian',
-      title: 'Italian',
-      imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400',
-    ),
-    CategoryPrefItem(
-      id: 'french',
-      title: 'French',
-      imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400',
-    ),
-    CategoryPrefItem(
-      id: 'mexican',
-      title: 'Mexican',
-      imageUrl: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400',
-    ),
-    CategoryPrefItem(
-      id: 'chinese',
-      title: 'Chinese',
-      imageUrl: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400',
-    ),
-    CategoryPrefItem(
-      id: 'japanese',
-      title: 'Japanese',
-      imageUrl: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=400',
-    ),
-    CategoryPrefItem(
-      id: 'thai',
-      title: 'Thai',
-      imageUrl: 'https://images.unsplash.com/photo-1559847844-5315695dadae?w=400',
-    ),
-    CategoryPrefItem(
-      id: 'mediterranean',
-      title: 'Mediterranean',
-      imageUrl: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400',
-    ),
-    CategoryPrefItem(
-      id: 'american',
-      title: 'American',
-      imageUrl: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=400',
-    ),
-    CategoryPrefItem(
-      id: 'spanish',
-      title: 'Spanish',
-      imageUrl: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=400',
-    ),
-    CategoryPrefItem(
-      id: 'indian',
-      title: 'Indian',
-      imageUrl: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400',
-    ),
-    CategoryPrefItem(
-      id: 'non_veg',
-      title: 'Non-Veg',
-      imageUrl: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400',
-    ),
-    CategoryPrefItem(
-      id: 'vegetarian',
-      title: 'Vegetarian',
-      imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400',
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadDynamicCategories();
+  }
+
+  Future<void> _loadDynamicCategories() async {
+    final categories = await CategoryService.getCategoryTree();
+    if (mounted) {
+      setState(() {
+        _categoryItems = categories.map((c) => CategoryPrefItem(
+          id: c.id,
+          title: c.name,
+          imageUrl: c.image,
+        )).toList();
+        _isLoading = false;
+      });
+    }
+  }
 
   void _toggleCategory(String title) {
     setState(() {

@@ -14,111 +14,7 @@ import '../profile/policy_page.dart';
 import '../../services/restaurant_api_service.dart';
 import '../../services/issue_api_service.dart';
 
-// â”€â”€ Order status enum â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-enum OrderStatus { delivered, onTheWay, preparing, cancelled }
-
-// â”€â”€ Order model (mock) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-class _Order {
-  final String id;
-  final String restaurantName;
-  final String restaurantImage;
-  final List<String> items;
-  final double total;
-  final OrderStatus status;
-  final DateTime placedAt;
-  final String deliveryAddress;
-  final int itemCount;
-
-  const _Order({
-    required this.id,
-    required this.restaurantName,
-    required this.restaurantImage,
-    required this.items,
-    required this.total,
-    required this.status,
-    required this.placedAt,
-    required this.deliveryAddress,
-    required this.itemCount,
-  });
-}
-
-// â”€â”€ Mock orders data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-final List<_Order> _mockOrders = [
-  _Order(
-    id: 'ORD-2024-001',
-    restaurantName: 'Pizza Palace',
-    restaurantImage:
-        'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400',
-    items: ['Margherita Pizza (Regular)', 'Garlic Bread', 'Coke 500ml'],
-    total: 328,
-    status: OrderStatus.onTheWay,
-    placedAt: DateTime.now().subtract(const Duration(minutes: 22)),
-    deliveryAddress: 'Vijay Nagar, Indore',
-    itemCount: 3,
-  ),
-  _Order(
-    id: 'ORD-2024-002',
-    restaurantName: 'Spice Garden',
-    restaurantImage:
-        'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400',
-    items: ['Butter Chicken', 'Naan Ã— 2', 'Paneer Tikka'],
-    total: 546,
-    status: OrderStatus.delivered,
-    placedAt: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-    deliveryAddress: 'Palasia, Indore',
-    itemCount: 4,
-  ),
-  _Order(
-    id: 'ORD-2024-003',
-    restaurantName: 'Burger Barn',
-    restaurantImage:
-        'https://images.unsplash.com/photo-1550547660-d9450f859349?w=400',
-    items: ['Classic Beef Burger', 'French Fries', 'Chocolate Shake'],
-    total: 387,
-    status: OrderStatus.delivered,
-    placedAt: DateTime.now().subtract(const Duration(days: 3)),
-    deliveryAddress: 'Bhawarkuwa, Indore',
-    itemCount: 3,
-  ),
-  _Order(
-    id: 'ORD-2024-004',
-    restaurantName: 'Noodle Nest',
-    restaurantImage:
-        'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400',
-    items: ['Veg Hakka Noodles', 'Spring Rolls'],
-    total: 248,
-    status: OrderStatus.preparing,
-    placedAt: DateTime.now().subtract(const Duration(minutes: 8)),
-    deliveryAddress: 'Vijay Nagar, Indore',
-    itemCount: 2,
-  ),
-  _Order(
-    id: 'ORD-2024-005',
-    restaurantName: 'Fresh Bakes',
-    restaurantImage:
-        'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400',
-    items: ['Chocolate Cake', 'Blueberry Muffin Ã— 2', 'Croissant'],
-    total: 596,
-    status: OrderStatus.cancelled,
-    placedAt: DateTime.now().subtract(const Duration(days: 5)),
-    deliveryAddress: 'Scheme 54, Indore',
-    itemCount: 4,
-  ),
-  _Order(
-    id: 'ORD-2024-006',
-    restaurantName: 'Desi Dhaba',
-    restaurantImage:
-        'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400',
-    items: ['Dal Makhani', 'Chole Bhature', 'Lassi'],
-    total: 337,
-    status: OrderStatus.delivered,
-    placedAt: DateTime.now().subtract(const Duration(days: 7)),
-    deliveryAddress: 'Sapna Sangeeta, Indore',
-    itemCount: 3,
-  ),
-];
-
-// â”€â”€ My Orders Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── My Orders Page ──────────────────────────────────────────────────────────
 class MyOrdersPage extends StatefulWidget {
   final int initialIndex;
   const MyOrdersPage({super.key, this.initialIndex = 0});
@@ -132,6 +28,7 @@ class _MyOrdersPageState extends State<MyOrdersPage>
   late TabController _tabController;
   Function(dynamic)? _socketCallback;
   late OrderProvider _orderProvider;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
@@ -141,6 +38,11 @@ class _MyOrdersPageState extends State<MyOrdersPage>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _orderProvider.fetchOrders();
       _setupSocketListeners();
+    });
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) {
+        _orderProvider.fetchOrders();
+      }
     });
   }
 
@@ -185,6 +87,7 @@ class _MyOrdersPageState extends State<MyOrdersPage>
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _tabController.dispose();
     if (_socketCallback != null) {
       SocketService.offOrderStatusUpdated(_socketCallback);
@@ -1190,8 +1093,8 @@ class _OrderTracker extends StatelessWidget {
     final ds = deliveryStatus.toLowerCase();
     
     int activeStep = 0; // Placed
-    if (s == 'preparing' || s == 'ready' || ds == 'accepted' || ds == 'reached_store') activeStep = 1; // Preparing
-    if (s == 'picked_up' || ds == 'picked_up' || ds == 'out_for_delivery' || s == 'on the way') activeStep = 2; // Picked Up
+    if (s == 'preparing' || ds == 'accepted' || ds == 'reached_store') activeStep = 1; // Preparing
+    if (s == 'ready' || s == 'picked_up' || s == 'picked up' || ds == 'picked_up' || ds == 'out_for_delivery' || s == 'on the way' || s == 'on_the_way') activeStep = 2; // Picked Up / Ready
     if (s == 'delivered' || ds == 'delivered') activeStep = 3; // Delivered
     
     if (orderType == 'pickup' && s == 'ready') activeStep = 2;

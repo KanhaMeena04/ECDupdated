@@ -4,11 +4,36 @@ const Restaurant = require("../models/Restaurant");
 const Rider = require("../models/Rider");
 exports.getOverview = async (req, res) => {
   try {
-    const [totalUsers, totalRiders, totalRestaurants] = await Promise.all([
+    const Product = require("../models/Product");
+
+    const [
+      totalUsers,
+      activeUsers,
+      totalRiders,
+      pendingRiders,
+      approvedRiders,
+      onlineRiders,
+      totalRestaurants,
+      pendingRestaurants,
+      approvedRestaurants,
+      activeRestaurants,
+      offlineRestaurants,
+      pendingMenuApprovals
+    ] = await Promise.all([
       User.countDocuments({ isDeleted: { $ne: true } }),
+      User.countDocuments({ isDeleted: { $ne: true }, role: "customer" }),
       Rider.countDocuments({}),
+      Rider.countDocuments({ approvalStatus: "pending" }),
+      Rider.countDocuments({ approvalStatus: "approved" }),
+      Rider.countDocuments({ isOnline: true }),
       Restaurant.countDocuments({}),
+      Restaurant.countDocuments({ restaurantApproved: false }),
+      Restaurant.countDocuments({ restaurantApproved: true }),
+      Restaurant.countDocuments({ isActive: true }),
+      Restaurant.countDocuments({ isOnline: false }),
+      Product.countDocuments({ isApproved: false, isRejected: { $ne: true } })
     ]);
+
     const deliveredMatch = { status: "delivered" };
     const earningsAgg = await Order.aggregate([
       { $match: deliveredMatch },
@@ -16,37 +41,68 @@ exports.getOverview = async (req, res) => {
         $group: {
           _id: null,
           totalEarnings: { $sum: { $ifNull: ["$totalAmount", 0] } },
+          totalItemTotal: { $sum: { $ifNull: ["$itemTotal", 0] } },
+          totalDiscounts: { $sum: { $ifNull: ["$discount", 0] } },
+          totalDeliveryFees: { $sum: { $ifNull: ["$deliveryFee", 0] } },
+          totalPlatformFees: { $sum: { $ifNull: ["$platformFee", 0] } },
+          totalPackagingFees: { $sum: { $ifNull: ["$packagingFee", 0] } },
+          totalTax: { $sum: { $ifNull: ["$tax", 0] } },
+          totalTips: { $sum: { $ifNull: ["$tip", 0] } },
           totalCommission: { $sum: { $ifNull: ["$adminCommission", 0] } },
           totalRestaurantCommission: {
-            $sum: { $ifNull: ["$restaurantCommission", 0] },
+            $sum: { $ifNull: ["$restaurantShare", 0] },
           },
-          totalDeliveryCommission: {
-            $sum: {
-              $add: [
-                { $ifNull: ["$riderEarning", 0] },
-                {
-                  $cond: [
-                    { $gt: ["$riderEarning", 0] },
-                    0,
-                    { $add: [{ $ifNull: ["$riderCommission", 0] }, { $ifNull: ["$tip", 0] }] },
-                  ],
-                },
-              ],
-            },
+          totalRiderEarning: {
+            $sum: { $ifNull: ["$riderEarning", 0] },
           },
         },
       },
     ]);
     const totalsRow = earningsAgg[0] || {};
+
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     const end = new Date();
     end.setHours(23, 59, 59, 999);
+
     const todayAgg = await Order.aggregate([
-      { $match: { ...deliveredMatch, deliveredAt: { $gte: start, $lte: end } } },
-      { $group: { _id: null, total: { $sum: { $ifNull: ["$totalAmount", 0] } } } },
+      { $match: { createdAt: { $gte: start, $lte: end } } },
+      {
+        $group: {
+          _id: "$status",
+          totalAmount: { $sum: { $ifNull: ["$totalAmount", 0] } },
+          discounts: { $sum: { $ifNull: ["$discount", 0] } },
+          deliveryFees: { $sum: { $ifNull: ["$deliveryFee", 0] } },
+          platformFees: { $sum: { $ifNull: ["$platformFee", 0] } },
+          packagingFees: { $sum: { $ifNull: ["$packagingFee", 0] } },
+          tax: { $sum: { $ifNull: ["$tax", 0] } },
+          adminCommission: { $sum: { $ifNull: ["$adminCommission", 0] } },
+          riderEarning: { $sum: { $ifNull: ["$riderEarning", 0] } },
+          count: { $sum: 1 }
+        }
+      }
     ]);
-    const todayEarnings = todayAgg[0]?.total || 0;
+
+    let todayGOV = 0;
+    let todayDiscounts = 0;
+    let todayDeliveryFees = 0;
+    let todayPlatformFees = 0;
+    let todayPackagingFees = 0;
+    let todayTax = 0;
+    let todayAdminRevenue = 0;
+    let todayRiderEarnings = 0;
+
+    todayAgg.forEach(row => {
+      todayGOV += row.totalAmount || 0;
+      todayDiscounts += row.discounts || 0;
+      todayDeliveryFees += row.deliveryFees || 0;
+      todayPlatformFees += row.platformFees || 0;
+      todayPackagingFees += row.packagingFees || 0;
+      todayTax += row.tax || 0;
+      todayAdminRevenue += row.adminCommission || 0;
+      todayRiderEarnings += row.riderEarning || 0;
+    });
+
     const statusAgg = await Order.aggregate([
       { $match: {} },
       {
@@ -60,14 +116,25 @@ exports.getOverview = async (req, res) => {
       acc[r._id] = r.count;
       return acc;
     }, {});
+
+    const ordersToday = todayAgg.reduce((sum, r) => sum + r.count, 0);
+    const pendingOrders = statusMap["pending"] || 0;
+    const acceptedOrders = statusMap["accepted"] || 0;
+    const preparingOrders = statusMap["preparing"] || 0;
+    const readyOrders = statusMap["ready"] || 0;
+    const assignedOrders = statusMap["assigned"] || 0;
+    const pickedUpOrders = statusMap["picked_up"] || 0;
+    const outForDeliveryOrders = statusMap["out_for_delivery"] || 0;
     const ordersDelivered = statusMap["delivered"] || 0;
     const ordersCancelled = statusMap["cancelled"] || 0;
     const ordersFailed = statusMap["failed"] || 0;
+
     const monthsBack = 12;
     const monthStart = new Date();
     monthStart.setMonth(monthStart.getMonth() - (monthsBack - 1));
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
+
     const monthlyAgg = await Order.aggregate([
       { $match: { createdAt: { $gte: monthStart } } },
       {
@@ -78,19 +145,10 @@ exports.getOverview = async (req, res) => {
       },
       { $sort: { _id: 1 } },
     ]);
+
     const monthNames = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     ];
     const salesSeries = [];
     for (let i = 0; i < monthsBack; i++) {
@@ -101,16 +159,19 @@ exports.getOverview = async (req, res) => {
       const row = monthlyAgg.find((m) => m._id === key);
       salesSeries.push({ month: label, orders: row ? row.orders : 0 });
     }
+
     const recentOrdersDocs = await Order.find({})
       .select("_id status totalAmount createdAt")
       .sort({ createdAt: -1 })
       .limit(5)
       .lean();
+
     const recentOrders = recentOrdersDocs.map((o) => ({
       id: String(o._id),
       status: o.status,
       amount: Number(o.totalAmount || 0).toFixed(2),
     }));
+
     const topRestaurantsAgg = await Order.aggregate([
       { $match: deliveredMatch },
       { $group: { _id: "$restaurant", orders: { $sum: 1 }, amount: { $sum: { $ifNull: ["$totalAmount", 0] } } } },
@@ -133,11 +194,13 @@ exports.getOverview = async (req, res) => {
         },
       },
     ]);
+
     const topRestaurants = topRestaurantsAgg.map((r) => ({
       name: r.name || "Unknown",
       orders: r.orders || 0,
       amount: Number(r.amount || 0).toFixed(2),
     }));
+
     const topUsersAgg = await Order.aggregate([
       { $match: deliveredMatch },
       { $group: { _id: "$customer", orders: { $sum: 1 }, amount: { $sum: { $ifNull: ["$totalAmount", 0] } } } },
@@ -154,23 +217,54 @@ exports.getOverview = async (req, res) => {
       { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
       { $project: { name: "$user.name", orders: 1, amount: 1 } },
     ]);
+
     const topUsers = topUsersAgg.map((u) => ({
-      name: u.name || "",
+      name: u.name || "Customer",
       orders: u.orders || 0,
       amount: Number(u.amount || 0).toFixed(2),
     }));
+
     res.status(200).json({
+      // Business Overview
       totalUsers,
+      activeUsers,
       totalRiders,
+      pendingRiders,
+      approvedRiders,
+      onlineRiders,
       totalRestaurants,
-      totalEarnings: Number(totalsRow.totalEarnings || 0),
-      todayEarnings,
-      totalCommission: Number(totalsRow.totalCommission || 0),
-      totalRestaurantCommission: Number(totalsRow.totalRestaurantCommission || 0),
-      totalDeliveryCommission: Number(totalsRow.totalDeliveryCommission || 0),
+      pendingRestaurants,
+      approvedRestaurants,
+      activeRestaurants,
+      offlineRestaurants,
+      pendingMenuApprovals,
+      ordersToday,
+      pendingOrders,
+      acceptedOrders,
+      preparingOrders,
+      readyOrders,
+      assignedOrders,
+      pickedUpOrders,
+      outForDeliveryOrders,
       ordersDelivered,
       ordersCancelled,
       ordersFailed,
+      
+      // Financial Overview
+      todayGOV: Number(todayGOV.toFixed(2)),
+      todayDiscounts: Number(todayDiscounts.toFixed(2)),
+      todayDeliveryFees: Number(todayDeliveryFees.toFixed(2)),
+      todayPlatformFees: Number(todayPlatformFees.toFixed(2)),
+      todayPackagingFees: Number(todayPackagingFees.toFixed(2)),
+      todayTax: Number(todayTax.toFixed(2)),
+      todayAdminRevenue: Number(todayAdminRevenue.toFixed(2)),
+      todayRiderEarnings: Number(todayRiderEarnings.toFixed(2)),
+      totalEarnings: Number(totalsRow.totalEarnings || 0),
+      totalCommission: Number(totalsRow.totalCommission || 0),
+      totalRestaurantCommission: Number(totalsRow.totalRestaurantCommission || 0),
+      totalDeliveryCommission: Number(totalsRow.totalRiderEarning || 0),
+
+      // Visual Series & Lists
       salesSeries,
       recentOrders,
       topRestaurants,

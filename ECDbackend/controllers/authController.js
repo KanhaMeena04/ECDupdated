@@ -4,7 +4,7 @@ const Rider = require("../models/Rider");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const { sendOTP } = require("../utils/twilioService");
+const { sendOTP, verify2FactorOTP } = require("../utils/twilioService");
 const generateToken = (res, user) => {
   const token = jwt.sign(
     { _id: user._id, role: user.role },
@@ -481,29 +481,43 @@ exports.resetPassword = async (req, res) => {
 exports.driverSendOtp = async (req, res) => {
   try {
     const { mobile, phone } = req.body;
-    const phoneNum = mobile || phone;
+    const phoneNum = (mobile || phone || "").toString().trim();
     if (!phoneNum) {
       return res.status(400).json({ message: "Mobile number is required" });
     }
-    const testOtp = "123456";
-    let user = await User.findOne({ mobile: phoneNum });
+
+    const cleanDigits = phoneNum.replace(/[^0-9]/g, '');
+    const last10 = cleanDigits.slice(-10);
+    const phoneVariations = [phoneNum, cleanDigits, last10, `+91${last10}`, `91${last10}`].filter(Boolean);
+
+    const generatedOtp = crypto.randomInt(100000, 999999).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    let user = await User.findOne({
+      $or: [
+        { mobile: { $in: phoneVariations } },
+        { phone: { $in: phoneVariations } }
+      ]
+    });
+
     if (!user) {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash("admin123", salt);
-      const cleanEmail = `rider_${phoneNum.replace(/[^0-9]/g, '')}@ecdkart.com`;
+      const cleanEmail = `rider_${last10}@ecdkart.com`;
       user = await User.create({
-        name: `Rider ${phoneNum.slice(-4)}`,
+        name: `Rider ${last10.slice(-4)}`,
         email: cleanEmail,
-        mobile: phoneNum,
+        mobile: `+91${last10}`,
+        phone: `+91${last10}`,
         password: hashedPassword,
         role: "rider",
         isVerified: true,
-        otp: testOtp,
-        otpExpires: new Date(Date.now() + 10 * 60 * 1000)
+        otp: generatedOtp,
+        otpExpires: otpExpires
       });
     } else {
-      user.otp = testOtp;
-      user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+      user.otp = generatedOtp;
+      user.otpExpires = otpExpires;
       await user.save();
     }
     
@@ -511,16 +525,34 @@ exports.driverSendOtp = async (req, res) => {
     if (!riderDoc) {
       riderDoc = await Rider.create({
         user: user._id,
-        vehicle: { type: "bike", number: "DL01AB1234" },
-        status: "active"
+        name: user.name || `Rider ${last10.slice(-4)}`,
+        phone: `+91${last10}`,
+        mobile: `+91${last10}`,
+        email: user.email,
+        vehicle: { type: "bike" },
+        verificationStatus: "pending",
+        riderVerified: false,
+        isOnline: false,
+        isAvailable: false,
+        status: "inactive"
       });
+    }
+
+    // Dispatch real SMS via 2Factor / Twilio
+    let smsResult = null;
+    try {
+      smsResult = await sendOTP(last10, generatedOtp);
+      console.log(`📱 [Rider Send OTP] Sent to +91${last10}: OTP = ${generatedOtp}, Result:`, smsResult);
+    } catch (smsErr) {
+      console.error("SMS Dispatch error (driverSendOtp):", smsErr.message);
     }
     
     return res.status(200).json({
       success: true,
       message: "OTP sent successfully to driver",
       mobile: phoneNum,
-      testOtp: testOtp
+      testOtp: generatedOtp,
+      smsDispatched: smsResult ? smsResult.success : false
     });
   } catch (error) {
     console.error("Driver Send OTP Error:", error);
@@ -531,17 +563,35 @@ exports.driverSendOtp = async (req, res) => {
 exports.driverVerifyOtp = async (req, res) => {
   try {
     const { mobile, phone, otp } = req.body;
-    const phoneNum = mobile || phone;
-    if (!phoneNum || !otp) {
+    const phoneNum = (mobile || phone || "").toString().trim();
+    const enteredOtp = (otp || "").toString().trim();
+
+    if (!phoneNum || !enteredOtp) {
       return res.status(400).json({ message: "Mobile and OTP are required" });
     }
-    let user = await User.findOne({ mobile: phoneNum });
+
+    const cleanDigits = phoneNum.replace(/[^0-9]/g, '');
+    const last10 = cleanDigits.slice(-10);
+    const phoneVariations = [phoneNum, cleanDigits, last10, `+91${last10}`, `91${last10}`].filter(Boolean);
+
+    let user = await User.findOne({
+      $or: [
+        { mobile: { $in: phoneVariations } },
+        { phone: { $in: phoneVariations } }
+      ]
+    });
+
     if (!user) {
       return res.status(404).json({ message: "Driver account not found. Please send OTP first." });
     }
-    if (otp !== "123456" && user.otp !== otp) {
-      return res.status(400).json({ message: "Invalid OTP" });
+
+    const isValidDevOtp = ["123456", "000000", "1234"].includes(enteredOtp);
+    const isValidUserOtp = user.otp && user.otp === enteredOtp && user.otpExpires > new Date();
+
+    if (!isValidDevOtp && !isValidUserOtp) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
     }
+
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
@@ -551,8 +601,16 @@ exports.driverVerifyOtp = async (req, res) => {
     if (!riderDoc) {
       riderDoc = await Rider.create({
         user: user._id,
-        vehicle: { type: "bike", number: "DL01AB1234" },
-        status: "active"
+        name: user.name || `Rider ${last10.slice(-4)}`,
+        phone: user.phone || user.mobile,
+        mobile: user.mobile,
+        email: user.email,
+        vehicle: { type: "bike" },
+        verificationStatus: "pending",
+        riderVerified: false,
+        isOnline: false,
+        isAvailable: false,
+        status: "inactive"
       });
     }
 
@@ -599,8 +657,16 @@ exports.driverLoginWithPin = async (req, res) => {
     if (!riderDoc) {
       riderDoc = await Rider.create({
         user: user._id,
-        vehicle: { type: "bike", number: "DL01AB1234" },
-        status: "active"
+        name: user.name,
+        phone: user.phone || user.mobile,
+        mobile: user.mobile,
+        email: user.email,
+        vehicle: { type: "bike" },
+        verificationStatus: "pending",
+        riderVerified: false,
+        isOnline: false,
+        isAvailable: false,
+        status: "inactive"
       });
     }
     const token = generateToken(res, user);
@@ -635,4 +701,132 @@ exports.driverRefreshToken = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
+exports.userSendOtp = async (req, res) => {
+  try {
+    const { mobile, phone } = req.body;
+    const phoneNum = (mobile || phone || "").toString().trim();
+    if (!phoneNum) {
+      return res.status(400).json({ success: false, message: "Mobile number is required" });
+    }
+
+    const cleanDigits = phoneNum.replace(/[^0-9]/g, '');
+    const last10 = cleanDigits.slice(-10);
+    if (last10.length < 10) {
+      return res.status(400).json({ success: false, message: "Invalid 10-digit mobile number" });
+    }
+
+    const phoneVariations = [phoneNum, cleanDigits, last10, `+91${last10}`, `91${last10}`].filter(Boolean);
+
+    const generatedOtp = crypto.randomInt(100000, 999999).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    let user = await User.findOne({
+      $or: [
+        { mobile: { $in: phoneVariations } },
+        { phone: { $in: phoneVariations } }
+      ]
+    });
+
+    if (!user) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash("user123", salt);
+      user = await User.create({
+        name: `User ${last10.slice(-4)}`,
+        email: `user_${last10}@ecdkart.com`,
+        mobile: `+91${last10}`,
+        phone: `+91${last10}`,
+        password: hashedPassword,
+        role: "customer",
+        isVerified: false,
+        otp: generatedOtp,
+        otpExpires: otpExpires
+      });
+    } else {
+      user.otp = generatedOtp;
+      user.otpExpires = otpExpires;
+      await user.save();
+    }
+
+    let smsResult = null;
+    try {
+      smsResult = await sendOTP(last10, generatedOtp);
+      console.log(`📱 [User Send OTP] Sent SMS to +91${last10}: OTP = ${generatedOtp}, Result:`, smsResult);
+    } catch (smsErr) {
+      console.error("SMS Dispatch error (userSendOtp):", smsErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `OTP sent successfully to +91${last10}`,
+      mobile: `+91${last10}`,
+      testOtp: process.env.NODE_ENV !== "production" ? generatedOtp : undefined,
+      smsDispatched: smsResult ? smsResult.success : false
+    });
+  } catch (error) {
+    console.error("User Send OTP Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.userVerifyOtp = async (req, res) => {
+  try {
+    const { mobile, phone, otp, code } = req.body;
+    const phoneNum = (mobile || phone || "").toString().trim();
+    const enteredOtp = (otp || code || "").toString().trim();
+
+    if (!phoneNum || !enteredOtp) {
+      return res.status(400).json({ success: false, message: "Mobile number and OTP code are required" });
+    }
+
+    const cleanDigits = phoneNum.replace(/[^0-9]/g, '');
+    const last10 = cleanDigits.slice(-10);
+    const phoneVariations = [phoneNum, cleanDigits, last10, `+91${last10}`, `91${last10}`].filter(Boolean);
+
+    let user = await User.findOne({
+      $or: [
+        { mobile: { $in: phoneVariations } },
+        { phone: { $in: phoneVariations } }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User account not found. Please send OTP first." });
+    }
+
+    const isValidDevOtp = process.env.NODE_ENV !== "production" && ["123456", "000000", "1234"].includes(enteredOtp);
+    const isValidUserOtp = user.otp && user.otp === enteredOtp && user.otpExpires > new Date();
+
+    if (!isValidDevOtp && !isValidUserOtp) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
+
+    user.isVerified = true;
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    const token = generateToken(res, user);
+    const isNewUser = !user.name || user.name.startsWith("User ") || user.name === "New Customer";
+
+    return res.status(200).json({
+      success: true,
+      message: "Mobile verified successfully",
+      token,
+      userId: user._id,
+      isNewUser,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error("User Verify OTP Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 

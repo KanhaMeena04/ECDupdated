@@ -23,7 +23,7 @@ export default function RecentOrders() {
 
       <div className="divide-y">
         {recentOrders.map((order) => {
-          const Icon = iconMap[order.statusType];
+          const Icon = iconMap[order.statusType] || AccessTime;
 
           return (
             <div

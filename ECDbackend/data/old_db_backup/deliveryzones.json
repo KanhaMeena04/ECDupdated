@@ -1,0 +1,51 @@
+[
+  {
+    "_id": "6a9e8eacdae4f7fc97db6d7e",
+    "name": "Ujina",
+    "state": "Ujina",
+    "city": "Ujina",
+    "center": {
+      "lat": 28.044794,
+      "lng": 77.082348
+    },
+    "radiusKm": 5,
+    "isActive": true,
+    "subAreas": [],
+    "createdAt": "2026-09-07T10:15:08.123Z",
+    "updatedAt": "2026-09-07T10:15:08.123Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa2cfe6092ddcee4da288a2",
+    "name": "Sohna",
+    "state": "Sohna",
+    "city": "Sohna",
+    "center": {
+      "lat": 28.248699,
+      "lng": 77.063512
+    },
+    "radiusKm": 6,
+    "isActive": true,
+    "subAreas": [],
+    "createdAt": "2026-09-10T15:42:30.059Z",
+    "updatedAt": "2026-09-10T15:42:30.059Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab4cece4b156bd222c709d9",
+    "cityId": "6aaa313fc02785942aa4aecf",
+    "name": "Brahmabarada",
+    "state": "Brahmabarada",
+    "city": "Brahmabarada",
+    "center": {
+      "lat": 20.739949,
+      "lng": 86.243794
+    },
+    "radiusKm": 50,
+    "isActive": true,
+    "subAreas": [],
+    "createdAt": "2026-09-24T07:18:38.969Z",
+    "updatedAt": "2026-09-24T07:18:38.969Z",
+    "__v": 0
+  }
+]

@@ -80,10 +80,13 @@ const PendingRestaurantTable = () => {
       label: 'Owner Information',
       render: (rest) => (
         <>
-          <Typography variant="body2">{rest.owner?.name}</Typography>
+          <Typography variant="body2">{rest.owner?.name || rest.ownerName || 'Partner'}</Typography>
           <div className="flex items-center text-xs text-gray-500">
             <Phone sx={{ fontSize: 14, mr: 0.5 }} />
-            {rest.owner?.mobile}
+            {rest.owner?.mobile || rest.contactNumber || '-'}
+          </div>
+          <div className="mt-1">
+            <Chip label={`PIN: ${rest.owner?.pin || rest.pin || '1234'}`} color="primary" variant="outlined" size="small" />
           </div>
         </>
       ),

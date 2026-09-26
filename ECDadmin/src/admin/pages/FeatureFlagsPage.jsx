@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Switch, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { API_BASE_URL } from '../../utils/utils';
 
 export default function FeatureFlagsPage() {
   const [flags, setFlags] = useState([]);
@@ -16,7 +17,7 @@ export default function FeatureFlagsPage() {
 
   const fetchFlags = async () => {
     try {
-      const res = await axios.get('/api/feature-flags');
+      const res = await axios.get(`${API_BASE_URL}/api/feature-flags`);
       if (res.data.flags) setFlags(res.data.flags);
     } catch (err) {
       toast.error('Failed to load feature flags');
@@ -29,7 +30,7 @@ export default function FeatureFlagsPage() {
 
   const handleToggle = async (id) => {
     try {
-      const res = await axios.patch(`/api/feature-flags/${id}/toggle`);
+      const res = await axios.patch(`${API_BASE_URL}/api/feature-flags/${id}/toggle`);
       if (res.data.success) {
         toast.success(res.data.message);
         fetchFlags();
@@ -41,7 +42,7 @@ export default function FeatureFlagsPage() {
 
   const handleCreate = async () => {
     try {
-      const res = await axios.post('/api/feature-flags', formData);
+      const res = await axios.post(`${API_BASE_URL}/api/feature-flags`, formData);
       if (res.data.success) {
         toast.success('Feature flag created');
         setOpenModal(false);

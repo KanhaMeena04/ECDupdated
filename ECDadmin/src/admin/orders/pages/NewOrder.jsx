@@ -84,21 +84,13 @@ const orderTableColumns = [
     key: "total",
     label: "Total",
     render: (row) => (
-      <span className="font-medium text-gray-700">RM {row.total}</span>
+      <span className="font-semibold text-gray-900">₹ {row.total}</span>
     ),
   },
-  // {
-  //   key: "action",
-  //   label: "Action",
-  //   render: () => (
-  //     <MoreVertIcon className="text-gray-500 cursor-pointer" />
-  //   ),
-  // },
 ];
 
-
   const { orders, loading, error } = useAdminOrders({
-    status: "placed",
+    status: "placed,pending",
   });
 
   const orderTableData = mapOrdersToTableData(orders);

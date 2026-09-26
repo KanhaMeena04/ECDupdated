@@ -6,6 +6,7 @@ import '../../../logic/blocs/auth/auth_event.dart';
 import '../../../logic/blocs/auth/auth_state.dart';
 import '../home/driver_home_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../widgets/welcome_back_logo.dart';
 
 class PinLoginScreen extends StatefulWidget {
   final String? phone; // Make it optional
@@ -142,7 +143,7 @@ class _PinLoginScreenState extends State<PinLoginScreen> {
                             borderRadius: BorderRadius.circular(isKeyboardOpen ? 12 : 20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: 20,
                                 offset: const Offset(0, 5),
                               ),
@@ -205,15 +206,8 @@ class _PinLoginScreenState extends State<PinLoginScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // Welcome Back Text
-                              Center(
-                                child: Text(
-                                  'Welcome back',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF2C2C2C),
-                                  ),
-                                ),
+                              const Center(
+                                child: WelcomeBackLogo(height: 64),
                               ),
                               const SizedBox(height: 16),
                               

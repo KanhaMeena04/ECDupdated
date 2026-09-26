@@ -1,0 +1,41 @@
+[
+  {
+    "_id": "6aaa313fc02785942aa4aecf",
+    "name": "Brahmabarada",
+    "state": "",
+    "coordinates": {
+      "lat": 0,
+      "lng": 0
+    },
+    "isActive": true,
+    "createdAt": "2026-09-16T06:03:43.134Z",
+    "updatedAt": "2026-09-16T06:03:43.134Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaa9259c02785942aa4d515",
+    "name": "Indore",
+    "state": "",
+    "coordinates": {
+      "lat": 0,
+      "lng": 0
+    },
+    "isActive": true,
+    "createdAt": "2026-09-16T12:58:01.362Z",
+    "updatedAt": "2026-09-16T12:58:01.362Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab0c54443fbd98d50e7b4d2",
+    "name": "Brahmabarada Market 📍",
+    "state": "",
+    "coordinates": {
+      "lat": 0,
+      "lng": 0
+    },
+    "isActive": true,
+    "createdAt": "2026-09-21T05:48:52.267Z",
+    "updatedAt": "2026-09-21T05:48:52.267Z",
+    "__v": 0
+  }
+]

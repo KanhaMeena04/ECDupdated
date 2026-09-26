@@ -21,13 +21,13 @@ class OrderTrackingPage extends StatefulWidget {
   const OrderTrackingPage({
     super.key,
     required this.orderId,
-    this.restaurantName = 'Cellar Door Restaurant',
-    this.deliveryAddress = '102, Royal Palms, Vijay Nagar, Indore',
+    this.restaurantName = '',
+    this.deliveryAddress = '',
     this.items = const [],
     this.orderType = 'delivery',
-    this.pickupDate = 'Today, Sep 14',
-    this.pickupTimeSlot = '9:30 AM - 9:45 AM',
-    this.pickupOtp = '4928',
+    this.pickupDate = '',
+    this.pickupTimeSlot = '',
+    this.pickupOtp = '',
   });
 
   @override
@@ -55,23 +55,20 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     return _pulseController!;
   }
 
+  Timer? _pollingTimer;
+
   @override
   void initState() {
     super.initState();
 
     _getPulseController();
+    _fetchTracking();
 
-    // 1. Simulate "Finding a Driver" for 4 seconds (Screenshot 2)
-    _searchTimer = Timer(const Duration(seconds: 4), () {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) {
-        setState(() {
-          _isFindingDriver = false;
-          _currentStep = 2; // Transition to Out for Delivery (Screenshot 1 & 3)
-        });
+        _fetchTracking();
       }
     });
-
-    _fetchTracking();
 
     SocketService.init();
     SocketService.joinOrder(widget.orderId);
@@ -79,7 +76,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     _socketCallback = (data) {
       debugPrint('Order Tracking live update: $data');
       if (mounted) {
-        Future.delayed(const Duration(milliseconds: 500), () {
+        Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted) {
             _fetchTracking();
           }
@@ -91,6 +88,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _searchTimer?.cancel();
     _mockTimer?.cancel();
     _pulseController?.dispose();
@@ -104,7 +102,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   Future<void> _fetchTracking() async {
     try {
       final data = await OrderApiService.getOrderTracking(widget.orderId);
-      if (data != null && data['success'] == true && data['order'] != null) {
+      if (data != null && (data['success'] == true || data['status'] != null)) {
         if (mounted) {
           setState(() {
             _trackingData = data;
@@ -112,7 +110,64 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
         }
       }
     } catch (e) {
-      debugPrint('Tracking fetch fallback: $e');
+      debugPrint('Tracking fetch error: $e');
+    }
+  }
+
+  int get _stepFromStatus {
+    final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
+    if (status == 'delivered' || status == 'completed') return 3;
+    if (status == 'picked_up' || status == 'out_for_delivery' || status == 'on_the_way' || status == 'ready' || status == 'ready_for_pickup') return 2;
+    if (status == 'confirmed' || status == 'accepted' || status == 'preparing' || status == 'in_kitchen') return 1;
+    return 0; // pending, placed
+  }
+
+  String get _statusTitle {
+    final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
+    if (status == 'delivered' || status == 'completed') return 'Order Delivered!';
+    if (status == 'picked_up' || status == 'out_for_delivery' || status == 'on_the_way') return 'Order is on the way';
+    if (status == 'ready' || status == 'ready_for_pickup') return 'Food Prepared & Ready';
+    if (status == 'confirmed' || status == 'accepted' || status == 'preparing' || status == 'in_kitchen') return 'Order Accepted & Preparing';
+    if (status == 'cancelled') return 'Order Cancelled';
+    return 'Waiting for Restaurant Acceptance';
+  }
+
+  String get _statusSubtitle {
+    final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
+    if (status == 'delivered' || status == 'completed') return 'Thank you! Enjoy your meal!';
+    if (status == 'picked_up' || status == 'out_for_delivery' || status == 'on_the_way') {
+      return 'Arriving in ${_trackingData?['estimatedDeliveryTime'] ?? '15 mins'}';
+    }
+    if (status == 'ready' || status == 'ready_for_pickup') return 'Delivery partner is picking up your order';
+    if (status == 'confirmed' || status == 'accepted' || status == 'preparing' || status == 'in_kitchen') {
+      return 'Kitchen is preparing your fresh meal';
+    }
+    if (status == 'cancelled') return 'This order was cancelled';
+    return 'Restaurant is reviewing your order details';
+  }
+
+  Color get _statusBannerColor {
+    final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
+    if (status == 'delivered' || status == 'completed') return const Color(0xFF16A34A);
+    if (status == 'picked_up' || status == 'out_for_delivery' || status == 'on_the_way') return AppColors.primary;
+    if (status == 'cancelled') return Colors.red;
+    return const Color(0xFFD97706);
+  }
+
+  void _callNumber(String phone) async {
+    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    final Uri telUri = Uri(scheme: 'tel', path: cleanPhone.isNotEmpty ? cleanPhone : '9876543210');
+    if (await canLaunchUrl(telUri)) {
+      await launchUrl(telUri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Calling $phone...'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -965,6 +1020,13 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   // ── State 1: Finding Driver UI (Screenshot 2) ─────────────────────────────
   Widget _buildFindingDriverState() {
     final controller = _getPulseController();
+    final realItems = _trackingData?['items'] ?? _trackingData?['order']?['items'] ?? widget.items;
+    final firstItem = realItems.isNotEmpty ? realItems.first : null;
+    final itemName = firstItem != null 
+        ? (firstItem['name'] ?? firstItem['product']?['name'] ?? 'Order Item').toString() 
+        : 'Order Item';
+    final restName = (_trackingData?['restaurant']?['name'] ?? widget.restaurantName).toString();
+
     return Stack(
       children: [
         // Background Radar Searching Map Canvas
@@ -1053,17 +1115,11 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=200',
+                      child: Container(
                         width: 52,
                         height: 52,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          width: 52,
-                          height: 52,
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          child: const Icon(Icons.fastfood, color: AppColors.primary),
-                        ),
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        child: const Icon(Icons.fastfood, color: AppColors.primary),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1080,9 +1136,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                             ),
                           ),
                           const SizedBox(height: 2),
-                          const Text(
-                            '6 pcs chicken wings',
-                            style: TextStyle(
+                          Text(
+                            itemName,
+                            style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF1F2937),
@@ -1094,7 +1150,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                               const Icon(Icons.storefront, size: 12, color: AppColors.primary),
                               const SizedBox(width: 4),
                               Text(
-                                '${widget.restaurantName} • 2.3km',
+                                restName,
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: Color(0xFF6B7280),
@@ -1146,31 +1202,45 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
   // ── State 2: Active Driver Tracking UI (Screenshot 1 & 3 Combined) ────────
   Widget _buildActiveTrackingState() {
+    final restData = _trackingData?['restaurant'] ?? {};
+    final restName = (restData['name'] ?? widget.restaurantName).toString();
+    final userAddr = (_trackingData?['deliveryLocation']?['address'] ?? _trackingData?['order']?['deliveryAddress']?['address'] ?? widget.deliveryAddress).toString();
+    final riderData = _trackingData?['rider'];
+    final rName = (riderData?['name'] ?? _trackingData?['driverName'] ?? 'Rider').toString();
+    final hasRider = riderData != null && (riderData['name'] != null || riderData['phone'] != null);
+
+    final double? restLat = restData['lat'] != null ? double.tryParse(restData['lat'].toString()) : null;
+    final double? restLng = restData['lng'] != null ? double.tryParse(restData['lng'].toString()) : null;
+    final double? userLat = _trackingData?['user']?['lat'] != null ? double.tryParse(_trackingData!['user']['lat'].toString()) : null;
+    final double? userLng = _trackingData?['user']?['lng'] != null ? double.tryParse(_trackingData!['user']['lng'].toString()) : null;
+    final double? riderLat = riderData?['lat'] != null ? double.tryParse(riderData!['lat'].toString()) : null;
+    final double? riderLng = riderData?['lng'] != null ? double.tryParse(riderData!['lng'].toString()) : null;
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Green Top Status Banner (Screenshot 3)
+          // 1. Dynamic Status Banner
           Container(
             width: double.infinity,
-            color: AppColors.primary,
+            color: _statusBannerColor,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  'Order is on the way',
-                  style: TextStyle(
+                  _statusTitle,
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'On time, arriving in 8 minutes',
-                  style: TextStyle(
+                  _statusSubtitle,
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: Colors.white70,
@@ -1180,7 +1250,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             ),
           ),
 
-          // 2. Interactive Mock Tracking Map with Brand Logo Marker (Screenshot 3)
+          // 2. Interactive Route Tracking Map Canvas
           SizedBox(
             height: 220,
             width: double.infinity,
@@ -1188,7 +1258,18 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
               children: [
                 Positioned.fill(
                   child: CustomPaint(
-                    painter: _ActiveRouteMapPainter(),
+                    painter: _ActiveRouteMapPainter(
+                      riderName: rName,
+                      restaurantName: restName,
+                      userAddress: userAddr,
+                      riderLat: riderLat,
+                      riderLng: riderLng,
+                      restLat: restLat,
+                      restLng: restLng,
+                      userLat: userLat,
+                      userLng: userLng,
+                      isRiderAssigned: hasRider,
+                    ),
                   ),
                 ),
                 // Rider Location Ping Marker with Brand Logo
@@ -1235,122 +1316,12 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // 3. Driver Info Card with Call & Support Chat Actions (Screenshot 1 & 3)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 6)
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(24),
-                            child: Image.network(
-                              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
-                              width: 48,
-                              height: 48,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 48,
-                                height: 48,
-                                color: AppColors.primary.withValues(alpha: 0.1),
-                                child: const Icon(Icons.person, color: AppColors.primary),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
-                                  'Rahul Sharma',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF1F2937),
-                                  ),
-                                ),
-                                SizedBox(height: 2),
-                                Text(
-                                  'I\'m Rahul Sharma, your delivery partner',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF6B7280),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Call Button (Screenshot 1 & 3)
-                          IconButton(
-                            onPressed: _callRider,
-                            icon: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.phone, color: Colors.white, size: 18),
-                            ),
-                          ),
-
-                          // Support Team Chat Button (Screenshot 1 & 3)
-                          IconButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const ContactSupportPage(),
-                                ),
-                              );
-                            },
-                            icon: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.chat_bubble_rounded,
-                                  color: Colors.white, size: 18),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Divider(height: 1, color: Color(0xFFF3F4F6)),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: const [
-                          Icon(Icons.info_outline, size: 16, color: AppColors.primary),
-                          SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Rider has picked up your order and is on the way!',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF4B5563),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+                // 3. Dynamic Driver Or Restaurant Info Card
+                _buildDriverOrRestaurantCard(),
 
                 const SizedBox(height: 16),
 
-                // 4. Status Stepper Card (Screenshot 1)
+                // 4. Status Stepper Card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -1365,16 +1336,18 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        children: const [
-                          Icon(Icons.two_wheeler_rounded,
+                        children: [
+                          const Icon(Icons.two_wheeler_rounded,
                               color: AppColors.primary, size: 22),
-                          SizedBox(width: 8),
-                          Text(
-                            'Rider is out for delivery!',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF1F2937),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _statusTitle,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF1F2937),
+                              ),
                             ),
                           ),
                         ],
@@ -1387,7 +1360,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
                 const SizedBox(height: 16),
 
-                // 5. Delivery Address & Items Breakdown (Screenshot 1)
+                // 5. Delivery Address & Real Items Breakdown
                 _buildOrderDetails(),
               ],
             ),
@@ -1397,12 +1370,241 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     );
   }
 
+  Widget _buildDriverOrRestaurantCard() {
+    final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
+    final rider = _trackingData?['rider'];
+    final restaurant = _trackingData?['restaurant'] ?? {};
+    final restName = (restaurant['name'] ?? widget.restaurantName).toString();
+    final restPhone = (restaurant['phone'] ?? '+919876543210').toString();
+    final restAddress = (restaurant['address'] ?? '').toString();
+
+    final hasRider = rider != null && (rider['name'] != null || rider['phone'] != null);
+
+    if (!hasRider || status == 'pending' || status == 'placed') {
+      // Show Restaurant Details & Assignment Status Card
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.storefront_rounded, color: AppColors.primary, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        restName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      if (restAddress.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          restAddress,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                // Call Restaurant Button
+                IconButton(
+                  onPressed: () => _callNumber(restPhone),
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.phone, color: Colors.white, size: 18),
+                  ),
+                ),
+                // Support Chat Button
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ContactSupportPage()),
+                    );
+                  },
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 18),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: Color(0xFFF3F4F6)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(
+                  status == 'pending' || status == 'placed'
+                      ? Icons.hourglass_top_rounded
+                      : Icons.two_wheeler_rounded,
+                  size: 16,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    status == 'pending' || status == 'placed'
+                        ? 'Waiting for restaurant to accept order...'
+                        : 'Assigning delivery partner...',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF4B5563),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show Real Rider Details Card
+    final riderName = (rider['name'] ?? _trackingData?['driverName'] ?? 'Delivery Partner').toString();
+    final riderPhone = (rider['phone'] ?? _trackingData?['driverPhone'] ?? '').toString();
+    final vehicle = (rider['vehicle'] ?? '').toString();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  child: const Icon(Icons.person, color: AppColors.primary, size: 28),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      riderName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      vehicle.isNotEmpty
+                          ? 'Delivery Partner ($vehicle)'
+                          : 'Your assigned delivery partner',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF6B7280),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Call Rider Button
+              IconButton(
+                onPressed: () => _callNumber(riderPhone),
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.phone, color: Colors.white, size: 18),
+                ),
+              ),
+              // Support Chat Button
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ContactSupportPage()),
+                  );
+                },
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 18),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Color(0xFFF3F4F6)),
+          const SizedBox(height: 10),
+          Row(
+            children: const [
+              Icon(Icons.info_outline, size: 16, color: AppColors.primary),
+              SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Rider has picked up your order and is on the way!',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF4B5563),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTimeline() {
+    final step = _stepFromStatus;
     final labels = ['Order Placed', 'Preparing', 'Out for Delivery', 'Delivered'];
     return Row(
       children: List.generate(labels.length, (index) {
-        final isCompleted = index <= _currentStep;
-        final isActive = index == _currentStep;
+        final isCompleted = index <= step;
+        final isActive = index == step;
 
         return Expanded(
           child: Column(
@@ -1454,7 +1656,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                         ? const SizedBox()
                         : Container(
                             height: 2,
-                            color: index < _currentStep
+                            color: index < step
                                 ? AppColors.primary
                                 : Colors.grey[200]),
                   ),
@@ -1478,14 +1680,21 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   Widget _buildOrderDetails() {
+    final List<dynamic> realItems = _trackingData?['items'] ??
+        _trackingData?['order']?['items'] ??
+        widget.items;
+
+    final addressStr = _trackingData?['deliveryLocation']?['address'] ??
+        _trackingData?['order']?['deliveryAddress']?['formattedAddress'] ??
+        _trackingData?['order']?['deliveryAddress']?['address'] ??
+        widget.deliveryAddress;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 6)
-        ],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1501,11 +1710,15 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
               const Icon(Icons.location_on, color: AppColors.primary, size: 18),
               const SizedBox(width: 8),
               Expanded(
-                  child: Text(widget.deliveryAddress,
-                      style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1F2937)))),
+                child: Text(
+                  addressStr,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -1517,45 +1730,51 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF6B7280))),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(6)),
-                child: const Text('1x',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                  child: Text('6 pcs chicken wings',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
-              const Text('₹120.0',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(6)),
-                child: const Text('1x',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                  child: Text('Margherita Pizza',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
-              const Text('₹179.0',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-            ],
-          ),
+          if (realItems.isEmpty)
+            const Text(
+              'No items detailed',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            )
+          else
+            ...realItems.map((item) {
+              final qty = item['quantity'] ?? item['qty'] ?? 1;
+              final name = item['name'] ?? item['product']?['name'] ?? 'Item';
+              final price = item['price'] ?? item['sellingPrice'] ?? 0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text('${qty}x',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        name.toString(),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '₹${price.toString()}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );
@@ -1747,6 +1966,30 @@ class _RadarSearchMapPainter extends CustomPainter {
 
 // ── Custom Painter: Active Route Map Canvas with Brand Logo Marker (Active Tracking)
 class _ActiveRouteMapPainter extends CustomPainter {
+  final String riderName;
+  final String restaurantName;
+  final String userAddress;
+  final double? riderLat;
+  final double? riderLng;
+  final double? restLat;
+  final double? restLng;
+  final double? userLat;
+  final double? userLng;
+  final bool isRiderAssigned;
+
+  _ActiveRouteMapPainter({
+    required this.riderName,
+    required this.restaurantName,
+    required this.userAddress,
+    this.riderLat,
+    this.riderLng,
+    this.restLat,
+    this.restLng,
+    this.userLat,
+    this.userLng,
+    this.isRiderAssigned = false,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     // 1. Base Map Background
@@ -1790,21 +2033,40 @@ class _ActiveRouteMapPainter extends CustomPainter {
     canvas.drawPath(vRoad1, roadBorder); canvas.drawPath(vRoad1, roadFill);
     canvas.drawPath(vRoad2, roadBorder); canvas.drawPath(vRoad2, roadFill);
 
-    // 6. Navigation Route Line (Home -> Corner -> Partner -> Corner -> Store)
-    final homePos = Offset(45, size.height * 0.72);
-    final partnerPos = Offset(size.width * 0.5, size.height * 0.48);
-    final storePos = Offset(size.width - 45, size.height * 0.22);
+    // Dynamic coordinates interpolation or default grid points
+    final rLat = restLat ?? 22.7533;
+    final rLng = restLng ?? 75.8937;
+    final uLat = userLat ?? 22.7196;
+    final uLng = userLng ?? 75.8577;
+    final dLat = riderLat ?? rLat;
+    final dLng = riderLng ?? rLng;
 
+    double minLat = [rLat, uLat, dLat].reduce((a, b) => a < b ? a : b);
+    double maxLat = [rLat, uLat, dLat].reduce((a, b) => a > b ? a : b);
+    double minLng = [rLng, uLng, dLng].reduce((a, b) => a < b ? a : b);
+    double maxLng = [rLng, uLng, dLng].reduce((a, b) => a > b ? a : b);
+
+    if ((maxLat - minLat).abs() < 0.0001) maxLat += 0.01;
+    if ((maxLng - minLng).abs() < 0.0001) maxLng += 0.01;
+
+    double pad = 45.0;
+    Offset toCanvas(double latVal, double lngVal) {
+      double x = pad + ((lngVal - minLng) / (maxLng - minLng)) * (size.width - 2 * pad);
+      double y = size.height - pad - ((latVal - minLat) / (maxLat - minLat)) * (size.height - 2 * pad);
+      return Offset(x, y);
+    }
+
+    final storePos = restLat != null && restLng != null ? toCanvas(rLat, rLng) : Offset(size.width - 50, size.height * 0.22);
+    final homePos = userLat != null && userLng != null ? toCanvas(uLat, uLng) : Offset(50, size.height * 0.75);
+    final partnerPos = riderLat != null && riderLng != null ? toCanvas(dLat, dLng) : (storePos + homePos) / 2;
+
+    // 6. Navigation Route Line (Home -> Partner -> Store)
     final routePath = Path();
     routePath.moveTo(homePos.dx, homePos.dy);
-    routePath.lineTo(size.width * 0.25, size.height * 0.72);
-    routePath.lineTo(size.width * 0.25, size.height * 0.48);
     routePath.lineTo(partnerPos.dx, partnerPos.dy);
-    routePath.lineTo(size.width * 0.75, size.height * 0.48);
-    routePath.lineTo(size.width * 0.75, size.height * 0.22);
     routePath.lineTo(storePos.dx, storePos.dy);
 
-    // Glowing Navigation Route Polyline (Vibrant Blue Google Maps Style)
+    // Glowing Navigation Route Polyline
     final routeGlow = Paint()
       ..color = const Color(0x663B82F6)
       ..strokeWidth = 12
@@ -1823,48 +2085,52 @@ class _ActiveRouteMapPainter extends CustomPainter {
 
     // Waypoint dots
     final dotPaint = Paint()..color = Colors.white;
-    canvas.drawCircle(Offset(size.width * 0.25, size.height * 0.72), 3, dotPaint);
-    canvas.drawCircle(Offset(size.width * 0.25, size.height * 0.48), 3, dotPaint);
-    canvas.drawCircle(Offset(size.width * 0.75, size.height * 0.48), 3, dotPaint);
-    canvas.drawCircle(Offset(size.width * 0.75, size.height * 0.22), 3, dotPaint);
+    canvas.drawCircle(homePos, 4, dotPaint);
+    canvas.drawCircle(storePos, 4, dotPaint);
 
     // 7. Store Marker Badge (Top Right)
+    final storeLabel = restaurantName.isNotEmpty ? (restaurantName.length > 14 ? '${restaurantName.substring(0, 12)}...' : restaurantName) : "Restaurant";
     _drawMarkerBadge(
       canvas,
       storePos,
       bgColor: const Color(0xFFEF4444),
-      subLabel: "Cellar Door",
+      subLabel: storeLabel,
     );
 
     // 8. Customer Home Marker Badge (Bottom Left)
+    final homeLabel = userAddress.isNotEmpty ? (userAddress.length > 14 ? '${userAddress.substring(0, 12)}...' : userAddress) : "Home";
     _drawMarkerBadge(
       canvas,
       homePos,
       bgColor: const Color(0xFF10B981),
-      subLabel: "102, Royal Palms",
+      subLabel: homeLabel,
       isBottom: true,
     );
 
-    // 9. Delivery Partner Marker Badge Base Pulse Ring (Center Active Driver)
-    canvas.drawCircle(partnerPos, 26, Paint()..color = AppColors.primary.withValues(alpha: 0.25));
-    canvas.drawCircle(partnerPos + const Offset(0, 3), 18, Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+    // 9. Delivery Partner Marker Badge (Only if assigned)
+    if (isRiderAssigned) {
+      canvas.drawCircle(partnerPos, 26, Paint()..color = AppColors.primary.withValues(alpha: 0.25));
+      canvas.drawCircle(partnerPos + const Offset(0, 3), 18, Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
 
-    // Floating Rider Callout Bubble above Partner Pin
-    final bubbleRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: partnerPos + const Offset(0, -28), width: 110, height: 24),
-      const Radius.circular(12),
-    );
-    canvas.drawRRect(bubbleRect.shift(const Offset(0, 2)), Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
-    canvas.drawRRect(bubbleRect, Paint()..color = AppColors.primary);
+      final rDisplay = riderName.isNotEmpty ? riderName : "Rider";
+      final bubbleText = "$rDisplay 🚴";
 
-    final arrowPath = Path()
-      ..moveTo(partnerPos.dx - 5, partnerPos.dy - 16)
-      ..lineTo(partnerPos.dx + 5, partnerPos.dy - 16)
-      ..lineTo(partnerPos.dx, partnerPos.dy - 10)
-      ..close();
-    canvas.drawPath(arrowPath, Paint()..color = AppColors.primary);
+      final bubbleRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: partnerPos + const Offset(0, -28), width: 110, height: 24),
+        const Radius.circular(12),
+      );
+      canvas.drawRRect(bubbleRect.shift(const Offset(0, 2)), Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+      canvas.drawRRect(bubbleRect, Paint()..color = AppColors.primary);
 
-    _drawTextLabel(canvas, "Rahul (Rider) 🚴", partnerPos + const Offset(0, -28), 10, Colors.white, isBold: true);
+      final arrowPath = Path()
+        ..moveTo(partnerPos.dx - 5, partnerPos.dy - 16)
+        ..lineTo(partnerPos.dx + 5, partnerPos.dy - 16)
+        ..lineTo(partnerPos.dx, partnerPos.dy - 10)
+        ..close();
+      canvas.drawPath(arrowPath, Paint()..color = AppColors.primary);
+
+      _drawTextLabel(canvas, bubbleText, partnerPos + const Offset(0, -28), 10, Colors.white, isBold: true);
+    }
   }
 
   void _drawMarkerBadge(Canvas canvas, Offset pos, {required Color bgColor, required String subLabel, bool isBottom = false}) {

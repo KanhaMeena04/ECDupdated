@@ -81,6 +81,9 @@ export default function PricingControlTower() {
 
   const [platformFeeConfig, setPlatformFeeConfig] = useState({ enabled: true, type: "fixed", fee: 5, minFee: 5, maxFee: 20 });
   const [packagingFeeConfig, setPackagingFeeConfig] = useState({ enabled: true, globalPackagingFee: 10 });
+  const [tipConfig, setTipConfig] = useState({ enabled: true, options: [5, 10, 20] });
+  const [tipInputText, setTipInputText] = useState("5, 10, 20");
+  const [taxConfig, setTaxConfig] = useState({ enabled: true, gstPercent: 5 });
 
   const [restaurants, setRestaurants] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -117,6 +120,13 @@ export default function PricingControlTower() {
       if (c.commissionConfig) setCommissionConfig(c.commissionConfig);
       if (c.platformFeeConfig) setPlatformFeeConfig(c.platformFeeConfig);
       if (c.packagingFeeConfig) setPackagingFeeConfig(c.packagingFeeConfig);
+      if (c.tipConfig) {
+        setTipConfig(c.tipConfig);
+        if (c.tipConfig.options && Array.isArray(c.tipConfig.options)) {
+          setTipInputText(c.tipConfig.options.join(", "));
+        }
+      }
+      if (c.taxConfig) setTaxConfig(c.taxConfig);
 
       setRestaurants(res.data.restaurants || []);
       setCategories(res.data.categories || []);
@@ -234,12 +244,25 @@ export default function PricingControlTower() {
   const handleSaveFeeConfig = async () => {
     try {
       setLoading(true);
+      const parsedOptions = tipInputText
+        .split(",")
+        .map(v => Number(v.trim()))
+        .filter(v => !isNaN(v) && v > 0);
+
+      const updatedTipConfig = {
+        ...tipConfig,
+        options: parsedOptions.length > 0 ? parsedOptions : [5, 10, 20],
+      };
+
       await api.put("/api/pricing/fee-config", {
         platformFeeConfig,
         packagingFeeConfig,
-        reason: "Admin updated platform & packaging fees",
+        tipConfig: updatedTipConfig,
+        taxConfig,
+        reason: "Admin updated platform, packaging, rider tip & tax fee settings",
       });
-      showAlert("Platform & Packaging fees saved successfully!");
+      setTipConfig(updatedTipConfig);
+      showAlert("Platform, Packaging, Tip & GST fees saved successfully!");
       fetchPricingConfig();
     } catch (err) {
       showAlert("Failed to save fee settings", "error");
@@ -676,6 +699,62 @@ export default function PricingControlTower() {
 
               <Button variant="contained" fullWidth sx={{ bgcolor: PRIMARY_COLOR, fontWeight: 700 }} onClick={handleSaveFeeConfig}>
                 Save Packaging Fee
+              </Button>
+            </Card>
+          </Grid>
+
+          {/* Rider Tip Control */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ borderRadius: 3, p: 3 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>Rider Tip Options</Typography>
+                <Switch
+                  checked={tipConfig.enabled}
+                  onChange={(e) => setTipConfig({ ...tipConfig, enabled: e.target.checked })}
+                  color="success"
+                />
+              </Box>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Enable/disable delivery partner tipping & set suggested tip options (comma separated)
+              </Typography>
+
+              <TextField
+                fullWidth size="small" label="Suggested Tip Amounts (e.g. 5, 10, 20)" type="text"
+                value={tipInputText}
+                onChange={(e) => setTipInputText(e.target.value)}
+                sx={{ mb: 2 }}
+              />
+
+              <Button variant="contained" fullWidth sx={{ bgcolor: PRIMARY_COLOR, fontWeight: 700 }} onClick={handleSaveFeeConfig}>
+                Save Rider Tip Config
+              </Button>
+            </Card>
+          </Grid>
+
+          {/* GST / Tax Control */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ borderRadius: 3, p: 3 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>GST / Govt Tax Control</Typography>
+                <Switch
+                  checked={taxConfig.enabled}
+                  onChange={(e) => setTaxConfig({ ...taxConfig, enabled: e.target.checked })}
+                  color="success"
+                />
+              </Box>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Enable/disable GST tax charge on order total & set GST percentage (%)
+              </Typography>
+
+              <TextField
+                fullWidth size="small" label="GST Percentage (%)" type="number"
+                value={taxConfig.gstPercent}
+                onChange={(e) => setTaxConfig({ ...taxConfig, gstPercent: Number(e.target.value) })}
+                sx={{ mb: 2 }}
+              />
+
+              <Button variant="contained" fullWidth sx={{ bgcolor: PRIMARY_COLOR, fontWeight: 700 }} onClick={handleSaveFeeConfig}>
+                Save GST Tax Config
               </Button>
             </Card>
           </Grid>

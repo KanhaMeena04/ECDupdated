@@ -195,31 +195,31 @@ function DriverTable() {
             {riders.map((r, i) => (
               <tr key={r._id} className="hover:bg-gray-50">
                 <td className="p-3 border text-center">{i + 1}</td>
-                <td className="p-3 border text-blue-600">{r._id}</td>
-                <td className="p-3 border">{r.user?.name || "-"}</td>
-                <td className="p-3 border">{r.user?.mobile || "-"}</td>
+                <td className="p-3 border text-blue-600 font-mono text-xs">{r._id}</td>
+                <td className="p-3 border font-semibold">{r.user?.name || r.name || "Driver Partner"}</td>
+                <td className="p-3 border">{r.user?.mobile || r.user?.phone || r.phone || r.mobile || "-"}</td>
 
                 <td className="p-3 border">
                   <span
                     className={`px-3 py-1 rounded-md text-xs font-medium border ${
-                      r.verificationStatus === "approved"
-                        ? "text-emerald-600 border-emerald-500"
-                        : "text-orange-500 border-orange-400"
+                      r.verificationStatus === "approved" || r.verificationStatus === "verified"
+                        ? "text-emerald-600 border-emerald-500 bg-emerald-50"
+                        : "text-orange-500 border-orange-400 bg-orange-50"
                     }`}
                   >
-                    {r.verificationStatus}
+                    {r.verificationStatus || "pending"}
                   </span>
                 </td>
 
                 <td className="p-3 border">
-                  {r.user?.profilePic ? (
+                  {(r.user?.profilePic || r.profilePic) ? (
                     <img
-                      src={r.user.profilePic}
+                      src={r.user?.profilePic || r.profilePic}
                       alt=""
-                      className="w-12 h-12 rounded-md object-cover"
+                      className="w-10 h-10 rounded-full object-cover border"
                     />
                   ) : (
-                    <span className="text-gray-400">profile photo</span>
+                    <span className="text-gray-400 text-xs italic">No photo</span>
                   )}
                 </td>
 

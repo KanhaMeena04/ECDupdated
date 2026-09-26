@@ -1,0 +1,3964 @@
+[
+  {
+    "_id": "6a7c8cea6e1285608339d468",
+    "userId": "6a7c8c7d6e1285608339d386",
+    "title": "Order Ready 📦",
+    "body": "ORD-1786547386840 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1786547386840"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-12T15:10:34.071Z",
+    "errorLog": [],
+    "createdAt": "2026-08-12T15:10:34.072Z",
+    "updatedAt": "2026-08-12T15:11:00.288Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7c8cfb6e1285608339d495",
+    "userId": "6a7c8c7d6e1285608339d386",
+    "title": "Order Ready 📦",
+    "body": "ORD-1786547386840 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1786547386840"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-12T15:10:51.869Z",
+    "errorLog": [],
+    "createdAt": "2026-08-12T15:10:51.870Z",
+    "updatedAt": "2026-08-12T15:11:00.699Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7c8db56e1285608339d5b9",
+    "userId": "6a7c8c7d6e1285608339d386",
+    "title": "Order Ready 📦",
+    "body": "ORD-1786547386840 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1786547386840"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-12T15:13:57.708Z",
+    "errorLog": [],
+    "createdAt": "2026-08-12T15:13:57.709Z",
+    "updatedAt": "2026-08-12T15:14:00.408Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7c8db56e1285608339d5c6",
+    "userId": "6a7c8d806e1285608339d559",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1786547386840. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1786547386840",
+      "orderId": "6a7c8cba6e1285608339d403"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-12T15:13:57.766Z",
+    "errorLog": [
+      "[2026-08-12T15:14:00.421Z] No devices found for user."
+    ],
+    "createdAt": "2026-08-12T15:13:57.767Z",
+    "updatedAt": "2026-08-12T15:14:00.422Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a7c8dc16e1285608339d617",
+    "userId": "6a7c8c7d6e1285608339d386",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1786547386840 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1786547386840"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-12T15:14:09.831Z",
+    "errorLog": [],
+    "createdAt": "2026-08-12T15:14:09.832Z",
+    "updatedAt": "2026-08-12T15:15:00.436Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7c8df76e1285608339d73e",
+    "userId": "6a7c8c7d6e1285608339d386",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1786547386840 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1786547386840"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-12T15:15:03.152Z",
+    "errorLog": [],
+    "createdAt": "2026-08-12T15:15:03.152Z",
+    "updatedAt": "2026-08-12T15:16:00.234Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7c8df86e1285608339d763",
+    "userId": "6a7c8c7d6e1285608339d386",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1786547386840 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1786547386840"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-12T15:15:04.195Z",
+    "errorLog": [],
+    "createdAt": "2026-08-12T15:15:04.196Z",
+    "updatedAt": "2026-08-12T15:16:00.687Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7da1356e1285608339ed1f",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1786618084279 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1786618084279"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-13T10:49:25.096Z",
+    "errorLog": [],
+    "createdAt": "2026-08-13T10:49:25.102Z",
+    "updatedAt": "2026-08-13T10:50:00.325Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7dea686e1285608339f95d",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1786636812854 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1786636812854"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-13T16:01:44.870Z",
+    "errorLog": [],
+    "createdAt": "2026-08-13T16:01:44.870Z",
+    "updatedAt": "2026-08-13T16:02:00.328Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7dea6d6e1285608339f975",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1786636812854 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1786636812854"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-13T16:01:49.727Z",
+    "errorLog": [],
+    "createdAt": "2026-08-13T16:01:49.727Z",
+    "updatedAt": "2026-08-13T16:02:00.749Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7dea7d6e1285608339f9c9",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1786636812854 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1786636812854"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-13T16:02:05.593Z",
+    "errorLog": [],
+    "createdAt": "2026-08-13T16:02:05.594Z",
+    "updatedAt": "2026-08-13T16:03:00.450Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7dea7d6e1285608339f9db",
+    "userId": "6a7dcd796e1285608339f53a",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1786636812854. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1786636812854",
+      "orderId": "6a7dea0c6e1285608339f8cb"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-13T16:02:05.664Z",
+    "errorLog": [
+      "[2026-08-13T16:03:00.469Z] No devices found for user."
+    ],
+    "createdAt": "2026-08-13T16:02:05.664Z",
+    "updatedAt": "2026-08-13T16:03:00.470Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a7dea876e1285608339fa23",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1786636812854 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1786636812854"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-13T16:02:15.351Z",
+    "errorLog": [],
+    "createdAt": "2026-08-13T16:02:15.351Z",
+    "updatedAt": "2026-08-13T16:03:00.877Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7deb0a6e1285608339fcf1",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1786636812854 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1786636812854"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-13T16:04:26.599Z",
+    "errorLog": [],
+    "createdAt": "2026-08-13T16:04:26.599Z",
+    "updatedAt": "2026-08-13T16:05:00.470Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a8000846e128560833a19bf",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1786773636126 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1786773636126"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-15T06:00:36.293Z",
+    "errorLog": [],
+    "createdAt": "2026-08-15T06:00:36.293Z",
+    "updatedAt": "2026-08-15T06:01:00.322Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a8000c66e128560833a1a2b",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1786773636126 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1786773636126"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-15T06:01:42.098Z",
+    "errorLog": [],
+    "createdAt": "2026-08-15T06:01:42.099Z",
+    "updatedAt": "2026-08-15T06:02:00.506Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a8435b06e128560833a59e8",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1787049391933 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1787049391933"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T10:36:32.087Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T10:36:32.089Z",
+    "updatedAt": "2026-08-18T10:37:00.539Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a8435d46e128560833a5a35",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1787049391933 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1787049391933"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T10:37:08.190Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T10:37:08.191Z",
+    "updatedAt": "2026-08-18T10:38:00.482Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843a3f6e128560833a5e7e",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1787050559500 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1787050559500"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T10:55:59.642Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T10:55:59.644Z",
+    "updatedAt": "2026-08-18T10:56:00.232Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843a656e128560833a5f36",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1787050559500 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1787050559500"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T10:56:37.022Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T10:56:37.022Z",
+    "updatedAt": "2026-08-18T10:57:00.476Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843a656e128560833a5f45",
+    "userId": "6a8439b06e128560833a5cfe",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1787050559500. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1787050559500",
+      "orderId": "6a843a3f6e128560833a5e68"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T10:56:37.083Z",
+    "errorLog": [
+      "[2026-08-18T10:57:00.486Z] No devices found for user."
+    ],
+    "createdAt": "2026-08-18T10:56:37.083Z",
+    "updatedAt": "2026-08-18T10:57:00.487Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a843a6c6e128560833a5f74",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1787050559500 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1787050559500"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T10:56:44.308Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T10:56:44.309Z",
+    "updatedAt": "2026-08-18T10:57:00.920Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843ab96e128560833a613e",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1787050559500 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1787050559500"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T10:58:01.960Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T10:58:01.961Z",
+    "updatedAt": "2026-08-18T10:59:00.482Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843b006e128560833a62ea",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1787050752316 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1787050752316"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T10:59:12.463Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T10:59:12.464Z",
+    "updatedAt": "2026-08-18T11:00:00.520Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843b176e128560833a6371",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1787050752316 was cancelled: We have no ingredients",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1787050752316"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T10:59:35.929Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T10:59:35.929Z",
+    "updatedAt": "2026-08-18T11:00:01.032Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843b606e128560833a6500",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1787050848191 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1787050848191"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T11:00:48.320Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T11:00:48.321Z",
+    "updatedAt": "2026-08-18T11:01:00.276Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843b6a6e128560833a654c",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1787050848191 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1787050848191"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T11:00:58.795Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T11:00:58.796Z",
+    "updatedAt": "2026-08-18T11:01:00.736Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843b876e128560833a661a",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1787050887641 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1787050887641"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T11:01:27.776Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T11:01:27.777Z",
+    "updatedAt": "2026-08-18T11:02:00.431Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843b9c6e128560833a6696",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1787050887641 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1787050887641"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T11:01:48.219Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T11:01:48.220Z",
+    "updatedAt": "2026-08-18T11:02:00.848Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843bb16e128560833a6739",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1787050929264 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1787050929264"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T11:02:09.372Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T11:02:09.373Z",
+    "updatedAt": "2026-08-18T11:03:00.477Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843bd36e128560833a67ff",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1787050929264 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1787050929264"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T11:02:43.525Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T11:02:43.525Z",
+    "updatedAt": "2026-08-18T11:03:00.970Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a843bf16e128560833a68c4",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1787050993407 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1787050993407"
+    },
+    "status": "success",
+    "retryCount": 1,
+    "nextRetryAt": "2026-08-18T11:05:00.074Z",
+    "errorLog": [
+      "[2026-08-18T11:04:00.074Z] Error: Session error while making requests: UNABLE_TO_VERIFY_LEAF_SIGNATURE - unable to verify the first certificate "
+    ],
+    "createdAt": "2026-08-18T11:03:13.508Z",
+    "updatedAt": "2026-08-18T11:06:00.221Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a843c026e128560833a692b",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1787050993407 was cancelled: We have no ingredients",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1787050993407"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-18T11:03:30.991Z",
+    "errorLog": [],
+    "createdAt": "2026-08-18T11:03:30.992Z",
+    "updatedAt": "2026-08-18T11:04:00.517Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a888b186e128560833aaa42",
+    "userId": "6a87735c6e128560833a985e",
+    "title": "Refund Initiated 💰",
+    "body": "Refund of ₹1329 for ORD-1787331541182 has been initiated and will be processed within 24 hours.",
+    "type": "refund_initiated",
+    "data": {
+      "orderNumber": "ORD-1787331541182",
+      "amount": "1329"
+    },
+    "status": "processing",
+    "retryCount": 2,
+    "nextRetryAt": "2026-08-21T17:35:00.627Z",
+    "errorLog": [
+      "[2026-08-21T17:31:00.614Z] Error: All tokens failed to send. [{\"success\":false,\"error\":{\"code\":\"messaging/third-party-auth-error\",\"message\":\"Invalid APNs credential.\"}}]",
+      "[2026-08-21T17:33:00.627Z] Error: All tokens failed to send. [{\"success\":false,\"error\":{\"code\":\"messaging/third-party-auth-error\",\"message\":\"Invalid APNs credential.\"}}]"
+    ],
+    "createdAt": "2026-08-21T17:30:00.087Z",
+    "updatedAt": "2026-08-21T17:33:00.628Z",
+    "__v": 2
+  },
+  {
+    "_id": "6a888b186e128560833aaa44",
+    "userId": "6a87735c6e128560833a985e",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1787331541182 was cancelled: Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1787331541182"
+    },
+    "status": "processing",
+    "retryCount": 2,
+    "nextRetryAt": "2026-08-21T17:35:01.303Z",
+    "errorLog": [
+      "[2026-08-21T17:31:01.282Z] Error: All tokens failed to send. [{\"success\":false,\"error\":{\"code\":\"messaging/third-party-auth-error\",\"message\":\"Invalid APNs credential.\"}}]",
+      "[2026-08-21T17:33:01.302Z] Error: All tokens failed to send. [{\"success\":false,\"error\":{\"code\":\"messaging/third-party-auth-error\",\"message\":\"Invalid APNs credential.\"}}]"
+    ],
+    "createdAt": "2026-08-21T17:30:00.089Z",
+    "updatedAt": "2026-08-21T17:33:01.303Z",
+    "__v": 2
+  },
+  {
+    "_id": "6a9039ae6e128560833b1b7d",
+    "userId": "6a87735c6e128560833a985e",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1787836846388 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1787836846388"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-27T13:20:46.583Z",
+    "errorLog": [],
+    "createdAt": "2026-08-27T13:20:46.584Z",
+    "updatedAt": "2026-08-27T13:21:00.547Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9040c46e128560833b1c1c",
+    "userId": "6a87735c6e128560833a985e",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1787836846388 was cancelled: Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1787836846388"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-27T13:51:00.080Z",
+    "errorLog": [],
+    "createdAt": "2026-08-27T13:51:00.080Z",
+    "updatedAt": "2026-08-27T13:52:00.626Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a929cd46e128560833b4431",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1787993300397 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1787993300397"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T08:48:20.587Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T08:48:20.589Z",
+    "updatedAt": "2026-08-29T08:49:00.391Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a929ce76e128560833b4479",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1787993300397 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1787993300397"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T08:48:39.899Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T08:48:39.900Z",
+    "updatedAt": "2026-08-29T08:49:00.800Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a929d9d6e128560833b467f",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1787993501697 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1787993501697"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T08:51:41.823Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T08:51:41.824Z",
+    "updatedAt": "2026-08-29T08:52:00.466Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a929da76e128560833b46bc",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1787993501697 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1787993501697"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T08:51:51.328Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T08:51:51.328Z",
+    "updatedAt": "2026-08-29T08:52:00.995Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a929da76e128560833b46d7",
+    "userId": "6a911f4d6e128560833b2811",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1787993501697. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1787993501697",
+      "orderId": "6a929d9d6e128560833b4668"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T08:51:51.430Z",
+    "errorLog": [
+      "[2026-08-29T08:52:01.011Z] No devices found for user."
+    ],
+    "createdAt": "2026-08-29T08:51:51.430Z",
+    "updatedAt": "2026-08-29T08:52:01.012Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a929dc46e128560833b473f",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1787993501697 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1787993501697"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T08:52:20.594Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T08:52:20.595Z",
+    "updatedAt": "2026-08-29T08:53:00.439Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92a4166e128560833b4f82",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1787995158032 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1787995158032"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T09:19:18.146Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T09:19:18.146Z",
+    "updatedAt": "2026-08-29T09:20:00.349Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92a43a6e128560833b4ffb",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1787995158032 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1787995158032"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T09:19:54.758Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T09:19:54.758Z",
+    "updatedAt": "2026-08-29T09:20:00.751Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92a47c6e128560833b509f",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1787995260155 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1787995260155"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T09:21:00.323Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T09:21:00.324Z",
+    "updatedAt": "2026-08-29T09:22:00.470Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92a4ad6e128560833b50f6",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1787995260155 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1787995260155"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T09:21:49.151Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T09:21:49.151Z",
+    "updatedAt": "2026-08-29T09:22:00.907Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92a4ad6e128560833b5111",
+    "userId": "6a85c2f56e128560833a816d",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1787995260155. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1787995260155",
+      "orderId": "6a92a47c6e128560833b5089"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T09:21:49.260Z",
+    "errorLog": [
+      "[2026-08-29T09:22:00.920Z] No devices found for user."
+    ],
+    "createdAt": "2026-08-29T09:21:49.260Z",
+    "updatedAt": "2026-08-29T09:22:00.921Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a92a4ba6e128560833b5162",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1787995260155 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1787995260155"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T09:22:02.667Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T09:22:02.667Z",
+    "updatedAt": "2026-08-29T09:23:00.429Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92a5586e128560833b545f",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1787995260155 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1787995260155"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T09:24:40.710Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T09:24:40.711Z",
+    "updatedAt": "2026-08-29T09:25:00.173Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92a55a6e128560833b5482",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1787995260155 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1787995260155"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T09:24:42.831Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T09:24:42.831Z",
+    "updatedAt": "2026-08-29T09:25:00.604Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92be696e128560833b5ecb",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788001897267 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:11:37.390Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:11:37.391Z",
+    "updatedAt": "2026-08-29T11:12:00.294Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92be956e128560833b5f41",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788001897267 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:12:21.795Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:12:21.796Z",
+    "updatedAt": "2026-08-29T11:13:00.434Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92bea56e128560833b5fae",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788001897267 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:12:37.007Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:12:37.007Z",
+    "updatedAt": "2026-08-29T11:13:00.862Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92bea76e128560833b5fd8",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788001897267 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:12:39.122Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:12:39.122Z",
+    "updatedAt": "2026-08-29T11:13:01.272Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92bec96e128560833b60de",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788001897267 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:13:13.786Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:13:13.787Z",
+    "updatedAt": "2026-08-29T11:14:00.533Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92bf046e128560833b616d",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788001897267 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:14:12.998Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:14:12.998Z",
+    "updatedAt": "2026-08-29T11:15:00.499Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92bf0f6e128560833b61ae",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788001897267 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:14:23.338Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:14:23.338Z",
+    "updatedAt": "2026-08-29T11:15:00.914Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92bf146e128560833b61d8",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788001897267 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:14:28.129Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:14:28.130Z",
+    "updatedAt": "2026-08-29T11:15:01.364Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92bf746e128560833b62d7",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788001897267 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:16:04.354Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:16:04.354Z",
+    "updatedAt": "2026-08-29T11:17:00.211Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92bf756e128560833b6301",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788001897267 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:16:05.785Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:16:05.786Z",
+    "updatedAt": "2026-08-29T11:17:03.454Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92bfb36e128560833b638f",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788001897267 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:17:07.887Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:17:07.888Z",
+    "updatedAt": "2026-08-29T11:18:00.240Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92bfb56e128560833b63b9",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788001897267 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:17:09.638Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:17:09.638Z",
+    "updatedAt": "2026-08-29T11:18:00.651Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92c0d86e128560833b6506",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788001897267 was cancelled: Auto-cancelled: No riders available to deliver the order.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788001897267"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:22:00.069Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T11:22:00.070Z",
+    "updatedAt": "2026-08-29T11:23:00.225Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92c22f6e128560833b66e5",
+    "userId": "6a7d9d7c6e1285608339ea34",
+    "title": "Payout Completed ✅",
+    "body": "A payout of ₹2000 has been processed successfully to your account.",
+    "type": "restaurant_payout",
+    "data": {
+      "amount": "2000"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:27:43.185Z",
+    "errorLog": [
+      "[2026-08-29T11:28:00.037Z] No devices found for user."
+    ],
+    "createdAt": "2026-08-29T11:27:43.185Z",
+    "updatedAt": "2026-08-29T11:28:00.038Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a92c98c6e128560833b6b99",
+    "userId": "6a7c81a8fd80503fd1c0e7cd",
+    "title": "Payout Completed ✅",
+    "body": "A payout of ₹7880 has been processed successfully to your account.",
+    "type": "restaurant_payout",
+    "data": {
+      "amount": "7880"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T11:59:08.691Z",
+    "errorLog": [
+      "[2026-08-29T12:00:00.060Z] No devices found for user."
+    ],
+    "createdAt": "2026-08-29T11:59:08.691Z",
+    "updatedAt": "2026-08-29T12:00:00.061Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a92dc2c6e128560833b6f12",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788009516837 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788009516837"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T13:18:36.972Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T13:18:36.972Z",
+    "updatedAt": "2026-08-29T13:19:00.468Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92e34c6e128560833b6fa3",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788009516837 was cancelled: Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788009516837"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T13:49:00.063Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T13:49:00.064Z",
+    "updatedAt": "2026-08-29T13:50:00.336Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92e9036e128560833b717e",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788012803794 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788012803794"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T14:13:23.902Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T14:13:23.903Z",
+    "updatedAt": "2026-08-29T14:14:00.276Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92ec0e6e128560833b72b3",
+    "userId": "6a92eb3c6e128560833b71d7",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788013582589 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788013582589"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T14:26:22.707Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T14:26:22.708Z",
+    "updatedAt": "2026-08-29T14:27:00.252Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92f0306e128560833b7309",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788012803794 was cancelled: Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788012803794"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-08-29T14:44:00.072Z",
+    "errorLog": [],
+    "createdAt": "2026-08-29T14:44:00.073Z",
+    "updatedAt": "2026-08-29T14:45:00.201Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92f33c6e128560833b7362",
+    "userId": "6a92eb3c6e128560833b71d7",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788013582589 was cancelled: Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788013582589"
+    },
+    "status": "success",
+    "retryCount": 1,
+    "nextRetryAt": "2026-08-29T14:59:00.382Z",
+    "errorLog": [
+      "[2026-08-29T14:58:00.382Z] Error: All tokens failed to send. [{\"success\":false,\"error\":{\"code\":\"messaging/registration-token-not-registered\",\"message\":\"NotRegistered\"}}]",
+      "[2026-08-29T15:00:00.042Z] No devices found for user."
+    ],
+    "createdAt": "2026-08-29T14:57:00.078Z",
+    "updatedAt": "2026-08-29T15:00:00.042Z",
+    "__v": 2
+  },
+  {
+    "_id": "6a97be806e128560833bb906",
+    "userId": "6a96ec046e128560833badce",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788329600554 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788329600554"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-02T06:13:20.728Z",
+    "errorLog": [],
+    "createdAt": "2026-09-02T06:13:20.729Z",
+    "updatedAt": "2026-09-02T06:14:00.375Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a97be8d6e128560833bb924",
+    "userId": "6a96ec046e128560833badce",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788329600554 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788329600554"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-02T06:13:33.435Z",
+    "errorLog": [],
+    "createdAt": "2026-09-02T06:13:33.437Z",
+    "updatedAt": "2026-09-02T06:14:00.869Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e234bdae4f7fc97db505e",
+    "userId": "6a9189c96e128560833b2e5a",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788748618915 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788748618915"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T02:36:59.072Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T02:36:59.073Z",
+    "updatedAt": "2026-09-07T02:37:00.537Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e2380dae4f7fc97db50fa",
+    "userId": "6a9189c96e128560833b2e5a",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788748618915 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788748618915"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T02:37:52.118Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T02:37:52.119Z",
+    "updatedAt": "2026-09-07T02:38:00.244Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e2460dae4f7fc97db5138",
+    "userId": "6a9189c96e128560833b2e5a",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788748618915 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788748618915"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T02:41:36.524Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T02:41:36.525Z",
+    "updatedAt": "2026-09-07T02:42:00.451Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e2568dae4f7fc97db5174",
+    "userId": "6a9189c96e128560833b2e5a",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788748618915 was cancelled: Auto-cancelled: No riders available to deliver the order.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788748618915"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T02:46:00.083Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T02:46:00.084Z",
+    "updatedAt": "2026-09-07T02:47:00.198Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e3941dae4f7fc97db5463",
+    "userId": "6a7c9e936e1285608339da7b",
+    "title": "Payout Completed ✅",
+    "body": "A payout of ₹500 has been processed successfully to your account.",
+    "type": "restaurant_payout",
+    "data": {
+      "amount": "500"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T04:10:41.709Z",
+    "errorLog": [
+      "[2026-09-07T04:11:00.035Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-07T04:10:41.710Z",
+    "updatedAt": "2026-09-07T04:11:00.036Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a9e88cbdae4f7fc97db5f72",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788774602956 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788774602956"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T09:50:03.147Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T09:50:03.148Z",
+    "updatedAt": "2026-09-07T09:51:00.521Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e88e7dae4f7fc97db5fae",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788774602956 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788774602956"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T09:50:31.747Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T09:50:31.747Z",
+    "updatedAt": "2026-09-07T09:51:01.052Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e88e7dae4f7fc97db5fbc",
+    "userId": "6a85c2f56e128560833a816d",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1788774602956. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1788774602956",
+      "orderId": "6a9e88cadae4f7fc97db5f5a"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T09:50:31.818Z",
+    "errorLog": [
+      "[2026-09-07T09:51:01.064Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-07T09:50:31.818Z",
+    "updatedAt": "2026-09-07T09:51:01.064Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a9e8905dae4f7fc97db6029",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1788774602956 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1788774602956"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T09:51:01.607Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T09:51:01.608Z",
+    "updatedAt": "2026-09-07T09:52:00.518Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e8976dae4f7fc97db62ec",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1788774602956 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1788774602956"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T09:52:54.528Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T09:52:54.529Z",
+    "updatedAt": "2026-09-07T09:53:00.657Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e89e5dae4f7fc97db6531",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788774885382 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788774885382"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T09:54:45.498Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T09:54:45.498Z",
+    "updatedAt": "2026-09-07T09:55:00.495Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e89fbdae4f7fc97db65c6",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788774885382 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788774885382"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T09:55:07.748Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T09:55:07.749Z",
+    "updatedAt": "2026-09-07T09:56:00.209Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e8a87dae4f7fc97db669b",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788775047362 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788775047362"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T09:57:27.469Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T09:57:27.470Z",
+    "updatedAt": "2026-09-07T09:58:00.241Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e8a95dae4f7fc97db66c8",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788775047362 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788775047362"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T09:57:41.361Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T09:57:41.361Z",
+    "updatedAt": "2026-09-07T09:58:04.165Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e8ab4dae4f7fc97db6715",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788775092842 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788775092842"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T09:58:12.952Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T09:58:12.953Z",
+    "updatedAt": "2026-09-07T09:59:00.490Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9e8ac4dae4f7fc97db6741",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788775092842 was cancelled: We have no ingredients",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788775092842"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T09:58:28.960Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T09:58:28.961Z",
+    "updatedAt": "2026-09-07T09:59:00.905Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9f049299866971ef574340",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788806290799 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788806290799"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T18:38:10.984Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T18:38:10.985Z",
+    "updatedAt": "2026-09-07T18:39:00.394Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9f04c199866971ef57443a",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788806290799 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788806290799"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T18:38:57.083Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T18:38:57.083Z",
+    "updatedAt": "2026-09-07T18:39:00.862Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9f04c199866971ef574456",
+    "userId": "6a9ef97099866971ef573ad7",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1788806290799. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1788806290799",
+      "orderId": "6a9f049299866971ef57431f"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T18:38:57.129Z",
+    "errorLog": [
+      "[2026-09-07T18:39:00.874Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-07T18:38:57.129Z",
+    "updatedAt": "2026-09-07T18:39:00.875Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a9f04d099866971ef574506",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1788806290799 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1788806290799"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-07T18:39:12.709Z",
+    "errorLog": [],
+    "createdAt": "2026-09-07T18:39:12.709Z",
+    "updatedAt": "2026-09-07T18:40:00.453Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa19199866971ef577307",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788846481562 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788846481562"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:48:01.836Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T05:48:01.837Z",
+    "updatedAt": "2026-09-08T05:49:00.481Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa1a799866971ef57735f",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788846481562 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788846481562"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:48:23.407Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T05:48:23.407Z",
+    "updatedAt": "2026-09-08T05:49:00.953Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa2bd99866971ef5775c4",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788846781678 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788846781678"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:53:01.819Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T05:53:01.820Z",
+    "updatedAt": "2026-09-08T05:54:00.292Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa2d999866971ef57764b",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788846781678 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788846781678"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:53:29.301Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T05:53:29.301Z",
+    "updatedAt": "2026-09-08T05:54:00.729Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa2f299866971ef5776db",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788846781678 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788846781678"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:53:54.371Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T05:53:54.371Z",
+    "updatedAt": "2026-09-08T05:54:01.154Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa2f299866971ef5776ed",
+    "userId": "6a9fa28c99866971ef57750e",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1788846781678. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1788846781678",
+      "orderId": "6a9fa2bd99866971ef5775aa"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:53:54.448Z",
+    "errorLog": [
+      "[2026-09-08T05:54:01.166Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-08T05:53:54.449Z",
+    "updatedAt": "2026-09-08T05:54:01.167Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a9fa2fc99866971ef57773c",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1788846781678 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1788846781678"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:54:04.513Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T05:54:04.513Z",
+    "updatedAt": "2026-09-08T05:55:00.431Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa33c99866971ef5778fa",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1788846781678 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1788846781678"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:55:08.009Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T05:55:08.010Z",
+    "updatedAt": "2026-09-08T05:56:00.469Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa34099866971ef57792e",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1788846781678 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1788846781678"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:55:12.890Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T05:55:12.891Z",
+    "updatedAt": "2026-09-08T05:56:00.878Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa38099866971ef577ab2",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788846976264 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788846976264"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:56:16.394Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T05:56:16.395Z",
+    "updatedAt": "2026-09-08T05:57:00.484Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa39f99866971ef577b88",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788846976264 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788846976264"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:56:47.862Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T05:56:47.862Z",
+    "updatedAt": "2026-09-08T05:57:00.885Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa39f99866971ef577b9a",
+    "userId": "6a9fa28c99866971ef57750e",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1788846976264. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1788846976264",
+      "orderId": "6a9fa38099866971ef577a98"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:56:47.938Z",
+    "errorLog": [
+      "[2026-09-08T05:57:00.900Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-08T05:56:47.939Z",
+    "updatedAt": "2026-09-08T05:57:00.900Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a9fa3ae99866971ef577c12",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1788846976264 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1788846976264"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:57:02.639Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T05:57:02.641Z",
+    "updatedAt": "2026-09-08T05:58:00.482Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa40099866971ef577e0c",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1788846976264 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1788846976264"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T05:58:24.246Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T05:58:24.246Z",
+    "updatedAt": "2026-09-08T05:59:00.216Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa5f999866971ef5785b1",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788847609785 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788847609785"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:06:49.918Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:06:49.919Z",
+    "updatedAt": "2026-09-08T06:07:00.392Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa65299866971ef5787dc",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788847609785 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788847609785"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:08:18.018Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:08:18.018Z",
+    "updatedAt": "2026-09-08T06:09:00.481Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa65299866971ef5787f3",
+    "userId": "6a9fa28c99866971ef57750e",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1788847609785. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1788847609785",
+      "orderId": "6a9fa5f999866971ef578595"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:08:18.101Z",
+    "errorLog": [
+      "[2026-09-08T06:09:00.495Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-08T06:08:18.102Z",
+    "updatedAt": "2026-09-08T06:09:00.496Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a9fa65c99866971ef578890",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1788847609785 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1788847609785"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:08:28.075Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:08:28.079Z",
+    "updatedAt": "2026-09-08T06:09:00.917Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa6c399866971ef578ccc",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1788847609785 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1788847609785"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:10:11.897Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:10:11.898Z",
+    "updatedAt": "2026-09-08T06:11:00.228Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa80899866971ef57911b",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788848136503 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788848136503"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:15:36.621Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:15:36.622Z",
+    "updatedAt": "2026-09-08T06:16:00.182Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa88e99866971ef5792fc",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788848136503 was cancelled: We have no ingredients",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788848136503"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:17:50.902Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:17:50.903Z",
+    "updatedAt": "2026-09-08T06:18:00.525Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa99599866971ef57959d",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788848533472 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788848533472"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:22:13.635Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:22:13.636Z",
+    "updatedAt": "2026-09-08T06:23:00.202Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa9af99866971ef57962b",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788848533472 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788848533472"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:22:39.488Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:22:39.489Z",
+    "updatedAt": "2026-09-08T06:23:00.639Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa9af99866971ef57963d",
+    "userId": "6a9fa94899866971ef5794a2",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1788848533472. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1788848533472",
+      "orderId": "6a9fa99599866971ef579583"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:22:39.553Z",
+    "errorLog": [
+      "[2026-09-08T06:23:00.650Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-08T06:22:39.554Z",
+    "updatedAt": "2026-09-08T06:23:00.651Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a9fa9b999866971ef579689",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1788848533472 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1788848533472"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:22:49.158Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:22:49.159Z",
+    "updatedAt": "2026-09-08T06:23:01.123Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fab2a99866971ef579ceb",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788848938736 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788848938736"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:28:58.847Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:28:58.847Z",
+    "updatedAt": "2026-09-08T06:29:00.227Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fab4099866971ef579d6e",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788848938736 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788848938736"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:29:20.054Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:29:20.055Z",
+    "updatedAt": "2026-09-08T06:30:00.468Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fab4099866971ef579d83",
+    "userId": "6a9faaf999866971ef579c0b",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1788848938736. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1788848938736",
+      "orderId": "6a9fab2a99866971ef579cd1"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:29:20.122Z",
+    "errorLog": [
+      "[2026-09-08T06:30:00.497Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-08T06:29:20.123Z",
+    "updatedAt": "2026-09-08T06:30:00.497Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a9fab4899866971ef579dd9",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1788848938736 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1788848938736"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:29:28.592Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:29:28.593Z",
+    "updatedAt": "2026-09-08T06:30:01.011Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fab9999866971ef57a052",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1788848938736 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1788848938736"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:30:49.278Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:30:49.278Z",
+    "updatedAt": "2026-09-08T06:31:00.478Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fac0299866971ef57a304",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788849154184 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788849154184"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:32:34.299Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:32:34.300Z",
+    "updatedAt": "2026-09-08T06:33:00.435Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fac1899866971ef57a39c",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788849154184 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788849154184"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:32:56.623Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:32:56.623Z",
+    "updatedAt": "2026-09-08T06:33:00.869Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fac1899866971ef57a3ae",
+    "userId": "6a7c8d806e1285608339d559",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1788849154184. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1788849154184",
+      "orderId": "6a9fac0299866971ef57a2ea"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:32:56.675Z",
+    "errorLog": [
+      "[2026-09-08T06:33:00.882Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-08T06:32:56.675Z",
+    "updatedAt": "2026-09-08T06:33:00.883Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a9fac1e99866971ef57a3f6",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1788849154184 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1788849154184"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:33:02.232Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:33:02.232Z",
+    "updatedAt": "2026-09-08T06:34:00.187Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fac5e99866971ef57a623",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1788849154184 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1788849154184"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:34:06.721Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:34:06.721Z",
+    "updatedAt": "2026-09-08T06:35:00.253Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fac6099866971ef57a656",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1788849154184 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1788849154184"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:34:08.218Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:34:08.219Z",
+    "updatedAt": "2026-09-08T06:35:00.675Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fac9e99866971ef57a750",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788849310482 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788849310482"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:35:10.598Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:35:10.599Z",
+    "updatedAt": "2026-09-08T06:36:00.455Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9faca899866971ef57a773",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788849310482 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788849310482"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:35:20.118Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:35:20.119Z",
+    "updatedAt": "2026-09-08T06:36:00.904Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fad9e99866971ef57a921",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788849566291 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788849566291"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:39:26.397Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:39:26.398Z",
+    "updatedAt": "2026-09-08T06:40:00.237Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fadbb99866971ef57a9d7",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788849566291 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788849566291"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:39:55.443Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:39:55.444Z",
+    "updatedAt": "2026-09-08T06:40:00.676Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fadd399866971ef57aa66",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788849619432 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788849619432"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:40:19.542Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:40:19.543Z",
+    "updatedAt": "2026-09-08T06:41:00.187Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fade399866971ef57ab0f",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788849566291 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788849566291"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:40:35.701Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:40:35.702Z",
+    "updatedAt": "2026-09-08T06:41:00.735Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fae2d99866971ef57ad4c",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788849566291 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788849566291"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:41:49.147Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:41:49.148Z",
+    "updatedAt": "2026-09-08T06:42:00.452Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fae2d99866971ef57ad5e",
+    "userId": "6a9faaf999866971ef579c0b",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1788849566291. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1788849566291",
+      "orderId": "6a9fad9e99866971ef57a906"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:41:49.205Z",
+    "errorLog": [
+      "[2026-09-08T06:42:00.465Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-08T06:41:49.206Z",
+    "updatedAt": "2026-09-08T06:42:00.466Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a9fae3599866971ef57adc5",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1788849566291 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1788849566291"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:41:57.258Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:41:57.259Z",
+    "updatedAt": "2026-09-08T06:42:01.242Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fae7299866971ef57b045",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1788849566291 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1788849566291"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:42:58.288Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:42:58.289Z",
+    "updatedAt": "2026-09-08T06:43:00.423Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fae7399866971ef57b062",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1788849566291 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1788849566291"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:42:59.073Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:42:59.074Z",
+    "updatedAt": "2026-09-08T06:43:00.853Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fae7699866971ef57b0bb",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1788849566291 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1788849566291"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:43:02.127Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:43:02.127Z",
+    "updatedAt": "2026-09-08T06:44:00.369Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fb03999866971ef57b3ae",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788849619432 was cancelled: Supplier issue / Not able to service this order",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788849619432"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:50:33.798Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:50:33.799Z",
+    "updatedAt": "2026-09-08T06:51:00.214Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fb07299866971ef57b42d",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788850290208 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788850290208"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:51:30.320Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:51:30.321Z",
+    "updatedAt": "2026-09-08T06:52:00.498Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fb0ac99866971ef57b487",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788850290208 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788850290208"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:52:28.175Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:52:28.176Z",
+    "updatedAt": "2026-09-08T06:53:00.471Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fb0e899866971ef57b50a",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788850408718 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788850408718"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:53:28.834Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:53:28.835Z",
+    "updatedAt": "2026-09-08T06:54:00.489Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fb15b99866971ef57b57e",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788850408718 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788850408718"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:55:23.252Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:55:23.253Z",
+    "updatedAt": "2026-09-08T06:56:00.198Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fb18599866971ef57b5ca",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788850565500 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788850565500"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T06:56:05.649Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T06:56:05.649Z",
+    "updatedAt": "2026-09-08T06:57:00.219Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fda27092ddcee4da11df1",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788860967233 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788860967233"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T09:49:27.410Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T09:49:27.411Z",
+    "updatedAt": "2026-09-08T09:50:00.535Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fda64092ddcee4da11ed4",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788860967233 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788860967233"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T09:50:28.570Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T09:50:28.571Z",
+    "updatedAt": "2026-09-08T09:51:00.230Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fda64092ddcee4da11ee8",
+    "userId": "6a7c8d806e1285608339d559",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1788860967233. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1788860967233",
+      "orderId": "6a9fda27092ddcee4da11dd5"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T09:50:28.655Z",
+    "errorLog": [
+      "[2026-09-08T09:51:00.243Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-08T09:50:28.656Z",
+    "updatedAt": "2026-09-08T09:51:00.244Z",
+    "__v": 1
+  },
+  {
+    "_id": "6a9fda70092ddcee4da11f54",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1788860967233 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1788860967233"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T09:50:40.269Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T09:50:40.269Z",
+    "updatedAt": "2026-09-08T09:51:00.661Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fdaa8092ddcee4da120a0",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788850565500 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788850565500"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T09:51:36.537Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T09:51:36.537Z",
+    "updatedAt": "2026-09-08T09:52:00.428Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fdaab092ddcee4da120c8",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Ready 📦",
+    "body": "ORD-1788850565500 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1788850565500"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T09:51:39.950Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T09:51:39.950Z",
+    "updatedAt": "2026-09-08T09:52:00.834Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fdbb0092ddcee4da1215a",
+    "userId": "6a7b0d12fa89714286ff2662",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788850565500 was cancelled: Auto-cancelled: No riders available to deliver the order.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788850565500"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T09:56:00.088Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T09:56:00.088Z",
+    "updatedAt": "2026-09-08T09:57:00.219Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa00fad092ddcee4da12591",
+    "userId": "6aa00f2a092ddcee4da124f9",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1788874668948 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1788874668948"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T13:37:49.089Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T13:37:49.089Z",
+    "updatedAt": "2026-09-08T13:38:00.330Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa0103c092ddcee4da125d8",
+    "userId": "6aa00f2a092ddcee4da124f9",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1788874668948 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1788874668948"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-08T13:40:12.355Z",
+    "errorLog": [],
+    "createdAt": "2026-09-08T13:40:12.356Z",
+    "updatedAt": "2026-09-08T13:41:00.172Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa55535092ddcee4da87b1f",
+    "userId": "6aa5550e092ddcee4da87886",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1789220149295 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1789220149295"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-12T13:35:49.443Z",
+    "errorLog": [],
+    "createdAt": "2026-09-12T13:35:49.445Z",
+    "updatedAt": "2026-09-12T13:36:00.343Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa55574092ddcee4da87ba8",
+    "userId": "6aa5550e092ddcee4da87886",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789220149295 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789220149295"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-12T13:36:52.737Z",
+    "errorLog": [],
+    "createdAt": "2026-09-12T13:36:52.737Z",
+    "updatedAt": "2026-09-12T13:37:00.585Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa55574092ddcee4da87bb9",
+    "userId": "6aa55434092ddcee4da87323",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1789220149295. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1789220149295",
+      "orderId": "6aa55535092ddcee4da87b06"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-12T13:36:52.794Z",
+    "errorLog": [
+      "[2026-09-12T13:37:00.606Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-12T13:36:52.795Z",
+    "updatedAt": "2026-09-12T13:37:00.607Z",
+    "__v": 1
+  },
+  {
+    "_id": "6aa5557b092ddcee4da87bfc",
+    "userId": "6aa5550e092ddcee4da87886",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1789220149295 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1789220149295"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-12T13:36:59.901Z",
+    "errorLog": [],
+    "createdAt": "2026-09-12T13:36:59.901Z",
+    "updatedAt": "2026-09-12T13:37:01.116Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa55db0092ddcee4da89567",
+    "userId": "6aa5550e092ddcee4da87886",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1789220499668 was cancelled: Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1789220499668"
+    },
+    "status": "success",
+    "retryCount": 1,
+    "nextRetryAt": "2026-09-12T14:14:00.414Z",
+    "errorLog": [
+      "[2026-09-12T14:13:00.411Z] Error: All tokens failed to send.",
+      "[2026-09-12T14:15:00.042Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-12T14:12:00.117Z",
+    "updatedAt": "2026-09-12T14:15:00.043Z",
+    "__v": 2
+  },
+  {
+    "_id": "6aa55db0092ddcee4da89569",
+    "userId": "6aa5550e092ddcee4da87886",
+    "title": "Refund Initiated 💰",
+    "body": "Refund of ₹185 for ORD-1789220499668 has been initiated and will be processed within 24 hours.",
+    "type": "refund_initiated",
+    "data": {
+      "orderNumber": "ORD-1789220499668",
+      "amount": "185"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-12T14:12:00.118Z",
+    "errorLog": [
+      "[2026-09-12T14:13:00.428Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-12T14:12:00.118Z",
+    "updatedAt": "2026-09-12T14:13:00.429Z",
+    "__v": 1
+  },
+  {
+    "_id": "6aa9f977c02785942aa47fc1",
+    "userId": "6a9185bc6e128560833b2da5",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1789524343571 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1789524343571"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-16T02:05:43.765Z",
+    "errorLog": [],
+    "createdAt": "2026-09-16T02:05:43.765Z",
+    "updatedAt": "2026-09-16T02:06:00.605Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa9f9a8c02785942aa486f6",
+    "userId": "6a9185bc6e128560833b2da5",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789524343571 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789524343571"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-16T02:06:32.243Z",
+    "errorLog": [],
+    "createdAt": "2026-09-16T02:06:32.244Z",
+    "updatedAt": "2026-09-16T02:07:00.429Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa9f9a8c02785942aa487d0",
+    "userId": "6aa9f92ac02785942aa47674",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1789524343571. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1789524343571",
+      "orderId": "6aa9f977c02785942aa47f43"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-16T02:06:32.314Z",
+    "errorLog": [
+      "[2026-09-16T02:07:00.442Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-16T02:06:32.314Z",
+    "updatedAt": "2026-09-16T02:07:00.443Z",
+    "__v": 1
+  },
+  {
+    "_id": "6aa9f9bbc02785942aa48ba8",
+    "userId": "6a9185bc6e128560833b2da5",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1789524343571 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1789524343571"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-16T02:06:51.408Z",
+    "errorLog": [],
+    "createdAt": "2026-09-16T02:06:51.409Z",
+    "updatedAt": "2026-09-16T02:07:00.833Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa9fa52c02785942aa4a55f",
+    "userId": "6a9185bc6e128560833b2da5",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1789524343571 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1789524343571"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-16T02:09:22.478Z",
+    "errorLog": [],
+    "createdAt": "2026-09-16T02:09:22.479Z",
+    "updatedAt": "2026-09-16T02:10:00.482Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa9facfc02785942aa4a97c",
+    "userId": "6aa0f26c092ddcee4da13a47",
+    "title": "Payout Completed ✅",
+    "body": "A payout of ₹540 has been processed successfully to your account.",
+    "type": "restaurant_payout",
+    "data": {
+      "amount": "540"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-16T02:11:27.002Z",
+    "errorLog": [
+      "[2026-09-16T02:12:00.041Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-16T02:11:27.002Z",
+    "updatedAt": "2026-09-16T02:12:00.041Z",
+    "__v": 1
+  },
+  {
+    "_id": "6aaaa3ddc02785942aa55037",
+    "userId": "6a9185bc6e128560833b2da5",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1789567965571 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1789567965571"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-16T14:12:45.717Z",
+    "errorLog": [],
+    "createdAt": "2026-09-16T14:12:45.717Z",
+    "updatedAt": "2026-09-16T14:13:00.338Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaaa3fdc02785942aa55836",
+    "userId": "6a9185bc6e128560833b2da5",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789567965571 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789567965571"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-16T14:13:17.253Z",
+    "errorLog": [],
+    "createdAt": "2026-09-16T14:13:17.254Z",
+    "updatedAt": "2026-09-16T14:14:00.624Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aab9b69c02785942aa589f2",
+    "userId": "6aab9910c02785942aa58358",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1789631337298 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1789631337298"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-17T07:48:57.503Z",
+    "errorLog": [],
+    "createdAt": "2026-09-17T07:48:57.503Z",
+    "updatedAt": "2026-09-17T07:49:00.324Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aab9b7dc02785942aa58a26",
+    "userId": "6aab9910c02785942aa58358",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1789631337298 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1789631337298"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-17T07:49:17.571Z",
+    "errorLog": [],
+    "createdAt": "2026-09-17T07:49:17.572Z",
+    "updatedAt": "2026-09-17T07:50:00.480Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aab9bb1c02785942aa58cf1",
+    "userId": "6aab9910c02785942aa58358",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1789631409241 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1789631409241"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-17T07:50:09.394Z",
+    "errorLog": [],
+    "createdAt": "2026-09-17T07:50:09.396Z",
+    "updatedAt": "2026-09-17T07:51:00.482Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aab9bc0c02785942aa58d1f",
+    "userId": "6aab9910c02785942aa58358",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1789631409241 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1789631409241"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-17T07:50:24.971Z",
+    "errorLog": [],
+    "createdAt": "2026-09-17T07:50:24.972Z",
+    "updatedAt": "2026-09-17T07:51:00.903Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaff29a43fbd98d50e5cc7f",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1789915765813 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1789915765813"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-20T14:50:02.657Z",
+    "errorLog": [],
+    "createdAt": "2026-09-20T14:50:02.659Z",
+    "updatedAt": "2026-09-20T14:51:01.969Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaff29a43fbd98d50e5cc81",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Refund Initiated 💰",
+    "body": "Refund of ₹174 for ORD-1789915765813 has been initiated and will be processed within 24 hours.",
+    "type": "refund_initiated",
+    "data": {
+      "orderNumber": "ORD-1789915765813",
+      "amount": "174"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-20T14:50:02.660Z",
+    "errorLog": [],
+    "createdAt": "2026-09-20T14:50:02.661Z",
+    "updatedAt": "2026-09-20T14:51:02.435Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaff2e743fbd98d50e5d69e",
+    "userId": "6a9185bc6e128560833b2da5",
+    "title": "Refund Initiated 💰",
+    "body": "Refund of ₹269 for ORD-1789915825960 has been initiated and will be processed within 24 hours.",
+    "type": "refund_initiated",
+    "data": {
+      "orderNumber": "ORD-1789915825960",
+      "amount": "269"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-20T14:51:19.905Z",
+    "errorLog": [],
+    "createdAt": "2026-09-20T14:51:19.906Z",
+    "updatedAt": "2026-09-20T14:52:00.481Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaff2e743fbd98d50e5d6a0",
+    "userId": "6a9185bc6e128560833b2da5",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1789915825960 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1789915825960"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-20T14:51:19.907Z",
+    "errorLog": [],
+    "createdAt": "2026-09-20T14:51:19.907Z",
+    "updatedAt": "2026-09-20T14:52:00.914Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaff32543fbd98d50e5db5c",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1789915847552 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1789915847552"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-20T14:52:21.904Z",
+    "errorLog": [],
+    "createdAt": "2026-09-20T14:52:21.905Z",
+    "updatedAt": "2026-09-20T14:53:00.532Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaff32543fbd98d50e5db5e",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Refund Initiated 💰",
+    "body": "Refund of ₹184 for ORD-1789915847552 has been initiated and will be processed within 24 hours.",
+    "type": "refund_initiated",
+    "data": {
+      "orderNumber": "ORD-1789915847552",
+      "amount": "184"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-20T14:52:21.905Z",
+    "errorLog": [],
+    "createdAt": "2026-09-20T14:52:21.906Z",
+    "updatedAt": "2026-09-20T14:53:00.966Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaffa7443fbd98d50e66d5f",
+    "userId": "6a9185bc6e128560833b2da5",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789916581492 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789916581492"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-20T15:23:32.231Z",
+    "errorLog": [],
+    "createdAt": "2026-09-20T15:23:32.232Z",
+    "updatedAt": "2026-09-20T15:24:00.242Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaffa7443fbd98d50e66e1b",
+    "userId": "6aafefd243fbd98d50e58db3",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1789916581492. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1789916581492",
+      "orderId": "6aaff5a543fbd98d50e61674"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-20T15:23:32.298Z",
+    "errorLog": [
+      "[2026-09-20T15:24:00.260Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-20T15:23:32.299Z",
+    "updatedAt": "2026-09-20T15:24:00.260Z",
+    "__v": 1
+  },
+  {
+    "_id": "6aaffa7f43fbd98d50e671f4",
+    "userId": "6a9185bc6e128560833b2da5",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1789916581492 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1789916581492"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-20T15:23:43.473Z",
+    "errorLog": [],
+    "createdAt": "2026-09-20T15:23:43.475Z",
+    "updatedAt": "2026-09-20T15:24:00.706Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab000e043fbd98d50e714d4",
+    "userId": "6a9185bc6e128560833b2da5",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1789916581492 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1789916581492"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-20T15:50:56.099Z",
+    "errorLog": [],
+    "createdAt": "2026-09-20T15:50:56.100Z",
+    "updatedAt": "2026-09-20T15:51:00.287Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab000e343fbd98d50e715ed",
+    "userId": "6a9185bc6e128560833b2da5",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1789916581492 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1789916581492"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-20T15:50:59.122Z",
+    "errorLog": [],
+    "createdAt": "2026-09-20T15:50:59.123Z",
+    "updatedAt": "2026-09-20T15:51:00.732Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab0c68943fbd98d50e7b64f",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1789970057287 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1789970057287"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T05:54:17.484Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T05:54:17.486Z",
+    "updatedAt": "2026-09-21T05:55:00.544Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab0c6b143fbd98d50e7b6a3",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789970057287 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789970057287"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T05:54:57.025Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T05:54:57.025Z",
+    "updatedAt": "2026-09-21T05:55:01.012Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab0c6f043fbd98d50e7b74b",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1789970159916 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1789970159916"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T05:56:00.042Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T05:56:00.042Z",
+    "updatedAt": "2026-09-21T05:57:00.481Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab0c73643fbd98d50e7b7c6",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789970159916 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789970159916"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T05:57:10.581Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T05:57:10.582Z",
+    "updatedAt": "2026-09-21T05:58:00.485Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab0cc4143fbd98d50e7ba23",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1789971521423 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1789971521423"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T06:18:41.579Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T06:18:41.579Z",
+    "updatedAt": "2026-09-21T06:19:00.249Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab0cc6a43fbd98d50e7ba7f",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789971521423 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789971521423"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T06:19:22.211Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T06:19:22.211Z",
+    "updatedAt": "2026-09-21T06:20:00.525Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab0cc6a43fbd98d50e7ba91",
+    "userId": "6aaaa137c02785942aa5397e",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1789971521423. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1789971521423",
+      "orderId": "6ab0cc4143fbd98d50e7ba0a"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T06:19:22.316Z",
+    "errorLog": [
+      "[2026-09-21T06:20:00.538Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-21T06:19:22.316Z",
+    "updatedAt": "2026-09-21T06:20:00.539Z",
+    "__v": 1
+  },
+  {
+    "_id": "6ab0cc7043fbd98d50e7baca",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1789971521423 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1789971521423"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T06:19:28.919Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T06:19:28.920Z",
+    "updatedAt": "2026-09-21T06:20:00.983Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab0cccb43fbd98d50e7bc00",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1789971521423 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1789971521423"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T06:20:59.209Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T06:20:59.210Z",
+    "updatedAt": "2026-09-21T06:21:00.503Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab1385d4b156bd222c5ddb4",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1789999197737 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1789999197737"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T13:59:57.886Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T13:59:57.887Z",
+    "updatedAt": "2026-09-21T14:00:00.422Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab138ab4b156bd222c5e377",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789999197737 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789999197737"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T14:01:15.745Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T14:01:15.746Z",
+    "updatedAt": "2026-09-21T14:02:00.255Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab138ad4b156bd222c5e3f1",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789999197737 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789999197737"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T14:01:17.551Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T14:01:17.551Z",
+    "updatedAt": "2026-09-21T14:02:00.718Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab138ad4b156bd222c5e3fa",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789999197737 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789999197737"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T14:01:17.593Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T14:01:17.593Z",
+    "updatedAt": "2026-09-21T14:02:01.190Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab138ad4b156bd222c5e403",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789999197737 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789999197737"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T14:01:17.727Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T14:01:17.728Z",
+    "updatedAt": "2026-09-21T14:02:01.614Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab1395e4b156bd222c5f742",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1789999454347 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1789999454347"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T14:04:14.481Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T14:04:14.481Z",
+    "updatedAt": "2026-09-21T14:05:00.509Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab1399a4b156bd222c5fa60",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789999454347 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789999454347"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T14:05:14.073Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T14:05:14.074Z",
+    "updatedAt": "2026-09-21T14:06:00.456Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab1399a4b156bd222c5fa70",
+    "userId": "6aafefd243fbd98d50e58db3",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1789999454347. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1789999454347",
+      "orderId": "6ab1395e4b156bd222c5f729"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T14:05:14.155Z",
+    "errorLog": [
+      "[2026-09-21T14:06:00.471Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-21T14:05:14.156Z",
+    "updatedAt": "2026-09-21T14:06:00.472Z",
+    "__v": 1
+  },
+  {
+    "_id": "6ab139a04b156bd222c5fb65",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1789999454347 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1789999454347"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T14:05:20.584Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T14:05:20.586Z",
+    "updatedAt": "2026-09-21T14:06:00.986Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab13aca4b156bd222c61da6",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1789999454347 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1789999454347"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T14:10:18.534Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T14:10:18.535Z",
+    "updatedAt": "2026-09-21T14:11:00.303Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab13af64b156bd222c6249e",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1789999861924 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1789999861924"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T14:11:02.104Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T14:11:02.105Z",
+    "updatedAt": "2026-09-21T14:12:00.458Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab13b0b4b156bd222c62757",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1789999861924 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1789999861924"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-21T14:11:23.292Z",
+    "errorLog": [],
+    "createdAt": "2026-09-21T14:11:23.298Z",
+    "updatedAt": "2026-09-21T14:12:00.900Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab284024b156bd222c68515",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1790084098023 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1790084098023"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-22T13:34:58.197Z",
+    "errorLog": [],
+    "createdAt": "2026-09-22T13:34:58.198Z",
+    "updatedAt": "2026-09-22T13:35:00.500Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab284294b156bd222c6857d",
+    "userId": "6a79872ddc7a56775b324c0f",
+    "title": "Order Ready 📦",
+    "body": "ORD-1790084098023 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1790084098023"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-22T13:35:37.345Z",
+    "errorLog": [],
+    "createdAt": "2026-09-22T13:35:37.346Z",
+    "updatedAt": "2026-09-22T13:36:00.448Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab29b8a4b156bd222c69302",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1790090122591 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1790090122591"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-22T15:15:22.763Z",
+    "errorLog": [],
+    "createdAt": "2026-09-22T15:15:22.764Z",
+    "updatedAt": "2026-09-22T15:16:00.318Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab29bd14b156bd222c693c1",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Ready 📦",
+    "body": "ORD-1790090122591 is ready! A rider will be assigned shortly.",
+    "type": "order_ready",
+    "data": {
+      "orderNumber": "ORD-1790090122591"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-22T15:16:33.285Z",
+    "errorLog": [],
+    "createdAt": "2026-09-22T15:16:33.286Z",
+    "updatedAt": "2026-09-22T15:17:00.488Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab29bd14b156bd222c693d3",
+    "userId": "6aafefd243fbd98d50e58db3",
+    "title": "New Delivery 🛵",
+    "body": "You have been assigned order ORD-1790090122591. Accept or decline.",
+    "type": "driver_assigned",
+    "data": {
+      "orderNumber": "ORD-1790090122591",
+      "orderId": "6ab29b8a4b156bd222c692e9"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-22T15:16:33.368Z",
+    "errorLog": [
+      "[2026-09-22T15:17:00.503Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-22T15:16:33.368Z",
+    "updatedAt": "2026-09-22T15:17:00.504Z",
+    "__v": 1
+  },
+  {
+    "_id": "6ab29be24b156bd222c695c5",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Rider On The Way 🛵",
+    "body": "Your rider has accepted order ORD-1790090122591 and is heading to the store.",
+    "type": "driver_accepted",
+    "data": {
+      "orderNumber": "ORD-1790090122591"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-22T15:16:50.047Z",
+    "errorLog": [],
+    "createdAt": "2026-09-22T15:16:50.048Z",
+    "updatedAt": "2026-09-22T15:17:01.112Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab29c8a4b156bd222c6ab60",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1790090122591 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1790090122591"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-22T15:19:38.320Z",
+    "errorLog": [],
+    "createdAt": "2026-09-22T15:19:38.321Z",
+    "updatedAt": "2026-09-22T15:20:00.224Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab29c8c4b156bd222c6abfb",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Delivered 🎉",
+    "body": "ORD-1790090122591 has been delivered. Enjoy!",
+    "type": "order_delivered",
+    "data": {
+      "orderNumber": "ORD-1790090122591"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-22T15:19:40.284Z",
+    "errorLog": [],
+    "createdAt": "2026-09-22T15:19:40.284Z",
+    "updatedAt": "2026-09-22T15:20:00.689Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab4c5694b156bd222c700f3",
+    "userId": "6ab3c0c84b156bd222c6d312",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1790231912919 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1790231912919"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-24T06:38:33.100Z",
+    "errorLog": [
+      "[2026-09-24T06:39:00.046Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-24T06:38:33.101Z",
+    "updatedAt": "2026-09-24T06:39:00.047Z",
+    "__v": 1
+  },
+  {
+    "_id": "6ab4c5a44b156bd222c70126",
+    "userId": "6ab3c0c84b156bd222c6d312",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1790231912919 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1790231912919"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-24T06:39:32.058Z",
+    "errorLog": [
+      "[2026-09-24T06:40:00.060Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-24T06:39:32.058Z",
+    "updatedAt": "2026-09-24T06:40:00.061Z",
+    "__v": 1
+  },
+  {
+    "_id": "6ab4c5d64b156bd222c70195",
+    "userId": "6ab3c0c84b156bd222c6d312",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1790232022472 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1790232022472"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-24T06:40:22.591Z",
+    "errorLog": [
+      "[2026-09-24T06:41:00.040Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-24T06:40:22.591Z",
+    "updatedAt": "2026-09-24T06:41:00.040Z",
+    "__v": 1
+  },
+  {
+    "_id": "6ab4c9584b156bd222c703c0",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1790232920563 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1790232920563"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-24T06:55:20.781Z",
+    "errorLog": [],
+    "createdAt": "2026-09-24T06:55:20.783Z",
+    "updatedAt": "2026-09-24T06:56:00.393Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab4cd044b156bd222c707bb",
+    "userId": "6ab3c0c84b156bd222c6d312",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1790232022472 was cancelled: Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1790232022472"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-24T07:11:00.081Z",
+    "errorLog": [
+      "[2026-09-24T07:12:00.048Z] No devices found for user."
+    ],
+    "createdAt": "2026-09-24T07:11:00.081Z",
+    "updatedAt": "2026-09-24T07:12:00.049Z",
+    "__v": 1
+  },
+  {
+    "_id": "6ab4cd0b4b156bd222c707e8",
+    "userId": "6ab4cbc24b156bd222c70588",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1790233867634 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1790233867634"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-24T07:11:07.865Z",
+    "errorLog": [],
+    "createdAt": "2026-09-24T07:11:07.866Z",
+    "updatedAt": "2026-09-24T07:12:00.315Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab4cd1b4b156bd222c7080c",
+    "userId": "6ab4cbc24b156bd222c70588",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1790233867634 has been cancelled.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1790233867634"
+    },
+    "status": "success",
+    "retryCount": 1,
+    "nextRetryAt": "2026-09-24T07:13:00.379Z",
+    "errorLog": [
+      "[2026-09-24T07:12:00.378Z] Error: Session error while making requests: UNABLE_TO_VERIFY_LEAF_SIGNATURE - unable to verify the first certificate "
+    ],
+    "createdAt": "2026-09-24T07:11:23.439Z",
+    "updatedAt": "2026-09-24T07:14:00.231Z",
+    "__v": 1
+  },
+  {
+    "_id": "6ab4cd314b156bd222c7087c",
+    "userId": "6ab4cbc24b156bd222c70588",
+    "title": "Order Placed ✅",
+    "body": "Your order ORD-1790233905616 has been placed and is being prepared.",
+    "type": "order_placed",
+    "data": {
+      "orderNumber": "ORD-1790233905616"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-24T07:11:45.750Z",
+    "errorLog": [],
+    "createdAt": "2026-09-24T07:11:45.751Z",
+    "updatedAt": "2026-09-24T07:12:00.815Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab4d0884b156bd222c70ba5",
+    "userId": "6a7dc4ae6e1285608339f2fd",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1790232920563 was cancelled: Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1790232920563"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-24T07:26:00.088Z",
+    "errorLog": [],
+    "createdAt": "2026-09-24T07:26:00.089Z",
+    "updatedAt": "2026-09-24T07:27:00.308Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab4d4484b156bd222c70df4",
+    "userId": "6ab4cbc24b156bd222c70588",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1790233905616 was cancelled: Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1790233905616"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-24T07:42:00.167Z",
+    "errorLog": [],
+    "createdAt": "2026-09-24T07:42:00.168Z",
+    "updatedAt": "2026-09-24T07:43:00.196Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab4f6084b156bd222c7224d",
+    "userId": "6ab4d4b84b156bd222c70e42",
+    "title": "Refund Initiated 💰",
+    "body": "Refund of ₹183 for ORD-1790242513405 has been initiated and will be processed within 24 hours.",
+    "type": "refund_initiated",
+    "data": {
+      "orderNumber": "ORD-1790242513405",
+      "amount": "183"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-24T10:06:00.119Z",
+    "errorLog": [],
+    "createdAt": "2026-09-24T10:06:00.120Z",
+    "updatedAt": "2026-09-24T10:07:00.463Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab4f6084b156bd222c7224f",
+    "userId": "6ab4d4b84b156bd222c70e42",
+    "title": "Order Cancelled ❌",
+    "body": "ORD-1790242513405 was cancelled: Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "type": "order_cancelled",
+    "data": {
+      "orderNumber": "ORD-1790242513405"
+    },
+    "status": "success",
+    "retryCount": 0,
+    "nextRetryAt": "2026-09-24T10:06:00.121Z",
+    "errorLog": [],
+    "createdAt": "2026-09-24T10:06:00.122Z",
+    "updatedAt": "2026-09-24T10:07:00.913Z",
+    "__v": 0
+  }
+]

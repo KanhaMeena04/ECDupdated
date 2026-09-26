@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { protect, restaurantOwner } = require("../middleware/authMiddleware");
+const { protect, optionalAuth, restaurantOwner } = require("../middleware/authMiddleware");
 const {
   addCategory,
   addFoodItem,
@@ -15,7 +15,10 @@ const {
   getSeasonalMenu,
 } = require("../controllers/menuController");
 const { upload } = require("../utils/upload");
-router.get("/:restaurantId", getMenu);
+router.get("/", optionalAuth, getMenu);
+router.get("/me", optionalAuth, getMenu);
+router.get("/vendor/:restaurantId", optionalAuth, getMenu);
+router.get("/:restaurantId", optionalAuth, getMenu);
 router.post(
   "/category",
   protect,
@@ -60,5 +63,7 @@ router.put(
   toggleProductAvailability
 );
 router.put("/bulk/prices", protect, restaurantOwner, bulkUpdatePrices);
+const { submitCategoryRequest } = require("../controllers/categoryRequestController");
+router.post("/category-request", protect, restaurantOwner, submitCategoryRequest);
 router.get("/seasonal/:restaurantId", getSeasonalMenu);
 module.exports = router;

@@ -1,99 +1,5 @@
-// import React from "react";
-// import { Stepper, Step, StepLabel, Button, TextField } from "@mui/material";
-// import { Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
-
-// const RiderDocumentForm = ({
-//   formData,
-//   handleDocumentChange,
-//   nextStep,
-//   prevStep,
-// }) => {
-//   const steps = ["Driver Details", "Document Settings", "Bank Details"];
-//   const activeStep = 1;
-
-//   const documentFields = [
-//     { id: "gst", label: "GST" },
-//     { id: "insurance", label: "Driver Insurance", hasExpiry: true },
-//     { id: "medical", label: "Medical Certificate" },
-//     { id: "license", label: "License Front" },
-//   ];
-
-//   return (
-//     <div className="min-h-screen bg-gray-50 p-8">
-//       <div className="max-w-6xl mx-auto mb-10">
-//         <Stepper activeStep={activeStep}>
-//           {steps.map((label) => (
-//             <Step key={label}>
-//               <StepLabel>{label}</StepLabel>
-//             </Step>
-//           ))}
-//         </Stepper>
-//       </div>
-
-//       <div className="max-w-6xl mx-auto bg-white rounded-lg p-8 shadow-sm">
-//         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-//           {documentFields.map((doc) => (
-//             <React.Fragment key={doc.id}>
-//               <div className="flex flex-col gap-2">
-//                 <label className="text-sm font-medium text-gray-600">
-//                   {doc.label}
-//                 </label>
-
-//                 <input
-//                   type="file"
-//                   onChange={(e) =>
-//                     handleDocumentChange(
-//                       doc.id,
-//                       e.target.files[0],
-//                       doc.hasExpiry
-//                         ? formData.documents.insurance.expiry
-//                         : ""
-//                     )
-//                   }
-//                 />
-
-//                 <div className="mt-3 w-24 h-24 bg-gray-200 rounded-lg flex items-center justify-center">
-//                   <ImageIcon className="text-gray-400 w-10 h-10" />
-//                 </div>
-//               </div>
-
-//               <div className="flex flex-col justify-start pt-7">
-//                 {doc.hasExpiry && (
-//                   <TextField
-//                     type="date"
-//                     value={formData.documents.insurance.expiry}
-//                     onChange={(e) =>
-//                       handleDocumentChange(
-//                         "insurance",
-//                         formData.documents.insurance.file,
-//                         e.target.value
-//                       )
-//                     }
-//                   />
-//                 )}
-//               </div>
-//             </React.Fragment>
-//           ))}
-//         </div>
-
-//         <div className="mt-12 flex justify-between border-t pt-6">
-//           <Button onClick={prevStep} startIcon={<ChevronLeft />}>
-//             Previous
-//           </Button>
-//           <Button onClick={nextStep} endIcon={<ChevronRight />}>
-//             Next
-//           </Button>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default RiderDocumentForm;
-
-
-import React, { useState } from "react";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import React from "react";
+import { FileText, Upload, ChevronLeft, ChevronRight, CheckCircle2, Calendar, CreditCard, Shield } from "lucide-react";
 
 const fileToBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -103,115 +9,267 @@ const fileToBase64 = (file) =>
     reader.onerror = (err) => reject(err);
   });
 
-const RiderDocumentForm = ({ nextStep, prevStep }) => {
-  const [formData, setFormData] = useState({
-    documents: {},
-  });
-
-  const documentFields = [
-    { id: "gst", label: "GST" },
-    { id: "insurance", label: "Driver Insurance", hasExpiry: true },
-    { id: "medical", label: "Medical Certificate" },
-    { id: "licenseFront", label: "License Front" },
-    { id: "licenseBack", label: "License Back" },
-  ];
-
-  const handleDocumentChange = async (docId, file, expiry) => {
-    if (!file) return;
-    const base64String = await fileToBase64(file);
-    setFormData((prev) => ({
-      ...prev,
-      documents: {
-        ...prev.documents,
-        [docId]: {
-          file: base64String,
-          name: file.name,
-          expiry: expiry || "",
-        },
-      },
-    }));
+const RiderDocumentForm = ({
+  formData,
+  handleNestedChange,
+  handleDocumentChange,
+  nextStep,
+  prevStep,
+}) => {
+  const handleFileUpload = async (key, e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const base64 = await fileToBase64(file);
+      handleDocumentChange(key, base64);
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-white p-4 font-sans">
-      <h2 className="text-lg font-medium mb-6">Document Settings</h2>
+  const docs = formData.documents || {};
 
-      {documentFields.map((doc) => (
-        <div key={doc.id} className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start mb-8">
-          <div className="flex flex-col gap-3">
-            <label className="text-xs font-medium text-gray-500 uppercase">{doc.label}</label>
-            <div className="relative flex items-center border border-gray-300 rounded-sm h-10 overflow-hidden">
-              <span className="flex-grow px-3 text-sm text-gray-400">
-                {formData.documents?.[doc.id]?.name ? (
-                  <span className="flex items-center gap-1 text-green-600 font-medium">
-                    ✅ {formData.documents[doc.id].name}
-                  </span>
-                ) : (
-                  "No file chosen"
-                )}
-              </span>
-              <label className="bg-gray-50 border-l border-gray-300 px-4 h-full flex items-center text-xs text-gray-600 cursor-pointer hover:bg-gray-100">
-                Browse
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*,application/pdf"
-                  onChange={(e) =>
-                    handleDocumentChange(
-                      doc.id,
-                      e.target.files[0],
-                      doc.hasExpiry ? formData.documents?.[doc.id]?.expiry : ""
-                    )
-                  }
-                />
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+      {/* Section Header */}
+      <div className="flex items-center gap-3 pb-4 mb-6 border-b border-gray-100">
+        <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+          <FileText size={20} />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-gray-800">KYC & Legal Documents</h2>
+          <p className="text-xs text-gray-500">
+            Enter document numbers and upload images (Admin auto-approves uploaded documents)
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-8">
+        {/* 1. Driving License */}
+        <div className="p-5 bg-gray-50/70 border border-gray-200 rounded-xl">
+          <div className="flex items-center gap-2 mb-4">
+            <CreditCard size={18} className="text-emerald-600" />
+            <h3 className="text-sm font-bold text-gray-800">1. Driving License (DL)</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                License Number
+              </label>
+              <input
+                type="text"
+                value={docs.licenseNumber || ""}
+                onChange={(e) => handleDocumentChange("licenseNumber", e.target.value.toUpperCase())}
+                placeholder="DL1420110012345"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm uppercase outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                License Expiry Date
+              </label>
+              <input
+                type="date"
+                value={docs.licenseExpiry || ""}
+                onChange={(e) => handleDocumentChange("licenseExpiry", e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                License Front Photo
+              </label>
+              <label className="flex items-center justify-between px-3 py-2 bg-white border border-dashed border-gray-300 rounded-lg text-xs font-medium text-gray-700 cursor-pointer hover:bg-gray-50">
+                <span className="truncate">
+                  {docs.licenseFront ? "✅ Photo Selected" : "Upload Front"}
+                </span>
+                <Upload size={14} className="text-gray-400" />
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload("licenseFront", e)} />
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                License Back Photo
+              </label>
+              <label className="flex items-center justify-between px-3 py-2 bg-white border border-dashed border-gray-300 rounded-lg text-xs font-medium text-gray-700 cursor-pointer hover:bg-gray-50">
+                <span className="truncate">
+                  {docs.licenseBack ? "✅ Photo Selected" : "Upload Back"}
+                </span>
+                <Upload size={14} className="text-gray-400" />
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload("licenseBack", e)} />
               </label>
             </div>
           </div>
-
-          {doc.hasExpiry && (
-            <div className="pt-7">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-medium text-gray-500 uppercase opacity-0">
-                  Placeholder
-                </label>
-                <div className="relative flex items-center border border-gray-300 rounded-sm h-10 px-3">
-                  <Calendar size={16} className="text-gray-400 mr-2" />
-                  <input
-                    type="date"
-                    className="w-full text-sm text-gray-500 outline-none bg-transparent"
-                    value={formData.documents?.[doc.id]?.expiry || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        documents: {
-                          ...prev.documents,
-                          [doc.id]: {
-                            ...prev.documents?.[doc.id],
-                            expiry: e.target.value,
-                          },
-                        },
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-          )}
         </div>
-      ))}
 
-      <div className="mt-12 flex justify-between">
+        {/* 2. Registration Certificate (RC) */}
+        <div className="p-5 bg-gray-50/70 border border-gray-200 rounded-xl">
+          <div className="flex items-center gap-2 mb-4">
+            <Shield size={18} className="text-emerald-600" />
+            <h3 className="text-sm font-bold text-gray-800">2. Vehicle Registration Certificate (RC)</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                RC Number
+              </label>
+              <input
+                type="text"
+                value={docs.rcNumber || formData.vehicle?.number || ""}
+                onChange={(e) => handleDocumentChange("rcNumber", e.target.value.toUpperCase())}
+                placeholder="RJ14 AB 1234"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm uppercase outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                RC Document / Card Photo
+              </label>
+              <label className="flex items-center justify-between px-3 py-2 bg-white border border-dashed border-gray-300 rounded-lg text-xs font-medium text-gray-700 cursor-pointer hover:bg-gray-50">
+                <span className="truncate">
+                  {docs.rcImage ? "✅ RC Photo Selected" : "Upload RC Photo"}
+                </span>
+                <Upload size={14} className="text-gray-400" />
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload("rcImage", e)} />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Aadhaar & PAN Card */}
+        <div className="p-5 bg-gray-50/70 border border-gray-200 rounded-xl">
+          <div className="flex items-center gap-2 mb-4">
+            <CreditCard size={18} className="text-emerald-600" />
+            <h3 className="text-sm font-bold text-gray-800">3. Identity Documents (Aadhaar & PAN Card)</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                Aadhaar Number (12 Digits)
+              </label>
+              <input
+                type="text"
+                maxLength={12}
+                value={docs.aadharNumber || ""}
+                onChange={(e) => handleDocumentChange("aadharNumber", e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder="1234 5678 9012"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                Aadhaar Photo
+              </label>
+              <label className="flex items-center justify-between px-3 py-2 bg-white border border-dashed border-gray-300 rounded-lg text-xs font-medium text-gray-700 cursor-pointer hover:bg-gray-50">
+                <span className="truncate">
+                  {docs.aadharFront ? "✅ Photo Selected" : "Upload Aadhaar"}
+                </span>
+                <Upload size={14} className="text-gray-400" />
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload("aadharFront", e)} />
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                PAN Number (10 Chars)
+              </label>
+              <input
+                type="text"
+                maxLength={10}
+                value={docs.panNumber || ""}
+                onChange={(e) => handleDocumentChange("panNumber", e.target.value.toUpperCase())}
+                placeholder="ABCDE1234F"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm uppercase outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                PAN Card Photo
+              </label>
+              <label className="flex items-center justify-between px-3 py-2 bg-white border border-dashed border-gray-300 rounded-lg text-xs font-medium text-gray-700 cursor-pointer hover:bg-gray-50">
+                <span className="truncate">
+                  {docs.panImage ? "✅ Photo Selected" : "Upload PAN"}
+                </span>
+                <Upload size={14} className="text-gray-400" />
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload("panImage", e)} />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Vehicle Insurance */}
+        <div className="p-5 bg-gray-50/70 border border-gray-200 rounded-xl">
+          <div className="flex items-center gap-2 mb-4">
+            <Shield size={18} className="text-emerald-600" />
+            <h3 className="text-sm font-bold text-gray-800">4. Vehicle Insurance Policy (Optional)</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                Policy Number
+              </label>
+              <input
+                type="text"
+                value={docs.insuranceNumber || ""}
+                onChange={(e) => handleDocumentChange("insuranceNumber", e.target.value.toUpperCase())}
+                placeholder="POL-12345678"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                Policy Expiry Date
+              </label>
+              <input
+                type="date"
+                value={docs.insuranceExpiry || ""}
+                onChange={(e) => handleDocumentChange("insuranceExpiry", e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+                Policy Certificate Photo
+              </label>
+              <label className="flex items-center justify-between px-3 py-2 bg-white border border-dashed border-gray-300 rounded-lg text-xs font-medium text-gray-700 cursor-pointer hover:bg-gray-50">
+                <span className="truncate">
+                  {docs.insuranceImage ? "✅ Photo Selected" : "Upload Insurance"}
+                </span>
+                <Upload size={14} className="text-gray-400" />
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload("insuranceImage", e)} />
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between items-center mt-10 pt-6 border-t border-gray-100">
         <button
+          type="button"
           onClick={prevStep}
-          className="px-6 py-2 border border-gray-300 rounded text-gray-600 text-sm hover:bg-gray-50"
+          className="flex items-center gap-2 px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
         >
-          Previous
+          <ChevronLeft size={18} />
+          <span>Previous</span>
         </button>
+
         <button
-          onClick={() => nextStep(formData)}
-          className="px-8 py-2 bg-[#00A982] text-white rounded text-sm font-medium hover:bg-[#008f6e]"
+          type="button"
+          onClick={nextStep}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white px-8 py-2.5 rounded-lg text-sm font-semibold shadow-md shadow-emerald-200 transition"
         >
-          Next
+          <span>Next: Bank & UPI Payout</span>
+          <ChevronRight size={18} />
         </button>
       </div>
     </div>

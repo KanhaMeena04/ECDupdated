@@ -115,7 +115,7 @@ const ViewOrder = () => {
                     </TableCell>
                     <TableCell className="text-gray-500 font-medium">{item?.size || '—'}</TableCell>
                     <TableCell align="center" className="font-bold text-gray-700">{item.quantity || 1}</TableCell>
-                    <TableCell align="right" className="font-bold text-gray-900">RM {item.price.toFixed(2)}</TableCell>
+                    <TableCell align="right" className="font-bold text-gray-900">₹ {Number(item.price || 0).toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -124,28 +124,53 @@ const ViewOrder = () => {
 
           {/* Calculation Area */}
           <div className="mt-8 flex justify-end">
-            <Paper elevation={0} sx={{ bgcolor: BRAND_BG_LIGHT, p: 3, borderRadius: 3, width: { xs: '100%', md: 320 } }}>
+            <Paper elevation={0} sx={{ bgcolor: BRAND_BG_LIGHT, p: 3, borderRadius: 3, width: { xs: '100%', md: 340 } }}>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Item Total</span>
-                  <span className="font-bold">RM {order?.itemTotal.toFixed(2)}</span>
+                  <span className="font-bold">₹ {Number(order?.itemTotal || 0).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Packing Charge</span>
-                  <span className="font-bold">RM {order?.packing?.toFixed(2)}</span>
-                </div>
+                {Number(order?.packagingFee || order?.packing || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Packaging Charge</span>
+                    <span className="font-bold">₹ {Number(order?.packagingFee || order?.packing || 0).toFixed(2)}</span>
+                  </div>
+                )}
+                {Number(order?.tax || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">GST / Taxes</span>
+                    <span className="font-bold">₹ {Number(order?.tax || 0).toFixed(2)}</span>
+                  </div>
+                )}
+                {Number(order?.platformFee || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Platform Fee</span>
+                    <span className="font-bold">₹ {Number(order?.platformFee || 0).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-600">Delivery Fee</span>
-                  <span className="font-bold">RM {order?.deliveryFee?.toFixed(2)}</span>
+                  <span className="font-bold">₹ {Number(order?.deliveryFee || 0).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-red-500">
-                  <span>Discount</span>
-                  <span className="font-bold">- RM {order?.discount?.toFixed(2)}</span>
-                </div>
+                {Number(order?.tip || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Rider Tip</span>
+                    <span className="font-bold">₹ {Number(order?.tip || 0).toFixed(2)}</span>
+                  </div>
+                )}
+                {Number(order?.discount || 0) > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Discount {order?.couponCode ? `(${order.couponCode})` : ''}</span>
+                    <span className="font-bold">- ₹ {Number(order?.discount || 0).toFixed(2)}</span>
+                  </div>
+                )}
                 <Divider sx={{ my: 1 }} />
                 <div className="flex justify-between text-lg">
                   <span className="font-bold text-gray-800">Grand Total</span>
-                  <span className="font-black" style={{ color: BRAND_MAIN }}>RM {order?.totalAmount?.toFixed(2)}</span>
+                  <span className="font-black" style={{ color: BRAND_MAIN }}>₹ {Number(order?.totalAmount || 0).toFixed(2)}</span>
+                </div>
+                <div className="text-xs text-gray-500 pt-1 text-right">
+                  Payment: <span className="font-semibold uppercase text-gray-700">{order?.paymentMethod || 'COD'}</span> ({order?.paymentStatus || 'Pending'})
                 </div>
               </div>
             </Paper>

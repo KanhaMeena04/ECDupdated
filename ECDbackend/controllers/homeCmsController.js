@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const HomeScreenSection = require("../models/HomeScreenSection");
 const Banner = require("../models/Banner");
 
@@ -47,12 +48,17 @@ const DEFAULT_SECTIONS = [
 // Helper to ensure default sections exist in DB
 const ensureDefaultSectionsExist = async () => {
   try {
-    const count = await HomeScreenSection.countDocuments();
-    if (count === 0) {
-      await HomeScreenSection.insertMany(DEFAULT_SECTIONS);
+    if (mongoose.connection.readyState !== 1) {
+      return; // Skip if database is currently disconnected or reconnecting
+    }
+    for (const sec of DEFAULT_SECTIONS) {
+      const exists = await HomeScreenSection.findOne({ sectionKey: sec.sectionKey });
+      if (!exists) {
+        await HomeScreenSection.create(sec);
+      }
     }
   } catch (err) {
-    console.error("Error seeding default home sections:", err);
+    console.warn("Seeding default home sections skipped (DB reconnecting):", err.message);
   }
 };
 

@@ -1,12 +1,19 @@
 const mongoose = require("mongoose");
 const addressSchema = new mongoose.Schema({
-  label: { type: String, enum: ["Home", "Work", "Other"], required: true },
-  addressLine: { type: String, required: true },
-  city: { type: String },
-  zipCode: { type: String },
+  label: { type: String, default: "Home" },
+  addressLine: { type: String, default: "" },
+  fullAddress: { type: String, default: "" },
+  apartment: { type: String, default: "" },
+  flatNo: { type: String, default: "" },
+  landmark: { type: String, default: "" },
+  city: { type: String, default: "" },
+  state: { type: String, default: "" },
+  zipCode: { type: String, default: "" },
+  pincode: { type: String, default: "" },
+  phone: { type: String, default: "" },
   location: {
     type: { type: String, default: "Point" },
-    coordinates: { type: [Number], required: true }, // [Longitude, Latitude]
+    coordinates: { type: [Number], default: [0, 0] }, // [Longitude, Latitude]
   },
   deliveryInstructions: { type: String, default: "" },
   isDefault: { type: Boolean, default: false },
@@ -22,19 +29,20 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: true,
+      default: "User",
     },
     email: {
       type: String,
       unique: true,
       sparse: true, 
-      required: true,
     },
-    mobile: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    mobile: { type: String, sparse: true },
+    phone: { type: String, sparse: true },
+    pin: { type: String },
+    password: { type: String },
     role: {
       type: String,
-      enum: ["customer", "admin", "restaurant_owner", "rider"],
+      enum: ["customer", "admin", "restaurant_owner", "rider", "driver"],
       default: "customer",
     },
     profilePic: { type: String },
@@ -67,7 +75,9 @@ const userSchema = new mongoose.Schema(
     blockedAt: { type: Date },
     blockReason: { type: String, default: "" },
     otp: { type: String },
+    otpSession: { type: String },
     otpExpires: { type: Date },
+    pin: { type: String },
     isVerified: { type: Boolean, default: false },
     pendingProfileUpdate: {
       email: { type: String },

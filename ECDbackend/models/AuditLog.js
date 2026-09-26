@@ -4,33 +4,17 @@ const auditLogSchema = new mongoose.Schema({
   entity: {
     type: String,
     required: true,
-    enum: ['Order', 'User', 'Restaurant', 'Rider', 'Wallet', 'Settlement', 'Refund', 'Product', 'Category', 'SubCategory', 'HomeScreenSection', 'Menu'],
+    enum: ['Order', 'User', 'Restaurant', 'Rider', 'Wallet', 'Settlement', 'Refund', 'Product', 'Category', 'SubCategory', 'HomeScreenSection', 'Menu', 'CategoryRequest'],
     index: true
   },
   entityId: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true,
+    required: false,
     index: true
   },
   action: {
     type: String,
     required: true,
-    enum: [
-      'created',
-      'updated',
-      'deleted',
-      'status_change',
-      'payment',
-      'refund',
-      'settlement',
-      'wallet_credit',
-      'wallet_debit',
-      'rider_assigned',
-      'rider_unassigned',
-      'admin_override',
-      'cancellation',
-      'delivery_confirmed'
-    ],
     index: true
   },
   userId: {

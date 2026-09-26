@@ -1,0 +1,98 @@
+[
+  {
+    "_id": "6ab3a168836fd3c5856060aa",
+    "user": "6aa02716092ddcee4da127d4",
+    "userType": "customer",
+    "subject": "Customer Support Issue",
+    "message": "Order arrived 10 mins late",
+    "status": "open",
+    "reply": [],
+    "createdAt": "2026-09-23T09:52:40.725Z",
+    "updatedAt": "2026-09-23T09:52:40.725Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a1a1b89856e6e9aacc01",
+    "user": "6aa02716092ddcee4da127d4",
+    "userType": "customer",
+    "subject": "Customer Support Issue",
+    "message": "Order arrived 10 mins late",
+    "status": "open",
+    "reply": [],
+    "createdAt": "2026-09-23T09:53:37.427Z",
+    "updatedAt": "2026-09-23T09:53:37.427Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a2269f743451985cc893",
+    "user": "6aa02716092ddcee4da127d4",
+    "userType": "customer",
+    "subject": "Customer Support Issue",
+    "message": "Order arrived 10 mins late",
+    "status": "open",
+    "reply": [],
+    "createdAt": "2026-09-23T09:55:50.678Z",
+    "updatedAt": "2026-09-23T09:55:50.678Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a23c9f743451985cc90f",
+    "user": "6aa02716092ddcee4da127d4",
+    "userType": "customer",
+    "subject": "Customer Support Issue",
+    "message": "Order arrived 10 mins late",
+    "status": "open",
+    "reply": [],
+    "createdAt": "2026-09-23T09:56:12.860Z",
+    "updatedAt": "2026-09-23T09:56:12.860Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a26dd75517e8a1425ea4",
+    "user": "6aa02716092ddcee4da127d4",
+    "userType": "customer",
+    "subject": "Order Issue: 6ab3a26cd75517e8a1425e68",
+    "message": "Order arrived 10 mins late",
+    "status": "open",
+    "reply": [],
+    "createdAt": "2026-09-23T09:57:01.092Z",
+    "updatedAt": "2026-09-23T09:57:01.092Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a282d75517e8a1425f5a",
+    "user": "6aa02716092ddcee4da127d4",
+    "userType": "customer",
+    "subject": "Customer Support Issue",
+    "message": "Order arrived 10 mins late",
+    "status": "open",
+    "reply": [],
+    "createdAt": "2026-09-23T09:57:22.360Z",
+    "updatedAt": "2026-09-23T09:57:22.360Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a355c8918c957346e7b4",
+    "user": "6aa02716092ddcee4da127d4",
+    "userType": "customer",
+    "subject": "Customer Support Issue",
+    "message": "Order arrived 10 mins late",
+    "status": "open",
+    "reply": [],
+    "createdAt": "2026-09-23T10:00:53.855Z",
+    "updatedAt": "2026-09-23T10:00:53.855Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a37610a28055118e983f",
+    "user": "6aa02716092ddcee4da127d4",
+    "userType": "customer",
+    "subject": "Order Issue: 6ab3a37510a28055118e97f3",
+    "message": "Order arrived 10 mins late",
+    "status": "open",
+    "reply": [],
+    "createdAt": "2026-09-23T10:01:26.757Z",
+    "updatedAt": "2026-09-23T10:01:26.757Z",
+    "__v": 0
+  }
+]

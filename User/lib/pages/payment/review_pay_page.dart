@@ -13,6 +13,7 @@ import '../../services/settings_api_service.dart';
 import '../../services/order_api_service.dart';
 import '../order/order_tracking_page.dart';
 import 'address_selection_page.dart';
+import '../profile/location_setup_page.dart';
 import '../../widgets/flip_animation_widgets.dart';
 
 class ReviewPayPage extends StatefulWidget {
@@ -92,6 +93,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
   }
 
   Future<void> _loadSettings() async {
+    final cart = context.read<CartProvider>();
+    await cart.fetchDynamicSettings();
     final isEnabled = await SettingsApiService.isCodEnabled();
     await _updateDeliveryFee();
 
@@ -458,10 +461,36 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
         ? addressProvider.addresses[_selectedAddressIndex ?? 0]
         : null;
 
+    final locProvider = context.read<LocationProvider>();
+    if (cart.orderType != 'pickup' && !locProvider.isServiceable) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              locProvider.serviceabilityMessage.isNotEmpty
+                  ? locProvider.serviceabilityMessage
+                  : 'Delivery is not available in your current location. Please update your address.',
+            ),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'CHANGE',
+              textColor: Colors.white,
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LocationSetupPage()),
+              ),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     final isCod = _selectedPaymentMethod == 'Cash on Delivery';
 
     final orderData = {
-      'restaurantId': cart.restaurantId ?? 'rest_mock_1',
+      'restaurantId': cart.restaurantId ?? '',
       'paymentMethod': isCod ? 'cod' : 'online',
       'items': cart.items
           .map((item) => ({
@@ -1162,7 +1191,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
         savedAddress?.fullAddress ?? '102, Royal Palms, Vijay Nagar, Indore';
     final displayLabel = savedAddress?.label ?? 'Home';
 
-    final grandTotal = cart.finalAmount + _dynamicDeliveryFee + _selectedTip;
+    final grandTotal = CartProvider.safeNum(cart.finalAmount);
     final isCod = _selectedPaymentMethod == 'Cash on Delivery';
 
     return Scaffold(
@@ -1343,51 +1372,57 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
 
             const SizedBox(height: 12),
 
-            // ── 2. Tip your rider Section (Screenshot 2) ─────────────────────
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text(
-                        'Tip your rider',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF1F2937),
+            // ── 2. Tip your rider Section (CMS Driven) ─────────────────────
+            if (cart.isTipEnabled)
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'Tip your rider',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1F2937),
+                          ),
                         ),
-                      ),
-                      Icon(Icons.chevron_right, color: Color(0xFF6B7280), size: 20),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    '100%, of the tips go to your rider, we dont deduct anything from it',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF6B7280),
+                        Icon(Icons.chevron_right, color: Color(0xFF6B7280), size: 20),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 4),
+                    const Text(
+                      '100% of the tips go to your rider, we dont deduct anything from it',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
 
-                  Row(
-                    children: [
-                      _tipPill(label: 'Not Now', amount: 0.0),
-                      const SizedBox(width: 8),
-                      _tipPill(label: '₹5.00', amount: 5.0),
-                      const SizedBox(width: 8),
-                      _tipPill(label: '₹10.00', amount: 10.0),
-                      const SizedBox(width: 8),
-                      _tipPill(label: '₹20.00', amount: 20.0),
-                    ],
-                  ),
-                ],
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _tipPill(label: 'Not Now', amount: 0.0, cart: cart),
+                          ...cart.tipOptions.map((opt) => Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
+                            child: _tipPill(
+                              label: '₹${opt.toStringAsFixed(2)}',
+                              amount: opt,
+                              cart: cart,
+                            ),
+                          )),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
 
             const SizedBox(height: 12),
 
@@ -1494,13 +1529,19 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                   ),
                   const SizedBox(height: 10),
 
-                  _billRow('Platform fee', '₹${cart.platformFee.toStringAsFixed(2)}'),
-                  const SizedBox(height: 10),
+                  if (cart.isPlatformFeeEnabled) ...[
+                    _billRow('Platform fee', '₹${cart.platformFee.toStringAsFixed(2)}'),
+                    const SizedBox(height: 10),
+                  ],
 
-                  _billRow('Restaurant packaging fee', '₹${cart.packagingFee.toStringAsFixed(2)}'),
-                  const SizedBox(height: 10),
+                  if (cart.isPackagingFeeEnabled) ...[
+                    _billRow('Restaurant packaging fee', '₹${cart.packagingFee.toStringAsFixed(2)}'),
+                    const SizedBox(height: 10),
+                  ],
 
-                  _billRow('GST (govt. taxes)', '₹${cart.gstAmount.toStringAsFixed(2)}'),
+                  if (cart.isTaxEnabled && cart.gstAmount > 0) ...[
+                    _billRow('GST (govt. taxes)', '₹${cart.gstAmount.toStringAsFixed(2)}'),
+                  ],
 
                   if (cart.discountAmount > 0) ...[
                     const SizedBox(height: 10),
@@ -1614,28 +1655,31 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     );
   }
 
-  Widget _tipPill({required String label, required double amount}) {
-    final isSelected = _selectedTip == amount;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedTip = amount),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isSelected ? AppColors.primary : const Color(0xFFE5E7EB),
-            ),
+  Widget _tipPill({required String label, required double amount, CartProvider? cart}) {
+    final isSelected = cart != null ? cart.selectedTip == amount : _selectedTip == amount;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _selectedTip = amount);
+        if (cart != null) {
+          cart.setSelectedTip(amount);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : const Color(0xFFE5E7EB),
           ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white : const Color(0xFF374151),
-              ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: isSelected ? Colors.white : const Color(0xFF374151),
             ),
           ),
         ),

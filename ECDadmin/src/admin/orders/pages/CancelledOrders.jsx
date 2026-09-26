@@ -87,10 +87,8 @@ const cancelledOrdersColumns = [
   {
     key: "total",
     label: "Total",
-    render: (row) => `RM ${row.total.toFixed(2)}`,
+    render: (row) => `₹ ${Number(row.total).toFixed(2)}`,
   },
-  
- 
 ];
 
 

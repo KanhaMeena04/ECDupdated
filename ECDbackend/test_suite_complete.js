@@ -168,7 +168,8 @@ async function runTestSuite() {
   // 13 Category
   await test('13 Dynamic Category Management', async () => {
     const res = await requestApi('/api/categories', 'GET');
-    if (!Array.isArray(res.json)) throw new Error('Categories must return array');
+    const catArray = Array.isArray(res.json) ? res.json : (res.json?.data || res.json?.categories);
+    if (!Array.isArray(catArray)) throw new Error('Categories must return array');
   });
 
   // 14 Banner

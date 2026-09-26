@@ -86,22 +86,12 @@ export default function ProcessingOrders() {
   {
     key: "total",
     label: "Total",
-    render: (row) => `RM ${row.total.toFixed(2)}`,
+    render: (row) => `₹ ${Number(row.total).toFixed(2)}`,
   },
-  // {
-  //   key: "more",
-  //   label: "Action",
-  //   render: () => (
-  //     <button className="p-2 hover:bg-gray-100 rounded">
-  //       <MoreVertical size={16} />
-  //     </button>
-  //   ),
-  // },
 ];
 
-
   const { orders, loading, error } = useAdminOrders({
-    status: "preparation",
+    status: "accepted,preparing,ready,assigned,reached_restaurant,picked_up,delivery_arrived",
   });
 
   const processingOrdersData = mapProcessingOrders(orders);

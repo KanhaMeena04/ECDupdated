@@ -1,0 +1,3103 @@
+[
+  {
+    "_id": "6ab1161a3cfeec196c0e55e4",
+    "user": "6ab116043cfeec196c0e55dc",
+    "vehicle": {
+      "type": "bike",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved",
+        "approvedAt": "2026-09-22T06:37:51.877Z",
+        "approvedBy": "6a79b491f94ea206034b4029"
+      },
+      "model": "Honda Shine",
+      "number": "HR26AB1234",
+      "approvalStatus": "approved"
+    },
+    "bankDetails": {
+      "verified": false,
+      "verificationStatus": "pending",
+      "accountName": "Gaurav Sharma",
+      "accountNumber": "50100234567890",
+      "bankName": "HDFC Bank",
+      "branchName": "Cyber City",
+      "branchAddress": "Gurgaon DLF Phase 2",
+      "swiftCode": "HDFC0000123",
+      "routingNumber": ""
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "rating": {
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      },
+      "average": 0,
+      "count": 0
+    },
+    "totalEarnings": 0,
+    "currentBalance": 0,
+    "totalOrders": 0,
+    "totalDeliveries": 0,
+    "cancelledOrders": 0,
+    "averageRating": 0,
+    "createdAt": "2026-09-21T11:33:46.939Z",
+    "updatedAt": "2026-09-22T07:32:27.767Z",
+    "__v": 0,
+    "address": {
+      "street": "Main Road",
+      "city": "Gurgaon",
+      "state": "Haryana",
+      "country": "India",
+      "zipCode": "122001"
+    },
+    "documents": {
+      "license": {
+        "number": "HR2620210001234",
+        "frontImage": "https://ik.imagekit.io/ECDKART/test.jpg",
+        "backImage": ""
+      },
+      "rc": {
+        "number": "HR26AB1234",
+        "image": "",
+        "expiryDate": ""
+      },
+      "insurance": {
+        "number": "INS998877",
+        "image": "",
+        "expiryDate": ""
+      },
+      "medicalCertificate": "",
+      "gst": ""
+    },
+    "email": "gaurav@ecdkart.com",
+    "name": "Gaurav Kumar Sharma",
+    "workCity": "Gurgaon",
+    "workZone": "Cyber Hub",
+    "mobile": "9876543210",
+    "phone": "9876543210"
+  },
+  {
+    "_id": "6ab22171b3e3ee09ccfe8416",
+    "user": "6a7c8d806e1285608339d559",
+    "name": "test rider",
+    "email": "919054297754@ecdelivery.com",
+    "mobile": "+919054297754",
+    "phone": "+919054297754",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 D559",
+      "regNumber": "HR 26 D559",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-8339D559",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-8339D559"
+      },
+      "insurance": {
+        "number": "INS-8339D559"
+      },
+      "panCard": {
+        "number": "ABCDED559F"
+      },
+      "aadharCard": {
+        "number": "5489 d559 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "test rider",
+      "accountNumber": "123456789012",
+      "bankName": "ICICI Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "riderkumar@okaxis",
+      "verified": true,
+      "verificationStatus": "approved",
+      "accountHolder": "Test Rider Kumar",
+      "ifsc": "ICIC0001234",
+      "phone": "+919054297754"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:26.004Z",
+    "updatedAt": "2026-09-23T05:25:39.243Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22172b3e3ee09ccfe841d",
+    "user": "6a7dcd796e1285608339f53a",
+    "name": "Tester - Ashish",
+    "email": "919098641072@ecdelivery.com",
+    "mobile": "+919098641072",
+    "phone": "+919098641072",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 F53A",
+      "regNumber": "HR 26 F53A",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-8339F53A",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-8339F53A"
+      },
+      "insurance": {
+        "number": "INS-8339F53A"
+      },
+      "panCard": {
+        "number": "ABCDEF53AF"
+      },
+      "aadharCard": {
+        "number": "5489 f53a 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "Tester - Ashish",
+      "accountNumber": "501008339f53a",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "919098641072@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:26.136Z",
+    "updatedAt": "2026-09-22T06:34:26.136Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22172b3e3ee09ccfe8422",
+    "user": "6a8439b06e128560833a5cfe",
+    "name": "rider",
+    "email": "919040890003@ecdelivery.com",
+    "mobile": "+919040890003",
+    "phone": "+919040890003",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 5CFE",
+      "regNumber": "HR 26 5CFE",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833A5CFE",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833A5CFE"
+      },
+      "insurance": {
+        "number": "INS-833A5CFE"
+      },
+      "panCard": {
+        "number": "ABCDE5CFEF"
+      },
+      "aadharCard": {
+        "number": "5489 5cfe 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "rider",
+      "accountNumber": "50100833a5cfe",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "919040890003@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:26.244Z",
+    "updatedAt": "2026-09-22T06:34:26.244Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22172b3e3ee09ccfe8426",
+    "user": "6a850c846e128560833a75ac",
+    "name": "User",
+    "email": "919518857250@ecdelivery.com",
+    "mobile": "+919518857250",
+    "phone": "+919518857250",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 75AC",
+      "regNumber": "HR 26 75AC",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833A75AC",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833A75AC"
+      },
+      "insurance": {
+        "number": "INS-833A75AC"
+      },
+      "panCard": {
+        "number": "ABCDE75ACF"
+      },
+      "aadharCard": {
+        "number": "5489 75ac 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833a75ac",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "919518857250@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:26.349Z",
+    "updatedAt": "2026-09-22T06:34:26.349Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22172b3e3ee09ccfe842a",
+    "user": "6a8582046e128560833a7da1",
+    "name": "radheyshyam",
+    "email": "919671992304@ecdelivery.com",
+    "mobile": "+919671992304",
+    "phone": "+919671992304",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 7DA1",
+      "regNumber": "HR 26 7DA1",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833A7DA1",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833A7DA1"
+      },
+      "insurance": {
+        "number": "INS-833A7DA1"
+      },
+      "panCard": {
+        "number": "ABCDE7DA1F"
+      },
+      "aadharCard": {
+        "number": "5489 7da1 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "radheyshyam",
+      "accountNumber": "50100833a7da1",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "919671992304@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:26.467Z",
+    "updatedAt": "2026-09-22T06:34:26.467Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22172b3e3ee09ccfe842e",
+    "user": "6a85a1266e128560833a7fa7",
+    "name": "User",
+    "email": "918586877844@ecdelivery.com",
+    "mobile": "+918586877844",
+    "phone": "+918586877844",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 7FA7",
+      "regNumber": "HR 26 7FA7",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833A7FA7",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833A7FA7"
+      },
+      "insurance": {
+        "number": "INS-833A7FA7"
+      },
+      "panCard": {
+        "number": "ABCDE7FA7F"
+      },
+      "aadharCard": {
+        "number": "5489 7fa7 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833a7fa7",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "918586877844@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:26.571Z",
+    "updatedAt": "2026-09-22T06:34:26.571Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22172b3e3ee09ccfe8432",
+    "user": "6a87736d6e128560833a986d",
+    "name": "Test Rider",
+    "email": "9876543211@ecdelivery.com",
+    "mobile": "9876543211",
+    "phone": "9876543211",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 986D",
+      "regNumber": "HR 26 986D",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833A986D",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833A986D"
+      },
+      "insurance": {
+        "number": "INS-833A986D"
+      },
+      "panCard": {
+        "number": "ABCDE986DF"
+      },
+      "aadharCard": {
+        "number": "5489 986d 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "Test Rider",
+      "accountNumber": "50100833a986d",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "9876543211@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:26.678Z",
+    "updatedAt": "2026-09-22T06:34:26.678Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22172b3e3ee09ccfe8436",
+    "user": "6a877c296e128560833a9942",
+    "name": "User",
+    "email": "919876543211@ecdelivery.com",
+    "mobile": "+919876543211",
+    "phone": "+919876543211",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 9942",
+      "regNumber": "HR 26 9942",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833A9942",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833A9942"
+      },
+      "insurance": {
+        "number": "INS-833A9942"
+      },
+      "panCard": {
+        "number": "ABCDE9942F"
+      },
+      "aadharCard": {
+        "number": "5489 9942 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833a9942",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "919876543211@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:26.782Z",
+    "updatedAt": "2026-09-22T06:34:26.782Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22172b3e3ee09ccfe843a",
+    "user": "6a884bf46e128560833aa480",
+    "name": "User",
+    "email": "918684017257@ecdelivery.com",
+    "mobile": "+918684017257",
+    "phone": "+918684017257",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 A480",
+      "regNumber": "HR 26 A480",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833AA480",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833AA480"
+      },
+      "insurance": {
+        "number": "INS-833AA480"
+      },
+      "panCard": {
+        "number": "ABCDEA480F"
+      },
+      "aadharCard": {
+        "number": "5489 a480 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833aa480",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "918684017257@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:26.896Z",
+    "updatedAt": "2026-09-22T06:34:26.896Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22173b3e3ee09ccfe843e",
+    "user": "6a885da96e128560833aa5a0",
+    "name": "User",
+    "email": "919717911569@ecdelivery.com",
+    "mobile": "+919717911569",
+    "phone": "+919717911569",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 A5A0",
+      "regNumber": "HR 26 A5A0",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833AA5A0",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833AA5A0"
+      },
+      "insurance": {
+        "number": "INS-833AA5A0"
+      },
+      "panCard": {
+        "number": "ABCDEA5A0F"
+      },
+      "aadharCard": {
+        "number": "5489 a5a0 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833aa5a0",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "919717911569@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:27.008Z",
+    "updatedAt": "2026-09-22T06:34:27.008Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22173b3e3ee09ccfe8442",
+    "user": "6a8aae246e128560833acb81",
+    "name": "shiv singh ",
+    "email": "918053945575@ecdelivery.com",
+    "mobile": "+918053945575",
+    "phone": "+918053945575",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 CB81",
+      "regNumber": "HR 26 CB81",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833ACB81",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833ACB81"
+      },
+      "insurance": {
+        "number": "INS-833ACB81"
+      },
+      "panCard": {
+        "number": "ABCDECB81F"
+      },
+      "aadharCard": {
+        "number": "5489 cb81 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "shiv singh ",
+      "accountNumber": "50100833acb81",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "918053945575@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:27.111Z",
+    "updatedAt": "2026-09-22T06:34:27.111Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22173b3e3ee09ccfe8446",
+    "user": "6a8bd3936e128560833adcdc",
+    "name": "User",
+    "email": "919671512243@ecdelivery.com",
+    "mobile": "+919671512243",
+    "phone": "+919671512243",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 DCDC",
+      "regNumber": "HR 26 DCDC",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833ADCDC",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833ADCDC"
+      },
+      "insurance": {
+        "number": "INS-833ADCDC"
+      },
+      "panCard": {
+        "number": "ABCDEDCDCF"
+      },
+      "aadharCard": {
+        "number": "5489 dcdc 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833adcdc",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "919671512243@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:27.217Z",
+    "updatedAt": "2026-09-22T06:34:27.217Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22173b3e3ee09ccfe844a",
+    "user": "6a8e2b016e128560833afe12",
+    "name": "User",
+    "email": "919992565739@ecdelivery.com",
+    "mobile": "+919992565739",
+    "phone": "+919992565739",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 FE12",
+      "regNumber": "HR 26 FE12",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833AFE12",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833AFE12"
+      },
+      "insurance": {
+        "number": "INS-833AFE12"
+      },
+      "panCard": {
+        "number": "ABCDEFE12F"
+      },
+      "aadharCard": {
+        "number": "5489 fe12 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833afe12",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "919992565739@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:27.322Z",
+    "updatedAt": "2026-09-22T06:34:27.322Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22173b3e3ee09ccfe844e",
+    "user": "6a92ab156e128560833b5b38",
+    "name": "User",
+    "email": "918053738689@ecdelivery.com",
+    "mobile": "+918053738689",
+    "phone": "+918053738689",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 5B38",
+      "regNumber": "HR 26 5B38",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833B5B38",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833B5B38"
+      },
+      "insurance": {
+        "number": "INS-833B5B38"
+      },
+      "panCard": {
+        "number": "ABCDE5B38F"
+      },
+      "aadharCard": {
+        "number": "5489 5b38 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833b5b38",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "918053738689@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:27.419Z",
+    "updatedAt": "2026-09-22T06:34:27.419Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22173b3e3ee09ccfe8452",
+    "user": "6a92ab4f6e128560833b5b4a",
+    "name": "User",
+    "email": "919992785818@ecdelivery.com",
+    "mobile": "+919992785818",
+    "phone": "+919992785818",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 5B4A",
+      "regNumber": "HR 26 5B4A",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833B5B4A",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833B5B4A"
+      },
+      "insurance": {
+        "number": "INS-833B5B4A"
+      },
+      "panCard": {
+        "number": "ABCDE5B4AF"
+      },
+      "aadharCard": {
+        "number": "5489 5b4a 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833b5b4a",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "919992785818@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:27.520Z",
+    "updatedAt": "2026-09-22T06:34:27.520Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22173b3e3ee09ccfe8456",
+    "user": "6a92ad906e128560833b5b74",
+    "name": "User",
+    "email": "919897156592@ecdelivery.com",
+    "mobile": "+919897156592",
+    "phone": "+919897156592",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 5B74",
+      "regNumber": "HR 26 5B74",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833B5B74",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833B5B74"
+      },
+      "insurance": {
+        "number": "INS-833B5B74"
+      },
+      "panCard": {
+        "number": "ABCDE5B74F"
+      },
+      "aadharCard": {
+        "number": "5489 5b74 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833b5b74",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "919897156592@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:27.626Z",
+    "updatedAt": "2026-09-22T06:34:27.626Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22173b3e3ee09ccfe845a",
+    "user": "6a92b0356e128560833b5c70",
+    "name": "User",
+    "email": "918307593801@ecdelivery.com",
+    "mobile": "+918307593801",
+    "phone": "+918307593801",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 5C70",
+      "regNumber": "HR 26 5C70",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833B5C70",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833B5C70"
+      },
+      "insurance": {
+        "number": "INS-833B5C70"
+      },
+      "panCard": {
+        "number": "ABCDE5C70F"
+      },
+      "aadharCard": {
+        "number": "5489 5c70 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833b5c70",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "918307593801@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:27.724Z",
+    "updatedAt": "2026-09-22T06:34:27.724Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22173b3e3ee09ccfe845e",
+    "user": "6a92c27f6e128560833b6709",
+    "name": "User",
+    "email": "918708031890@ecdelivery.com",
+    "mobile": "+918708031890",
+    "phone": "+918708031890",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 6709",
+      "regNumber": "HR 26 6709",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833B6709",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833B6709"
+      },
+      "insurance": {
+        "number": "INS-833B6709"
+      },
+      "panCard": {
+        "number": "ABCDE6709F"
+      },
+      "aadharCard": {
+        "number": "5489 6709 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833b6709",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "918708031890@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:27.822Z",
+    "updatedAt": "2026-09-22T06:34:27.822Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22173b3e3ee09ccfe8462",
+    "user": "6a9523506e128560833b939e",
+    "name": "User",
+    "email": "917691062340@ecdelivery.com",
+    "mobile": "+917691062340",
+    "phone": "+917691062340",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 939E",
+      "regNumber": "HR 26 939E",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833B939E",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833B939E"
+      },
+      "insurance": {
+        "number": "INS-833B939E"
+      },
+      "panCard": {
+        "number": "ABCDE939EF"
+      },
+      "aadharCard": {
+        "number": "5489 939e 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "User",
+      "accountNumber": "50100833b939e",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "917691062340@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:27.925Z",
+    "updatedAt": "2026-09-22T06:34:27.925Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22174b3e3ee09ccfe8466",
+    "user": "6a9592ce6e128560833b995f",
+    "name": "amit kumar",
+    "email": "919416046662@ecdelivery.com",
+    "mobile": "+919416046662",
+    "phone": "+919416046662",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 995F",
+      "regNumber": "HR 26 995F",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-833B995F",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-833B995F"
+      },
+      "insurance": {
+        "number": "INS-833B995F"
+      },
+      "panCard": {
+        "number": "ABCDE995FF"
+      },
+      "aadharCard": {
+        "number": "5489 995f 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "amit kumar",
+      "accountNumber": "50100833b995f",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "919416046662@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:28.023Z",
+    "updatedAt": "2026-09-22T06:34:28.023Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22174b3e3ee09ccfe846a",
+    "user": "6aa02716092ddcee4da127d4",
+    "name": "Ashish Meena",
+    "email": "919876543210@ecdelivery.com",
+    "mobile": "+919876543210",
+    "phone": "+919876543210",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 27D4",
+      "regNumber": "HR 26 27D4",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-4DA127D4",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-4DA127D4"
+      },
+      "insurance": {
+        "number": "INS-4DA127D4"
+      },
+      "panCard": {
+        "number": "ABCDE27D4F"
+      },
+      "aadharCard": {
+        "number": "5489 27d4 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "Ashish Meena",
+      "accountNumber": "501004da127d4",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "919876543210@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": true,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:28.120Z",
+    "updatedAt": "2026-09-22T08:36:53.591Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22174b3e3ee09ccfe846e",
+    "user": "6aa55434092ddcee4da87323",
+    "name": "tester sohna ",
+    "email": "918685030045@ecdelivery.com",
+    "mobile": "+918685030045",
+    "phone": "+918685030045",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 7323",
+      "regNumber": "HR 26 7323",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-4DA87323",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-4DA87323"
+      },
+      "insurance": {
+        "number": "INS-4DA87323"
+      },
+      "panCard": {
+        "number": "ABCDE7323F"
+      },
+      "aadharCard": {
+        "number": "5489 7323 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "tester sohna ",
+      "accountNumber": "501004da87323",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "918685030045@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:28.264Z",
+    "updatedAt": "2026-09-22T06:34:28.264Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22174b3e3ee09ccfe8472",
+    "user": "6aa8e222c02785942aa3f205",
+    "name": "abhay",
+    "email": "917009935494@ecdelivery.com",
+    "mobile": "+917009935494",
+    "phone": "+917009935494",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 F205",
+      "regNumber": "HR 26 F205",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-2AA3F205",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-2AA3F205"
+      },
+      "insurance": {
+        "number": "INS-2AA3F205"
+      },
+      "panCard": {
+        "number": "ABCDEF205F"
+      },
+      "aadharCard": {
+        "number": "5489 f205 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "abhay",
+      "accountNumber": "501002aa3f205",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "917009935494@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:28.364Z",
+    "updatedAt": "2026-09-22T06:34:28.364Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22174b3e3ee09ccfe8476",
+    "user": "6aaaa137c02785942aa5397e",
+    "name": "Rider Man",
+    "email": "917008452720@ecdelivery.com",
+    "mobile": "+917008452720",
+    "phone": "+917008452720",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 397E",
+      "regNumber": "HR 26 397E",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-2AA5397E",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-2AA5397E"
+      },
+      "insurance": {
+        "number": "INS-2AA5397E"
+      },
+      "panCard": {
+        "number": "ABCDE397EF"
+      },
+      "aadharCard": {
+        "number": "5489 397e 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "Rider Man",
+      "accountNumber": "501002aa5397e",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "917008452720@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:28.470Z",
+    "updatedAt": "2026-09-22T06:34:28.470Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22174b3e3ee09ccfe847a",
+    "user": "6aaaa288c02785942aa54b8f",
+    "name": "bhudev singh",
+    "email": "917988161629@ecdelivery.com",
+    "mobile": "+917988161629",
+    "phone": "+917988161629",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 4B8F",
+      "regNumber": "HR 26 4B8F",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-2AA54B8F",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-2AA54B8F"
+      },
+      "insurance": {
+        "number": "INS-2AA54B8F"
+      },
+      "panCard": {
+        "number": "ABCDE4B8FF"
+      },
+      "aadharCard": {
+        "number": "5489 4b8f 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "bhudev singh",
+      "accountNumber": "501002aa54b8f",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "917988161629@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:28.577Z",
+    "updatedAt": "2026-09-22T06:34:28.577Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22174b3e3ee09ccfe847e",
+    "user": "6aacde7043fbd98d50e33a9e",
+    "name": "Kanha ",
+    "email": "916264601696@ecdelivery.com",
+    "mobile": "+916264601696",
+    "phone": "+916264601696",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 3A9E",
+      "regNumber": "HR 26 3A9E",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-50E33A9E",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-50E33A9E"
+      },
+      "insurance": {
+        "number": "INS-50E33A9E"
+      },
+      "panCard": {
+        "number": "ABCDE3A9EF"
+      },
+      "aadharCard": {
+        "number": "5489 3a9e 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "Kanha ",
+      "accountNumber": "5010050e33a9e",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "916264601696@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:28.682Z",
+    "updatedAt": "2026-09-22T10:24:04.152Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22174b3e3ee09ccfe8482",
+    "user": "6aad6ace43fbd98d50e38ee6",
+    "name": "web rider ",
+    "email": "918989944488@ecdelivery.com",
+    "mobile": "+918989944488",
+    "phone": "+918989944488",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 8EE6",
+      "regNumber": "HR 26 8EE6",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-50E38EE6",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-50E38EE6"
+      },
+      "insurance": {
+        "number": "INS-50E38EE6"
+      },
+      "panCard": {
+        "number": "ABCDE8EE6F"
+      },
+      "aadharCard": {
+        "number": "5489 8ee6 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "web rider ",
+      "accountNumber": "5010050e38ee6",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "918989944488@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:28.781Z",
+    "updatedAt": "2026-09-22T06:34:28.781Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab22174b3e3ee09ccfe8486",
+    "user": "6aafefd243fbd98d50e58db3",
+    "name": "yaman ",
+    "email": "917988318989@ecdelivery.com",
+    "mobile": "+917988318989",
+    "phone": "+917988318989",
+    "address": {
+      "addressLine": "Sohna Road, Sector 18",
+      "city": "Sohna",
+      "state": "Haryana",
+      "zipCode": "122103"
+    },
+    "workCity": "Sohna",
+    "workZone": "Sector 18",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "HR 26 8DB3",
+      "regNumber": "HR 26 8DB3",
+      "color": "Black",
+      "vehicleVerified": true,
+      "vehicleApproval": {
+        "status": "approved"
+      }
+    },
+    "documents": {
+      "license": {
+        "number": "DL-50E58DB3",
+        "expiryDate": "2030-12-31T00:00:00.000Z"
+      },
+      "rc": {
+        "number": "RC-50E58DB3"
+      },
+      "insurance": {
+        "number": "INS-50E58DB3"
+      },
+      "panCard": {
+        "number": "ABCDE8DB3F"
+      },
+      "aadharCard": {
+        "number": "5489 8db3 5678"
+      }
+    },
+    "bankDetails": {
+      "accountHolderName": "yaman ",
+      "accountNumber": "5010050e58db3",
+      "bankName": "HDFC Bank",
+      "ifscCode": "HDFC0001234",
+      "upiId": "917988318989@okhdfcbank",
+      "verified": true,
+      "verificationStatus": "approved"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": true,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "average": 4.8,
+      "count": 12,
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      }
+    },
+    "totalEarnings": 3500,
+    "currentBalance": 850,
+    "totalOrders": 0,
+    "totalDeliveries": 15,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "createdAt": "2026-09-22T06:34:28.890Z",
+    "updatedAt": "2026-09-22T06:34:28.890Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab4b5eb03a0d10ef6cb1a4d",
+    "user": "6ab48ed24b156bd222c6ebc8",
+    "name": "Lalit ",
+    "mobile": "+919813507327",
+    "phone": "+919813507327",
+    "workCity": "",
+    "workZone": "",
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": false,
+    "isOnline": false,
+    "isAvailable": false,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "pending",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      },
+      "average": 4.8,
+      "count": 0
+    },
+    "totalEarnings": 0,
+    "currentBalance": 0,
+    "totalOrders": 0,
+    "totalDeliveries": 0,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "status": "inactive",
+    "createdAt": "2026-09-24T05:32:27.510Z",
+    "updatedAt": "2026-09-24T05:32:27.510Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab4f34bf0142b2aa13b0157",
+    "user": "6ab4f34bf0142b2aa13b0154",
+    "workCity": "",
+    "workZone": "",
+    "vehicle": {
+      "type": "bike",
+      "number": "DL01AB1234"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": false,
+    "isOnline": false,
+    "isAvailable": false,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "pending",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      },
+      "average": 4.8,
+      "count": 0
+    },
+    "totalEarnings": 0,
+    "currentBalance": 0,
+    "totalOrders": 0,
+    "totalDeliveries": 0,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "status": "active",
+    "createdAt": "2026-09-24T09:54:19.606Z",
+    "updatedAt": "2026-09-24T09:54:19.606Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab508313f60bbb9e131b53b",
+    "user": "6ab508313f60bbb9e131b538",
+    "name": "jyftg",
+    "email": "gfgf@gmail.com",
+    "mobile": "9179916404",
+    "phone": "9179916404",
+    "workCity": "",
+    "workZone": "",
+    "vehicle": {
+      "type": "Scooter / Motorcycle",
+      "brand": "Honda",
+      "model": "Activa 6G",
+      "year": "2023",
+      "number": "MH 12 AB 4567",
+      "regNumber": "MH 12 AB 4567",
+      "vehicleVerified": false,
+      "vehicleApproval": {
+        "status": "pending"
+      },
+      "approvalStatus": "pending"
+    },
+    "pendingUpdate": {
+      "otpAttempts": 0
+    },
+    "riderVerified": true,
+    "isOnline": false,
+    "isAvailable": false,
+    "breakMode": false,
+    "sosActive": false,
+    "sosLocation": {
+      "type": "Point",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "verificationStatus": "approved",
+    "currentLocation": {
+      "type": "Point",
+      "coordinates": [
+        77.0658,
+        28.2888
+      ]
+    },
+    "rating": {
+      "breakdown": {
+        "five": 0,
+        "four": 0,
+        "three": 0,
+        "two": 0,
+        "one": 0
+      },
+      "average": 4.8,
+      "count": 0
+    },
+    "totalEarnings": 0,
+    "currentBalance": 0,
+    "totalOrders": 0,
+    "totalDeliveries": 0,
+    "cancelledOrders": 0,
+    "averageRating": 4.8,
+    "status": "inactive",
+    "createdAt": "2026-09-24T11:23:29.318Z",
+    "updatedAt": "2026-09-24T12:02:52.659Z",
+    "__v": 0,
+    "address": {
+      "street": "",
+      "city": "",
+      "state": "",
+      "country": "",
+      "zipCode": ""
+    },
+    "bankDetails": {
+      "accountHolderName": "jyftg",
+      "bankName": "HDFC Bank",
+      "accountNumber": "50100234567890",
+      "ifscCode": "HDFC0001234",
+      "upiId": "rider@okhdfcbank",
+      "verified": false,
+      "verificationStatus": "pending",
+      "accountName": "dsfewqf",
+      "branchName": "",
+      "branchAddress": "",
+      "swiftCode": "",
+      "routingNumber": ""
+    },
+    "documents": {
+      "license": {
+        "number": "DL-1420110012345",
+        "frontImage": "https://ik.imagekit.io/ECDKART/ecdkart/riders/1790250436884_license_6ab508313f60bbb9e131b538_xj6H-Msb7.jpg",
+        "backImage": ""
+      },
+      "panCard": {
+        "number": "ABCDE1234F",
+        "image": "https://ik.imagekit.io/ECDKART/ecdkart/riders/1790250454922_pan_6ab508313f60bbb9e131b538_oR_hCT6I55.jpg"
+      },
+      "aadharCard": {
+        "number": "5489 1234 5678",
+        "image": "https://ik.imagekit.io/ECDKART/ecdkart/riders/1790250481909_aadhaar_6ab508313f60bbb9e131b538_H325AbX0P6.jpg",
+        "frontImage": "https://ik.imagekit.io/ECDKART/ecdkart/riders/1790250481909_aadhaar_6ab508313f60bbb9e131b538_H325AbX0P6.jpg"
+      },
+      "rc": {
+        "number": "MH 12 AB 4567",
+        "image": "",
+        "expiryDate": ""
+      },
+      "insurance": {
+        "number": "",
+        "image": "",
+        "expiryDate": ""
+      },
+      "medicalCertificate": "",
+      "gst": ""
+    },
+    "pin": "1234"
+  }
+]

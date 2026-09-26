@@ -27,10 +27,10 @@ class _LoginPageState extends State<LoginPage>
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
 
-  // 4 OTP digit controllers + focus nodes
+  // 6 OTP digit controllers + focus nodes
   final List<TextEditingController> _otpControllers =
-      List.generate(4, (_) => TextEditingController());
-  final List<FocusNode> _otpFocusNodes = List.generate(4, (_) => FocusNode());
+      List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
 
   bool _isLoading = false;
   bool _showOtp = false;
@@ -257,9 +257,9 @@ class _LoginPageState extends State<LoginPage>
   void _verifyOtp() async {
     if (_isLoading) return; // Prevent double calls
     final otp = _otpControllers.map((c) => c.text).join();
-    if (otp.length < 4) {
+    if (otp.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the 4-digit OTP')),
+        const SnackBar(content: Text('Please enter the 6-digit OTP')),
       );
       return;
     }
@@ -411,10 +411,23 @@ class _LoginPageState extends State<LoginPage>
   }
 
   // â”€â”€ Single OTP digit box â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  void _ensureOtpLists() {
+    while (_otpControllers.length < 6) {
+      _otpControllers.add(TextEditingController());
+    }
+    while (_otpFocusNodes.length < 6) {
+      _otpFocusNodes.add(FocusNode());
+    }
+  }
+
   Widget _buildOtpBox(int index) {
+    _ensureOtpLists();
+    if (index >= _otpControllers.length || index >= _otpFocusNodes.length) {
+      return const SizedBox.shrink();
+    }
     return SizedBox(
-      width: 56,
-      height: 60,
+      width: 44,
+      height: 52,
       child: TextFormField(
         controller: _otpControllers[index],
         focusNode: _otpFocusNodes[index],
@@ -424,7 +437,7 @@ class _LoginPageState extends State<LoginPage>
         maxLength: 1,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         style: const TextStyle(
-          fontSize: 22,
+          fontSize: 18,
           fontWeight: FontWeight.bold,
           color: AppColors.textPrimary,
         ),
@@ -443,13 +456,13 @@ class _LoginPageState extends State<LoginPage>
           fillColor: Colors.white,
         ),
         onChanged: (value) {
-          if (value.isNotEmpty && index < 3) {
+          if (value.isNotEmpty && index < 5) {
             _otpFocusNodes[index + 1].requestFocus();
           } else if (value.isEmpty && index > 0) {
             _otpFocusNodes[index - 1].requestFocus();
           }
           final otp = _otpControllers.map((c) => c.text).join();
-          if (otp.length == 4) FocusScope.of(context).unfocus();
+          if (otp.length == 6) FocusScope.of(context).unfocus();
         },
       ),
     );
@@ -549,41 +562,7 @@ class _LoginPageState extends State<LoginPage>
             
             // Bottom Section (only if not showing OTP)
             if (!_showOtp) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.grey.shade300)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('or', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
-                    ),
-                    Expanded(child: Divider(color: Colors.grey.shade300)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    _buildSocialOutlinedButton(
-                      'Continue with Google',
-                      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/120px-Google_%22G%22_logo.svg.png',
-                      _handleGoogleLogin,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildSocialOutlinedButton(
-                      'Continue with Apple',
-                      null,
-                      _handleAppleLogin,
-                      icon: Icons.apple,
-                      iconColor: Colors.black,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 16),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () {
@@ -827,7 +806,7 @@ class _LoginPageState extends State<LoginPage>
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(4, _buildOtpBox),
+          children: List.generate(6, _buildOtpBox),
         ),
         const SizedBox(height: 28),
         SizedBox(

@@ -4,8 +4,8 @@ require('dotenv').config();
 const Rider = require('./models/Rider');
 async function fixRiderRatings() {
   try {
-    console.log('🔧 Starting to fix rider rating fields...');
-    const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/foodieDB';
+    const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+    if (!MONGO_URI) throw new Error('MONGODB_URI environment variable is required.');
     await mongoose.connect(MONGO_URI);
     console.log('✅ Connected to MongoDB');
     const invalidRiders = await Rider.find({

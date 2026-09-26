@@ -48,6 +48,7 @@ import {
   CloudUpload,
 } from "@mui/icons-material";
 import api from "../../../utils/api";
+import CategoryTable from "../../categories/components/CategoryTable";
 
 const PRIMARY_COLOR = "#248C70";
 const ACCENT_COLOR = "#E89D1E";
@@ -398,85 +399,11 @@ export default function CatalogMasterControl() {
       {/* ------------------------------------------------------------- */}
       {/* TAB 1: CATEGORIES & SUBCATEGORIES */}
       {/* ------------------------------------------------------------- */}
+      {/* TAB 1: CATEGORY & SUBCATEGORY MASTER CONTROL */}
+      {/* ------------------------------------------------------------- */}
       {activeTab === 1 && (
         <Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              User App Category Hierarchy ({categories.length})
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              sx={{ bgcolor: PRIMARY_COLOR }}
-              onClick={() => {
-                setCategoryForm({ name: "", description: "", image: "", isFeatured: false, userAppVisible: true });
-                setCategoryModal({ open: true, category: null });
-              }}
-            >
-              Add New Category
-            </Button>
-          </Box>
-
-          <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-            <Table>
-              <TableHead sx={{ bgcolor: "#F9FAFB" }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>Category Name</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Subcategories</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Position</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>User App Visible</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Featured</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {categories.map((c) => {
-                  const catName = typeof c.name === "object" ? c.name.en : c.name;
-                  return (
-                    <TableRow key={c._id} hover>
-                      <TableCell sx={{ fontWeight: 600 }}>{catName}</TableCell>
-                      <TableCell color="textSecondary">{c.description || "-"}</TableCell>
-                      <TableCell>
-                        {c.subcategories?.length > 0 ? (
-                          c.subcategories.map((sub, idx) => (
-                            <Chip key={idx} label={sub.name} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
-                          ))
-                        ) : (
-                          <Typography variant="caption" color="textSecondary">None</Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>{c.position || 0}</TableCell>
-                      <TableCell>
-                        <IconButton onClick={() => handleCategoryToggle(c)} color={c.userAppVisible ? "success" : "default"}>
-                          {c.userAppVisible ? <Visibility /> : <VisibilityOff />}
-                        </IconButton>
-                      </TableCell>
-                      <TableCell>
-                        {c.isFeatured ? <Chip label="Featured" size="small" color="warning" /> : "-"}
-                      </TableCell>
-                      <TableCell>
-                        <IconButton
-                          onClick={() => {
-                            setCategoryForm({
-                              name: catName,
-                              description: c.description || "",
-                              image: c.image || "",
-                              isFeatured: c.isFeatured || false,
-                              userAppVisible: c.userAppVisible !== false,
-                            });
-                            setCategoryModal({ open: true, category: c });
-                          }}
-                        >
-                          <Edit />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <CategoryTable />
         </Box>
       )}
 

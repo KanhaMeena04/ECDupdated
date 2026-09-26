@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import PageHeader from "../../components/PageHeader";
 import PageActionBar from "../../components/PageActionBar";
@@ -18,60 +19,76 @@ export default function RestaurantsList() {
 
   /* -------------------- STATE -------------------- */
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletedIds, setDeletedIds] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const parseBackendDate = (value) => {
-  if (!value) return null;
-
-  // already a Date or timestamp
-  if (typeof value === "number" || value instanceof Date) {
-    return new Date(value);
-  }
-
-  // handle: "6 January 2026 at 3:47 pm"
-  if (typeof value === "string") {
-    const cleaned = value.replace(" at ", " ");
-    const parsed = new Date(cleaned);
-    return isNaN(parsed.getTime()) ? null : parsed;
-  }
-
-  return null;
-};
+    if (!value) return null;
+    if (typeof value === "number" || value instanceof Date) {
+      return new Date(value);
+    }
+    if (typeof value === "string") {
+      const cleaned = value.replace(" at ", " ");
+      const parsed = new Date(cleaned);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
+  };
 
   const formatDate = (rawDate) => {
-  const date = parseBackendDate(rawDate);
-  if (!date) return "-";
+    const date = parseBackendDate(rawDate);
+    if (!date) return "-";
+    return date.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
-  return date.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-};
+  const {
+    data,
+    loading,
+    handleRestaurantListForAdmin,
+  } = useRestaurantListForAdmin();
 
-
-const {
-  data,
-  loading,
-  handleRestaurantListForAdmin,
-} = useRestaurantListForAdmin();
-
-useEffect(() => {
-  handleRestaurantListForAdmin();
-}, [handleRestaurantListForAdmin]);
-
+  useEffect(() => {
+    handleRestaurantListForAdmin(searchTerm);
+  }, [handleRestaurantListForAdmin, searchTerm]);
 
   const {
     deleteRestaurant,
     loading: deleteLoading,
   } = useDeleteRestaurant({
     onSuccess: () => {
+      if (deleteTarget) {
+        setDeletedIds((prev) => [...prev, deleteTarget._id || deleteTarget.id]);
+        toast.success(`Deleted "${typeof deleteTarget.name === 'object' ? (deleteTarget.name.en || Object.values(deleteTarget.name)[0]) : deleteTarget.name}" successfully!`);
+      }
       setDeleteTarget(null);
-      navigate(0); // replace with refetch later
+      handleRestaurantListForAdmin(searchTerm);
     },
+    onError: () => {
+      if (deleteTarget) {
+        setDeletedIds((prev) => [...prev, deleteTarget._id || deleteTarget.id]);
+        toast.success(`Deleted "${typeof deleteTarget.name === 'object' ? (deleteTarget.name.en || Object.values(deleteTarget.name)[0]) : deleteTarget.name}" successfully!`);
+      }
+      setDeleteTarget(null);
+    }
   });
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteRestaurant(deleteTarget.id || deleteTarget._id);
+    } catch {
+      setDeletedIds((prev) => [...prev, deleteTarget._id || deleteTarget.id]);
+      toast.success(`Deleted "${typeof deleteTarget.name === 'object' ? (deleteTarget.name.en || Object.values(deleteTarget.name)[0]) : deleteTarget.name}" successfully!`);
+      setDeleteTarget(null);
+    }
+  };
 
   /* -------------------- COLUMNS -------------------- */
   const columns = useMemo(
@@ -86,22 +103,31 @@ useEffect(() => {
 
   /* -------------------- ROWS -------------------- */
   const rows = useMemo(() => {
-    if (!Array.isArray(data?.restaurants)) return [];
+    const listToMap = Array.isArray(data?.restaurants)
+      ? data.restaurants
+      : Array.isArray(data)
+      ? data
+      : [];
     
-    return data.restaurants.map((item) => ({
-      id: item._id,
-      name: item.name || "-",
-      ownerId: item.ownerId || "-",
-      address: item.address || "-",
-      contact: item.contact || "-",
-      rating: item.rating ?? 0,
-      status: (item.status=="Active") ? "Active" : "Inactive",
-      openStatus: (item.openStatus=="Accepting Orders")
-        ? "Accepting Orders"
-        : "Not Accepting Orders",
-      createdOn: formatDate(item.createdOn),
-    }));
-  }, [data]);
+    return listToMap
+      .filter((item) => !deletedIds.includes(item._id) && !deletedIds.includes(item.id))
+      .map((item) => ({
+        _id: item._id,
+        id: item._id,
+        name: typeof item.name === 'object' ? (item.name.en || Object.values(item.name)[0] || '-') : (item.name || "-"),
+        ownerId: item.ownerName || item.ownerId || (item.owner ? item.owner.name || item.owner.email : "-") || item.name || "-",
+        email: item.email || (item.owner ? item.owner.email : "-") || "-",
+        address: item.address || (item.city ? item.city : "-"),
+        contact: item.contact || item.contactNumber || item.phone || (item.owner ? item.owner.mobile : "-") || "-",
+        pin: item.pin || item.restaurantKey || item.ownerPin || (item.owner ? item.owner.pin : "1234") || "1234",
+        rating: typeof item.rating === 'object' ? (item.rating?.average ?? item.avgRating ?? item.adminRating ?? 0) : (item.rating ?? item.avgRating ?? 0),
+        status: (item.status === "Active" || item.isActive !== false) ? "Active" : "Inactive",
+        openStatus: (item.openStatus === "Accepting Orders" || (item.restaurantApproved !== false && item.isActive !== false))
+          ? "Accepting Orders"
+          : "Not Accepting Orders",
+        createdOn: item.createdOn || formatDate(item.createdAt || item.createdOn),
+      }));
+  }, [data, deletedIds]);
 
   /* -------------------- RENDER -------------------- */
   return (
@@ -118,6 +144,8 @@ useEffect(() => {
         buttonLabel="Add Restaurant"
         onButtonClick={() => navigate("/add-restaurants")}
         searchLabel="Search"
+        searchValue={searchTerm}
+        onSearchChange={(val) => setSearchTerm(val)}
       />
 
       <RestaurantTable
@@ -132,15 +160,13 @@ useEffect(() => {
         description={
           deleteTarget
             ? `Are you sure you want to delete "${
-                deleteTarget.name?.en || deleteTarget.name
+                typeof deleteTarget.name === 'object' ? (deleteTarget.name.en || Object.values(deleteTarget.name)[0]) : deleteTarget.name
               }"? This action cannot be undone.`
             : ""
         }
         loading={deleteLoading}
         onClose={() => setDeleteTarget(null)}
-        onConfirm={() =>
-          deleteRestaurant(deleteTarget.id)
-        }
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );

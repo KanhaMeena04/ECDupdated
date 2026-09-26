@@ -52,6 +52,8 @@ android {
         release {
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("upload")
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
             }
         }
     }

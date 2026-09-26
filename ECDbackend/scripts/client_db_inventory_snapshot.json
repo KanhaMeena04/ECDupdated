@@ -1,0 +1,536 @@
+{
+  "database": "ecdkart_local_dev",
+  "collections": [
+    {
+      "name": "auditlogs",
+      "count": 9,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "entity_1",
+          "key": {
+            "entity": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "entityId_1",
+          "key": {
+            "entityId": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "action_1",
+          "key": {
+            "action": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "userId_1",
+          "key": {
+            "userId": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "entity_1_entityId_1_createdAt_-1",
+          "key": {
+            "entity": 1,
+            "entityId": 1,
+            "createdAt": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "userId_1_createdAt_-1",
+          "key": {
+            "userId": 1,
+            "createdAt": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "action_1_createdAt_-1",
+          "key": {
+            "action": 1,
+            "createdAt": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        }
+      ]
+    },
+    {
+      "name": "restaurantwallets",
+      "count": 1,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "restaurant_1",
+          "key": {
+            "restaurant": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "isGeospatial": false
+        }
+      ]
+    },
+    {
+      "name": "adminsettings",
+      "count": 1,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        }
+      ]
+    },
+    {
+      "name": "categories",
+      "count": 4,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "categories_restaurant_active",
+          "key": {
+            "restaurant": 1,
+            "isActive": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        }
+      ]
+    },
+    {
+      "name": "users",
+      "count": 8,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "email_1",
+          "key": {
+            "email": 1
+          },
+          "unique": true,
+          "sparse": true,
+          "isGeospatial": false
+        },
+        {
+          "name": "mobile_1",
+          "key": {
+            "mobile": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "email_1_isDeleted_1",
+          "key": {
+            "email": 1,
+            "isDeleted": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "mobile_1_isDeleted_1",
+          "key": {
+            "mobile": 1,
+            "isDeleted": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "role_1",
+          "key": {
+            "role": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "savedAddresses.location_2dsphere",
+          "key": {
+            "savedAddresses.location": "2dsphere"
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": true
+        }
+      ]
+    },
+    {
+      "name": "products",
+      "count": 10,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "products_restaurant_available",
+          "key": {
+            "restaurant": 1,
+            "isAvailable": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "products_category",
+          "key": {
+            "category": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        }
+      ]
+    },
+    {
+      "name": "wallettransactions",
+      "count": 10,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "wallet_user_created",
+          "key": {
+            "user": 1,
+            "createdAt": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        }
+      ]
+    },
+    {
+      "name": "restaurants",
+      "count": 5,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "location.coordinates_2dsphere",
+          "key": {
+            "location.coordinates": "2dsphere"
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": true
+        },
+        {
+          "name": "restaurants_owner",
+          "key": {
+            "owner": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "restaurants_active_online",
+          "key": {
+            "isActive": 1,
+            "isOnline": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "restaurants_city_area",
+          "key": {
+            "city": 1,
+            "area": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        }
+      ]
+    },
+    {
+      "name": "riders",
+      "count": 1,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "user_1",
+          "key": {
+            "user": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "currentLocation.coordinates_2dsphere",
+          "key": {
+            "currentLocation.coordinates": "2dsphere"
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": true
+        },
+        {
+          "name": "currentLocation_2dsphere",
+          "key": {
+            "currentLocation": "2dsphere"
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": true
+        },
+        {
+          "name": "isOnline_1",
+          "key": {
+            "isOnline": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "isAvailable_1",
+          "key": {
+            "isAvailable": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "verificationStatus_1",
+          "key": {
+            "verificationStatus": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "workCity_1_workZone_1",
+          "key": {
+            "workCity": 1,
+            "workZone": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "riders_online_available",
+          "key": {
+            "isOnline": 1,
+            "isAvailable": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        }
+      ]
+    },
+    {
+      "name": "orders",
+      "count": 22,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "idempotencyKey_1",
+          "key": {
+            "idempotencyKey": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "customer_1_createdAt_-1",
+          "key": {
+            "customer": 1,
+            "createdAt": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "rider_1",
+          "key": {
+            "rider": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "deliveryAddress.coordinates_2dsphere",
+          "key": {
+            "deliveryAddress.coordinates": "2dsphere"
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": true
+        },
+        {
+          "name": "restaurant_1",
+          "key": {
+            "restaurant": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "paymentStatus_1",
+          "key": {
+            "paymentStatus": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "status_1_restaurant_1",
+          "key": {
+            "status": 1,
+            "restaurant": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        }
+      ]
+    },
+    {
+      "name": "promocodes",
+      "count": 1,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "isGeospatial": false
+        },
+        {
+          "name": "code_1",
+          "key": {
+            "code": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "isGeospatial": false
+        }
+      ]
+    }
+  ]
+}

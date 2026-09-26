@@ -1,62 +1,39 @@
 const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-dotenv.config();
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 
-const Restaurant = require('./models/Restaurant');
-const Category = require('./models/Category');
-const Product = require('./models/Product');
-const Banner = require('./models/Banner');
-const HomeScreenSection = require('./models/HomeScreenSection');
+require('dotenv').config();
+const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
 
-async function main() {
-  await mongoose.connect(process.env.MONGO_URI);
-  console.log('Connected to MongoDB');
+async function run() {
+  try {
+    console.log("Connecting to MongoDB Atlas...");
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 15000 });
+    console.log("Connected successfully!");
+    
+    const db = mongoose.connection.db;
+    const collections = await db.listCollections().toArray();
+    console.log("Collections in DB 'test':", collections.map(c => c.name));
 
-  const restaurants = await Restaurant.find({});
-  console.log(`\n=== RESTAURANTS (${restaurants.length}) ===`);
-  restaurants.forEach(r => {
-    console.log({
-      id: r._id.toString(),
-      name: r.name,
-      city: r.city,
-      area: r.area,
-      location: r.location,
-      isActive: r.isActive,
-      restaurantApproved: r.restaurantApproved,
-      menuApproved: r.menuApproved,
-      verificationStatus: r.verificationStatus
+    const restaurantsCollection = db.collection("restaurants");
+    const count = await restaurantsCollection.countDocuments();
+    console.log(`Total restaurants in 'restaurants' collection: ${count}`);
+
+    const restaurants = await restaurantsCollection.find({}).toArray();
+    console.log("--- Found Restaurants ---");
+    restaurants.forEach((r, idx) => {
+      console.log(`[${idx + 1}] ID: ${r._id}, Name: ${JSON.stringify(r.name)}, Email: ${r.email}, Mobile/Phone: ${r.phone || r.contactNumber || (r.owner ? r.owner.mobile : '')}`);
     });
-  });
 
-  const categories = await Category.find({});
-  console.log(`\n=== CATEGORIES (${categories.length}) ===`);
-  categories.forEach(c => {
-    console.log({ id: c._id.toString(), name: c.name, slug: c.slug, isActive: c.isActive });
-  });
+    if (restaurants.length > 0) {
+      console.log("\n--- Sample Document [0] ---");
+      console.log(JSON.stringify(restaurants[0], null, 2));
+    }
 
-  const products = await Product.find({});
-  console.log(`\n=== PRODUCTS (${products.length}) ===`);
-  products.forEach(p => {
-    console.log({
-      id: p._id.toString(),
-      name: p.name,
-      basePrice: p.basePrice,
-      adminPriceOverride: p.adminPriceOverride,
-      available: p.available,
-      isApproved: p.isApproved,
-      restaurant: p.restaurant
-    });
-  });
-
-  const banners = await Banner.find({});
-  console.log(`\n=== BANNERS (${banners.length}) ===`);
-  banners.forEach(b => console.log({ id: b._id.toString(), title: b.title, isActive: b.isActive }));
-
-  const sections = await HomeScreenSection.find({});
-  console.log(`\n=== HOME CMS SECTIONS (${sections.length}) ===`);
-  sections.forEach(s => console.log({ id: s._id.toString(), sectionId: s.sectionId, title: s.title, isEnabled: s.isEnabled }));
-
-  await mongoose.disconnect();
+    await mongoose.disconnect();
+  } catch (err) {
+    console.error("DB Error:", err);
+  }
 }
 
-main().catch(console.error);
+run();

@@ -168,23 +168,41 @@ class ProfileTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('🇮🇳 ', style: TextStyle(fontSize: 14)),
-                    Text(
-                      userProvider.phone.isNotEmpty
-                          ? userProvider.phone
-                          : '+91 98765 43210',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color:
-                            isDark ? Colors.grey[400] : const Color(0xFF6B7280),
+                if (userProvider.phone.isNotEmpty)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('🇮🇳 ', style: TextStyle(fontSize: 14)),
+                      Text(
+                        userProvider.phone,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color:
+                              isDark ? Colors.grey[400] : const Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: ElevatedButton.icon(
+                      onPressed: () => context.push(AppRoutes.login),
+                      icon: const Icon(Icons.login_rounded, size: 16),
+                      label: const Text(
+                        'LOGIN / REGISTER',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        elevation: 0,
                       ),
                     ),
-                  ],
-                ),
+                  ),
               ],
             ),
 
@@ -336,11 +354,17 @@ class ProfileTab extends StatelessWidget {
                               builder: (_) => const TermsConditionsPage()),
                         ),
                       ),
-                      _GroupMenuItem(
-                        title: 'Logout',
-                        isDestructive: true,
-                        onTap: () => _showLogoutDialog(context, isDark),
-                      ),
+                      if (userProvider.phone.isNotEmpty)
+                        _GroupMenuItem(
+                          title: 'Logout',
+                          isDestructive: true,
+                          onTap: () => _showLogoutDialog(context, isDark),
+                        )
+                      else
+                        _GroupMenuItem(
+                          title: 'Login / Register',
+                          onTap: () => context.push(AppRoutes.login),
+                        ),
                     ],
                   ),
 

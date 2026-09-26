@@ -1,38 +1,70 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
-const dns = require('dns');
-try {
-  dns.setDefaultResultOrder('ipv4first');
-} catch (e) {}
-mongoose.set('bufferCommands', false);
+
 const connectDB = async () => {
-  let mongoURI = process.env.MONGO_URI || "mongodb+srv://rishi_solanki:Indore%40123@rishiserver.kdybcms.mongodb.net/Check";
+  const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+
+  if (!mongoUri) {
+    console.error('❌ FATAL: MONGODB_URI / MONGO_URI environment variable is missing.');
+    console.error('Silently falling back to localhost or legacy databases is strictly disabled.');
+    throw new Error('MONGODB_URI environment variable is required to start ECDbackend.');
+  }
+
+  const connectionOptions = {
+    serverSelectionTimeoutMS: 30000,
+    connectTimeoutMS: 30000,
+    socketTimeoutMS: 45000,
+    family: 4, // Use IPv4, skip IPv6 try delays
+  };
+
   try {
-    const conn = await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 3000,
-      connectTimeoutMS: 3000
-    });
-    console.log(`✅ MongoDB Atlas Connected: ${conn.connection.host}`);
+    console.log('📡 [MongoDB] Connecting to ECDKART-TEST Atlas using environment configuration...');
+
+    const conn = await mongoose.connect(mongoUri, connectionOptions);
+
+    console.log(
+      `✅ MongoDB Connected Successfully | Host: ${conn.connection.host} | Database: ${conn.connection.name}`
+    );
+
+    await cleanupLegacyIndexes();
     await ensureAdminUser();
-    await ensureSeededData();
-    return;
+
+    return conn;
   } catch (error) {
-    console.error(`⚠️ MongoDB Atlas Connection Error: ${error.message}`);
-    console.log('🔄 Retrying with local MongoDB instance (mongodb://127.0.0.1:27017/ecdkart)...');
-    try {
-      const conn = await mongoose.connect('mongodb://127.0.0.1:27017/ecdkart', {
-        serverSelectionTimeoutMS: 3000
-      });
-      console.log(`✅ Connected to local MongoDB fallback: ${conn.connection.host}`);
-      await ensureAdminUser();
-      await ensureSeededData();
-      return;
-    } catch (localErr) {
-      console.error('❌ Local MongoDB fallback failed:', localErr.message);
-      console.log('⚠️ Running in standalone API mode. Database calls will use fallback responses.');
-      return;
-    }
+    console.error(`❌ Fatal MongoDB Cloud Connection Error: ${error.message}`);
+    console.error('💡 TIP: Please check your internet connection or IP whitelist in MongoDB Atlas.');
+    throw error;
   }
 };
+
+async function cleanupLegacyIndexes() {
+  try {
+    const db = mongoose.connection.db;
+    const collections = await db.listCollections().toArray();
+
+    const hasRestaurants = collections.some(
+      (c) => c.name === 'restaurants'
+    );
+
+    if (hasRestaurants) {
+      const restCollection = db.collection('restaurants');
+      const indexes = await restCollection.indexes();
+
+      for (const idx of indexes) {
+        if (
+          idx.name === 'slug_1' ||
+          idx.name === 'restaurantId_1' ||
+          idx.name === 'restaurantKey_1'
+        ) {
+          console.log(`🧹 Dropping legacy conflict index: ${idx.name}`);
+          await restCollection.dropIndex(idx.name).catch(() => {});
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ Legacy index cleanup skipped:', err.message);
+  }
+}
 
 async function ensureAdminUser() {
   try {
@@ -43,8 +75,23 @@ async function ensureAdminUser() {
     const defaultPassword = 'admin123';
 
     let admin = await User.findOne({ email: adminEmail });
+
     if (!admin) {
       admin = await User.findOne({ role: 'admin' });
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      if (admin) {
+        console.log(
+          `🔒 Production mode: Existing Admin account (${admin.email}) preserved.`
+        );
+      } else {
+        console.warn(
+          '⚠️ Production mode: No Admin user found. Static admin creation disabled.'
+        );
+      }
+
+      return;
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -57,8 +104,12 @@ async function ensureAdminUser() {
       admin.isVerified = true;
       admin.isDeleted = false;
       admin.isBlocked = false;
+
       await admin.save();
-      console.log(`🔑 Admin credentials verified: Email: ${admin.email} | Password: ${defaultPassword}`);
+
+      console.log(
+        `🔑 Local development Admin credentials verified: ${admin.email}`
+      );
     } else {
       await User.create({
         name: 'Super Admin',
@@ -70,26 +121,13 @@ async function ensureAdminUser() {
         isDeleted: false,
         isBlocked: false,
       });
-      console.log(`🔑 Created Default Admin: Email: ${adminEmail} | Password: ${defaultPassword}`);
+
+      console.log(
+        `🔑 Created Local Development Admin: ${adminEmail}`
+      );
     }
   } catch (err) {
     console.error('⚠️ Admin seeding check failed:', err.message);
-  }
-}
-
-async function ensureSeededData() {
-  try {
-    const Restaurant = require('../models/Restaurant');
-    const count = await Restaurant.countDocuments();
-    if (count === 0) {
-      console.log('🌱 No restaurants found in DB. Automatically seeding demo dataset...');
-      const path = require('path');
-      delete require.cache[require.resolve('../scripts/seedEcdkartData')];
-    } else {
-      console.log(`✅ MongoDB contains ${count} restaurant(s). DB Ready.`);
-    }
-  } catch (err) {
-    console.error('⚠️ Seed check notice:', err.message);
   }
 }
 

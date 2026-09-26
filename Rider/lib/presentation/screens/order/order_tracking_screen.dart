@@ -32,8 +32,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   LatLng? _driverLatLng;
   StreamSubscription<Position>? _positionSubscription;
   bool _isLoading = false;
+  final TextEditingController _otpController = TextEditingController();
+  bool _isSendingOtp = false;
 
-  Set<Polyline> _polylines = {};
+  final Set<Polyline> _polylines = {};
   static const String googleApiKey = 'AIzaSyCN7XqyxOj5lgr2uaMNrTOg6PzHTOGa0xU';
   PolylinePoints polylinePoints = PolylinePoints(apiKey: googleApiKey);
 
@@ -46,9 +48,33 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   @override
   void dispose() {
+    _otpController.dispose();
     _positionSubscription?.cancel();
     _mapController?.dispose();
     super.dispose();
+  }
+
+  String _parseAddressToString(dynamic raw) {
+    if (raw == null) return '';
+    if (raw is String) return raw.trim();
+    if (raw is List) {
+      if (raw.isEmpty) return '';
+      return _parseAddressToString(raw.first);
+    }
+    if (raw is Map) {
+      final line = raw['fullAddress'] ?? raw['address'] ?? raw['addressLine'] ?? raw['street'] ?? '';
+      final city = raw['city'] ?? raw['cityName'] ?? '';
+      final lineStr = _parseAddressToString(line);
+      final cityStr = _parseAddressToString(city);
+      if (lineStr.isNotEmpty) {
+        if (cityStr.isNotEmpty && !lineStr.toLowerCase().contains(cityStr.toLowerCase())) {
+          return "$lineStr, $cityStr";
+        }
+        return lineStr;
+      }
+      if (cityStr.isNotEmpty) return cityStr;
+    }
+    return raw.toString();
   }
 
   Future<void> _determineInitialPosition() async {
@@ -89,7 +115,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     
     final targetLatLng = widget.isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
     
+    // ignore: deprecated_member_use
     PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+      // ignore: deprecated_member_use
       request: PolylineRequest(
         origin: PointLatLng(_driverLatLng!.latitude, _driverLatLng!.longitude),
         destination: PointLatLng(targetLatLng.latitude, targetLatLng.longitude),
@@ -189,82 +217,244 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
   }
 
-  void _showOtpVerificationDialog(BuildContext context, String targetStatus) {
-    // Only used for delivery to customer now
-    final isDelivery = targetStatus == 'delivered';
-    final TextEditingController textController = TextEditingController();
+  Future<void> _sendPickupOtp() async {
+    setState(() => _isSendingOtp = true);
+    try {
+      final orderId = widget.order['_id'] ?? widget.order['orderId'] ?? '';
+      final response = await ApiService.sendPickupOtp(orderId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response['message'] ?? 'Pickup OTP sent (Mock OTP: 1234)'),
+          backgroundColor: Colors.orange[800],
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red[700],
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSendingOtp = false);
+    }
+  }
 
-    showDialog(
+  Future<void> _sendDeliveryOtp() async {
+    setState(() => _isSendingOtp = true);
+    try {
+      final orderId = widget.order['_id'] ?? widget.order['orderId'] ?? '';
+      final response = await ApiService.sendDeliveryOtp(orderId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response['message'] ?? 'OTP sent to customer successfully (Mock OTP: 5678)'),
+          backgroundColor: primaryGreen,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red[700],
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSendingOtp = false);
+    }
+  }
+
+  void _verifyAndCompleteStep([String? code]) {
+    final otpCode = (code ?? _otpController.text).trim();
+    if (otpCode.length != 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid 4-digit OTP code'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final orderId = widget.order['_id'] ?? widget.order['orderId'] ?? '';
+    final targetStatus = widget.isToRestaurant ? 'picked_up' : 'delivered';
+    setState(() => _isLoading = true);
+    context.read<DriverBloc>().add(
+          UpdateOrderStatus(
+            orderId: orderId,
+            status: targetStatus,
+            otp: otpCode,
+          ),
+        );
+  }
+
+  void _showOtpBottomSheet(BuildContext context) {
+    final dialogController = TextEditingController(text: _otpController.text);
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.security, color: primaryGreen),
-            const SizedBox(width: 8),
-            Text('Confirm Delivery OTP', style: const TextStyle(fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Please request the 4-digit OTP from the customer to verify and complete delivery.',
-              style: TextStyle(color: Colors.grey[700], fontSize: 14),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: textController,
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              decoration: InputDecoration(
-                hintText: 'Enter 4-digit OTP',
-                counterText: '',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: primaryGreen, width: 2),
-                ),
-              ),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 4),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final code = textController.text.trim();
-              if (code.length != 4) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid 4-digit OTP')),
-                );
-                return;
-              }
-              Navigator.pop(dialogCtx);
-              setState(() => _isLoading = true);
-              context.read<DriverBloc>().add(
-                    UpdateOrderStatus(
-                      orderId: widget.order['_id'] ?? '',
-                      status: targetStatus,
-                      otp: code,
-                    ),
-                  );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryGreen,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Verify & Submit'),
-          ),
-        ],
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      builder: (ctx) {
+        bool isDialogSending = false;
+        return StatefulBuilder(
+          builder: (modalContext, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 20,
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Customer Delivery OTP',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[900],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Enter the 4-digit code provided by customer',
+                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                      TextButton.icon(
+                        onPressed: isDialogSending
+                            ? null
+                            : () async {
+                                setModalState(() => isDialogSending = true);
+                                try {
+                                  final orderId = widget.order['_id'] ?? widget.order['orderId'] ?? '';
+                                  final response = await ApiService.sendDeliveryOtp(orderId);
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      SnackBar(
+                                        content: Text(response['message'] ?? 'OTP sent successfully (Mock: 5678)'),
+                                        backgroundColor: primaryGreen,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+                                    );
+                                  }
+                                } finally {
+                                  if (ctx.mounted) setModalState(() => isDialogSending = false);
+                                }
+                              },
+                        icon: isDialogSending
+                            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.send_rounded, size: 14),
+                        label: const Text('Send OTP', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: primaryGreen,
+                          backgroundColor: primaryGreen.withValues(alpha: 0.1),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: dialogController,
+                    autofocus: true,
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 10,
+                      color: primaryGreen,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '• • • •',
+                      hintStyle: TextStyle(color: Colors.grey[300], letterSpacing: 10),
+                      counterText: '',
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: primaryGreen, width: 2),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      _otpController.text = val;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final code = dialogController.text.trim();
+                        Navigator.pop(ctx);
+                        _verifyAndCompleteStep(code);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryGreen,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        'Verify & Complete Delivery',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -287,11 +477,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         context.read<DriverBloc>().add(
               UpdateOrderStatus(orderId: orderId, status: 'out_for_delivery'),
             );
-      } else if (currentStatus == 'out_for_delivery') {
-        setState(() => _isLoading = true);
-        context.read<DriverBloc>().add(
-              UpdateOrderStatus(orderId: orderId, status: 'delivered'),
-            );
+      } else if (currentStatus == 'out_for_delivery' || currentStatus == 'delivered') {
+        if (_otpController.text.trim().length == 4) {
+          _verifyAndCompleteStep();
+        } else {
+          _showOtpBottomSheet(context);
+        }
       }
     }
   }
@@ -465,7 +656,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
-                              color: (widget.isToRestaurant ? Colors.orange[700] : primaryGreen)!.withOpacity(0.1),
+                              color: (widget.isToRestaurant ? Colors.orange[700] : primaryGreen)!.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
@@ -505,11 +696,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                Text(
-                                  widget.isToRestaurant
-                                      ? (restaurant['address'] ?? 'Store Location')
-                                      : ((customer['address'] is String) ? customer['address'] : ((address is String) ? address : (address?['fullAddress'] ?? 'Customer Location'))),
-                                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                                  Text(
+                                    widget.isToRestaurant
+                                        ? (_parseAddressToString(restaurant['address']).isNotEmpty ? _parseAddressToString(restaurant['address']) : 'Store Location')
+                                        : (_parseAddressToString(address).isNotEmpty ? _parseAddressToString(address) : (_parseAddressToString(customer['address']).isNotEmpty ? _parseAddressToString(customer['address']) : 'Customer Location')),
+                                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -533,7 +724,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                             icon: const Icon(Icons.phone),
                             color: widget.isToRestaurant ? Colors.orange[700] : primaryGreen,
                             style: IconButton.styleFrom(
-                              backgroundColor: (widget.isToRestaurant ? Colors.orange[700] : primaryGreen)!.withOpacity(0.1),
+                              backgroundColor: (widget.isToRestaurant ? Colors.orange[700] : primaryGreen)!.withValues(alpha: 0.1),
                               padding: const EdgeInsets.all(8),
                             ),
                           ),
@@ -569,6 +760,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                               ],
                             ),
                           ),
+                        _buildInlineDeliveryOtpSection(),
                         if (showActionButton) ...[
                           Row(
                           children: [
@@ -609,6 +801,136 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInlineDeliveryOtpSection() {
+    final bool isPickup = widget.isToRestaurant;
+    final Color themeColor = isPickup ? Colors.orange[800]! : primaryGreen;
+    final Color bgColor = isPickup ? const Color(0xFFFFF8F0) : const Color(0xFFF2F9F6);
+    final String titleText = isPickup ? 'Store Pickup OTP' : 'Customer Delivery OTP';
+    final String buttonText = isPickup ? 'Verify & Pick Up' : 'Verify & Deliver';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: themeColor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.security, size: 18, color: themeColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    titleText,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: themeColor,
+                    ),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: _isSendingOtp ? null : (isPickup ? _sendPickupOtp : _sendDeliveryOtp),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: themeColor.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_isSendingOtp)
+                        SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: themeColor))
+                      else
+                        Icon(Icons.send_rounded, size: 12, color: themeColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Send OTP',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: themeColor),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: SizedBox(
+                  height: 46,
+                  child: TextField(
+                    controller: _otpController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 6,
+                      color: themeColor,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '4-Digit OTP',
+                      hintStyle: TextStyle(color: Colors.grey[400], letterSpacing: 0, fontSize: 13),
+                      counterText: '',
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: themeColor, width: 2),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: SizedBox(
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: () => _verifyAndCompleteStep(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: Text(
+                      buttonText,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

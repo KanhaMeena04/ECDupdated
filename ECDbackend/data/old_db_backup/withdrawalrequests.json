@@ -1,0 +1,123 @@
+[
+  {
+    "_id": "6ab271087a85b2444a358ce3",
+    "user": "6ab263a7d54372588bfefad6",
+    "rider": "6ab26418d54372588bfefae9",
+    "amount": 230,
+    "method": "upi",
+    "bankDetails": {
+      "upiId": "rider111@okhdfcbank",
+      "accountHolder": "Rohit123",
+      "bankName": "HDFC Bank",
+      "accountNumber": "50100234567890",
+      "ifsc": "",
+      "phone": "9179916404"
+    },
+    "status": "approved",
+    "createdAt": "2026-09-22T12:14:00.266Z",
+    "updatedAt": "2026-09-22T12:14:27.205Z",
+    "__v": 0,
+    "adminNote": "Payout processed by admin",
+    "processedAt": "2026-09-22T12:14:27.204Z"
+  },
+  {
+    "_id": "6ab274a37a85b2444a359aa6",
+    "user": "6ab263a7d54372588bfefad6",
+    "rider": "6ab26418d54372588bfefae9",
+    "amount": 230,
+    "method": "upi",
+    "bankDetails": {
+      "upiId": "rider111@okhdfcbank",
+      "accountHolder": "Rohit123",
+      "bankName": "HDFC Bank",
+      "accountNumber": "50100234567890",
+      "ifsc": "",
+      "phone": "9179916404"
+    },
+    "status": "approved",
+    "createdAt": "2026-09-22T12:29:23.213Z",
+    "updatedAt": "2026-09-22T12:29:49.642Z",
+    "__v": 0,
+    "adminNote": "Payout processed by admin",
+    "processedAt": "2026-09-22T12:29:49.640Z",
+    "utrNumber": "rider111@okhdfcbank"
+  },
+  {
+    "_id": "6ab364b77a85b2444a35a51e",
+    "user": "6ab3635f7a85b2444a35a113",
+    "rider": "6ab363cb7a85b2444a35a124",
+    "amount": 230,
+    "method": "upi",
+    "bankDetails": {
+      "upiId": "rider@okhdfcbank",
+      "accountHolder": "RohitTest",
+      "bankName": "HDFC Bank",
+      "accountNumber": "50100234567890",
+      "ifsc": "",
+      "phone": "9179916404"
+    },
+    "status": "approved",
+    "createdAt": "2026-09-23T05:33:43.631Z",
+    "updatedAt": "2026-09-23T05:34:06.911Z",
+    "__v": 0,
+    "adminNote": "Payout processed by admin",
+    "processedAt": "2026-09-23T05:34:06.909Z"
+  },
+  {
+    "_id": "6ab36f71909f4235ff08f622",
+    "user": "6ab36dbd7a85b2444a35b48a",
+    "rider": "6ab36e097a85b2444a35b49d",
+    "amount": 250,
+    "method": "upi",
+    "bankDetails": {
+      "upiId": "rider@okhdfcbank",
+      "accountHolder": "RohitTest",
+      "bankName": "HDFC Bank",
+      "accountNumber": "50100234567890",
+      "ifsc": "HDFC0001234",
+      "phone": "9179916404"
+    },
+    "status": "pending",
+    "createdAt": "2026-09-23T06:19:29.444Z",
+    "updatedAt": "2026-09-23T06:19:29.444Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab36fc47a85b2444a35bbd2",
+    "user": "6ab36dbd7a85b2444a35b48a",
+    "rider": "6ab36e097a85b2444a35b49d",
+    "amount": 230,
+    "method": "upi",
+    "bankDetails": {
+      "upiId": "rider@okhdfcbank",
+      "accountHolder": "RohitTest",
+      "bankName": "HDFC Bank",
+      "accountNumber": "50100234567890",
+      "ifsc": "HDFC0001234",
+      "phone": "9179916404"
+    },
+    "status": "pending",
+    "createdAt": "2026-09-23T06:20:52.303Z",
+    "updatedAt": "2026-09-23T06:20:52.303Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab36fd67a85b2444a35bc30",
+    "user": "6ab36dbd7a85b2444a35b48a",
+    "rider": "6ab36e097a85b2444a35b49d",
+    "amount": 230,
+    "method": "upi",
+    "bankDetails": {
+      "upiId": "rider@okhdfcbank",
+      "accountHolder": "RohitTest",
+      "bankName": "HDFC Bank",
+      "accountNumber": "50100234567890",
+      "ifsc": "HDFC0001234",
+      "phone": "9179916404"
+    },
+    "status": "pending",
+    "createdAt": "2026-09-23T06:21:10.895Z",
+    "updatedAt": "2026-09-23T06:21:10.895Z",
+    "__v": 0
+  }
+]

@@ -37,4 +37,27 @@ flutter:
   uses-material-design: true
   assets:
     - splash_logo.png
+    - image.png
+    - ecdkart_logo.png
     - assets/audio/
+    - assets/images/
+    - assets/images/image.png
+    - assets/images/splash_logo.png
+    - assets/images/ecdkart_logo.png
+    - assets/images/ecdkart_pill_logo.png
+    - assets/images/restaurant_butterchicken_header.jpg
+    - assets/images/restaurant_chicken_item.jpg
+    - assets/images/restaurant_chinese_header.jpg
+    - assets/images/restaurant_daltadka_header.jpg
+    - assets/images/restaurant_handibiryani_header.jpg
+    - assets/images/restaurant_header_bg.jpg
+    - assets/images/restaurant_legpiece_header.jpg
+    - assets/images/restaurant_login_header.jpg
+    - assets/images/restaurant_nonveg_header.jpg
+    - assets/images/restaurant_otp_header.jpg
+    - assets/images/restaurant_paneertikka_header.jpg
+    - assets/images/restaurant_pizza_item.jpg
+    - assets/images/restaurant_top_header_bg.jpg
+    - assets/images/restaurant_menu_header_bg.jpg
+    - assets/images/restaurant_order_header.jpg
+    - assets/images/welcome_back.png

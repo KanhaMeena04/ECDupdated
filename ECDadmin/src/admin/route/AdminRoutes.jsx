@@ -42,6 +42,7 @@ const EditBrand=lazy(()=>import("../brands/pages/EditBrand"))
 
 const DriverList=lazy(()=>import("../drivermanagement/pages/DriverList"))
 const AddDriver=lazy(()=>import("../drivermanagement/pages/AddDriver"))
+const RiderPayoutRequests=lazy(()=>import("../drivermanagement/pages/RiderPayoutRequests"))
 const PromocodesList=lazy(()=>import("../promocodes/pages/PromoCodesList"))
 const AddPromoCodes=lazy(()=>import("../promocodes/pages/AddPromoCodes"))
 const UserManagement=lazy(()=>import("../userManagement/pages/UserManagement"))
@@ -50,6 +51,8 @@ const CategoryList=lazy(()=>import("../categories/pages/CategoryList"))
 const AddCategory=lazy(()=>import("../categories/pages/AddCategory"))
 const CategorySort=lazy(()=>import("../categories/pages/CategorySort"))
 const EditCategory=lazy(()=>import("../categories/pages/EditCategory"))
+const PendingMenuApprovals=lazy(()=>import("../pages/PendingMenuApprovals"))
+const CategoryRequests=lazy(()=>import("../pages/CategoryRequests"))
 
 const UnitSymbolAdd=lazy(()=>import("../units/pages/AddUnitSymbol"))
 const AddUnit=lazy(()=>import("../units/pages/AddUnit"))
@@ -215,6 +218,7 @@ const AdminRoutes = () => {
 				 <Route path="/admin/riders/:id" element={<DriverProfile/>} />
 				 <Route path="/admin/riders/edit/:id" element={<EditRider/>} />
 				 <Route path="/pending-driver-list" element={<PendingDriverList/>} />
+				 <Route path="/rider-payout-requests" element={<RiderPayoutRequests/>} />
 
 				 <Route path="/promocodes" element={<PromocodesList/>} />
 				 <Route path="/add-promocodes" element={<AddPromoCodes/>} />
@@ -222,12 +226,16 @@ const AdminRoutes = () => {
 
 				 <Route path="/custom-push" element={<CustomPush/>} />
 				 <Route path="/admin-custom-push" element={<AdminCustomPush/>} />
+
 				 <Route path="/user-management" element={<UserManagement/>} />
 
 				 <Route path="/category" element={<CategoryList/>} />
 				 <Route path="/add-category" element={<AddCategory/>} />
 				 <Route path="/sort-category" element={<CategorySort/>} />
 				 <Route path="/edit-category/:id"element={<EditCategory/>} />
+				 <Route path="/pending-menu-approvals" element={<PendingMenuApprovals/>} />
+				 <Route path="/category-requests" element={<CategoryRequests/>} />
+				 <Route path="/menu-approval-history" element={<PendingMenuApprovals/>} />
 
 
 				 <Route path="/unit-list" element={<UnitList/>} />

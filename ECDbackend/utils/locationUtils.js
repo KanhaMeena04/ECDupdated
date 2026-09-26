@@ -1,44 +1,55 @@
-const haversine = require('haversine-distance');
-const logger = console;  // Fallback logger
+const logger = console;
+
 exports.calculateETA = (riderCoords, customerCoords, orderStatus) => {
   try {
-    const distance = haversine(
-      { latitude: riderCoords[1], longitude: riderCoords[0] },
-      { latitude: customerCoords[1], longitude: customerCoords[0] }
-    );
-    const speedMetersPerMin = 208.33; // (20 km/h * 1000m / 3600s) * 60 = 208.33 m/min
-    const etaMinutes = Math.ceil(distance / speedMetersPerMin);
-    if (etaMinutes <= 1) {
-      return { minutes: 1, display: 'Arriving now' };
-    } else if (etaMinutes <= 60) {
-      return { minutes: etaMinutes, display: `${etaMinutes} mins away` };
-    } else {
-      const hours = Math.floor(etaMinutes / 60);
-      const mins = etaMinutes % 60;
-      return { minutes: etaMinutes, display: `${hours}h ${mins}m away` };
+    if (!riderCoords || !customerCoords) return { minutes: 15, display: '15 mins away' };
+    const lat1 = riderCoords[1] !== undefined ? riderCoords[1] : riderCoords.lat;
+    const lng1 = riderCoords[0] !== undefined ? riderCoords[0] : riderCoords.lng;
+    const lat2 = customerCoords[1] !== undefined ? customerCoords[1] : customerCoords.lat;
+    const lng2 = customerCoords[0] !== undefined ? customerCoords[0] : customerCoords.lng;
+
+    if (isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)) {
+      return { minutes: 15, display: '15 mins away' };
     }
+
+    const distKm = exports.calculateDistance([lng1, lat1], [lng2, lat2]);
+    const etaMinutes = Math.max(1, Math.ceil(distKm * 3));
+    return { minutes: etaMinutes, display: `${etaMinutes} mins away` };
   } catch (error) {
-    console.error('ETA calculation error:', error);
-    return { minutes: 0, display: 'Calculating...' };
+    return { minutes: 15, display: '15 mins away' };
   }
 };
+
 exports.calculateDistance = (coord1, coord2) => {
   try {
-    const meters = haversine(
-      { latitude: coord1[1], longitude: coord1[0] },
-      { latitude: coord2[1], longitude: coord2[0] }
-    );
-    return Math.round((meters / 1000) * 10) / 10;
+    if (!coord1 || !coord2) return 999;
+    const lat1 = Number(coord1[1] !== undefined ? coord1[1] : coord1.lat);
+    const lng1 = Number(coord1[0] !== undefined ? coord1[0] : coord1.lng);
+    const lat2 = Number(coord2[1] !== undefined ? coord2[1] : coord2.lat);
+    const lng2 = Number(coord2[0] !== undefined ? coord2[0] : coord2.lng);
+
+    if (isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)) return 999;
+
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lng2 - lng1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distKm = 6371 * c;
+    return Math.round(distKm * 10) / 10;
   } catch (error) {
-    console.error('Distance calculation error:', error);
-    return 0;
+    return 999;
   }
 };
+
 exports.estimateTravelMinutes = (distanceKm, speedKmph = 20) => {
   if (!Number.isFinite(distanceKm) || distanceKm <= 0) return 0;
   const minutes = (distanceKm / speedKmph) * 60;
   return Math.max(1, Math.ceil(minutes));
 };
+
 exports.getNearbyRidersQuery = (restaurantCoords, radiusMeters = 10000) => {
   return {
     currentLocation: {
@@ -55,4 +66,5 @@ exports.getNearbyRidersQuery = (restaurantCoords, radiusMeters = 10000) => {
     verificationStatus: 'approved'
   };
 };
+
 module.exports = exports;

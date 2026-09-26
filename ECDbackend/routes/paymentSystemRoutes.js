@@ -17,7 +17,8 @@ const {
   getAllRiderWallets,
 } = require('../controllers/paymentSystemController');
 const { protect, admin, rider, restaurantOwner } = require('../middleware/authMiddleware');
-router.post('/calculate-delivery-fee', protect, calculateDeliveryFee);
+router.post('/calculate-delivery-fee', calculateDeliveryFee);
+router.post('/calculate-fee', calculateDeliveryFee);
 router.post('/cod/confirm', protect, rider, confirmCODCollection);
 router.get('/rider/wallet', protect, rider, getRiderWallet);
 router.get('/restaurant/wallet', protect, restaurantOwner, getRestaurantWallet);

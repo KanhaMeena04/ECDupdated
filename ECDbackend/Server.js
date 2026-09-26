@@ -1,5 +1,7 @@
 const dotenv = require('dotenv');
-dotenv.config();
+const path = require('path');
+dotenv.config({ path: path.join(__dirname, '.env') });
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'aKiuLfDr5Nrae7VjN4LYvY5V26JIMoBwrz7mMnG3cNwb-oSFu1hcvgCKWuNXYaUXJtOUF0sjVZjUYBTcJc7HVQ';
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
@@ -35,30 +37,38 @@ app.set('trust proxy', 1);
 const allowedOrigins = [
   process.env.CLIENT_URL,
   process.env.FRONTEND_URL,
+  process.env.FRONTEND_ORIGIN,
   process.env.SOCKET_IO_CLIENT_URL,
+  'https://admin.ecdkart.co.in',
   'https://demo-foodpanda-admin-panel.vercel.app',
   'http://localhost:3000',
   'http://localhost:5000',
-  'http://127.0.0.1:3000'
+  'http://localhost:5005',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5005'
 ].filter(Boolean);
 
 const corsConfig = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
+    if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
     const extraOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : [];
     if (
       allowedOrigins.includes(origin) ||
       extraOrigins.includes(origin) ||
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
       /\.vercel\.app$/.test(origin)
     ) {
       return callback(null, true);
     }
-    console.error(`CORS blocked for origin: ${origin}`);
-    return callback(new Error(`CORS blocked for origin: ${origin}`));
+    console.warn(`CORS Warning: Origin ${origin} allowed in development mode.`);
+    return callback(null, true);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "x-auth-token"]
+  allowedHeaders: ["Content-Type", "Authorization", "x-auth-token", "Accept", "Origin", "X-Requested-With"]
 };
 
 const io = socketIO(server, {
@@ -68,14 +78,29 @@ const io = socketIO(server, {
   pingTimeout: 60000,
   pingInterval: 25000
 });
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  debugLog('Socket connected:', socket.id);
+  socket.on('joinOrder', (orderId) => {
+    if (orderId) {
+      socket.join(`order_${orderId}`);
+    }
+  });
+  socket.on('leaveOrder', (orderId) => {
+    if (orderId) {
+      socket.leave(`order_${orderId}`);
+    }
+  });
+});
 const initCronJobs = require('./services/cronService');
 const initPaymentCronJobs = require('./services/paymentCronJobs');
 
 app.use(cookieParser());
 app.use(cors(corsConfig));
 const { handleStripeWebhook } = require('./controllers/paymentController');
-app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 const paymentRoutes = require('./routes/paymentRoutes');
 const paymentSystemRoutes = require('./routes/paymentSystemRoutes'); // NEW: Swiggy-style payment system
 app.use('/api/payment', paymentRoutes);
@@ -91,6 +116,11 @@ app.use('/api/v1/restaurants', restaurantRoutes);
 
 app.use('/api/menu', menuRoutes);
 app.use('/api/v1/menu', menuRoutes);
+
+const { submitCategoryRequest } = require('./controllers/categoryRequestController');
+const { protect: protectAuth, restaurantOwner: ownerAuth } = require('./middleware/authMiddleware');
+app.post('/api/vendor/category-requests', protectAuth, ownerAuth, submitCategoryRequest);
+app.post('/api/v1/vendor/category-requests', protectAuth, ownerAuth, submitCategoryRequest);
 
 app.use('/api/orders', orderRoutes);
 app.use('/api/v1/orders', orderRoutes);
@@ -117,6 +147,10 @@ const homeCmsRoutes = require('./routes/homeCmsRoutes');
 app.use('/api/home', homeCmsRoutes);
 app.use('/api/v1/home', homeCmsRoutes);
 
+const locationRoutes = require('./routes/locationRoutes');
+app.use('/api/location', locationRoutes);
+app.use('/api/v1/location', locationRoutes);
+
 const catalogCmsRoutes = require('./routes/catalogCmsRoutes');
 app.use('/api/catalog', catalogCmsRoutes);
 app.use('/api/v1/catalog', catalogCmsRoutes);
@@ -128,9 +162,12 @@ app.use('/api/v1/pricing', pricingCmsRoutes);
 app.use('/api/home', homeRoutes);
 app.use('/api/v1/home', homeRoutes);
 
+const categoryRoutes = require('./routes/categoryRoutes');
+app.use('/api/categories', categoryRoutes);
+app.use('/api/v1/categories', categoryRoutes);
+app.use('/api/admin/categories', categoryRoutes);
+
 const { getCategories, getBanners, getPopularDishes } = require('./controllers/homeController');
-app.get('/api/categories', getCategories);
-app.get('/api/v1/categories', getCategories);
 app.get('/api/banners', getBanners);
 app.get('/api/v1/banners', getBanners);
 app.get('/api/popular-dishes', getPopularDishes);
@@ -148,12 +185,38 @@ app.use('/api/v1/food-quantities', foodQuantityRoutes);
 
 app.use('/api/user', userRoutes);
 app.use('/api/v1/user', userRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/v1/users', userRoutes);
+
+const addressRoutes = require('./routes/addressRoutes');
+app.use('/api/addresses', addressRoutes);
+app.use('/api/v1/addresses', addressRoutes);
 
 app.use('/api/wallet', walletRoutes);
 app.use('/api/v1/wallet', walletRoutes);
 
 app.use('/api/cart', cartRoutes);
 app.use('/api/v1/cart', cartRoutes);
+
+const couponRoutes = require('./routes/couponRoutes');
+app.use('/api/coupons', couponRoutes);
+app.use('/api/v1/coupons', couponRoutes);
+
+const razorpayRoutes = require('./routes/razorpayRoutes');
+app.use('/api/razorpay', razorpayRoutes);
+app.use('/api/v1/razorpay', razorpayRoutes);
+
+const issueRoutes = require('./routes/issueRoutes');
+app.use('/api/issues', issueRoutes);
+app.use('/api/v1/issues', issueRoutes);
+
+const notificationRoutes = require('./routes/notificationRoutes');
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+
+const uploadRoutes = require('./routes/uploadRoutes');
+app.use('/api/upload', uploadRoutes);
+app.use('/api/v1/upload', uploadRoutes);
 
 app.use('/api/incentives', incentiveRoutes);
 app.use('/api/v1/incentives', incentiveRoutes);
@@ -186,7 +249,6 @@ app.use('/api/v1/reconciliations', reconciliationRoutes);
 
 app.use('/api/training', trainingRoutes);
 app.use('/api/v1/training', trainingRoutes);
-const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/', (req, res) => {
   res.send('Food Delivery API is running...');
@@ -197,8 +259,8 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 const HOST = "0.0.0.0";
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on http://127.0.0.1:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on http://0.0.0.0:${PORT}`);
   console.log(`Socket.IO server ready for real-time connections`);
 });
 

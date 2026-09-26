@@ -1,0 +1,75 @@
+[
+  {
+    "_id": "6a856feb6e128560833a7be3",
+    "driver": "6a8439b06e128560833a5cfe",
+    "amount": 849,
+    "type": "full",
+    "settledAt": "2026-08-19T08:57:15.683Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92c0486e128560833b6438",
+    "driver": "6a85c2f56e128560833a816d",
+    "amount": 1698,
+    "type": "full",
+    "settledAt": "2026-08-29T11:19:36.543Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9f9fde99866971ef577182",
+    "driver": "6a85c2f56e128560833a816d",
+    "amount": 259,
+    "type": "full",
+    "settledAt": "2026-09-08T05:40:46.021Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9fa78699866971ef579027",
+    "driver": "6a9fa28c99866971ef57750e",
+    "amount": 3850,
+    "type": "full",
+    "settledAt": "2026-09-08T06:13:26.406Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaa8e7ac02785942aa4d082",
+    "driver": "6a7c8d806e1285608339d559",
+    "amount": 2000,
+    "type": "manual",
+    "settledAt": "2026-09-16T12:41:30.416Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaa8e8bc02785942aa4d09a",
+    "driver": "6a7c8d806e1285608339d559",
+    "amount": 3252,
+    "type": "full",
+    "settledAt": "2026-09-16T12:41:47.795Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaaa0e6c02785942aa53902",
+    "driver": "6a9faaf999866971ef579c0b",
+    "amount": 11974,
+    "type": "full",
+    "settledAt": "2026-09-16T14:00:06.357Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaaa1e8c02785942aa54367",
+    "driver": "6aa9f92ac02785942aa47674",
+    "amount": 194,
+    "type": "full",
+    "settledAt": "2026-09-16T14:04:24.617Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab50e54f2e04186029ff29c",
+    "driver": "6aaaa137c02785942aa5397e",
+    "targetType": "driver",
+    "amount": 212,
+    "type": "full",
+    "settledAt": "2026-09-24T11:49:40.943Z",
+    "__v": 0
+  }
+]

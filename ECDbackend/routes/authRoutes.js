@@ -14,9 +14,17 @@ const {
     driverSendOtp,
     driverVerifyOtp,
     driverLoginWithPin,
-    driverRefreshToken
+    driverRefreshToken,
+    userSendOtp,
+    userVerifyOtp
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
+
+// Customer User Auth (2Factor.in SMS OTP)
+router.post('/user/send-otp', userSendOtp);
+router.post('/user/verify-otp', userVerifyOtp);
+router.post('/send-otp', userSendOtp);
+router.post('/verify-otp', userVerifyOtp);
 
 router.post('/register/initiate', registerInitiate);
 router.post('/register/verify', registerVerify);
@@ -36,3 +44,4 @@ router.post('/driver/login-with-pin', driverLoginWithPin);
 router.post('/driver/refresh-token', protect, driverRefreshToken);
 
 module.exports = router;
+

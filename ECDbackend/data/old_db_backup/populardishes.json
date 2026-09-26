@@ -1,0 +1,50 @@
+[
+  {
+    "_id": "6aa68a34092ddcee4da9944d",
+    "name": "cold coffee",
+    "slug": "cold-coffee",
+    "image": "https://ik.imagekit.io/ECDKART/popular_dishes/IMG_1223_Jg4dWx420.jpeg",
+    "category": "cold coffee",
+    "isActive": true,
+    "ordering": 0,
+    "createdAt": "2026-09-13T11:34:12.729Z",
+    "updatedAt": "2026-09-16T06:16:40.072Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa68a9e092ddcee4da9970f",
+    "name": "malai chaap",
+    "slug": "malai-chaap",
+    "image": "https://ik.imagekit.io/ECDKART/popular_dishes/IMG_1309_JgwtY6lwrj.png",
+    "category": "malai chaap",
+    "isActive": true,
+    "ordering": 0,
+    "createdAt": "2026-09-13T11:35:58.851Z",
+    "updatedAt": "2026-09-16T06:17:27.672Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa68ac8092ddcee4da9972a",
+    "name": "chilli potato",
+    "slug": "chilli-potato",
+    "image": "https://ik.imagekit.io/ECDKART/popular_dishes/IMG_1238_adgOSJUkcg.jpeg",
+    "category": "malai chaap",
+    "isActive": true,
+    "ordering": 0,
+    "createdAt": "2026-09-13T11:36:40.032Z",
+    "updatedAt": "2026-09-16T06:17:46.844Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaa9aa0c02785942aa51aef",
+    "name": "momos",
+    "slug": "momos",
+    "image": "https://ik.imagekit.io/ECDKART/popular_dishes/Aloo_Jeera_EutXlZiUQ.jfif",
+    "category": "momos",
+    "isActive": true,
+    "ordering": 0,
+    "createdAt": "2026-09-16T13:33:20.547Z",
+    "updatedAt": "2026-09-16T13:33:20.547Z",
+    "__v": 0
+  }
+]

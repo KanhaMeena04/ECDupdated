@@ -26,9 +26,9 @@ class _VerifyGooglePhonePageState extends State<VerifyGooglePhonePage>
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final List<TextEditingController> _otpControllers =
-      List.generate(4, (_) => TextEditingController());
+      List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _otpFocusNodes =
-      List.generate(4, (_) => FocusNode());
+      List.generate(6, (_) => FocusNode());
 
   bool _isLoading = false;
   bool _showOtp = false;
@@ -128,9 +128,9 @@ class _VerifyGooglePhonePageState extends State<VerifyGooglePhonePage>
   // â”€â”€ Verify OTP & Create Account â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   void _verifyOtp() async {
     final otp = _otpControllers.map((c) => c.text).join();
-    if (otp.length < 4) {
+    if (otp.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the 4-digit OTP')),
+        const SnackBar(content: Text('Please enter the 6-digit OTP')),
       );
       return;
     }
@@ -167,7 +167,7 @@ class _VerifyGooglePhonePageState extends State<VerifyGooglePhonePage>
 
   // â”€â”€ UI Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   void _onOtpChanged(String value, int index) {
-    if (value.isNotEmpty && index < 3) {
+    if (value.isNotEmpty && index < 5) {
       _otpFocusNodes[index + 1].requestFocus();
     }
     if (value.isEmpty && index > 0) {
@@ -175,13 +175,26 @@ class _VerifyGooglePhonePageState extends State<VerifyGooglePhonePage>
     }
   }
 
+  void _ensureOtpLists() {
+    while (_otpControllers.length < 6) {
+      _otpControllers.add(TextEditingController());
+    }
+    while (_otpFocusNodes.length < 6) {
+      _otpFocusNodes.add(FocusNode());
+    }
+  }
+
   Widget _buildOtpBox(int index) {
+    _ensureOtpLists();
+    if (index >= _otpControllers.length || index >= _otpFocusNodes.length) {
+      return const SizedBox.shrink();
+    }
     return Container(
-      width: 56,
-      height: 64,
+      width: 44,
+      height: 52,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.border, width: 1.5),
       ),
       alignment: Alignment.center,
@@ -192,7 +205,7 @@ class _VerifyGooglePhonePageState extends State<VerifyGooglePhonePage>
         textAlign: TextAlign.center,
         maxLength: 1,
         style: const TextStyle(
-          fontSize: 24,
+          fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
         ),
@@ -441,7 +454,7 @@ class _VerifyGooglePhonePageState extends State<VerifyGooglePhonePage>
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(4, _buildOtpBox),
+          children: List.generate(6, _buildOtpBox),
         ),
         const SizedBox(height: 28),
         SizedBox(

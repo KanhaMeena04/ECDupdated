@@ -83,6 +83,18 @@ const AdminSettingSchema = new mongoose.Schema(
     packagingFeeConfig: {
       enabled: { type: Boolean, default: true },
       globalPackagingFee: { type: Number, default: 10 }
+    },
+
+    // Rider Tip Configuration
+    tipConfig: {
+      enabled: { type: Boolean, default: true },
+      options: { type: [Number], default: [5, 10, 20] }
+    },
+
+    // Tax Configuration (GST)
+    taxConfig: {
+      enabled: { type: Boolean, default: true },
+      gstPercent: { type: Number, default: 5 }
     }
   },
   { timestamps: true }

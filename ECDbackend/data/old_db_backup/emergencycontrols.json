@@ -1,0 +1,19 @@
+[
+  {
+    "_id": "6ab217acf74d59ae35d52a5c",
+    "acceptNewOrders": true,
+    "deliveryService": true,
+    "selfPickup": true,
+    "onlinePayment": true,
+    "cod": true,
+    "riderDispatch": true,
+    "couponsEnabled": true,
+    "offersEnabled": true,
+    "disabledAreas": [],
+    "disabledRestaurants": [],
+    "reason": "",
+    "createdAt": "2026-09-22T05:52:44.341Z",
+    "updatedAt": "2026-09-22T05:52:44.341Z",
+    "__v": 0
+  }
+]

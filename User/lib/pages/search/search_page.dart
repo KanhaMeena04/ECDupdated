@@ -8,8 +8,11 @@ import '../../core/theme/app_text_styles.dart';
 import '../../services/restaurant_api_service.dart';
 import '../../core/models/restaurant_models.dart';
 import '../../routes/app_routes.dart';
+import '../food_delivery/restaurant_detail_screen.dart';
 import '../../providers/theme_provider.dart';
 import 'package:provider/provider.dart';
+
+import '../../services/category_service.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -31,14 +34,30 @@ class _SearchPageState extends State<SearchPage> {
   Timer? _debounce;
   String _selectedFilter = 'All';
 
-  final List<String> _popularCuisines = ['Biryani', 'Pizza', 'Burger', 'Chinese', 'Thali', 'Desserts', 'South Indian'];
+  List<String> _popularCuisines = ['Biryani', 'Pizza', 'Burger', 'Chinese', 'Thali', 'Desserts', 'South Indian'];
+  List<CategoryItemModel> _cmsCategories = [];
   final List<String> _filters = ['All', 'Veg Only', 'Rating 4.0+', 'Fast Delivery'];
 
   @override
   void initState() {
     super.initState();
     _loadRecentSearches();
+    _fetchCmsCategories();
     _focusNode.requestFocus();
+  }
+
+  Future<void> _fetchCmsCategories() async {
+    try {
+      final tree = await CategoryService.getCategoryTree();
+      if (tree.isNotEmpty && mounted) {
+        setState(() {
+          _cmsCategories = tree;
+          _popularCuisines = tree.map((c) => c.name).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching CMS categories in search page: $e');
+    }
   }
 
   @override
@@ -291,12 +310,19 @@ class _SearchPageState extends State<SearchPage> {
                 child: Column(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      width: 50,
+                      height: 50,
                       decoration: BoxDecoration(
                         color: const Color(0xFFE89D1E).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.fastfood, color: Color(0xFFE89D1E), size: 24),
+                      clipBehavior: Clip.antiAlias,
+                      child: (index < _cmsCategories.length && _cmsCategories[index].image.isNotEmpty)
+                          ? SafeImage(
+                              _cmsCategories[index].image,
+                              fit: BoxFit.cover,
+                            )
+                          : const Icon(Icons.fastfood, color: Color(0xFFE89D1E), size: 24),
                     ),
                     const SizedBox(height: 8),
                     Text(cuisine, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white : Colors.black), textAlign: TextAlign.center),
@@ -408,7 +434,12 @@ class _SearchPageState extends State<SearchPage> {
 
   Widget _buildFoodItemCard(MenuItem item, Restaurant restaurant, bool isDark) {
     return GestureDetector(
-      onTap: () => context.push('${AppRoutes.restaurantDetail}/${restaurant.slug}'),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RestaurantDetailScreen(restaurant: restaurant),
+        ),
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
@@ -565,7 +596,14 @@ class _SearchPageState extends State<SearchPage> {
                         ),
                       ),
                       ElevatedButton(
-                        onPressed: !restaurant.isActive ? null : () => context.push('${AppRoutes.restaurantDetail}/${restaurant.slug}'),
+                        onPressed: !restaurant.isActive
+                            ? null
+                            : () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => RestaurantDetailScreen(restaurant: restaurant),
+                                  ),
+                                ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: restaurant.isActive ? const Color(0xFF248C70) : Colors.grey[400],
                           foregroundColor: Colors.white,
@@ -592,7 +630,12 @@ class _SearchPageState extends State<SearchPage> {
 
   Widget _buildRestaurantCard(Restaurant restaurant, bool isDark) {
     return GestureDetector(
-      onTap: () => context.push('${AppRoutes.restaurantDetail}/${restaurant.slug}'),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RestaurantDetailScreen(restaurant: restaurant),
+        ),
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
         decoration: BoxDecoration(

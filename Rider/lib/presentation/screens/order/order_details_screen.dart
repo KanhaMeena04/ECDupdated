@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../logic/blocs/driver/driver_bloc.dart';
 import '../../../logic/blocs/driver/driver_event.dart';
 import '../../../logic/blocs/driver/driver_state.dart';
@@ -18,7 +17,6 @@ class OrderDetailsScreen extends StatefulWidget {
 
 class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   static const Color primaryGreen = Color(0xFF248C70);
-  static const Color lightGreen = Color(0xFFE8F5E9);
   bool _isLoading = false;
   late Map<String, dynamic> _currentOrder;
 
@@ -26,6 +24,29 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   void initState() {
     super.initState();
     _currentOrder = widget.order;
+  }
+
+  String _parseAddressToString(dynamic raw) {
+    if (raw == null) return '';
+    if (raw is String) return raw.trim();
+    if (raw is List) {
+      if (raw.isEmpty) return '';
+      return _parseAddressToString(raw.first);
+    }
+    if (raw is Map) {
+      final line = raw['fullAddress'] ?? raw['address'] ?? raw['addressLine'] ?? raw['street'] ?? '';
+      final city = raw['city'] ?? raw['cityName'] ?? '';
+      final lineStr = _parseAddressToString(line);
+      final cityStr = _parseAddressToString(city);
+      if (lineStr.isNotEmpty) {
+        if (cityStr.isNotEmpty && !lineStr.toLowerCase().contains(cityStr.toLowerCase())) {
+          return "$lineStr, $cityStr";
+        }
+        return lineStr;
+      }
+      if (cityStr.isNotEmpty) return cityStr;
+    }
+    return raw.toString();
   }
 
   @override
@@ -124,7 +145,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))
                       ],
                     ),
                     child: Column(
@@ -143,7 +164,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                 color: (deliveryStatus == 'out_for_delivery' || deliveryStatus == 'delivered'
                                         ? primaryGreen
                                         : Colors.orange[700]!)
-                                    .withOpacity(0.1),
+                                    .withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
@@ -223,7 +244,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         _buildDetailRow(
                           Icons.location_on_outlined,
                           'Delivery Address',
-                          (address is String) ? address : (address?['fullAddress'] ?? '${address?['addressLine'] ?? ''}, ${address?['city'] ?? ''}'),
+                          _parseAddressToString(address).isNotEmpty ? _parseAddressToString(address) : 'N/A',
                         ),
                       ],
                     ),
@@ -240,7 +261,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: items.length,
-                          separatorBuilder: (_, __) => const Divider(height: 16),
+                          separatorBuilder: (_, _) => const Divider(height: 16),
                           itemBuilder: (context, index) {
                             final item = items[index];
                             final qty = item['qty'] ?? item['quantity'] ?? 1;
@@ -256,7 +277,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                   ),
                                 ),
                                 Text(
-                                  'â‚¹${(price * qty).toStringAsFixed(1)}',
+                                  '₹${(price * qty).toStringAsFixed(1)}',
                                   style: TextStyle(color: Colors.grey[700], fontSize: 14, fontWeight: FontWeight.w600),
                                 ),
                               ],
@@ -274,16 +295,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     title: 'BILL DETAILS',
                     child: Column(
                       children: [
-                        _buildPriceRow('Items Subtotal', 'â‚¹${(_currentOrder['totalAmount'] ?? 0).toStringAsFixed(1)}'),
+                        _buildPriceRow('Items Subtotal', '₹${(_currentOrder['totalAmount'] ?? 0).toStringAsFixed(1)}'),
                         const SizedBox(height: 8),
-                        _buildPriceRow('Delivery Fee', 'â‚¹${(_currentOrder['deliveryCharge'] ?? 0).toStringAsFixed(1)}'),
+                        _buildPriceRow('Delivery Fee', '₹${(_currentOrder['deliveryCharge'] ?? 0).toStringAsFixed(1)}'),
                         const SizedBox(height: 8),
-                        _buildPriceRow('Taxes & GST', 'â‚¹${(_currentOrder['gst'] ?? 0).toStringAsFixed(1)}'),
+                        _buildPriceRow('Taxes & GST', '₹${(_currentOrder['gst'] ?? 0).toStringAsFixed(1)}'),
                         if ((_currentOrder['totalDiscount'] ?? 0) > 0) ...[
                           const SizedBox(height: 8),
                           _buildPriceRow(
                             'Coupon Discount',
-                            '- â‚¹${(_currentOrder['totalDiscount'] ?? 0).toStringAsFixed(1)}',
+                            '- ₹${(_currentOrder['totalDiscount'] ?? 0).toStringAsFixed(1)}',
                             isDiscount: true,
                           ),
                         ],
@@ -299,7 +320,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                             Text(
-                              'â‚¹${(_currentOrder['payableAmount'] ?? _currentOrder['totalAmount'] ?? 0).toStringAsFixed(1)}',
+                              '₹${(_currentOrder['payableAmount'] ?? _currentOrder['totalAmount'] ?? 0).toStringAsFixed(1)}',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: primaryGreen),
                             ),
                           ],
@@ -474,7 +495,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 2))
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 6, offset: const Offset(0, 2))
         ],
       ),
       child: Column(
@@ -545,10 +566,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
 class InlineDeliveryOtpForm extends StatefulWidget {
   final Map<String, dynamic> order;
-  const InlineDeliveryOtpForm({Key? key, required this.order}) : super(key: key);
+  const InlineDeliveryOtpForm({super.key, required this.order});
 
   @override
-  _InlineDeliveryOtpFormState createState() => _InlineDeliveryOtpFormState();
+  State<InlineDeliveryOtpForm> createState() => _InlineDeliveryOtpFormState();
 }
 
 class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
@@ -561,10 +582,12 @@ class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
     setState(() => _isSendingOtp = true);
     try {
       final response = await ApiService.sendDeliveryOtp(widget.order['_id'] ?? '');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(response['message'] ?? 'OTP sent successfully'), backgroundColor: primaryGreen),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
       );

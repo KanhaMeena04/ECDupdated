@@ -1,0 +1,5932 @@
+[
+  {
+    "_id": "6a7c8cba6e1285608339d403",
+    "orderNumber": "ORD-1786547386840",
+    "orderType": "delivery",
+    "customer": "6a7c8c7d6e1285608339d386",
+    "store": "6a7c81a8fd80503fd1c0e7cd",
+    "items": [
+      {
+        "product": "6a7c81a8fd80503fd1c0e7d1",
+        "name": "Amazing Test Pizza",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 600,
+        "subtotal": 1200
+      }
+    ],
+    "totalAmount": 1200,
+    "deliveryCharge": 6620,
+    "gst": 60,
+    "totalDiscount": 0,
+    "payableAmount": 7880,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06099633872509,
+          24.082106586357746
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7898671952",
+    "driverEarnings": 5516,
+    "restaurantEarnings": 600,
+    "riderAdminCommission": 1104,
+    "cancellationLog": [],
+    "createdAt": "2026-08-12T15:09:46.843Z",
+    "updatedAt": "2026-08-12T15:15:04.176Z",
+    "__v": 0,
+    "paymentTransaction": "6a7c8cbb6e1285608339d405",
+    "deliveryOTP": "2621",
+    "pickupOtp": "6562",
+    "readyAt": "2026-08-12T15:13:57.684Z",
+    "assignedDriver": "6a7c8d806e1285608339d559",
+    "assignmentTimeoutAt": "2026-08-12T15:14:57.742Z",
+    "acceptedAt": "2026-08-12T15:14:09.814Z",
+    "deliveredAt": "2026-08-12T15:15:04.175Z"
+  },
+  {
+    "_id": "6a7da0e46e1285608339ecbe",
+    "orderNumber": "ORD-1786618084279",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a7d9d7c6e1285608339ea34",
+    "items": [
+      {
+        "product": "6a7d9d806e1285608339ea39",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 260,
+        "subtotal": 260
+      }
+    ],
+    "totalAmount": 260,
+    "deliveryCharge": 0,
+    "gst": 13,
+    "totalDiscount": 0,
+    "payableAmount": 273,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 130,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-08-13T10:48:04.281Z",
+    "updatedAt": "2026-08-13T10:49:34.973Z",
+    "__v": 0,
+    "paymentTransaction": "6a7da0e46e1285608339ecc0",
+    "deliveryOTP": "6778",
+    "pickupOtp": "8689",
+    "readyAt": "2026-08-13T10:49:25.074Z",
+    "deliveredAt": "2026-08-13T10:49:34.972Z"
+  },
+  {
+    "_id": "6a7dea0c6e1285608339f8cb",
+    "orderNumber": "ORD-1786636812854",
+    "orderType": "delivery",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a7d9d7c6e1285608339ea34",
+    "items": [
+      {
+        "product": "6a7d9d806e1285608339ea39",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 260,
+        "subtotal": 260
+      }
+    ],
+    "totalAmount": 260,
+    "deliveryCharge": 177,
+    "gst": 13,
+    "totalDiscount": 0,
+    "payableAmount": 450,
+    "address": {
+      "fullAddress": "P6VV+XWH, Brahmabarada, Odisha 755005, India",
+      "landmark": "P6VV+XWH",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          86.24458786100149,
+          20.744986788414906
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "driverEarnings": 147,
+    "restaurantEarnings": 130,
+    "riderAdminCommission": 30,
+    "cancellationLog": [],
+    "createdAt": "2026-08-13T16:00:12.860Z",
+    "updatedAt": "2026-08-13T16:04:26.573Z",
+    "__v": 0,
+    "paymentTransaction": "6a7dea0d6e1285608339f8cd",
+    "deliveryOTP": "5777",
+    "pickupOtp": "5088",
+    "readyAt": "2026-08-13T16:02:05.575Z",
+    "assignedDriver": "6a7dcd796e1285608339f53a",
+    "assignmentTimeoutAt": "2026-08-13T16:03:05.639Z",
+    "acceptedAt": "2026-08-13T16:02:15.333Z",
+    "deliveredAt": "2026-08-13T16:04:26.572Z"
+  },
+  {
+    "_id": "6a8000846e128560833a19a9",
+    "orderNumber": "ORD-1786773636126",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a7d9d7c6e1285608339ea34",
+    "items": [
+      {
+        "product": "6a7d9d806e1285608339ea39",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 4,
+        "price": 260,
+        "subtotal": 1040
+      }
+    ],
+    "totalAmount": 1040,
+    "deliveryCharge": 0,
+    "gst": 52,
+    "totalDiscount": 0,
+    "payableAmount": 1092,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 520,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-08-15T06:00:36.131Z",
+    "updatedAt": "2026-08-15T06:01:53.238Z",
+    "__v": 0,
+    "paymentTransaction": "6a8000846e128560833a19ab",
+    "deliveryOTP": "8318",
+    "pickupOtp": "5289",
+    "readyAt": "2026-08-15T06:01:42.076Z",
+    "deliveredAt": "2026-08-15T06:01:53.238Z"
+  },
+  {
+    "_id": "6a8435af6e128560833a59d2",
+    "orderNumber": "ORD-1787049391933",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a7d9d7c6e1285608339ea34",
+    "items": [
+      {
+        "product": "6a7d9d806e1285608339ea39",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 3,
+        "price": 260,
+        "subtotal": 780
+      }
+    ],
+    "totalAmount": 780,
+    "deliveryCharge": 0,
+    "gst": 39,
+    "totalDiscount": 0,
+    "payableAmount": 819,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 390,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-08-18T10:36:31.942Z",
+    "updatedAt": "2026-08-18T10:37:35.955Z",
+    "__v": 0,
+    "paymentTransaction": "6a8435af6e128560833a59d4",
+    "deliveryOTP": "2538",
+    "pickupOtp": "6608",
+    "readyAt": "2026-08-18T10:37:08.168Z",
+    "deliveredAt": "2026-08-18T10:37:35.954Z"
+  },
+  {
+    "_id": "6a843a3f6e128560833a5e68",
+    "orderNumber": "ORD-1787050559500",
+    "orderType": "delivery",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a7d9d7c6e1285608339ea34",
+    "items": [
+      {
+        "product": "6a7d9d806e1285608339ea39",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 3,
+        "price": 260,
+        "subtotal": 780
+      }
+    ],
+    "totalAmount": 780,
+    "deliveryCharge": 177,
+    "gst": 39,
+    "totalDiscount": 0,
+    "payableAmount": 996,
+    "address": {
+      "fullAddress": "P6VV+XWH, Brahmabarada, Odisha 755005, India",
+      "landmark": "P6VV+XWH",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          86.24458786100149,
+          20.744986788414906
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "driverEarnings": 147,
+    "restaurantEarnings": 390,
+    "riderAdminCommission": 30,
+    "cancellationLog": [],
+    "createdAt": "2026-08-18T10:55:59.503Z",
+    "updatedAt": "2026-08-18T10:58:01.941Z",
+    "__v": 0,
+    "paymentTransaction": "6a843a3f6e128560833a5e6a",
+    "deliveryOTP": "6712",
+    "pickupOtp": "8664",
+    "readyAt": "2026-08-18T10:56:36.999Z",
+    "assignedDriver": "6a8439b06e128560833a5cfe",
+    "assignmentTimeoutAt": "2026-08-18T10:57:37.060Z",
+    "acceptedAt": "2026-08-18T10:56:44.294Z",
+    "deliveredAt": "2026-08-18T10:58:01.939Z"
+  },
+  {
+    "_id": "6a843b006e128560833a62ce",
+    "orderNumber": "ORD-1787050752316",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a7d9d7c6e1285608339ea34",
+    "items": [
+      {
+        "product": "6a7d9d806e1285608339ea39",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 3,
+        "price": 260,
+        "subtotal": 780
+      }
+    ],
+    "totalAmount": 780,
+    "deliveryCharge": 0,
+    "gst": 39,
+    "totalDiscount": 0,
+    "payableAmount": 819,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "cancelled",
+    "deliveryStatus": "self_pickup",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 390,
+    "riderAdminCommission": 0,
+    "cancellationLog": [
+      {
+        "cancelledBy": "restaurant",
+        "cancelledByUser": "6a7d9d7c6e1285608339ea34",
+        "reason": "We have no ingredients",
+        "cancelledAt": "2026-08-18T10:59:35.887Z"
+      }
+    ],
+    "createdAt": "2026-08-18T10:59:12.318Z",
+    "updatedAt": "2026-08-18T10:59:35.891Z",
+    "__v": 1,
+    "paymentTransaction": "6a843b006e128560833a62d1",
+    "deliveryOTP": "2517",
+    "cancellationReason": "We have no ingredients",
+    "cancelledBy": "restaurant"
+  },
+  {
+    "_id": "6a843b606e128560833a64ea",
+    "orderNumber": "ORD-1787050848191",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a7d9d7c6e1285608339ea34",
+    "items": [
+      {
+        "product": "6a7d9d806e1285608339ea39",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 5,
+        "price": 260,
+        "subtotal": 1300
+      }
+    ],
+    "totalAmount": 1300,
+    "deliveryCharge": 0,
+    "gst": 65,
+    "totalDiscount": 0,
+    "payableAmount": 1365,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "cancelled",
+    "deliveryStatus": "self_pickup",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 650,
+    "riderAdminCommission": 0,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a79872ddc7a56775b324c0f",
+        "reason": "Ordered by mistake",
+        "cancelledAt": "2026-08-18T11:00:58.753Z"
+      }
+    ],
+    "createdAt": "2026-08-18T11:00:48.193Z",
+    "updatedAt": "2026-08-18T11:00:58.754Z",
+    "__v": 1,
+    "paymentTransaction": "6a843b606e128560833a64ec",
+    "deliveryOTP": "1962",
+    "cancellationReason": "Ordered by mistake",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6a843b876e128560833a6604",
+    "orderNumber": "ORD-1787050887641",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a7d9d7c6e1285608339ea34",
+    "items": [
+      {
+        "product": "6a7d9d806e1285608339ea39",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 5,
+        "price": 260,
+        "subtotal": 1300
+      }
+    ],
+    "totalAmount": 1300,
+    "deliveryCharge": 0,
+    "gst": 65,
+    "totalDiscount": 0,
+    "payableAmount": 1365,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "cancelled",
+    "deliveryStatus": "self_pickup",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 650,
+    "riderAdminCommission": 0,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a79872ddc7a56775b324c0f",
+        "reason": "Forgot to apply coupon",
+        "cancelledAt": "2026-08-18T11:01:48.173Z"
+      }
+    ],
+    "createdAt": "2026-08-18T11:01:27.644Z",
+    "updatedAt": "2026-08-18T11:01:48.175Z",
+    "__v": 1,
+    "paymentTransaction": "6a843b876e128560833a6606",
+    "deliveryOTP": "8939",
+    "cancellationReason": "Forgot to apply coupon",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6a843bb16e128560833a6723",
+    "orderNumber": "ORD-1787050929264",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a7d9d7c6e1285608339ea34",
+    "items": [
+      {
+        "product": "6a7d9d806e1285608339ea39",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 3,
+        "price": 260,
+        "subtotal": 780
+      }
+    ],
+    "totalAmount": 780,
+    "deliveryCharge": 0,
+    "gst": 39,
+    "totalDiscount": 0,
+    "payableAmount": 819,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "cancelled",
+    "deliveryStatus": "self_pickup",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 390,
+    "riderAdminCommission": 0,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a79872ddc7a56775b324c0f",
+        "reason": "Ordered by mistake",
+        "cancelledAt": "2026-08-18T11:02:43.479Z"
+      }
+    ],
+    "createdAt": "2026-08-18T11:02:09.266Z",
+    "updatedAt": "2026-08-18T11:02:43.480Z",
+    "__v": 1,
+    "paymentTransaction": "6a843bb16e128560833a6725",
+    "deliveryOTP": "9825",
+    "cancellationReason": "Ordered by mistake",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6a843bf16e128560833a68ae",
+    "orderNumber": "ORD-1787050993407",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a7d9d7c6e1285608339ea34",
+    "items": [
+      {
+        "product": "6a7d9d806e1285608339ea39",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 3,
+        "price": 260,
+        "subtotal": 780
+      }
+    ],
+    "totalAmount": 780,
+    "deliveryCharge": 0,
+    "gst": 39,
+    "totalDiscount": 0,
+    "payableAmount": 819,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "cancelled",
+    "deliveryStatus": "self_pickup",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 390,
+    "riderAdminCommission": 0,
+    "cancellationLog": [
+      {
+        "cancelledBy": "restaurant",
+        "cancelledByUser": "6a7d9d7c6e1285608339ea34",
+        "reason": "We have no ingredients",
+        "cancelledAt": "2026-08-18T11:03:30.946Z"
+      }
+    ],
+    "createdAt": "2026-08-18T11:03:13.408Z",
+    "updatedAt": "2026-08-18T11:03:30.948Z",
+    "__v": 1,
+    "paymentTransaction": "6a843bf16e128560833a68b0",
+    "deliveryOTP": "5907",
+    "cancellationReason": "We have no ingredients",
+    "cancelledBy": "restaurant"
+  },
+  {
+    "_id": "6a8883cc6e128560833aa990",
+    "orderNumber": "ORD-1787331532527",
+    "orderType": "delivery",
+    "customer": "6a87735c6e128560833a985e",
+    "store": "6a7ad56c88c701129d2aa129",
+    "items": [
+      {
+        "product": "6a7ad57288c701129d2aa12e",
+        "name": "Dal Makhani ",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 223,
+        "subtotal": 223
+      }
+    ],
+    "totalAmount": 223,
+    "deliveryCharge": 1095,
+    "gst": 11,
+    "totalDiscount": 0,
+    "payableAmount": 1329,
+    "address": {
+      "fullAddress": "VPO, Mahendwara, Block - B, Thakur Wara, Sohna, Gurugram, Haryana 122103, India",
+      "landmark": "Sohna",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.06351179629566,
+          28.248699324324466
+        ]
+      }
+    },
+    "status": "failed",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "driverEarnings": 912,
+    "restaurantEarnings": 112,
+    "riderAdminCommission": 183,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a87735c6e128560833a985e",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-08-21T16:58:58.073Z"
+      }
+    ],
+    "createdAt": "2026-08-21T16:58:52.534Z",
+    "updatedAt": "2026-08-21T16:58:58.075Z",
+    "__v": 1,
+    "paymentTransaction": "6a8883cc6e128560833aa992",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6a8883d56e128560833aa9aa",
+    "orderNumber": "ORD-1787331541182",
+    "orderType": "delivery",
+    "customer": "6a87735c6e128560833a985e",
+    "store": "6a7ad56c88c701129d2aa129",
+    "items": [
+      {
+        "product": "6a7ad57288c701129d2aa12e",
+        "name": "Dal Makhani ",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 223,
+        "subtotal": 223
+      }
+    ],
+    "totalAmount": 223,
+    "deliveryCharge": 1095,
+    "gst": 11,
+    "totalDiscount": 0,
+    "payableAmount": 1329,
+    "address": {
+      "fullAddress": "VPO, Mahendwara, Block - B, Thakur Wara, Sohna, Gurugram, Haryana 122103, India",
+      "landmark": "Sohna",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.06351179629566,
+          28.248699324324466
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "driverEarnings": 912,
+    "restaurantEarnings": 112,
+    "riderAdminCommission": 183,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6a87735c6e128560833a985e",
+        "reason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+        "cancelledAt": "2026-08-21T17:30:00.012Z"
+      }
+    ],
+    "createdAt": "2026-08-21T16:59:01.186Z",
+    "updatedAt": "2026-08-21T17:30:00.017Z",
+    "__v": 1,
+    "paymentTransaction": "6a8883d56e128560833aa9ac",
+    "cancellationReason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "cancelledBy": "admin"
+  },
+  {
+    "_id": "6a9039866e128560833b1b4a",
+    "orderNumber": "ORD-1787836806893",
+    "orderType": "pickup",
+    "pickupTime": "In 1 Hour",
+    "customer": "6a87735c6e128560833a985e",
+    "store": "6a7c9dc86e1285608339da1f",
+    "items": [
+      {
+        "product": "6a7ad57288c701129d2aa12e",
+        "name": "Dal Makhani ",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 223,
+        "subtotal": 446
+      },
+      {
+        "product": "6a7ca2516e1285608339db62",
+        "name": "burger",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 70,
+        "subtotal": 70
+      }
+    ],
+    "totalAmount": 516,
+    "deliveryCharge": 0,
+    "gst": 26,
+    "totalDiscount": 0,
+    "payableAmount": 542,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "9876543210"
+    },
+    "status": "failed",
+    "deliveryStatus": "self_pickup",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 258,
+    "riderAdminCommission": 0,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a87735c6e128560833a985e",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-08-27T13:20:39.222Z"
+      }
+    ],
+    "createdAt": "2026-08-27T13:20:06.901Z",
+    "updatedAt": "2026-08-27T13:20:39.225Z",
+    "__v": 1,
+    "paymentTransaction": "6a9039876e128560833b1b4c",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6a9039ae6e128560833b1b65",
+    "orderNumber": "ORD-1787836846388",
+    "orderType": "pickup",
+    "pickupTime": "In 1 Hour",
+    "customer": "6a87735c6e128560833a985e",
+    "store": "6a7c9dc86e1285608339da1f",
+    "items": [
+      {
+        "product": "6a7ad57288c701129d2aa12e",
+        "name": "Dal Makhani ",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 223,
+        "subtotal": 446
+      },
+      {
+        "product": "6a7ca2516e1285608339db62",
+        "name": "burger",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 70,
+        "subtotal": 70
+      }
+    ],
+    "totalAmount": 516,
+    "deliveryCharge": 0,
+    "gst": 26,
+    "totalDiscount": 0,
+    "payableAmount": 542,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "9876543210"
+    },
+    "status": "cancelled",
+    "deliveryStatus": "self_pickup",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 258,
+    "riderAdminCommission": 0,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6a87735c6e128560833a985e",
+        "reason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+        "cancelledAt": "2026-08-27T13:51:00.009Z"
+      }
+    ],
+    "createdAt": "2026-08-27T13:20:46.391Z",
+    "updatedAt": "2026-08-27T13:51:00.015Z",
+    "__v": 1,
+    "paymentTransaction": "6a9039ae6e128560833b1b67",
+    "deliveryOTP": "5707",
+    "cancellationReason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "cancelledBy": "admin"
+  },
+  {
+    "_id": "6a9280ff6e128560833b3d0a",
+    "orderNumber": "ORD-1787986175816",
+    "orderType": "delivery",
+    "customer": "6a926ed86e128560833b3bd9",
+    "store": "6a7c9e936e1285608339da7b",
+    "items": [
+      {
+        "product": "6a7c9e956e1285608339da80",
+        "name": "chole bhature ",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 250,
+        "subtotal": 250
+      }
+    ],
+    "totalAmount": 250,
+    "deliveryCharge": 282,
+    "gst": 13,
+    "totalDiscount": 0,
+    "payableAmount": 545,
+    "address": {
+      "fullAddress": "1820, Nuh Hodal Rd, Ujina, Haryana 122107, India",
+      "landmark": "1820",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.0941624045372,
+          28.0414773383913
+        ]
+      }
+    },
+    "status": "failed",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "driverEarnings": 235,
+    "restaurantEarnings": 125,
+    "riderAdminCommission": 47,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a926ed86e128560833b3bd9",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-08-29T06:49:59.785Z"
+      }
+    ],
+    "createdAt": "2026-08-29T06:49:35.821Z",
+    "updatedAt": "2026-08-29T06:49:59.788Z",
+    "__v": 1,
+    "paymentTransaction": "6a9281006e128560833b3d0c",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6a929cd46e128560833b4417",
+    "orderNumber": "ORD-1787993300397",
+    "orderType": "pickup",
+    "pickupTime": "In 30 mins",
+    "customer": "6a7dc4ae6e1285608339f2fd",
+    "store": "6a7c9e936e1285608339da7b",
+    "items": [
+      {
+        "product": "6a7c9dc96e1285608339da24",
+        "name": "pizza ",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 190,
+        "subtotal": 190
+      },
+      {
+        "product": "6a7ca2516e1285608339db62",
+        "name": "burger",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 70,
+        "subtotal": 70
+      },
+      {
+        "product": "6a929c4e6e128560833b436e",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 130,
+        "subtotal": 130
+      },
+      {
+        "product": "6a7c9e956e1285608339da80",
+        "name": "chole bhature ",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 250,
+        "subtotal": 250
+      }
+    ],
+    "totalAmount": 640,
+    "deliveryCharge": 0,
+    "gst": 32,
+    "totalDiscount": 0,
+    "payableAmount": 672,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7988318989"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 320,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-08-29T08:48:20.399Z",
+    "updatedAt": "2026-08-29T08:50:50.438Z",
+    "__v": 0,
+    "paymentTransaction": "6a929cd46e128560833b4419",
+    "deliveryOTP": "9973",
+    "pickupOtp": "9720",
+    "readyAt": "2026-08-29T08:48:39.881Z",
+    "deliveredAt": "2026-08-29T08:50:50.437Z"
+  },
+  {
+    "_id": "6a929d9d6e128560833b4668",
+    "orderNumber": "ORD-1787993501697",
+    "orderType": "delivery",
+    "customer": "6a7dc4ae6e1285608339f2fd",
+    "store": "6a7c9e936e1285608339da7b",
+    "items": [
+      {
+        "product": "6a7c9e956e1285608339da80",
+        "name": "chole bhature ",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 250,
+        "subtotal": 250
+      }
+    ],
+    "totalAmount": 250,
+    "deliveryCharge": 21,
+    "gst": 13,
+    "totalDiscount": 0,
+    "payableAmount": 284,
+    "address": {
+      "fullAddress": "80/11, Sohna Rural, Haryana 122103, India",
+      "landmark": "80/11",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.0672632008791,
+          28.265940185152886
+        ]
+      }
+    },
+    "status": "picked_up",
+    "deliveryStatus": "picked_up",
+    "rejectedDrivers": [],
+    "driverEarnings": 17,
+    "restaurantEarnings": 125,
+    "riderAdminCommission": 4,
+    "cancellationLog": [],
+    "createdAt": "2026-08-29T08:51:41.699Z",
+    "updatedAt": "2026-08-29T08:53:45.089Z",
+    "__v": 0,
+    "paymentTransaction": "6a929d9d6e128560833b466a",
+    "deliveryOTP": "4559",
+    "pickupOtp": "2133",
+    "readyAt": "2026-08-29T08:51:51.307Z",
+    "assignedDriver": "6a911f4d6e128560833b2811",
+    "assignmentTimeoutAt": "2026-08-29T08:52:51.411Z",
+    "acceptedAt": "2026-08-29T08:52:20.576Z"
+  },
+  {
+    "_id": "6a92a4166e128560833b4f6c",
+    "orderNumber": "ORD-1787995158032",
+    "orderType": "pickup",
+    "pickupTime": "In 15 mins",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a7d9d7c6e1285608339ea34",
+    "items": [
+      {
+        "product": "6a7d9d806e1285608339ea39",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 260,
+        "subtotal": 520
+      }
+    ],
+    "totalAmount": 520,
+    "deliveryCharge": 0,
+    "gst": 26,
+    "totalDiscount": 0,
+    "payableAmount": 546,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 260,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-08-29T09:19:18.038Z",
+    "updatedAt": "2026-08-29T09:20:08.654Z",
+    "__v": 0,
+    "paymentTransaction": "6a92a4166e128560833b4f6e",
+    "deliveryOTP": "9358",
+    "pickupOtp": "1711",
+    "readyAt": "2026-08-29T09:19:54.739Z",
+    "deliveredAt": "2026-08-29T09:20:08.653Z"
+  },
+  {
+    "_id": "6a92a47c6e128560833b5089",
+    "orderNumber": "ORD-1787995260155",
+    "orderType": "delivery",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a7d9d7c6e1285608339ea34",
+    "items": [
+      {
+        "product": "6a7d9d806e1285608339ea39",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 3,
+        "price": 260,
+        "subtotal": 780
+      }
+    ],
+    "totalAmount": 780,
+    "deliveryCharge": 177,
+    "gst": 39,
+    "totalDiscount": 0,
+    "payableAmount": 996,
+    "address": {
+      "fullAddress": "P6VV+XWH, Brahmabarada, Odisha 755005, India",
+      "landmark": "P6VV+XWH",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          86.24458786100149,
+          20.744986788414906
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "driverEarnings": 147,
+    "restaurantEarnings": 390,
+    "riderAdminCommission": 30,
+    "cancellationLog": [],
+    "createdAt": "2026-08-29T09:21:00.166Z",
+    "updatedAt": "2026-08-29T09:24:42.814Z",
+    "__v": 0,
+    "paymentTransaction": "6a92a47c6e128560833b508b",
+    "deliveryOTP": "4594",
+    "pickupOtp": "1001",
+    "readyAt": "2026-08-29T09:21:49.129Z",
+    "assignedDriver": "6a85c2f56e128560833a816d",
+    "assignmentTimeoutAt": "2026-08-29T09:22:49.237Z",
+    "acceptedAt": "2026-08-29T09:22:02.636Z",
+    "deliveredAt": "2026-08-29T09:24:42.814Z"
+  },
+  {
+    "_id": "6a92be696e128560833b5eb4",
+    "orderNumber": "ORD-1788001897267",
+    "orderType": "delivery",
+    "customer": "6a7dc4ae6e1285608339f2fd",
+    "store": "6a7c9e936e1285608339da7b",
+    "items": [
+      {
+        "product": "6a929c4e6e128560833b436e",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 130,
+        "subtotal": 130
+      }
+    ],
+    "totalAmount": 130,
+    "deliveryCharge": 281,
+    "gst": 7,
+    "totalDiscount": 0,
+    "payableAmount": 418,
+    "address": {
+      "fullAddress": "23RM+XQ3, Ujina, Haryana 122107, India",
+      "landmark": "23RM+XQ3",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.08437703549862,
+          28.04246451372516
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "failed",
+    "rejectedDrivers": [],
+    "driverEarnings": 234,
+    "restaurantEarnings": 65,
+    "riderAdminCommission": 47,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6a7dc4ae6e1285608339f2fd",
+        "reason": "Auto-cancelled: No riders available to deliver the order.",
+        "cancelledAt": "2026-08-29T11:22:00.019Z"
+      }
+    ],
+    "createdAt": "2026-08-29T11:11:37.270Z",
+    "updatedAt": "2026-08-29T11:22:00.022Z",
+    "__v": 1,
+    "paymentTransaction": "6a92be696e128560833b5eb6",
+    "deliveryOTP": "4017",
+    "pickupOtp": "9010",
+    "readyAt": "2026-08-29T11:17:09.620Z",
+    "cancellationReason": "Auto-cancelled: No riders available to deliver the order.",
+    "cancelledBy": "admin"
+  },
+  {
+    "_id": "6a92dc2c6e128560833b6efa",
+    "orderNumber": "ORD-1788009516837",
+    "orderType": "pickup",
+    "pickupTime": "In 1 Hour",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a7c9e936e1285608339da7b",
+    "items": [
+      {
+        "product": "6a7c9e956e1285608339da80",
+        "name": "chole bhature ",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 250,
+        "subtotal": 250
+      },
+      {
+        "product": "6a929c4e6e128560833b436e",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 130,
+        "subtotal": 130
+      }
+    ],
+    "totalAmount": 380,
+    "deliveryCharge": 0,
+    "gst": 19,
+    "totalDiscount": 0,
+    "payableAmount": 399,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "8989944488"
+    },
+    "status": "cancelled",
+    "deliveryStatus": "self_pickup",
+    "rejectedDrivers": [],
+    "driverEarnings": 0,
+    "restaurantEarnings": 190,
+    "riderAdminCommission": 0,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6a7b0d12fa89714286ff2662",
+        "reason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+        "cancelledAt": "2026-08-29T13:49:00.007Z"
+      }
+    ],
+    "createdAt": "2026-08-29T13:18:36.839Z",
+    "updatedAt": "2026-08-29T13:49:00.010Z",
+    "__v": 1,
+    "paymentTransaction": "6a92dc2c6e128560833b6efc",
+    "deliveryOTP": "2633",
+    "cancellationReason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "cancelledBy": "admin"
+  },
+  {
+    "_id": "6a92e9036e128560833b7167",
+    "orderNumber": "ORD-1788012803794",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a7c9e936e1285608339da7b",
+    "items": [
+      {
+        "product": "6a7c9e956e1285608339da80",
+        "name": "chole bhature ",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 250,
+        "subtotal": 500
+      }
+    ],
+    "totalAmount": 500,
+    "deliveryCharge": 6062,
+    "gst": 25,
+    "totalDiscount": 0,
+    "payableAmount": 6587,
+    "address": {
+      "fullAddress": "HDX-67, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-67",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06102550774813,
+          24.082146990792022
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 5051,
+    "restaurantEarnings": 250,
+    "riderAdminCommission": 1011,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6a7b0d12fa89714286ff2662",
+        "reason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+        "cancelledAt": "2026-08-29T14:44:00.008Z"
+      }
+    ],
+    "createdAt": "2026-08-29T14:13:23.796Z",
+    "updatedAt": "2026-08-29T14:44:00.011Z",
+    "__v": 1,
+    "paymentTransaction": "6a92e9036e128560833b7169",
+    "deliveryOTP": "1350",
+    "cancellationReason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "cancelledBy": "admin"
+  },
+  {
+    "_id": "6a92ebff6e128560833b727b",
+    "orderNumber": "ORD-1788013567048",
+    "orderType": "delivery",
+    "customer": "6a92eb3c6e128560833b71d7",
+    "store": "6a7c9dc86e1285608339da1f",
+    "items": [
+      {
+        "product": "6a7ca2516e1285608339db62",
+        "name": "burger",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 70,
+        "subtotal": 140
+      }
+    ],
+    "totalAmount": 140,
+    "deliveryCharge": 16,
+    "gst": 7,
+    "totalDiscount": 0,
+    "payableAmount": 163,
+    "address": {
+      "fullAddress": "57A, Baluda, Sohna, Haryana 122103, India",
+      "landmark": "427P+CJ2",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.06865090876818,
+          28.24770134809786
+        ]
+      }
+    },
+    "status": "failed",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "driverEarnings": 15,
+    "restaurantEarnings": 70,
+    "riderAdminCommission": 1,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a92eb3c6e128560833b71d7",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-08-29T14:26:13.771Z"
+      }
+    ],
+    "createdAt": "2026-08-29T14:26:07.052Z",
+    "updatedAt": "2026-08-29T14:26:13.772Z",
+    "__v": 1,
+    "paymentTransaction": "6a92ebff6e128560833b727d",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6a92ec0e6e128560833b729c",
+    "orderNumber": "ORD-1788013582589",
+    "orderType": "delivery",
+    "customer": "6a92eb3c6e128560833b71d7",
+    "store": "6a7c9dc86e1285608339da1f",
+    "items": [
+      {
+        "product": "6a7ca2516e1285608339db62",
+        "name": "burger",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 70,
+        "subtotal": 140
+      }
+    ],
+    "totalAmount": 140,
+    "deliveryCharge": 16,
+    "gst": 7,
+    "totalDiscount": 0,
+    "payableAmount": 163,
+    "address": {
+      "fullAddress": "57A, Baluda, Sohna, Haryana 122103, India",
+      "landmark": "427P+CJ2",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.06865090876818,
+          28.24770134809786
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "driverEarnings": 15,
+    "restaurantEarnings": 70,
+    "riderAdminCommission": 1,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6a92eb3c6e128560833b71d7",
+        "reason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+        "cancelledAt": "2026-08-29T14:57:00.008Z"
+      }
+    ],
+    "createdAt": "2026-08-29T14:26:22.591Z",
+    "updatedAt": "2026-08-29T14:57:00.010Z",
+    "__v": 1,
+    "paymentTransaction": "6a92ec0e6e128560833b729e",
+    "deliveryOTP": "7441",
+    "cancellationReason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "cancelledBy": "admin"
+  },
+  {
+    "_id": "6a97be806e128560833bb8ee",
+    "orderNumber": "ORD-1788329600554",
+    "orderType": "delivery",
+    "customer": "6a96ec046e128560833badce",
+    "store": "6a7c9dc86e1285608339da1f",
+    "items": [
+      {
+        "product": "6a7c9dc96e1285608339da24",
+        "name": "pizza ",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 190,
+        "subtotal": 380
+      },
+      {
+        "product": "6a7ca2516e1285608339db62",
+        "name": "burger",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 70,
+        "subtotal": 70
+      }
+    ],
+    "totalAmount": 450,
+    "deliveryCharge": 104925,
+    "gst": 23,
+    "totalDiscount": 0,
+    "payableAmount": 105398,
+    "address": {
+      "fullAddress": "Vill sangel dist nuh mewat haryana 122107",
+      "apartment": "152",
+      "landmark": "near mahesh dukan mewadi",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "driverEarnings": 87437,
+    "restaurantEarnings": 225,
+    "riderAdminCommission": 17488,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a96ec046e128560833badce",
+        "reason": "Ordered by mistake",
+        "cancelledAt": "2026-09-02T06:13:33.383Z"
+      }
+    ],
+    "createdAt": "2026-09-02T06:13:20.563Z",
+    "updatedAt": "2026-09-02T06:13:33.386Z",
+    "__v": 1,
+    "paymentTransaction": "6a97be806e128560833bb8f0",
+    "deliveryOTP": "9745",
+    "cancellationReason": "Ordered by mistake",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6a9bc56c6e128560833bf537",
+    "orderNumber": "ORD-1788593516170",
+    "orderType": "delivery",
+    "customer": "6a9bc5216e128560833bf4ed",
+    "store": "6a7c9dc86e1285608339da1f",
+    "items": [
+      {
+        "product": "6a7c9dc96e1285608339da24",
+        "name": "pizza ",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 190,
+        "subtotal": 380
+      }
+    ],
+    "totalAmount": 380,
+    "deliveryCharge": 210,
+    "gst": 19,
+    "totalDiscount": 0,
+    "payableAmount": 609,
+    "address": {
+      "fullAddress": "290, Hamid Colony, Nuh, Nuh Rural, Haryana 122107, India",
+      "landmark": "290",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.00192157179117,
+          28.1038326789672
+        ]
+      }
+    },
+    "status": "failed",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "driverEarnings": 175,
+    "restaurantEarnings": 190,
+    "riderAdminCommission": 35,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a9bc5216e128560833bf4ed",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-09-05T07:32:22.375Z"
+      }
+    ],
+    "createdAt": "2026-09-05T07:31:56.174Z",
+    "updatedAt": "2026-09-05T07:32:22.377Z",
+    "__v": 1,
+    "paymentTransaction": "6a9bc56c6e128560833bf539",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6a9e234adae4f7fc97db5045",
+    "orderNumber": "ORD-1788748618915",
+    "orderType": "delivery",
+    "customer": "6a9189c96e128560833b2e5a",
+    "store": "6a9e22b9dae4f7fc97db4f8b",
+    "items": [
+      {
+        "product": "6a7c9dc96e1285608339da24",
+        "name": "pizza ",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 190,
+        "subtotal": 190
+      },
+      {
+        "product": "6a9e22b9dae4f7fc97db4f8f",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 120,
+        "subtotal": 120
+      }
+    ],
+    "totalAmount": 310,
+    "deliveryCharge": 18,
+    "gst": 16,
+    "totalDiscount": 0,
+    "payableAmount": 344,
+    "address": {
+      "fullAddress": "VPO, Mahendwara, Block - B, Thakur Wara, Sohna, Gurugram, Haryana 122103, India",
+      "landmark": "Sohna",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.06351179629564,
+          28.248699324324463
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "failed",
+    "rejectedDrivers": [],
+    "driverEarnings": 15,
+    "restaurantEarnings": 155,
+    "riderAdminCommission": 3,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6a9189c96e128560833b2e5a",
+        "reason": "Auto-cancelled: No riders available to deliver the order.",
+        "cancelledAt": "2026-09-07T02:46:00.014Z"
+      }
+    ],
+    "createdAt": "2026-09-07T02:36:58.921Z",
+    "updatedAt": "2026-09-07T02:46:00.018Z",
+    "__v": 1,
+    "paymentTransaction": "6a9e234adae4f7fc97db5047",
+    "deliveryOTP": "5740",
+    "pickupOtp": "7730",
+    "readyAt": "2026-09-07T02:41:36.473Z",
+    "cancellationReason": "Auto-cancelled: No riders available to deliver the order.",
+    "cancelledBy": "admin"
+  },
+  {
+    "_id": "6a9e88cadae4f7fc97db5f5a",
+    "orderNumber": "ORD-1788774602956",
+    "orderType": "delivery",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a9e7d5ddae4f7fc97db5c89",
+    "items": [
+      {
+        "product": "6a9e7d60dae4f7fc97db5c8e",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 245,
+        "subtotal": 245
+      }
+    ],
+    "totalAmount": 245,
+    "deliveryCharge": 17,
+    "gst": 12,
+    "totalDiscount": 0,
+    "payableAmount": 274,
+    "address": {
+      "fullAddress": "P6VV+XWH, Brahmabarada, Odisha 755005, India",
+      "landmark": "P6VV+XWH",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          86.24458786100149,
+          20.744986788414906
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7008452720",
+    "driverEarnings": 15,
+    "restaurantEarnings": 123,
+    "riderAdminCommission": 2,
+    "cancellationLog": [],
+    "createdAt": "2026-09-07T09:50:02.965Z",
+    "updatedAt": "2026-09-07T09:52:54.513Z",
+    "__v": 0,
+    "paymentTransaction": "6a9e88cadae4f7fc97db5f5c",
+    "deliveryOTP": "3844",
+    "pickupOtp": "3989",
+    "readyAt": "2026-09-07T09:50:31.711Z",
+    "assignedDriver": "6a85c2f56e128560833a816d",
+    "assignmentTimeoutAt": "2026-09-07T09:51:31.786Z",
+    "acceptedAt": "2026-09-07T09:51:01.572Z",
+    "deliveredAt": "2026-09-07T09:52:54.513Z"
+  },
+  {
+    "_id": "6a9e89e5dae4f7fc97db6519",
+    "orderNumber": "ORD-1788774885382",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a9e7d5ddae4f7fc97db5c89",
+    "items": [
+      {
+        "product": "6a9e7d60dae4f7fc97db5c8e",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 3,
+        "price": 245,
+        "subtotal": 735
+      }
+    ],
+    "totalAmount": 735,
+    "deliveryCharge": 0,
+    "gst": 37,
+    "totalDiscount": 0,
+    "payableAmount": 772,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7008452720",
+    "driverEarnings": 0,
+    "restaurantEarnings": 368,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-09-07T09:54:45.386Z",
+    "updatedAt": "2026-09-07T09:55:14.423Z",
+    "__v": 0,
+    "paymentTransaction": "6a9e89e5dae4f7fc97db651b",
+    "deliveryOTP": "1059",
+    "pickupOtp": "9394",
+    "readyAt": "2026-09-07T09:55:07.728Z",
+    "deliveredAt": "2026-09-07T09:55:14.423Z"
+  },
+  {
+    "_id": "6a9e8a87dae4f7fc97db6683",
+    "orderNumber": "ORD-1788775047362",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a9e7d5ddae4f7fc97db5c89",
+    "items": [
+      {
+        "product": "6a9e7d60dae4f7fc97db5c8e",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 245,
+        "subtotal": 490
+      }
+    ],
+    "totalAmount": 490,
+    "deliveryCharge": 0,
+    "gst": 25,
+    "totalDiscount": 0,
+    "payableAmount": 515,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "cancelled",
+    "deliveryStatus": "self_pickup",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7008452720",
+    "driverEarnings": 0,
+    "restaurantEarnings": 245,
+    "riderAdminCommission": 0,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a79872ddc7a56775b324c0f",
+        "reason": "Ordered by mistake",
+        "cancelledAt": "2026-09-07T09:57:41.314Z"
+      }
+    ],
+    "createdAt": "2026-09-07T09:57:27.365Z",
+    "updatedAt": "2026-09-07T09:57:41.316Z",
+    "__v": 1,
+    "paymentTransaction": "6a9e8a87dae4f7fc97db6685",
+    "deliveryOTP": "5892",
+    "cancellationReason": "Ordered by mistake",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6a9e8ab4dae4f7fc97db66fd",
+    "orderNumber": "ORD-1788775092842",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a9e7d5ddae4f7fc97db5c89",
+    "items": [
+      {
+        "product": "6a9e7d60dae4f7fc97db5c8e",
+        "name": "pizza",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 245,
+        "subtotal": 245
+      }
+    ],
+    "totalAmount": 245,
+    "deliveryCharge": 0,
+    "gst": 12,
+    "totalDiscount": 0,
+    "payableAmount": 257,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "cancelled",
+    "deliveryStatus": "self_pickup",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7008452720",
+    "driverEarnings": 0,
+    "restaurantEarnings": 123,
+    "riderAdminCommission": 0,
+    "cancellationLog": [
+      {
+        "cancelledBy": "restaurant",
+        "cancelledByUser": "6a9e7d5ddae4f7fc97db5c89",
+        "reason": "We have no ingredients",
+        "cancelledAt": "2026-09-07T09:58:28.909Z"
+      }
+    ],
+    "createdAt": "2026-09-07T09:58:12.843Z",
+    "updatedAt": "2026-09-07T09:58:28.910Z",
+    "__v": 1,
+    "paymentTransaction": "6a9e8ab4dae4f7fc97db66ff",
+    "deliveryOTP": "3902",
+    "cancellationReason": "We have no ingredients",
+    "cancelledBy": "restaurant"
+  },
+  {
+    "_id": "6a9f049299866971ef57431f",
+    "orderNumber": "ORD-1788806290799",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9effa399866971ef573db6",
+    "items": [
+      {
+        "product": "6a9effa399866971ef573dba",
+        "name": "ECD SPECIAL RAJMA",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/rajma-recipe-rajma-masala_XHI2992Ip.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 220,
+        "subtotal": 220
+      },
+      {
+        "product": "6a9f025c99866971ef573f7e",
+        "name": "Lemon Rice",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/menu_item_1788805721396_NEVOe6C7r.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 220,
+        "subtotal": 220
+      },
+      {
+        "product": "6a9f02ef99866971ef574073",
+        "name": "Butter Paneer Masala",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/menu_item_1788805868208__rgKhUJYA.jpg",
+        "portion": "Half",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 170,
+        "subtotal": 170
+      }
+    ],
+    "totalAmount": 610,
+    "deliveryCharge": 18,
+    "gst": 31,
+    "totalDiscount": 0,
+    "payableAmount": 659,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "picked_up",
+    "deliveryStatus": "reached_store",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 15,
+    "restaurantEarnings": 305,
+    "riderAdminCommission": 3,
+    "cancellationLog": [],
+    "createdAt": "2026-09-07T18:38:10.802Z",
+    "updatedAt": "2026-09-07T18:40:30.501Z",
+    "__v": 0,
+    "paymentTransaction": "6a9f049299866971ef574321",
+    "deliveryOTP": "3813",
+    "pickupOtp": "4485",
+    "readyAt": "2026-09-07T18:38:57.062Z",
+    "assignedDriver": "6a9ef97099866971ef573ad7",
+    "assignmentTimeoutAt": "2026-09-07T18:39:57.110Z",
+    "acceptedAt": "2026-09-07T18:39:12.693Z"
+  },
+  {
+    "_id": "6a9fa19199866971ef5772ed",
+    "orderNumber": "ORD-1788846481562",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a9fa10799866971ef577206",
+    "items": [
+      {
+        "product": "6a9fa10b99866971ef57720b",
+        "name": "new ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_-_Copy_nzZZQKKVri.jpg",
+        "portion": "Half",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 130,
+        "subtotal": 130
+      }
+    ],
+    "totalAmount": 130,
+    "deliveryCharge": 0,
+    "gst": 7,
+    "totalDiscount": 0,
+    "payableAmount": 137,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7008452720",
+    "driverEarnings": 0,
+    "restaurantEarnings": 65,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-09-08T05:48:01.565Z",
+    "updatedAt": "2026-09-08T05:48:30.524Z",
+    "__v": 0,
+    "paymentTransaction": "6a9fa19199866971ef5772ef",
+    "deliveryOTP": "2982",
+    "pickupOtp": "2476",
+    "readyAt": "2026-09-08T05:48:23.387Z",
+    "deliveredAt": "2026-09-08T05:48:30.524Z"
+  },
+  {
+    "_id": "6a9fa2bd99866971ef5775aa",
+    "orderNumber": "ORD-1788846781678",
+    "orderType": "delivery",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a9fa10799866971ef577206",
+    "items": [
+      {
+        "product": "6a9fa10b99866971ef57720b",
+        "name": "new ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_-_Copy_nzZZQKKVri.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 200,
+        "subtotal": 200
+      }
+    ],
+    "totalAmount": 200,
+    "deliveryCharge": 17,
+    "gst": 10,
+    "totalDiscount": 0,
+    "payableAmount": 227,
+    "address": {
+      "fullAddress": "P6VV+XWH, Brahmabarada, Odisha 755005, India",
+      "landmark": "P6VV+XWH",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          86.24458786100149,
+          20.744986788414906
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7008452720",
+    "driverEarnings": 15,
+    "restaurantEarnings": 100,
+    "riderAdminCommission": 2,
+    "cancellationLog": [],
+    "createdAt": "2026-09-08T05:53:01.682Z",
+    "updatedAt": "2026-09-08T05:55:12.874Z",
+    "__v": 0,
+    "paymentTransaction": "6a9fa2bd99866971ef5775ac",
+    "deliveryOTP": "9441",
+    "pickupOtp": "3876",
+    "readyAt": "2026-09-08T05:53:54.352Z",
+    "assignedDriver": "6a9fa28c99866971ef57750e",
+    "assignmentTimeoutAt": "2026-09-08T05:54:54.420Z",
+    "acceptedAt": "2026-09-08T05:54:04.492Z",
+    "deliveredAt": "2026-09-08T05:55:12.873Z"
+  },
+  {
+    "_id": "6a9fa38099866971ef577a98",
+    "orderNumber": "ORD-1788846976264",
+    "orderType": "delivery",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6a9fa10799866971ef577206",
+    "items": [
+      {
+        "product": "6a9fa10b99866971ef57720b",
+        "name": "new ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_-_Copy_nzZZQKKVri.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 200,
+        "subtotal": 200
+      }
+    ],
+    "totalAmount": 200,
+    "deliveryCharge": 17,
+    "gst": 10,
+    "totalDiscount": 0,
+    "payableAmount": 227,
+    "address": {
+      "fullAddress": "P6VV+XWH, Brahmabarada, Odisha 755005, India",
+      "landmark": "P6VV+XWH",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          86.24458786100149,
+          20.744986788414906
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7008452720",
+    "driverEarnings": 15,
+    "restaurantEarnings": 100,
+    "riderAdminCommission": 2,
+    "cancellationLog": [],
+    "createdAt": "2026-09-08T05:56:16.267Z",
+    "updatedAt": "2026-09-08T05:58:24.223Z",
+    "__v": 0,
+    "paymentTransaction": "6a9fa38099866971ef577a9a",
+    "deliveryOTP": "4111",
+    "pickupOtp": "9412",
+    "readyAt": "2026-09-08T05:56:47.842Z",
+    "assignedDriver": "6a9fa28c99866971ef57750e",
+    "assignmentTimeoutAt": "2026-09-08T05:57:47.911Z",
+    "acceptedAt": "2026-09-08T05:57:02.619Z",
+    "deliveredAt": "2026-09-08T05:58:24.222Z"
+  },
+  {
+    "_id": "6a9fa5f999866971ef578595",
+    "orderNumber": "ORD-1788847609785",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9fa10799866971ef577206",
+    "items": [
+      {
+        "product": "6a9f8bd499866971ef576eee",
+        "name": "Veg Chowmein",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/images_ICawRWoKmA.webp",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 240,
+        "subtotal": 240
+      },
+      {
+        "product": "6a9f8ca899866971ef576f8e",
+        "name": "Butter Paneer Masala",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/menu_item_1788841124993_rNbbo5u6H.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 320,
+        "subtotal": 320
+      },
+      {
+        "product": "6a9fa10b99866971ef57720b",
+        "name": "new ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_-_Copy_nzZZQKKVri.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 200,
+        "subtotal": 200
+      }
+    ],
+    "totalAmount": 760,
+    "deliveryCharge": 16908,
+    "gst": 38,
+    "totalDiscount": 0,
+    "payableAmount": 17706,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 14492,
+    "restaurantEarnings": 380,
+    "riderAdminCommission": 2416,
+    "cancellationLog": [],
+    "createdAt": "2026-09-08T06:06:49.789Z",
+    "updatedAt": "2026-09-08T06:10:11.873Z",
+    "__v": 0,
+    "paymentTransaction": "6a9fa5f999866971ef578597",
+    "deliveryOTP": "1450",
+    "pickupOtp": "1607",
+    "readyAt": "2026-09-08T06:08:17.990Z",
+    "assignedDriver": "6a9fa28c99866971ef57750e",
+    "assignmentTimeoutAt": "2026-09-08T06:09:18.076Z",
+    "acceptedAt": "2026-09-08T06:08:28.039Z",
+    "deliveredAt": "2026-09-08T06:10:11.871Z"
+  },
+  {
+    "_id": "6a9fa80899866971ef579101",
+    "orderNumber": "ORD-1788848136503",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9fa10799866971ef577206",
+    "items": [
+      {
+        "product": "6a9fa10b99866971ef57720b",
+        "name": "new ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_-_Copy_nzZZQKKVri.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 200,
+        "subtotal": 200
+      }
+    ],
+    "totalAmount": 200,
+    "deliveryCharge": 16908,
+    "gst": 10,
+    "totalDiscount": 0,
+    "payableAmount": 17118,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 14492,
+    "restaurantEarnings": 100,
+    "riderAdminCommission": 2416,
+    "cancellationLog": [
+      {
+        "cancelledBy": "restaurant",
+        "cancelledByUser": "6a9fa10799866971ef577206",
+        "reason": "We have no ingredients",
+        "cancelledAt": "2026-09-08T06:17:50.828Z"
+      }
+    ],
+    "createdAt": "2026-09-08T06:15:36.506Z",
+    "updatedAt": "2026-09-08T06:17:50.831Z",
+    "__v": 1,
+    "paymentTransaction": "6a9fa80899866971ef579103",
+    "deliveryOTP": "1361",
+    "cancellationReason": "We have no ingredients",
+    "cancelledBy": "restaurant"
+  },
+  {
+    "_id": "6a9fa99599866971ef579583",
+    "orderNumber": "ORD-1788848533472",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9fa10799866971ef577206",
+    "items": [
+      {
+        "product": "6a9fa10b99866971ef57720b",
+        "name": "new ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_-_Copy_nzZZQKKVri.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 200,
+        "subtotal": 200
+      }
+    ],
+    "totalAmount": 200,
+    "deliveryCharge": 16908,
+    "gst": 10,
+    "totalDiscount": 0,
+    "payableAmount": 17118,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "picked_up",
+    "deliveryStatus": "reached_store",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 14492,
+    "restaurantEarnings": 100,
+    "riderAdminCommission": 2416,
+    "cancellationLog": [],
+    "createdAt": "2026-09-08T06:22:13.477Z",
+    "updatedAt": "2026-09-08T06:23:58.883Z",
+    "__v": 0,
+    "paymentTransaction": "6a9fa99599866971ef579585",
+    "deliveryOTP": "9924",
+    "pickupOtp": "9177",
+    "readyAt": "2026-09-08T06:22:39.465Z",
+    "assignedDriver": "6a9fa94899866971ef5794a2",
+    "assignmentTimeoutAt": "2026-09-08T06:23:39.531Z",
+    "acceptedAt": "2026-09-08T06:22:49.141Z"
+  },
+  {
+    "_id": "6a9fab2a99866971ef579cd1",
+    "orderNumber": "ORD-1788848938736",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9fa10799866971ef577206",
+    "items": [
+      {
+        "product": "6a9fa10b99866971ef57720b",
+        "name": "new ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_-_Copy_nzZZQKKVri.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 200,
+        "subtotal": 400
+      }
+    ],
+    "totalAmount": 400,
+    "deliveryCharge": 16908,
+    "gst": 20,
+    "totalDiscount": 0,
+    "payableAmount": 17328,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 14492,
+    "restaurantEarnings": 200,
+    "riderAdminCommission": 2416,
+    "cancellationLog": [],
+    "createdAt": "2026-09-08T06:28:58.739Z",
+    "updatedAt": "2026-09-08T06:30:49.255Z",
+    "__v": 0,
+    "paymentTransaction": "6a9fab2a99866971ef579cd3",
+    "deliveryOTP": "7046",
+    "pickupOtp": "8916",
+    "readyAt": "2026-09-08T06:29:20.036Z",
+    "assignedDriver": "6a9faaf999866971ef579c0b",
+    "assignmentTimeoutAt": "2026-09-08T06:30:20.102Z",
+    "acceptedAt": "2026-09-08T06:29:28.571Z",
+    "deliveredAt": "2026-09-08T06:30:49.254Z"
+  },
+  {
+    "_id": "6a9fac0299866971ef57a2ea",
+    "orderNumber": "ORD-1788849154184",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9fa10799866971ef577206",
+    "items": [
+      {
+        "product": "6a9fa10b99866971ef57720b",
+        "name": "new ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_-_Copy_nzZZQKKVri.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 200,
+        "subtotal": 200
+      }
+    ],
+    "totalAmount": 200,
+    "deliveryCharge": 16908,
+    "gst": 10,
+    "totalDiscount": 0,
+    "payableAmount": 17118,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 14492,
+    "restaurantEarnings": 100,
+    "riderAdminCommission": 2416,
+    "cancellationLog": [],
+    "createdAt": "2026-09-08T06:32:34.186Z",
+    "updatedAt": "2026-09-08T06:34:08.198Z",
+    "__v": 0,
+    "paymentTransaction": "6a9fac0299866971ef57a2ec",
+    "deliveryOTP": "1397",
+    "pickupOtp": "9280",
+    "readyAt": "2026-09-08T06:32:56.603Z",
+    "assignedDriver": "6a7c8d806e1285608339d559",
+    "assignmentTimeoutAt": "2026-09-08T06:33:56.653Z",
+    "acceptedAt": "2026-09-08T06:33:02.212Z",
+    "deliveredAt": "2026-09-08T06:34:08.197Z"
+  },
+  {
+    "_id": "6a9fac9e99866971ef57a736",
+    "orderNumber": "ORD-1788849310482",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9fa10799866971ef577206",
+    "items": [
+      {
+        "product": "6a9fa10b99866971ef57720b",
+        "name": "new ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_-_Copy_nzZZQKKVri.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 200,
+        "subtotal": 200
+      }
+    ],
+    "totalAmount": 200,
+    "deliveryCharge": 16908,
+    "gst": 10,
+    "totalDiscount": 0,
+    "payableAmount": 17118,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 14492,
+    "restaurantEarnings": 100,
+    "riderAdminCommission": 2416,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a7b0d12fa89714286ff2662",
+        "reason": "Forgot to apply coupon",
+        "cancelledAt": "2026-09-08T06:35:20.060Z"
+      }
+    ],
+    "createdAt": "2026-09-08T06:35:10.484Z",
+    "updatedAt": "2026-09-08T06:35:20.061Z",
+    "__v": 1,
+    "paymentTransaction": "6a9fac9e99866971ef57a738",
+    "deliveryOTP": "6187",
+    "cancellationReason": "Forgot to apply coupon",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6a9fad9e99866971ef57a906",
+    "orderNumber": "ORD-1788849566291",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9fa10799866971ef577206",
+    "items": [
+      {
+        "product": "6a9fa10b99866971ef57720b",
+        "name": "new ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_-_Copy_nzZZQKKVri.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 3,
+        "price": 200,
+        "subtotal": 600
+      }
+    ],
+    "totalAmount": 600,
+    "deliveryCharge": 16908,
+    "gst": 30,
+    "totalDiscount": 0,
+    "payableAmount": 17538,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 14492,
+    "restaurantEarnings": 300,
+    "riderAdminCommission": 2416,
+    "cancellationLog": [],
+    "createdAt": "2026-09-08T06:39:26.295Z",
+    "updatedAt": "2026-09-08T06:43:02.110Z",
+    "__v": 0,
+    "paymentTransaction": "6a9fad9e99866971ef57a908",
+    "deliveryOTP": "9551",
+    "pickupOtp": "3807",
+    "readyAt": "2026-09-08T06:41:49.127Z",
+    "assignedDriver": "6a9faaf999866971ef579c0b",
+    "assignmentTimeoutAt": "2026-09-08T06:42:49.181Z",
+    "acceptedAt": "2026-09-08T06:41:57.237Z",
+    "deliveredAt": "2026-09-08T06:43:02.110Z"
+  },
+  {
+    "_id": "6a9fadcd99866971ef57aa2e",
+    "orderNumber": "ORD-1788849613829",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9f8bd299866971ef576ee9",
+    "items": [
+      {
+        "product": "6a9f8bd499866971ef576eee",
+        "name": "Veg Chowmein",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/images_ICawRWoKmA.webp",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 240,
+        "subtotal": 240
+      },
+      {
+        "product": "6a9f8ca899866971ef576f8e",
+        "name": "Butter Paneer Masala",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/menu_item_1788841124993_rNbbo5u6H.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 320,
+        "subtotal": 320
+      }
+    ],
+    "totalAmount": 560,
+    "deliveryCharge": 7622,
+    "gst": 28,
+    "totalDiscount": 0,
+    "payableAmount": 8210,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "failed",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 6533,
+    "restaurantEarnings": 280,
+    "riderAdminCommission": 1089,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a7b0d12fa89714286ff2662",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-09-08T06:40:17.955Z"
+      }
+    ],
+    "createdAt": "2026-09-08T06:40:13.834Z",
+    "updatedAt": "2026-09-08T06:40:17.956Z",
+    "__v": 1,
+    "paymentTransaction": "6a9fadcd99866971ef57aa30",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6a9fadd399866971ef57aa4a",
+    "orderNumber": "ORD-1788849619432",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9f8bd299866971ef576ee9",
+    "items": [
+      {
+        "product": "6a9f8bd499866971ef576eee",
+        "name": "Veg Chowmein",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/images_ICawRWoKmA.webp",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 240,
+        "subtotal": 240
+      },
+      {
+        "product": "6a9f8ca899866971ef576f8e",
+        "name": "Butter Paneer Masala",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/menu_item_1788841124993_rNbbo5u6H.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 320,
+        "subtotal": 320
+      }
+    ],
+    "totalAmount": 560,
+    "deliveryCharge": 7622,
+    "gst": 28,
+    "totalDiscount": 0,
+    "payableAmount": 8210,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 6533,
+    "restaurantEarnings": 280,
+    "riderAdminCommission": 1089,
+    "cancellationLog": [
+      {
+        "cancelledBy": "restaurant",
+        "cancelledByUser": "6a9f8bd299866971ef576ee9",
+        "reason": "Supplier issue / Not able to service this order",
+        "cancelledAt": "2026-09-08T06:50:33.749Z"
+      }
+    ],
+    "createdAt": "2026-09-08T06:40:19.433Z",
+    "updatedAt": "2026-09-08T06:50:33.750Z",
+    "__v": 1,
+    "paymentTransaction": "6a9fadd399866971ef57aa4c",
+    "deliveryOTP": "6663",
+    "cancellationReason": "Supplier issue / Not able to service this order",
+    "cancelledBy": "restaurant"
+  },
+  {
+    "_id": "6a9fb07299866971ef57b412",
+    "orderNumber": "ORD-1788850290208",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9f8bd299866971ef576ee9",
+    "items": [
+      {
+        "product": "6a9f8bd499866971ef576eee",
+        "name": "Veg Chowmein",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/images_ICawRWoKmA.webp",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 240,
+        "subtotal": 240
+      }
+    ],
+    "totalAmount": 240,
+    "deliveryCharge": 7622,
+    "gst": 12,
+    "totalDiscount": 0,
+    "payableAmount": 7874,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 6533,
+    "restaurantEarnings": 120,
+    "riderAdminCommission": 1089,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a7b0d12fa89714286ff2662",
+        "reason": "cancel my order please",
+        "cancelledAt": "2026-09-08T06:52:28.121Z"
+      }
+    ],
+    "createdAt": "2026-09-08T06:51:30.210Z",
+    "updatedAt": "2026-09-08T06:52:28.123Z",
+    "__v": 1,
+    "paymentTransaction": "6a9fb07299866971ef57b414",
+    "deliveryOTP": "6388",
+    "cancellationReason": "cancel my order please",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6a9fb0de99866971ef57b4d2",
+    "orderNumber": "ORD-1788850398156",
+    "orderType": "pickup",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9f8bd299866971ef576ee9",
+    "items": [
+      {
+        "product": "6a9f8bd499866971ef576eee",
+        "name": "Veg Chowmein",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/images_ICawRWoKmA.webp",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 240,
+        "subtotal": 240
+      },
+      {
+        "product": "6a9f8ca899866971ef576f8e",
+        "name": "Butter Paneer Masala",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/menu_item_1788841124993_rNbbo5u6H.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 320,
+        "subtotal": 320
+      }
+    ],
+    "totalAmount": 560,
+    "deliveryCharge": 0,
+    "gst": 28,
+    "totalDiscount": 0,
+    "payableAmount": 588,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "8989944488"
+    },
+    "status": "failed",
+    "deliveryStatus": "self_pickup",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 0,
+    "restaurantEarnings": 280,
+    "riderAdminCommission": 0,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a7b0d12fa89714286ff2662",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-09-08T06:53:26.177Z"
+      }
+    ],
+    "createdAt": "2026-09-08T06:53:18.158Z",
+    "updatedAt": "2026-09-08T06:53:26.178Z",
+    "__v": 1,
+    "paymentTransaction": "6a9fb0de99866971ef57b4d4",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6a9fb0e899866971ef57b4ee",
+    "orderNumber": "ORD-1788850408718",
+    "orderType": "pickup",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9f8bd299866971ef576ee9",
+    "items": [
+      {
+        "product": "6a9f8bd499866971ef576eee",
+        "name": "Veg Chowmein",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/images_ICawRWoKmA.webp",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 240,
+        "subtotal": 240
+      },
+      {
+        "product": "6a9f8ca899866971ef576f8e",
+        "name": "Butter Paneer Masala",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/menu_item_1788841124993_rNbbo5u6H.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 320,
+        "subtotal": 320
+      }
+    ],
+    "totalAmount": 560,
+    "deliveryCharge": 0,
+    "gst": 28,
+    "totalDiscount": 0,
+    "payableAmount": 588,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "8989944488"
+    },
+    "status": "cancelled",
+    "deliveryStatus": "self_pickup",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 0,
+    "restaurantEarnings": 280,
+    "riderAdminCommission": 0,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a7b0d12fa89714286ff2662",
+        "reason": "call me",
+        "cancelledAt": "2026-09-08T06:55:23.203Z"
+      }
+    ],
+    "createdAt": "2026-09-08T06:53:28.720Z",
+    "updatedAt": "2026-09-08T06:55:23.204Z",
+    "__v": 1,
+    "paymentTransaction": "6a9fb0e899866971ef57b4f0",
+    "deliveryOTP": "4696",
+    "cancellationReason": "call me",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6a9fb18599866971ef57b5ae",
+    "orderNumber": "ORD-1788850565500",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9f8bd299866971ef576ee9",
+    "items": [
+      {
+        "product": "6a9f8ca899866971ef576f8e",
+        "name": "Butter Paneer Masala",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/menu_item_1788841124993_rNbbo5u6H.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 320,
+        "subtotal": 320
+      },
+      {
+        "product": "6a9f8bd499866971ef576eee",
+        "name": "Veg Chowmein",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/images_ICawRWoKmA.webp",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 240,
+        "subtotal": 240
+      }
+    ],
+    "totalAmount": 560,
+    "deliveryCharge": 7622,
+    "gst": 28,
+    "totalDiscount": 0,
+    "payableAmount": 8210,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "failed",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 6533,
+    "restaurantEarnings": 280,
+    "riderAdminCommission": 1089,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6a7b0d12fa89714286ff2662",
+        "reason": "Auto-cancelled: No riders available to deliver the order.",
+        "cancelledAt": "2026-09-08T09:56:00.019Z"
+      }
+    ],
+    "createdAt": "2026-09-08T06:56:05.502Z",
+    "updatedAt": "2026-09-08T09:56:00.021Z",
+    "__v": 1,
+    "paymentTransaction": "6a9fb18599866971ef57b5b0",
+    "deliveryOTP": "1196",
+    "pickupOtp": "5585",
+    "readyAt": "2026-09-08T09:51:39.930Z",
+    "cancellationReason": "Auto-cancelled: No riders available to deliver the order.",
+    "cancelledBy": "admin"
+  },
+  {
+    "_id": "6a9fda27092ddcee4da11dd5",
+    "orderNumber": "ORD-1788860967233",
+    "orderType": "delivery",
+    "customer": "6a7b0d12fa89714286ff2662",
+    "store": "6a9f8bd299866971ef576ee9",
+    "items": [
+      {
+        "product": "6a9f8bd499866971ef576eee",
+        "name": "Veg Chowmein",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/images_ICawRWoKmA.webp",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 240,
+        "subtotal": 240
+      },
+      {
+        "product": "6a9f8ca899866971ef576f8e",
+        "name": "Butter Paneer Masala",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/menu_item_1788841124993_rNbbo5u6H.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 320,
+        "subtotal": 320
+      }
+    ],
+    "totalAmount": 560,
+    "deliveryCharge": 7622,
+    "gst": 28,
+    "totalDiscount": 0,
+    "payableAmount": 8210,
+    "address": {
+      "fullAddress": "HDX-66, Kailash Colony, Janta Colony, Mandsaur, Madhya Pradesh 458002, India",
+      "landmark": "HDX-66",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          75.06104126572609,
+          24.082101382755432
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "accepted",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8989944488",
+    "driverEarnings": 6533,
+    "restaurantEarnings": 280,
+    "riderAdminCommission": 1089,
+    "cancellationLog": [],
+    "createdAt": "2026-09-08T09:49:27.240Z",
+    "updatedAt": "2026-09-21T11:30:49.733Z",
+    "__v": 0,
+    "paymentTransaction": "6a9fda27092ddcee4da11dd7",
+    "deliveryOTP": "6101",
+    "pickupOtp": "5956",
+    "readyAt": "2026-09-08T09:50:28.532Z",
+    "assignedDriver": "6a7c8d806e1285608339d559",
+    "assignmentTimeoutAt": "2026-09-08T09:51:28.621Z",
+    "acceptedAt": "2026-09-08T09:50:40.235Z",
+    "cancellationInitiatedBy": "system",
+    "cancellationReason": "System Auto-Cancel: No rider assigned after 6 hours",
+    "cancelledAt": "2026-09-21T11:30:49.730Z",
+    "timeline": [
+      {
+        "status": "cancelled",
+        "timestamp": "2026-09-21T11:30:49.731Z",
+        "label": "Order Cancelled",
+        "by": "system",
+        "description": "No rider assigned after 6 hours.",
+        "_id": "6ab11569c851f196a2cecb03"
+      }
+    ]
+  },
+  {
+    "_id": "6aa00fac092ddcee4da12575",
+    "orderNumber": "ORD-1788874668948",
+    "orderType": "delivery",
+    "customer": "6aa00f2a092ddcee4da124f9",
+    "store": "6a9f8bd299866971ef576ee9",
+    "items": [
+      {
+        "product": "6a9f8bd499866971ef576eee",
+        "name": "Veg Chowmein",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/images_ICawRWoKmA.webp",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 240,
+        "subtotal": 240
+      },
+      {
+        "product": "6a9f8ca899866971ef576f8e",
+        "name": "Butter Paneer Masala",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/menu_item_1788841124993_rNbbo5u6H.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 320,
+        "subtotal": 320
+      }
+    ],
+    "totalAmount": 560,
+    "deliveryCharge": 821,
+    "gst": 28,
+    "totalDiscount": 0,
+    "payableAmount": 1409,
+    "address": {
+      "fullAddress": "376, Hamid Colony, Nuh, Nuh Rural, Haryana 122107, India",
+      "landmark": "376",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.00480595231056,
+          28.103691312518016
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "driverEarnings": 703,
+    "restaurantEarnings": 280,
+    "riderAdminCommission": 118,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6aa00f2a092ddcee4da124f9",
+        "reason": "Ordered by mistake",
+        "cancelledAt": "2026-09-08T13:40:12.273Z"
+      }
+    ],
+    "createdAt": "2026-09-08T13:37:48.951Z",
+    "updatedAt": "2026-09-08T13:40:12.277Z",
+    "__v": 1,
+    "paymentTransaction": "6aa00fac092ddcee4da12577",
+    "deliveryOTP": "8646",
+    "cancellationReason": "Ordered by mistake",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6aa55535092ddcee4da87b06",
+    "orderNumber": "ORD-1789220149295",
+    "orderType": "delivery",
+    "customer": "6aa5550e092ddcee4da87886",
+    "store": "6aa5530e092ddcee4da8368c",
+    "items": [
+      {
+        "product": "6aa5530f092ddcee4da83690",
+        "name": "xyz",
+        "image": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 150,
+        "subtotal": 150
+      }
+    ],
+    "totalAmount": 150,
+    "deliveryCharge": 27,
+    "gst": 8,
+    "totalDiscount": 0,
+    "payableAmount": 185,
+    "address": {
+      "fullAddress": "GD Goenka University, Sohna - Gurgaon Road, Sohna, Haryana, India",
+      "landmark": "GD Goenka University",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.06677034497261,
+          28.265436997069585
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "reached_store",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8810684593",
+    "driverEarnings": 23,
+    "restaurantEarnings": 75,
+    "riderAdminCommission": 4,
+    "cancellationLog": [],
+    "createdAt": "2026-09-12T13:35:49.298Z",
+    "updatedAt": "2026-09-21T11:30:49.821Z",
+    "__v": 0,
+    "paymentTransaction": "6aa55535092ddcee4da87b08",
+    "deliveryOTP": "4812",
+    "pickupOtp": "2340",
+    "readyAt": "2026-09-12T13:36:52.715Z",
+    "assignedDriver": "6aa55434092ddcee4da87323",
+    "assignmentTimeoutAt": "2026-09-12T13:37:52.772Z",
+    "acceptedAt": "2026-09-12T13:36:59.883Z",
+    "cancellationInitiatedBy": "system",
+    "cancellationReason": "System Auto-Cancel: No rider assigned after 6 hours",
+    "cancelledAt": "2026-09-21T11:30:49.821Z",
+    "timeline": [
+      {
+        "status": "cancelled",
+        "timestamp": "2026-09-21T11:30:49.821Z",
+        "label": "Order Cancelled",
+        "by": "system",
+        "description": "No rider assigned after 6 hours.",
+        "_id": "6ab11569c851f196a2cecb07"
+      }
+    ]
+  },
+  {
+    "_id": "6aa55693092ddcee4da87f1c",
+    "orderNumber": "ORD-1789220499668",
+    "orderType": "delivery",
+    "customer": "6aa5550e092ddcee4da87886",
+    "store": "6aa5530e092ddcee4da8368c",
+    "items": [
+      {
+        "product": "6aa5530f092ddcee4da83690",
+        "name": "xyz",
+        "image": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 150,
+        "subtotal": 150
+      }
+    ],
+    "totalAmount": 150,
+    "deliveryCharge": 27,
+    "gst": 8,
+    "totalDiscount": 0,
+    "payableAmount": 185,
+    "address": {
+      "fullAddress": "GD Goenka University, Sohna - Gurgaon Road, Sohna, Haryana, India",
+      "landmark": "GD Goenka University",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.06677034497261,
+          28.265436997069585
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8810684593",
+    "driverEarnings": 23,
+    "restaurantEarnings": 75,
+    "riderAdminCommission": 4,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6aa5550e092ddcee4da87886",
+        "reason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+        "cancelledAt": "2026-09-12T14:12:00.012Z"
+      }
+    ],
+    "createdAt": "2026-09-12T13:41:39.671Z",
+    "updatedAt": "2026-09-12T14:12:00.016Z",
+    "__v": 1,
+    "paymentTransaction": "6aa55693092ddcee4da87f1e",
+    "cancellationReason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "cancelledBy": "admin"
+  },
+  {
+    "_id": "6aa9f977c02785942aa47f43",
+    "orderNumber": "ORD-1789524343571",
+    "orderType": "delivery",
+    "customer": "6a9185bc6e128560833b2da5",
+    "store": "6aa0f26c092ddcee4da13a47",
+    "deliveryCoordinates": {
+      "lat": 28.249409627254543,
+      "lng": 77.06361807882786
+    },
+    "items": [
+      {
+        "product": "6aa12f6e092ddcee4da13fdd",
+        "name": "Veg chowmein ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/IMG_1076_3usl84jIWa.jpeg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 70,
+        "subtotal": 140,
+        "b2bPrice": 50
+      }
+    ],
+    "totalAmount": 140,
+    "deliveryCharge": 393,
+    "gst": 7,
+    "totalDiscount": 0,
+    "payableAmount": 540,
+    "address": {
+      "fullAddress": "Thakur Wara, Sohna",
+      "landmark": "Ujina",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.06361807882786,
+          28.249409627254543
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988161629",
+    "driverEarnings": 346,
+    "restaurantEarnings": 100,
+    "riderAdminCommission": 47,
+    "cancellationLog": [],
+    "createdAt": "2026-09-16T02:05:43.578Z",
+    "updatedAt": "2026-09-16T02:09:22.458Z",
+    "__v": 0,
+    "paymentTransaction": "6aa9f977c02785942aa47f45",
+    "deliveryOTP": "5876",
+    "pickupOtp": "4587",
+    "readyAt": "2026-09-16T02:06:32.224Z",
+    "assignedDriver": "6aa9f92ac02785942aa47674",
+    "assignmentTimeoutAt": "2026-09-16T02:07:32.288Z",
+    "acceptedAt": "2026-09-16T02:06:51.382Z",
+    "deliveredAt": "2026-09-16T02:09:22.458Z"
+  },
+  {
+    "_id": "6aaaa3ddc02785942aa54fb8",
+    "orderNumber": "ORD-1789567965571",
+    "orderType": "pickup",
+    "customer": "6a9185bc6e128560833b2da5",
+    "store": "6aa0f26c092ddcee4da13a47",
+    "items": [
+      {
+        "product": "6aa12ff0092ddcee4da14003",
+        "name": "paneer chowmein",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/IMG_1077_C98EuCTI3.webp",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 70,
+        "subtotal": 70,
+        "b2bPrice": 70
+      },
+      {
+        "product": "6aa12f6e092ddcee4da13fdd",
+        "name": "Veg chowmein",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/IMG_1076_3usl84jIWa.jpeg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 60,
+        "subtotal": 60,
+        "b2bPrice": 50
+      }
+    ],
+    "totalAmount": 130,
+    "deliveryCharge": 0,
+    "gst": 7,
+    "totalDiscount": 0,
+    "payableAmount": 137,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7988161629"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988161629",
+    "driverEarnings": 0,
+    "restaurantEarnings": 120,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-09-16T14:12:45.574Z",
+    "updatedAt": "2026-09-16T14:13:18.185Z",
+    "__v": 0,
+    "paymentTransaction": "6aaaa3ddc02785942aa54fba",
+    "deliveryOTP": "8941",
+    "pickupOtp": "9603",
+    "readyAt": "2026-09-16T14:13:17.222Z",
+    "deliveredAt": "2026-09-16T14:13:18.184Z"
+  },
+  {
+    "_id": "6aab9b69c02785942aa58972",
+    "orderNumber": "ORD-1789631337298",
+    "orderType": "delivery",
+    "customer": "6aab9910c02785942aa58358",
+    "store": "6aa0f26c092ddcee4da13a47",
+    "deliveryCoordinates": {
+      "lat": 28.00998447481384,
+      "lng": 77.07976900041103
+    },
+    "items": [
+      {
+        "product": "6aa13024092ddcee4da14017",
+        "name": "spring roll",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/IMG_1078_Dvt5YiYoj.jpeg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 80,
+        "subtotal": 160,
+        "b2bPrice": 60
+      },
+      {
+        "product": "6aa13196092ddcee4da140d2",
+        "name": "veg burger",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/IMG_1085_kBYz-jIHP.jpeg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 50,
+        "subtotal": 50,
+        "b2bPrice": 20
+      },
+      {
+        "product": "6aa13167092ddcee4da140aa",
+        "name": "aalo tikki burger",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/IMG_1084_tnrcbOp4K.jpeg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 50,
+        "subtotal": 50,
+        "b2bPrice": 30
+      }
+    ],
+    "totalAmount": 260,
+    "deliveryCharge": 52,
+    "gst": 13,
+    "totalDiscount": 0,
+    "payableAmount": 325,
+    "address": {
+      "fullAddress": "235H+WXJ, Sangel-Ujina Rd, Ujina, Sangel, Haryana 122107, India",
+      "landmark": "Ujina",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.07976900041103,
+          28.00998447481384
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "9896144572",
+    "driverEarnings": 44,
+    "restaurantEarnings": 170,
+    "riderAdminCommission": 8,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6aab9910c02785942aa58358",
+        "reason": "Delivery time is too long",
+        "cancelledAt": "2026-09-17T07:49:17.517Z"
+      }
+    ],
+    "createdAt": "2026-09-17T07:48:57.315Z",
+    "updatedAt": "2026-09-17T07:49:17.522Z",
+    "__v": 1,
+    "paymentTransaction": "6aab9b69c02785942aa58974",
+    "deliveryOTP": "4361",
+    "cancellationReason": "Delivery time is too long",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6aab9bb1c02785942aa58c72",
+    "orderNumber": "ORD-1789631409241",
+    "orderType": "delivery",
+    "customer": "6aab9910c02785942aa58358",
+    "store": "6aa0f26c092ddcee4da13a47",
+    "deliveryCoordinates": {
+      "lat": 28.00998447481384,
+      "lng": 77.07976900041103
+    },
+    "items": [
+      {
+        "product": "6aa13024092ddcee4da14017",
+        "name": "spring roll",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/IMG_1078_Dvt5YiYoj.jpeg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 80,
+        "subtotal": 80,
+        "b2bPrice": 60
+      },
+      {
+        "product": "6aa13167092ddcee4da140aa",
+        "name": "aalo tikki burger",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/IMG_1084_tnrcbOp4K.jpeg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 50,
+        "subtotal": 50,
+        "b2bPrice": 30
+      }
+    ],
+    "totalAmount": 130,
+    "deliveryCharge": 52,
+    "gst": 7,
+    "totalDiscount": 0,
+    "payableAmount": 189,
+    "address": {
+      "fullAddress": "235H+WXJ, Sangel-Ujina Rd, Ujina, Sangel, Haryana 122107, India",
+      "landmark": "Ujina",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.07976900041103,
+          28.00998447481384
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "9896144572",
+    "driverEarnings": 44,
+    "restaurantEarnings": 90,
+    "riderAdminCommission": 8,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6aab9910c02785942aa58358",
+        "reason": "Found a better price elsewhere",
+        "cancelledAt": "2026-09-17T07:50:24.917Z"
+      }
+    ],
+    "createdAt": "2026-09-17T07:50:09.248Z",
+    "updatedAt": "2026-09-17T07:50:24.920Z",
+    "__v": 1,
+    "paymentTransaction": "6aab9bb1c02785942aa58c74",
+    "deliveryOTP": "4930",
+    "cancellationReason": "Found a better price elsewhere",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6aad25af43fbd98d50e36cf4",
+    "orderNumber": "ORD-1789732271028",
+    "orderType": "delivery",
+    "customer": "6aad1fee43fbd98d50e35969",
+    "store": "6aa0f26c092ddcee4da13a47",
+    "deliveryCoordinates": {
+      "lat": 28.0435072,
+      "lng": 77.0837915
+    },
+    "items": [
+      {
+        "product": "6aa1851a092ddcee4da14d93",
+        "name": "Chilly paneer ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/IMG_1168_o1TXWFASOP.jpeg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 10,
+        "price": 135,
+        "subtotal": 1350,
+        "b2bPrice": 105
+      },
+      {
+        "product": "6aa18554092ddcee4da14e13",
+        "name": "Chilli mashroom ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/IMG_1169_03vf21Ax3.webp",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 12,
+        "price": 135,
+        "subtotal": 1620,
+        "b2bPrice": 105
+      },
+      {
+        "product": "6aa1859b092ddcee4da14e97",
+        "name": "Mashroom tikka ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/IMG_1170_MrIlEwuht.jpeg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 5,
+        "price": 135,
+        "subtotal": 675,
+        "b2bPrice": 105
+      },
+      {
+        "product": "6aa187b0092ddcee4da150f1",
+        "name": "farm house pizza",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/IMG_1175_DdV4H7UoZt.jpeg",
+        "portion": "Large",
+        "variantIndex": 0,
+        "qty": 5,
+        "price": 135,
+        "subtotal": 675,
+        "b2bPrice": 155
+      }
+    ],
+    "totalAmount": 4320,
+    "deliveryCharge": 16,
+    "gst": 216,
+    "totalDiscount": 0,
+    "payableAmount": 4552,
+    "address": {
+      "fullAddress": "Ujina",
+      "landmark": "Ujina",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.0837915,
+          28.0435072
+        ]
+      }
+    },
+    "status": "failed",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7015853156",
+    "driverEarnings": 15,
+    "restaurantEarnings": 3610,
+    "riderAdminCommission": 1,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6aad1fee43fbd98d50e35969",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-09-18T11:51:27.606Z"
+      }
+    ],
+    "createdAt": "2026-09-18T11:51:11.035Z",
+    "updatedAt": "2026-09-18T11:51:27.608Z",
+    "__v": 1,
+    "paymentTransaction": "6aad25af43fbd98d50e36cf6",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6aafee9343fbd98d50e573ec",
+    "orderNumber": "ORD-1789914771205",
+    "orderType": "delivery",
+    "customer": "6a9185bc6e128560833b2da5",
+    "store": "6aabc693c02785942aa59125",
+    "deliveryCoordinates": {
+      "lat": 28.249409627254543,
+      "lng": 77.06361807882786
+    },
+    "items": [
+      {
+        "product": "6aabdcdfc02785942aa5b6e0",
+        "name": "Veg Burger",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/Veg_Burger_5sjraIuW8.jfif",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 50,
+        "subtotal": 100,
+        "b2bPrice": 30
+      }
+    ],
+    "totalAmount": 100,
+    "deliveryCharge": 321,
+    "gst": 5,
+    "totalDiscount": 0,
+    "payableAmount": 426,
+    "address": {
+      "fullAddress": "Thakur Wara, Sohna",
+      "landmark": "Ujina",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.06361807882786,
+          28.249409627254543
+        ]
+      }
+    },
+    "status": "failed",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988161629",
+    "driverEarnings": 275,
+    "restaurantEarnings": 60,
+    "riderAdminCommission": 46,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a9185bc6e128560833b2da5",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-09-20T14:33:49.476Z"
+      }
+    ],
+    "createdAt": "2026-09-20T14:32:51.215Z",
+    "updatedAt": "2026-09-20T14:33:49.478Z",
+    "__v": 1,
+    "paymentTransaction": "6aafee9343fbd98d50e573ee",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6aaff24743fbd98d50e5c35f",
+    "orderNumber": "ORD-1789915719713",
+    "orderType": "delivery",
+    "customer": "6a9185bc6e128560833b2da5",
+    "store": "6aabc693c02785942aa59125",
+    "deliveryCoordinates": {
+      "lat": 28.04247575847596,
+      "lng": 77.08437737077475
+    },
+    "items": [
+      {
+        "product": "6aabdcdfc02785942aa5b6e0",
+        "name": "Veg Burger",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/Veg_Burger_5sjraIuW8.jfif",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 50,
+        "subtotal": 100,
+        "b2bPrice": 30
+      },
+      {
+        "product": "6aabd5cfc02785942aa5a899",
+        "name": "Dal Tadka",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/Dal_Tadka_6JwWN84ld.jfif",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 140,
+        "subtotal": 140,
+        "b2bPrice": 120
+      }
+    ],
+    "totalAmount": 240,
+    "deliveryCharge": 17,
+    "gst": 12,
+    "totalDiscount": 0,
+    "payableAmount": 269,
+    "address": {
+      "fullAddress": "23RM+XQ3, Ujina, Haryana 122107, India",
+      "landmark": "sohna",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.08437737077475,
+          28.04247575847596
+        ]
+      }
+    },
+    "status": "failed",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988161629",
+    "driverEarnings": 15,
+    "restaurantEarnings": 180,
+    "riderAdminCommission": 2,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a9185bc6e128560833b2da5",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-09-20T14:49:12.618Z"
+      }
+    ],
+    "createdAt": "2026-09-20T14:48:39.717Z",
+    "updatedAt": "2026-09-20T14:49:12.619Z",
+    "__v": 1,
+    "paymentTransaction": "6aaff24743fbd98d50e5c361",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6aaff27543fbd98d50e5c861",
+    "orderNumber": "ORD-1789915765813",
+    "orderType": "delivery",
+    "customer": "6a7dc4ae6e1285608339f2fd",
+    "store": "6aabc693c02785942aa59125",
+    "deliveryCoordinates": {
+      "lat": 28.044004441809925,
+      "lng": 77.08876546472311
+    },
+    "items": [
+      {
+        "product": "6a9bbe876e128560833bf3cd",
+        "name": "burger",
+        "image": "https://via.placeholder.com/150",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 3,
+        "price": 50,
+        "subtotal": 150,
+        "b2bPrice": 50
+      }
+    ],
+    "totalAmount": 150,
+    "deliveryCharge": 16,
+    "gst": 8,
+    "totalDiscount": 0,
+    "payableAmount": 174,
+    "address": {
+      "fullAddress": "23VQ+Q9W, Ujina, Haryana 122107, India",
+      "landmark": "Nuh",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.08876546472311,
+          28.044004441809925
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988318989",
+    "driverEarnings": 15,
+    "restaurantEarnings": 150,
+    "riderAdminCommission": 1,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a7dc4ae6e1285608339f2fd",
+        "reason": "Forgot to apply coupon",
+        "cancelledAt": "2026-09-20T14:50:02.570Z"
+      }
+    ],
+    "createdAt": "2026-09-20T14:49:25.815Z",
+    "updatedAt": "2026-09-20T14:50:02.573Z",
+    "__v": 1,
+    "paymentTransaction": "6aaff27543fbd98d50e5c863",
+    "deliveryOTP": "9748",
+    "cancellationReason": "Forgot to apply coupon",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6aaff2b143fbd98d50e5d043",
+    "orderNumber": "ORD-1789915825960",
+    "orderType": "delivery",
+    "customer": "6a9185bc6e128560833b2da5",
+    "store": "6aabc693c02785942aa59125",
+    "deliveryCoordinates": {
+      "lat": 28.04247575847596,
+      "lng": 77.08437737077475
+    },
+    "items": [
+      {
+        "product": "6aabdcdfc02785942aa5b6e0",
+        "name": "Veg Burger",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/Veg_Burger_5sjraIuW8.jfif",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 50,
+        "subtotal": 100,
+        "b2bPrice": 30
+      },
+      {
+        "product": "6aabd5cfc02785942aa5a899",
+        "name": "Dal Tadka",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/Dal_Tadka_6JwWN84ld.jfif",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 140,
+        "subtotal": 140,
+        "b2bPrice": 120
+      }
+    ],
+    "totalAmount": 240,
+    "deliveryCharge": 17,
+    "gst": 12,
+    "totalDiscount": 0,
+    "payableAmount": 269,
+    "address": {
+      "fullAddress": "23RM+XQ3, Ujina, Haryana 122107, India",
+      "landmark": "sohna",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.08437737077475,
+          28.04247575847596
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988161629",
+    "driverEarnings": 15,
+    "restaurantEarnings": 180,
+    "riderAdminCommission": 2,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a9185bc6e128560833b2da5",
+        "reason": "Ordered by mistake",
+        "cancelledAt": "2026-09-20T14:51:19.843Z"
+      }
+    ],
+    "createdAt": "2026-09-20T14:50:25.963Z",
+    "updatedAt": "2026-09-20T14:51:19.845Z",
+    "__v": 1,
+    "paymentTransaction": "6aaff2b243fbd98d50e5d045",
+    "deliveryOTP": "7329",
+    "cancellationReason": "Ordered by mistake",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6aaff2c743fbd98d50e5d33e",
+    "orderNumber": "ORD-1789915847552",
+    "orderType": "delivery",
+    "customer": "6a7dc4ae6e1285608339f2fd",
+    "store": "6aabc693c02785942aa59125",
+    "deliveryCoordinates": {
+      "lat": 28.044004441809925,
+      "lng": 77.08876546472311
+    },
+    "items": [
+      {
+        "product": "6aabda63c02785942aa5b066",
+        "name": "Veg Chowmein",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/Veg_Chowmein_jaoL5Poy1.jfif",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 60,
+        "subtotal": 60,
+        "b2bPrice": 40
+      },
+      {
+        "product": "6aabdcdfc02785942aa5b6e0",
+        "name": "Veg Burger",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/Veg_Burger_5sjraIuW8.jfif",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 50,
+        "subtotal": 100,
+        "b2bPrice": 30
+      }
+    ],
+    "totalAmount": 160,
+    "deliveryCharge": 16,
+    "gst": 8,
+    "totalDiscount": 0,
+    "payableAmount": 184,
+    "address": {
+      "fullAddress": "23VQ+Q9W, Ujina, Haryana 122107, India",
+      "landmark": "Nuh",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.08876546472311,
+          28.044004441809925
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988318989",
+    "driverEarnings": 15,
+    "restaurantEarnings": 100,
+    "riderAdminCommission": 1,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a7dc4ae6e1285608339f2fd",
+        "reason": "Forgot to apply coupon",
+        "cancelledAt": "2026-09-20T14:52:21.839Z"
+      }
+    ],
+    "createdAt": "2026-09-20T14:50:47.556Z",
+    "updatedAt": "2026-09-20T14:52:21.842Z",
+    "__v": 1,
+    "paymentTransaction": "6aaff2c743fbd98d50e5d340",
+    "deliveryOTP": "9310",
+    "cancellationReason": "Forgot to apply coupon",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6aaff53b43fbd98d50e609ef",
+    "orderNumber": "ORD-1789916475412",
+    "orderType": "delivery",
+    "customer": "6a9185bc6e128560833b2da5",
+    "store": "6aabc693c02785942aa59125",
+    "deliveryCoordinates": {
+      "lat": 28.042537012755595,
+      "lng": 77.08427980542183
+    },
+    "items": [
+      {
+        "product": "6aabdcdfc02785942aa5b6e0",
+        "name": "Veg Burger",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/Veg_Burger_5sjraIuW8.jfif",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 50,
+        "subtotal": 100,
+        "b2bPrice": 30
+      }
+    ],
+    "totalAmount": 100,
+    "deliveryCharge": 17,
+    "gst": 5,
+    "totalDiscount": 0,
+    "payableAmount": 122,
+    "address": {
+      "fullAddress": "23RM+XQ3, Ujina, Haryana 122107, India",
+      "landmark": "sohna",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.08427980542183,
+          28.042537012755595
+        ]
+      }
+    },
+    "status": "failed",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988161629",
+    "driverEarnings": 15,
+    "restaurantEarnings": 60,
+    "riderAdminCommission": 2,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a9185bc6e128560833b2da5",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-09-20T15:01:24.989Z"
+      }
+    ],
+    "createdAt": "2026-09-20T15:01:15.415Z",
+    "updatedAt": "2026-09-20T15:01:24.991Z",
+    "__v": 1,
+    "paymentTransaction": "6aaff53b43fbd98d50e609f6",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6aaff57543fbd98d50e6110e",
+    "orderNumber": "ORD-1789916533620",
+    "orderType": "delivery",
+    "customer": "6a9185bc6e128560833b2da5",
+    "store": "6aabc693c02785942aa59125",
+    "deliveryCoordinates": {
+      "lat": 28.249409627254543,
+      "lng": 77.06361807882786
+    },
+    "items": [
+      {
+        "product": "6aabdcdfc02785942aa5b6e0",
+        "name": "Veg Burger",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/Veg_Burger_5sjraIuW8.jfif",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 50,
+        "subtotal": 100,
+        "b2bPrice": 30
+      }
+    ],
+    "totalAmount": 100,
+    "deliveryCharge": 321,
+    "gst": 5,
+    "totalDiscount": 0,
+    "payableAmount": 426,
+    "address": {
+      "fullAddress": "Thakur Wara, Sohna",
+      "landmark": "Ujina",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.06361807882786,
+          28.249409627254543
+        ]
+      }
+    },
+    "status": "failed",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988161629",
+    "driverEarnings": 275,
+    "restaurantEarnings": 60,
+    "riderAdminCommission": 46,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6a9185bc6e128560833b2da5",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-09-20T15:02:26.519Z"
+      }
+    ],
+    "createdAt": "2026-09-20T15:02:13.622Z",
+    "updatedAt": "2026-09-20T15:02:26.521Z",
+    "__v": 1,
+    "paymentTransaction": "6aaff57543fbd98d50e61110",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6aaff5a543fbd98d50e61674",
+    "orderNumber": "ORD-1789916581492",
+    "orderType": "delivery",
+    "customer": "6a9185bc6e128560833b2da5",
+    "store": "6aabc693c02785942aa59125",
+    "deliveryCoordinates": {
+      "lat": 28.042537012755595,
+      "lng": 77.08427980542183
+    },
+    "items": [
+      {
+        "product": "6aabdcdfc02785942aa5b6e0",
+        "name": "Veg Burger",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/Veg_Burger_5sjraIuW8.jfif",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 50,
+        "subtotal": 100,
+        "b2bPrice": 30
+      }
+    ],
+    "totalAmount": 100,
+    "deliveryCharge": 17,
+    "gst": 5,
+    "totalDiscount": 0,
+    "payableAmount": 122,
+    "address": {
+      "fullAddress": "23RM+XQ3, Ujina, Haryana 122107, India",
+      "landmark": "sohna",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.08427980542183,
+          28.042537012755595
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988161629",
+    "driverEarnings": 15,
+    "restaurantEarnings": 60,
+    "riderAdminCommission": 2,
+    "cancellationLog": [],
+    "createdAt": "2026-09-20T15:03:01.497Z",
+    "updatedAt": "2026-09-20T15:50:59.102Z",
+    "__v": 0,
+    "paymentTransaction": "6aaff5a543fbd98d50e61676",
+    "deliveryOTP": "4188",
+    "pickupOtp": "5416",
+    "readyAt": "2026-09-20T15:23:32.169Z",
+    "assignedDriver": "6aafefd243fbd98d50e58db3",
+    "assignmentTimeoutAt": "2026-09-20T15:24:32.276Z",
+    "acceptedAt": "2026-09-20T15:23:43.452Z",
+    "deliveredAt": "2026-09-20T15:50:59.101Z"
+  },
+  {
+    "_id": "6ab0c68943fbd98d50e7b635",
+    "orderNumber": "ORD-1789970057287",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6ab0c63543fbd98d50e7b599",
+    "cityId": "6ab0c54443fbd98d50e7b4d2",
+    "items": [
+      {
+        "product": "6aaa96d9c02785942aa51628",
+        "name": "Burgers",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/laughing_images_k9YTisrxK.webp",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 200,
+        "subtotal": 200,
+        "b2bPrice": 200
+      },
+      {
+        "product": "6ab0c63843fbd98d50e7b59e",
+        "name": "Pizza best",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_sD3XDDHvF.jpg",
+        "portion": "1 Pc",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 200,
+        "subtotal": 200,
+        "b2bPrice": 190
+      }
+    ],
+    "totalAmount": 400,
+    "deliveryCharge": 0,
+    "gst": 20,
+    "totalDiscount": 0,
+    "payableAmount": 420,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7008452720",
+    "driverEarnings": 0,
+    "restaurantEarnings": 390,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-09-21T05:54:17.318Z",
+    "updatedAt": "2026-09-21T05:54:58.910Z",
+    "__v": 0,
+    "paymentTransaction": "6ab0c68943fbd98d50e7b637",
+    "deliveryOTP": "9084",
+    "pickupOtp": "7671",
+    "readyAt": "2026-09-21T05:54:57.003Z",
+    "deliveredAt": "2026-09-21T05:54:58.907Z"
+  },
+  {
+    "_id": "6ab0c6ef43fbd98d50e7b72f",
+    "orderNumber": "ORD-1789970159916",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6ab0c63543fbd98d50e7b599",
+    "cityId": "6ab0c54443fbd98d50e7b4d2",
+    "items": [
+      {
+        "product": "6ab0c63843fbd98d50e7b59e",
+        "name": "Pizza best",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_sD3XDDHvF.jpg",
+        "portion": "1 Pc",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 200,
+        "subtotal": 200,
+        "b2bPrice": 190
+      }
+    ],
+    "totalAmount": 200,
+    "deliveryCharge": 0,
+    "gst": 10,
+    "totalDiscount": 0,
+    "payableAmount": 210,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7008452720",
+    "driverEarnings": 0,
+    "restaurantEarnings": 190,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-09-21T05:55:59.921Z",
+    "updatedAt": "2026-09-21T05:57:14.621Z",
+    "__v": 0,
+    "paymentTransaction": "6ab0c6ef43fbd98d50e7b731",
+    "deliveryOTP": "1969",
+    "pickupOtp": "8024",
+    "readyAt": "2026-09-21T05:57:10.560Z",
+    "deliveredAt": "2026-09-21T05:57:14.620Z"
+  },
+  {
+    "_id": "6ab0cc4143fbd98d50e7ba0a",
+    "orderNumber": "ORD-1789971521423",
+    "orderType": "delivery",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6ab0c63543fbd98d50e7b599",
+    "cityId": "6ab0c54443fbd98d50e7b4d2",
+    "zoneId": "6ab0c54443fbd98d50e7b4d5",
+    "deliveryCoordinates": {
+      "lat": 20.744986788414906,
+      "lng": 86.24458786100149
+    },
+    "items": [
+      {
+        "product": "6ab0c63843fbd98d50e7b59e",
+        "name": "Pizza best",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_sD3XDDHvF.jpg",
+        "portion": "1 Pc",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 200,
+        "subtotal": 200,
+        "b2bPrice": 190
+      }
+    ],
+    "totalAmount": 200,
+    "deliveryCharge": 17,
+    "gst": 10,
+    "totalDiscount": 0,
+    "payableAmount": 227,
+    "address": {
+      "fullAddress": "P6VV+XWH, Brahmabarada, Odisha 755005, India",
+      "landmark": "P6VV+XWH",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          86.24458786100149,
+          20.744986788414906
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7008452720",
+    "driverEarnings": 15,
+    "restaurantEarnings": 190,
+    "riderAdminCommission": 2,
+    "cancellationLog": [],
+    "createdAt": "2026-09-21T06:18:41.426Z",
+    "updatedAt": "2026-09-21T06:20:59.183Z",
+    "__v": 0,
+    "paymentTransaction": "6ab0cc4143fbd98d50e7ba0c",
+    "deliveryOTP": "9472",
+    "pickupOtp": "3196",
+    "readyAt": "2026-09-21T06:19:22.189Z",
+    "assignedDriver": "6aaaa137c02785942aa5397e",
+    "assignmentTimeoutAt": "2026-09-21T06:20:22.269Z",
+    "acceptedAt": "2026-09-21T06:19:28.899Z",
+    "deliveredAt": "2026-09-21T06:20:59.182Z"
+  },
+  {
+    "_id": "6ab1385d4b156bd222c5dd9b",
+    "orderNumber": "ORD-1789999197737",
+    "orderType": "pickup",
+    "pickupTime": "In 15 mins",
+    "customer": "6a7dc4ae6e1285608339f2fd",
+    "store": "6ab136bb4b156bd222c5dc68",
+    "items": [
+      {
+        "product": "6ab136bc4b156bd222c5dc6f",
+        "name": "Pizza ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/1000019835_fqcAt6uO1.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 120,
+        "subtotal": 240,
+        "b2bPrice": 80
+      }
+    ],
+    "totalAmount": 240,
+    "deliveryCharge": 0,
+    "gst": 12,
+    "totalDiscount": 0,
+    "payableAmount": 252,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7988318989"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988318989",
+    "driverEarnings": 0,
+    "restaurantEarnings": 160,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-09-21T13:59:57.744Z",
+    "updatedAt": "2026-09-21T14:03:02.488Z",
+    "__v": 0,
+    "paymentTransaction": "6ab1385d4b156bd222c5dd9d",
+    "deliveryOTP": "4813",
+    "pickupOtp": "4635",
+    "readyAt": "2026-09-21T14:01:17.709Z",
+    "deliveredAt": "2026-09-21T14:03:02.486Z"
+  },
+  {
+    "_id": "6ab1395e4b156bd222c5f729",
+    "orderNumber": "ORD-1789999454347",
+    "orderType": "delivery",
+    "customer": "6a7dc4ae6e1285608339f2fd",
+    "store": "6ab136bb4b156bd222c5dc68",
+    "deliveryCoordinates": {
+      "lat": 28.032800103583227,
+      "lng": 77.08326425403357
+    },
+    "items": [
+      {
+        "product": "6ab136bc4b156bd222c5dc6f",
+        "name": "Pizza ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/1000019835_fqcAt6uO1.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 120,
+        "subtotal": 240,
+        "b2bPrice": 80
+      }
+    ],
+    "totalAmount": 240,
+    "deliveryCharge": 42,
+    "gst": 12,
+    "totalDiscount": 0,
+    "payableAmount": 294,
+    "address": {
+      "fullAddress": "23MM+48 Ujina, Haryana, India",
+      "landmark": "Nuh",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.08326425403357,
+          28.032800103583227
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988318989",
+    "driverEarnings": 36,
+    "restaurantEarnings": 160,
+    "riderAdminCommission": 6,
+    "cancellationLog": [],
+    "createdAt": "2026-09-21T14:04:14.350Z",
+    "updatedAt": "2026-09-21T14:10:18.509Z",
+    "__v": 0,
+    "paymentTransaction": "6ab1395e4b156bd222c5f72b",
+    "deliveryOTP": "6861",
+    "pickupOtp": "2755",
+    "readyAt": "2026-09-21T14:05:14.038Z",
+    "assignedDriver": "6aafefd243fbd98d50e58db3",
+    "assignmentTimeoutAt": "2026-09-21T14:06:14.118Z",
+    "acceptedAt": "2026-09-21T14:05:20.563Z",
+    "deliveredAt": "2026-09-21T14:10:18.508Z"
+  },
+  {
+    "_id": "6ab13af54b156bd222c62483",
+    "orderNumber": "ORD-1789999861924",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6ab0c63543fbd98d50e7b599",
+    "cityId": "6ab0c54443fbd98d50e7b4d2",
+    "items": [
+      {
+        "product": "6ab0c63843fbd98d50e7b59e",
+        "name": "Pizza best",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_sD3XDDHvF.jpg",
+        "portion": "1 Pc",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 200,
+        "subtotal": 400,
+        "b2bPrice": 190
+      }
+    ],
+    "totalAmount": 400,
+    "deliveryCharge": 0,
+    "gst": 20,
+    "totalDiscount": 0,
+    "payableAmount": 420,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7008452720",
+    "driverEarnings": 0,
+    "restaurantEarnings": 380,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-09-21T14:11:01.929Z",
+    "updatedAt": "2026-09-21T14:11:27.931Z",
+    "__v": 0,
+    "paymentTransaction": "6ab13af54b156bd222c62485",
+    "deliveryOTP": "8857",
+    "pickupOtp": "9633",
+    "readyAt": "2026-09-21T14:11:23.270Z",
+    "deliveredAt": "2026-09-21T14:11:27.930Z"
+  },
+  {
+    "_id": "6ab284024b156bd222c684fc",
+    "orderNumber": "ORD-1790084098023",
+    "orderType": "pickup",
+    "customer": "6a79872ddc7a56775b324c0f",
+    "store": "6ab0c63543fbd98d50e7b599",
+    "cityId": "6ab0c54443fbd98d50e7b4d2",
+    "items": [
+      {
+        "product": "6ab0c63843fbd98d50e7b59e",
+        "name": "Pizza best",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/netflix-icon_sD3XDDHvF.jpg",
+        "portion": "1 Pc",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 200,
+        "subtotal": 200,
+        "b2bPrice": 190
+      }
+    ],
+    "totalAmount": 200,
+    "deliveryCharge": 0,
+    "gst": 10,
+    "totalDiscount": 0,
+    "payableAmount": 210,
+    "address": {
+      "fullAddress": "Self-Pickup",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      },
+      "phone": "7008452720"
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7008452720",
+    "driverEarnings": 0,
+    "restaurantEarnings": 190,
+    "riderAdminCommission": 0,
+    "cancellationLog": [],
+    "createdAt": "2026-09-22T13:34:58.030Z",
+    "updatedAt": "2026-09-22T13:35:40.286Z",
+    "__v": 0,
+    "paymentTransaction": "6ab284024b156bd222c684fe",
+    "deliveryOTP": "1942",
+    "pickupOtp": "1119",
+    "readyAt": "2026-09-22T13:35:37.322Z",
+    "deliveredAt": "2026-09-22T13:35:40.286Z"
+  },
+  {
+    "_id": "6ab29b8a4b156bd222c692e9",
+    "orderNumber": "ORD-1790090122591",
+    "orderType": "delivery",
+    "customer": "6a7dc4ae6e1285608339f2fd",
+    "store": "6ab136bb4b156bd222c5dc68",
+    "deliveryCoordinates": {
+      "lat": 28.032854852671417,
+      "lng": 77.0831985399127
+    },
+    "items": [
+      {
+        "product": "6ab136bc4b156bd222c5dc6f",
+        "name": "Pizza ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/1000019835_fqcAt6uO1.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 120,
+        "subtotal": 240,
+        "b2bPrice": 80
+      }
+    ],
+    "totalAmount": 240,
+    "deliveryCharge": 42,
+    "gst": 12,
+    "totalDiscount": 0,
+    "payableAmount": 294,
+    "address": {
+      "fullAddress": "Sangel-Ujina Rd, Haryana 122107, India",
+      "landmark": "Nuh",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.0831985399127,
+          28.032854852671417
+        ]
+      }
+    },
+    "status": "delivered",
+    "deliveryStatus": "delivered",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988318989",
+    "driverEarnings": 36,
+    "restaurantEarnings": 160,
+    "riderAdminCommission": 6,
+    "cancellationLog": [],
+    "createdAt": "2026-09-22T15:15:22.598Z",
+    "updatedAt": "2026-09-22T15:19:40.264Z",
+    "__v": 0,
+    "paymentTransaction": "6ab29b8a4b156bd222c692eb",
+    "deliveryOTP": "3352",
+    "pickupOtp": "6857",
+    "readyAt": "2026-09-22T15:16:33.261Z",
+    "assignedDriver": "6aafefd243fbd98d50e58db3",
+    "assignmentTimeoutAt": "2026-09-22T15:17:33.342Z",
+    "acceptedAt": "2026-09-22T15:16:50.032Z",
+    "deliveredAt": "2026-09-22T15:19:40.262Z"
+  },
+  {
+    "_id": "6ab3a26cd75517e8a1425e68",
+    "customer": "6aa02716092ddcee4da127d4",
+    "restaurant": "6ab35ad9c61302b5f8581ba3",
+    "idempotencyKey": "6ab3a26cd75517e8a1425e5e-6ab35ad9c61302b5f8581ba3",
+    "items": [
+      {
+        "product": "6ab3a26c3198e2573831fd06",
+        "name": "Cheese Margherita Pizza",
+        "quantity": 1,
+        "price": 299,
+        "addOns": [],
+        "_id": "6ab3a26cd75517e8a1425e69"
+      }
+    ],
+    "itemTotal": 299,
+    "tax": 14.95,
+    "deliveryFee": 0,
+    "platformFee": 5,
+    "packagingFee": 10,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "couponCode": null,
+    "totalAmount": 328.95,
+    "orderType": "self_pickup",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "selfPickupCode": "7784",
+    "paymentMethod": "cod",
+    "paymentStatus": "pending",
+    "status": "cancelled",
+    "pickupOtp": "7784",
+    "pickupOtpExpiresAt": "2026-09-23T11:37:00.448Z",
+    "deliveryOtp": "2671",
+    "deliveryOtpExpiresAt": "2026-09-23T11:37:00.448Z",
+    "timeline": [
+      {
+        "status": "placed",
+        "timestamp": "2026-09-23T09:57:00.448Z",
+        "label": "Order Placed",
+        "by": "system",
+        "description": "Your order has been placed",
+        "_id": "6ab3a26cd75517e8a1425e6a"
+      },
+      {
+        "status": "cancelled",
+        "timestamp": "2026-09-23T10:20:00.125Z",
+        "label": "Order Cancelled",
+        "by": "system",
+        "description": "Restaurant did not accept in time.",
+        "_id": "6ab3a7d010a28055118e9857"
+      }
+    ],
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 0,
+    "adminCommission": 29.9,
+    "restaurantCommission": 269.1,
+    "riderCommission": 0,
+    "appliedCommissionRate": 10,
+    "appliedPricingSource": {
+      "deliveryRule": "Self Pickup (₹0)",
+      "commissionRule": "Restaurant Override (10%)",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryAddress": {
+      "addressLine": "Flat 402, Sunshine Towers, MG Road, Koramangala",
+      "coordinates": [
+        77.6245,
+        12.9352
+      ]
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T09:57:00.454Z",
+    "updatedAt": "2026-09-23T10:20:00.130Z",
+    "__v": 0,
+    "cancellationInitiatedBy": "system",
+    "cancellationReason": "System Auto-Cancel: Restaurant did not accept in time",
+    "cancelledAt": "2026-09-23T10:20:00.125Z"
+  },
+  {
+    "_id": "6ab3a37510a28055118e97f3",
+    "customer": "6aa02716092ddcee4da127d4",
+    "orderNumber": "ECDMUDXNYSG5133",
+    "restaurant": "6ab35ad9c61302b5f8581ba3",
+    "idempotencyKey": "6ab3a37510a28055118e97e9-1790157685984-kcpama",
+    "items": [
+      {
+        "product": "6ab3a375c09a2164f6e1c363",
+        "name": "Cheese Margherita Pizza",
+        "quantity": 1,
+        "price": 299,
+        "addOns": [],
+        "_id": "6ab3a37510a28055118e97f4"
+      }
+    ],
+    "itemTotal": 299,
+    "tax": 14.95,
+    "deliveryFee": 0,
+    "platformFee": 5,
+    "packagingFee": 10,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "couponCode": null,
+    "totalAmount": 328.95,
+    "orderType": "self_pickup",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "selfPickupCode": "7174",
+    "paymentMethod": "cod",
+    "paymentStatus": "pending",
+    "status": "cancelled",
+    "pickupOtp": "7174",
+    "pickupOtpExpiresAt": "2026-09-23T11:41:25.984Z",
+    "deliveryOtp": "7080",
+    "deliveryOtpExpiresAt": "2026-09-23T11:41:25.984Z",
+    "timeline": [
+      {
+        "status": "placed",
+        "timestamp": "2026-09-23T10:01:25.985Z",
+        "label": "Order Placed",
+        "by": "system",
+        "description": "Your order has been placed",
+        "_id": "6ab3a37510a28055118e97f5"
+      },
+      {
+        "status": "cancelled",
+        "timestamp": "2026-09-23T10:25:00.113Z",
+        "label": "Order Cancelled",
+        "by": "system",
+        "description": "Restaurant did not accept in time.",
+        "_id": "6ab3a8fc10a28055118e985f"
+      }
+    ],
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 0,
+    "adminCommission": 29.9,
+    "restaurantCommission": 269.1,
+    "riderCommission": 0,
+    "appliedCommissionRate": 10,
+    "appliedPricingSource": {
+      "deliveryRule": "Self Pickup (₹0)",
+      "commissionRule": "Restaurant Override (10%)",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryAddress": {
+      "addressLine": "Flat 402, Sunshine Towers, MG Road, Koramangala",
+      "coordinates": [
+        77.6245,
+        12.9352
+      ]
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T10:01:25.992Z",
+    "updatedAt": "2026-09-23T10:25:00.113Z",
+    "__v": 0,
+    "cancellationInitiatedBy": "system",
+    "cancellationReason": "System Auto-Cancel: Restaurant did not accept in time",
+    "cancelledAt": "2026-09-23T10:25:00.113Z"
+  },
+  {
+    "_id": "6ab3a871206f71f2ead74ece",
+    "customer": "6ab3a870206f71f2ead74eb1",
+    "restaurant": "6ab39010e82aa8a63d0e5f8b",
+    "idempotencyKey": "ord_seed_1790158961075_1",
+    "items": [
+      {
+        "name": "Special Thali + Cold Coffee",
+        "quantity": 1,
+        "price": 350,
+        "_id": "6ab3a871206f71f2ead74ecf",
+        "addOns": []
+      }
+    ],
+    "itemTotal": 350,
+    "tax": 0,
+    "deliveryFee": 0,
+    "platformFee": 0,
+    "packagingFee": 0,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "totalAmount": 350,
+    "orderType": "pickup",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "paymentMethod": "online",
+    "paymentStatus": "paid",
+    "status": "placed",
+    "pickupOtp": "4892",
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 0,
+    "adminCommission": 0,
+    "restaurantCommission": 0,
+    "riderCommission": 0,
+    "appliedCommissionRate": 0,
+    "appliedPricingSource": {
+      "deliveryRule": "Global Slabs",
+      "commissionRule": "Global Default",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T10:17:41.075Z",
+    "timeline": [],
+    "updatedAt": "2026-09-23T10:17:41.075Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a871206f71f2ead74ed1",
+    "customer": "6ab3a870206f71f2ead74eb4",
+    "restaurant": "6ab39010e82aa8a63d0e5f8b",
+    "idempotencyKey": "ord_seed_1790158961075_2",
+    "items": [
+      {
+        "name": "Farmhouse Pizza + Chocolate Lava Cake",
+        "quantity": 1,
+        "price": 320,
+        "_id": "6ab3a871206f71f2ead74ed2",
+        "addOns": []
+      }
+    ],
+    "itemTotal": 320,
+    "tax": 0,
+    "deliveryFee": 0,
+    "platformFee": 0,
+    "packagingFee": 0,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "totalAmount": 320,
+    "orderType": "pickup",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "paymentMethod": "online",
+    "paymentStatus": "paid",
+    "status": "placed",
+    "pickupOtp": "7123",
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 0,
+    "adminCommission": 0,
+    "restaurantCommission": 0,
+    "riderCommission": 0,
+    "appliedCommissionRate": 0,
+    "appliedPricingSource": {
+      "deliveryRule": "Global Slabs",
+      "commissionRule": "Global Default",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T10:14:41.075Z",
+    "timeline": [],
+    "updatedAt": "2026-09-23T10:14:41.075Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a871206f71f2ead74ed4",
+    "customer": "6ab3a870206f71f2ead74eb7",
+    "restaurant": "6ab39010e82aa8a63d0e5f8b",
+    "idempotencyKey": "ord_seed_1790158961075_3",
+    "items": [
+      {
+        "name": "Butter Chicken with Garlic Naan",
+        "quantity": 1,
+        "price": 420,
+        "_id": "6ab3a871206f71f2ead74ed5",
+        "addOns": []
+      },
+      {
+        "name": "Extra Gravy",
+        "quantity": 2,
+        "price": 60,
+        "_id": "6ab3a871206f71f2ead74ed6",
+        "addOns": []
+      }
+    ],
+    "itemTotal": 540,
+    "tax": 0,
+    "deliveryFee": 0,
+    "platformFee": 0,
+    "packagingFee": 0,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "totalAmount": 540,
+    "orderType": "pickup",
+    "prepTimeMinutes": 20,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "paymentMethod": "online",
+    "paymentStatus": "paid",
+    "status": "cancelled",
+    "pickupOtp": "9021",
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 0,
+    "adminCommission": 0,
+    "restaurantCommission": 0,
+    "riderCommission": 0,
+    "appliedCommissionRate": 0,
+    "appliedPricingSource": {
+      "deliveryRule": "Global Slabs",
+      "commissionRule": "Global Default",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T10:07:41.075Z",
+    "timeline": [
+      {
+        "status": "cancelled",
+        "timestamp": "2026-09-24T03:15:00.200Z",
+        "_id": "6ab495b462e3f4c51e4218e5"
+      }
+    ],
+    "updatedAt": "2026-09-24T03:15:00.229Z",
+    "__v": 1,
+    "cancellationReason": "System Auto-Cancel: No rider assigned after 6 hours"
+  },
+  {
+    "_id": "6ab3a871206f71f2ead74ed8",
+    "customer": "6ab3a870206f71f2ead74eba",
+    "restaurant": "6ab39010e82aa8a63d0e5f8b",
+    "idempotencyKey": "ord_seed_1790158961075_4",
+    "items": [
+      {
+        "name": "Paneer Butter Masala with Jeera Rice",
+        "quantity": 1,
+        "price": 280,
+        "_id": "6ab3a871206f71f2ead74ed9",
+        "addOns": []
+      }
+    ],
+    "itemTotal": 280,
+    "tax": 0,
+    "deliveryFee": 0,
+    "platformFee": 0,
+    "packagingFee": 0,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "totalAmount": 280,
+    "orderType": "pickup",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "paymentMethod": "online",
+    "paymentStatus": "paid",
+    "status": "cancelled",
+    "pickupOtp": "3419",
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 0,
+    "adminCommission": 0,
+    "restaurantCommission": 0,
+    "riderCommission": 0,
+    "appliedCommissionRate": 0,
+    "appliedPricingSource": {
+      "deliveryRule": "Global Slabs",
+      "commissionRule": "Global Default",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T09:57:41.075Z",
+    "timeline": [
+      {
+        "status": "cancelled",
+        "timestamp": "2026-09-24T03:20:00.181Z",
+        "_id": "6ab496e062e3f4c51e421a0d"
+      }
+    ],
+    "updatedAt": "2026-09-24T03:20:00.186Z",
+    "__v": 1,
+    "cancellationReason": "System Auto-Cancel: No rider assigned after 6 hours"
+  },
+  {
+    "_id": "6ab3a871206f71f2ead74edb",
+    "customer": "6ab3a870206f71f2ead74ebd",
+    "restaurant": "6ab39010e82aa8a63d0e5f8b",
+    "idempotencyKey": "ord_seed_1790158961075_5",
+    "items": [
+      {
+        "name": "Hyderabadi Dum Biryani",
+        "quantity": 1,
+        "price": 380,
+        "_id": "6ab3a871206f71f2ead74edc",
+        "addOns": []
+      },
+      {
+        "name": "Special Thali",
+        "quantity": 1,
+        "price": 270,
+        "_id": "6ab3a871206f71f2ead74edd",
+        "addOns": []
+      }
+    ],
+    "itemTotal": 650,
+    "tax": 0,
+    "deliveryFee": 0,
+    "platformFee": 0,
+    "packagingFee": 0,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "totalAmount": 650,
+    "orderType": "pickup",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "paymentMethod": "online",
+    "paymentStatus": "paid",
+    "status": "picked_up",
+    "pickupOtp": "5542",
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 0,
+    "adminCommission": 0,
+    "restaurantCommission": 0,
+    "riderCommission": 0,
+    "appliedCommissionRate": 0,
+    "appliedPricingSource": {
+      "deliveryRule": "Global Slabs",
+      "commissionRule": "Global Default",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T09:42:41.075Z",
+    "timeline": [],
+    "updatedAt": "2026-09-23T09:42:41.075Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a871206f71f2ead74edf",
+    "customer": "6ab3a871206f71f2ead74ecc",
+    "restaurant": "6ab39010e82aa8a63d0e5f8b",
+    "idempotencyKey": "ord_seed_1790158961075_6",
+    "items": [
+      {
+        "name": "Butter Chicken",
+        "quantity": 1,
+        "price": 420,
+        "_id": "6ab3a871206f71f2ead74ee0",
+        "addOns": []
+      }
+    ],
+    "itemTotal": 420,
+    "tax": 0,
+    "deliveryFee": 0,
+    "platformFee": 0,
+    "packagingFee": 0,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "totalAmount": 420,
+    "orderType": "pickup",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "paymentMethod": "online",
+    "paymentStatus": "refunded",
+    "status": "cancelled",
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 0,
+    "adminCommission": 0,
+    "restaurantCommission": 0,
+    "riderCommission": 0,
+    "appliedCommissionRate": 0,
+    "appliedPricingSource": {
+      "deliveryRule": "Global Slabs",
+      "commissionRule": "Global Default",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "cancellationReason": "Customer requested cancellation before prep",
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T09:22:41.075Z",
+    "timeline": [],
+    "updatedAt": "2026-09-23T09:22:41.075Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a871206f71f2ead74ee2",
+    "customer": "6ab3a870206f71f2ead74ec0",
+    "restaurant": "6ab39010e82aa8a63d0e5f8b",
+    "idempotencyKey": "ord_seed_1790158961075_7",
+    "items": [
+      {
+        "name": "Special Thali Party Pack (10 pcs)",
+        "quantity": 10,
+        "price": 480,
+        "_id": "6ab3a871206f71f2ead74ee3",
+        "addOns": []
+      }
+    ],
+    "itemTotal": 4700,
+    "tax": 0,
+    "deliveryFee": 50,
+    "platformFee": 0,
+    "packagingFee": 50,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "totalAmount": 4800,
+    "orderType": "delivery",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "paymentMethod": "online",
+    "paymentStatus": "paid",
+    "status": "delivered",
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 0,
+    "adminCommission": 0,
+    "restaurantCommission": 0,
+    "riderCommission": 0,
+    "appliedCommissionRate": 0,
+    "appliedPricingSource": {
+      "deliveryRule": "Global Slabs",
+      "commissionRule": "Global Default",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T08:22:41.075Z",
+    "timeline": [],
+    "updatedAt": "2026-09-23T08:22:41.075Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a871206f71f2ead74ee5",
+    "customer": "6ab3a870206f71f2ead74ec3",
+    "restaurant": "6ab39010e82aa8a63d0e5f8b",
+    "idempotencyKey": "ord_seed_1790158961075_8",
+    "items": [
+      {
+        "name": "Hyderabadi Dum Biryani Feast",
+        "quantity": 5,
+        "price": 700,
+        "_id": "6ab3a871206f71f2ead74ee6",
+        "addOns": []
+      }
+    ],
+    "itemTotal": 3400,
+    "tax": 0,
+    "deliveryFee": 50,
+    "platformFee": 0,
+    "packagingFee": 50,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "totalAmount": 3500,
+    "orderType": "delivery",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "paymentMethod": "online",
+    "paymentStatus": "paid",
+    "status": "delivered",
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 0,
+    "adminCommission": 0,
+    "restaurantCommission": 0,
+    "riderCommission": 0,
+    "appliedCommissionRate": 0,
+    "appliedPricingSource": {
+      "deliveryRule": "Global Slabs",
+      "commissionRule": "Global Default",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T06:22:41.075Z",
+    "timeline": [],
+    "updatedAt": "2026-09-23T06:22:41.075Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a871206f71f2ead74ee8",
+    "customer": "6ab3a870206f71f2ead74ec6",
+    "restaurant": "6ab39010e82aa8a63d0e5f8b",
+    "idempotencyKey": "ord_seed_1790158961075_9",
+    "items": [
+      {
+        "name": "Butter Chicken & Tandoori Feast",
+        "quantity": 4,
+        "price": 700,
+        "_id": "6ab3a871206f71f2ead74ee9",
+        "addOns": []
+      }
+    ],
+    "itemTotal": 2700,
+    "tax": 0,
+    "deliveryFee": 50,
+    "platformFee": 0,
+    "packagingFee": 50,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "totalAmount": 2800,
+    "orderType": "delivery",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "paymentMethod": "online",
+    "paymentStatus": "paid",
+    "status": "delivered",
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 0,
+    "adminCommission": 0,
+    "restaurantCommission": 0,
+    "riderCommission": 0,
+    "appliedCommissionRate": 0,
+    "appliedPricingSource": {
+      "deliveryRule": "Global Slabs",
+      "commissionRule": "Global Default",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T04:22:41.075Z",
+    "timeline": [],
+    "updatedAt": "2026-09-23T04:22:41.075Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3a871206f71f2ead74eeb",
+    "customer": "6ab3a870206f71f2ead74ec9",
+    "restaurant": "6ab39010e82aa8a63d0e5f8b",
+    "idempotencyKey": "ord_seed_1790158961075_10",
+    "items": [
+      {
+        "name": "Dal Makhani & Paneer Platter",
+        "quantity": 3,
+        "price": 450,
+        "_id": "6ab3a871206f71f2ead74eec",
+        "addOns": []
+      }
+    ],
+    "itemTotal": 1300,
+    "tax": 0,
+    "deliveryFee": 25,
+    "platformFee": 0,
+    "packagingFee": 25,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "totalAmount": 1350,
+    "orderType": "delivery",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "paymentMethod": "online",
+    "paymentStatus": "paid",
+    "status": "delivered",
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 0,
+    "adminCommission": 0,
+    "restaurantCommission": 0,
+    "riderCommission": 0,
+    "appliedCommissionRate": 0,
+    "appliedPricingSource": {
+      "deliveryRule": "Global Slabs",
+      "commissionRule": "Global Default",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T02:22:41.075Z",
+    "timeline": [],
+    "updatedAt": "2026-09-23T02:22:41.075Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab3b2df7e16c0c928b4495e",
+    "customer": "6ab3b2997e16c0c928b44942",
+    "orderNumber": "ECDMUE00IXG2781",
+    "restaurant": "6a9fb15499866971ef57b56e",
+    "idempotencyKey": "6ab3b2de7e16c0c928b44955-1790161631188-86oqy",
+    "items": [
+      {
+        "product": "6ab3a668640264051768955a",
+        "name": "Food Item",
+        "quantity": 2,
+        "price": 0,
+        "addOns": [],
+        "_id": "6ab3b2df7e16c0c928b4495f"
+      }
+    ],
+    "itemTotal": 0,
+    "tax": 0,
+    "deliveryFee": 30,
+    "platformFee": 5,
+    "packagingFee": 10,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "couponCode": null,
+    "totalAmount": 45,
+    "orderType": "delivery",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "selfPickupCode": "9723",
+    "paymentMethod": "cod",
+    "paymentStatus": "pending",
+    "status": "cancelled",
+    "pickupOtp": "9723",
+    "pickupOtpExpiresAt": "2026-09-23T12:47:11.188Z",
+    "deliveryOtp": "6712",
+    "deliveryOtpExpiresAt": "2026-09-23T12:47:11.188Z",
+    "timeline": [
+      {
+        "status": "placed",
+        "timestamp": "2026-09-23T11:07:11.189Z",
+        "label": "Order Placed",
+        "by": "system",
+        "description": "Your order has been placed",
+        "_id": "6ab3b2df7e16c0c928b44960"
+      },
+      {
+        "status": "cancelled",
+        "timestamp": "2026-09-23T11:30:00.370Z",
+        "label": "Order Cancelled",
+        "by": "system",
+        "description": "Restaurant did not accept in time.",
+        "_id": "6ab3b838feb07c2eaae6b165"
+      }
+    ],
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 21,
+    "adminCommission": 0,
+    "restaurantCommission": 0,
+    "riderCommission": 21,
+    "appliedCommissionRate": 10,
+    "appliedPricingSource": {
+      "deliveryRule": "Slab 0–3 KM",
+      "commissionRule": "Restaurant Override (10%)",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryAddress": {
+      "addressLine": "Customer Address",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-23T11:07:11.243Z",
+    "updatedAt": "2026-09-23T11:30:00.375Z",
+    "__v": 0,
+    "cancellationInitiatedBy": "system",
+    "cancellationReason": "System Auto-Cancel: Restaurant did not accept in time",
+    "cancelledAt": "2026-09-23T11:30:00.370Z"
+  },
+  {
+    "_id": "6ab4b3f603a0d10ef6cb19aa",
+    "customer": "6ab3b2997e16c0c928b44942",
+    "orderNumber": "ECDMUF376BN8717",
+    "restaurant": "6aa2c06a092ddcee4da1d805",
+    "idempotencyKey": "6ab3c8de157af7a6ed06f3cc-1790227446467-di2zdr",
+    "items": [
+      {
+        "product": "6ab3a669640264051768957c",
+        "name": "Garlic Butter Naan",
+        "quantity": 1,
+        "price": 45,
+        "addOns": [],
+        "_id": "6ab4b3f603a0d10ef6cb19ab"
+      }
+    ],
+    "itemTotal": 45,
+    "tax": 2.25,
+    "deliveryFee": 30,
+    "platformFee": 5,
+    "packagingFee": 10,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "couponCode": null,
+    "totalAmount": 92.25,
+    "orderType": "delivery",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "selfPickupCode": "5003",
+    "paymentMethod": "cod",
+    "paymentStatus": "pending",
+    "status": "cancelled",
+    "pickupOtp": "5003",
+    "pickupOtpExpiresAt": "2026-09-24T07:04:06.467Z",
+    "deliveryOtp": "6190",
+    "deliveryOtpExpiresAt": "2026-09-24T07:04:06.467Z",
+    "timeline": [
+      {
+        "status": "placed",
+        "timestamp": "2026-09-24T05:24:06.468Z",
+        "label": "Order Placed",
+        "by": "system",
+        "description": "Your order has been placed",
+        "_id": "6ab4b3f603a0d10ef6cb19ac"
+      },
+      {
+        "status": "cancelled",
+        "timestamp": "2026-09-24T05:45:00.270Z",
+        "label": "Order Cancelled",
+        "by": "system",
+        "description": "Restaurant did not accept in time.",
+        "_id": "6ab4b8dc03a0d10ef6cb1af9"
+      }
+    ],
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 21,
+    "adminCommission": 4.5,
+    "restaurantCommission": 40.5,
+    "riderCommission": 21,
+    "appliedCommissionRate": 10,
+    "appliedPricingSource": {
+      "deliveryRule": "Slab 0–3 KM",
+      "commissionRule": "Restaurant Override (10%)",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryAddress": {
+      "addressLine": "Customer Address",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-24T05:24:06.491Z",
+    "updatedAt": "2026-09-24T05:45:00.274Z",
+    "__v": 0,
+    "cancellationInitiatedBy": "system",
+    "cancellationReason": "System Auto-Cancel: Restaurant did not accept in time",
+    "cancelledAt": "2026-09-24T05:45:00.269Z"
+  },
+  {
+    "_id": "6ab4b47f03a0d10ef6cb19f3",
+    "customer": "6ab3b2997e16c0c928b44942",
+    "orderNumber": "ECDMUF3A3XB7558",
+    "restaurant": "6ab49e3b62e3f4c51e4240db",
+    "idempotencyKey": "6ab4b46203a0d10ef6cb19cc-1790227583327-bmdqz",
+    "items": [
+      {
+        "product": "6ab49e3b62e3f4c51e4240df",
+        "name": "fgghfhghj",
+        "quantity": 1,
+        "price": 400,
+        "addOns": [],
+        "_id": "6ab4b47f03a0d10ef6cb19f4"
+      }
+    ],
+    "itemTotal": 400,
+    "tax": 20,
+    "deliveryFee": 30,
+    "platformFee": 5,
+    "packagingFee": 10,
+    "extraDeliveryCharges": 0,
+    "tip": 0,
+    "discount": 0,
+    "couponCode": null,
+    "totalAmount": 465,
+    "orderType": "delivery",
+    "prepTimeMinutes": 15,
+    "bufferTimeMinutes": 0,
+    "gracePeriodMinutes": 15,
+    "selfPickupCode": "9639",
+    "paymentMethod": "cod",
+    "paymentStatus": "pending",
+    "status": "cancelled",
+    "pickupOtp": "9639",
+    "pickupOtpExpiresAt": "2026-09-24T07:06:23.327Z",
+    "deliveryOtp": "2425",
+    "deliveryOtpExpiresAt": "2026-09-24T07:06:23.328Z",
+    "timeline": [
+      {
+        "status": "placed",
+        "timestamp": "2026-09-24T05:26:23.328Z",
+        "label": "Order Placed",
+        "by": "system",
+        "description": "Your order has been placed",
+        "_id": "6ab4b47f03a0d10ef6cb19f5"
+      },
+      {
+        "status": "cancelled",
+        "timestamp": "2026-09-24T05:50:00.086Z",
+        "label": "Order Cancelled",
+        "by": "system",
+        "description": "Restaurant did not accept in time.",
+        "_id": "6ab4ba08c36ffd9c8f51874d"
+      },
+      {
+        "status": "cancelled",
+        "timestamp": "2026-09-24T05:50:00.654Z",
+        "label": "Order Cancelled",
+        "by": "system",
+        "description": "Restaurant did not accept in time.",
+        "_id": "6ab4ba0803a0d10ef6cb1b01"
+      }
+    ],
+    "riderNotificationStatus": {
+      "notified": false,
+      "notifiedRiders": []
+    },
+    "riderEarning": 21,
+    "adminCommission": 40,
+    "restaurantCommission": 360,
+    "riderCommission": 21,
+    "appliedCommissionRate": 10,
+    "appliedPricingSource": {
+      "deliveryRule": "Slab 0–3 KM",
+      "commissionRule": "Restaurant Override (10%)",
+      "restaurantOverrideUsed": false,
+      "freeDeliveryApplied": false,
+      "surgeChargeApplied": false
+    },
+    "cashCollected": 0,
+    "refund": {
+      "status": "none",
+      "amount": 0,
+      "method": "wallet"
+    },
+    "deliveryAddress": {
+      "addressLine": "Customer Address",
+      "coordinates": [
+        0,
+        0
+      ]
+    },
+    "deliveryDistanceKm": 0,
+    "isRated": false,
+    "retryCount": 0,
+    "createdAt": "2026-09-24T05:26:23.337Z",
+    "updatedAt": "2026-09-24T05:50:00.654Z",
+    "__v": 1,
+    "cancellationInitiatedBy": "system",
+    "cancellationReason": "System Auto-Cancel: Restaurant did not accept in time",
+    "cancelledAt": "2026-09-24T05:50:00.653Z"
+  },
+  {
+    "_id": "6ab4c5684b156bd222c700d7",
+    "orderNumber": "ORD-1790231912919",
+    "orderType": "delivery",
+    "customer": "6ab3c0c84b156bd222c6d312",
+    "store": "6aadf7ad43fbd98d50e4bb47",
+    "deliveryCoordinates": {
+      "lat": 28.00653508712486,
+      "lng": 77.07011237740517
+    },
+    "items": [
+      {
+        "product": "6aadf7ae43fbd98d50e4bb4b",
+        "name": "Veg biryani",
+        "image": "https://ik.imagekit.io/ECDKART/menu_items/Veg_biryani-1789786423413_WoAKNtIbm.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 79,
+        "subtotal": 158,
+        "b2bPrice": 70
+      }
+    ],
+    "totalAmount": 158,
+    "deliveryCharge": 67,
+    "gst": 8,
+    "totalDiscount": 0,
+    "payableAmount": 233,
+    "address": {
+      "fullAddress": "234C+J2 Sangel, Haryana, India",
+      "landmark": "234C+J2 Sangel",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.07011237740517,
+          28.00653508712486
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "driverEarnings": 57,
+    "restaurantEarnings": 140,
+    "riderAdminCommission": 10,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6ab3c0c84b156bd222c6d312",
+        "reason": "Ordered by mistake",
+        "cancelledAt": "2026-09-24T06:39:31.980Z"
+      }
+    ],
+    "createdAt": "2026-09-24T06:38:32.927Z",
+    "updatedAt": "2026-09-24T06:39:31.985Z",
+    "__v": 1,
+    "paymentTransaction": "6ab4c5684b156bd222c700d9",
+    "deliveryOTP": "9333",
+    "cancellationReason": "Ordered by mistake",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6ab4c5d64b156bd222c7017c",
+    "orderNumber": "ORD-1790232022472",
+    "orderType": "delivery",
+    "customer": "6ab3c0c84b156bd222c6d312",
+    "store": "6ab136bb4b156bd222c5dc68",
+    "deliveryCoordinates": {
+      "lat": 28.00653508712486,
+      "lng": 77.07011237740517
+    },
+    "items": [
+      {
+        "product": "6ab136bc4b156bd222c5dc6f",
+        "name": "Pizza ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/1000019835_fqcAt6uO1.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 120,
+        "subtotal": 240,
+        "b2bPrice": 80
+      }
+    ],
+    "totalAmount": 240,
+    "deliveryCharge": 17,
+    "gst": 12,
+    "totalDiscount": 0,
+    "payableAmount": 269,
+    "address": {
+      "fullAddress": "234C+J2 Sangel, Haryana, India",
+      "landmark": "234C+J2 Sangel",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.07011237740517,
+          28.00653508712486
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "driverEarnings": 15,
+    "restaurantEarnings": 160,
+    "riderAdminCommission": 2,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6ab3c0c84b156bd222c6d312",
+        "reason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+        "cancelledAt": "2026-09-24T07:11:00.009Z"
+      }
+    ],
+    "createdAt": "2026-09-24T06:40:22.478Z",
+    "updatedAt": "2026-09-24T07:11:00.013Z",
+    "__v": 1,
+    "paymentTransaction": "6ab4c5d64b156bd222c7017e",
+    "deliveryOTP": "3237",
+    "cancellationReason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "cancelledBy": "admin"
+  },
+  {
+    "_id": "6ab4c9584b156bd222c703a7",
+    "orderNumber": "ORD-1790232920563",
+    "orderType": "delivery",
+    "customer": "6a7dc4ae6e1285608339f2fd",
+    "store": "6ab136bb4b156bd222c5dc68",
+    "deliveryCoordinates": {
+      "lat": 28.03168055260691,
+      "lng": 77.1155097708106
+    },
+    "items": [
+      {
+        "product": "6ab136bc4b156bd222c5dc6f",
+        "name": "Pizza ",
+        "image": "https://ik.imagekit.io/ECDKART/ecd-backend/1000019835_fqcAt6uO1.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 120,
+        "subtotal": 120,
+        "b2bPrice": 80
+      }
+    ],
+    "totalAmount": 120,
+    "deliveryCharge": 66,
+    "gst": 6,
+    "totalDiscount": 0,
+    "payableAmount": 192,
+    "address": {
+      "fullAddress": "52, Nuh Hodal Rd, Jaisinghpur, Tajpur, Haryana 122107, India",
+      "landmark": "Ja",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.1155097708106,
+          28.03168055260691
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "7988318989",
+    "driverEarnings": 56,
+    "restaurantEarnings": 80,
+    "riderAdminCommission": 10,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6a7dc4ae6e1285608339f2fd",
+        "reason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+        "cancelledAt": "2026-09-24T07:26:00.017Z"
+      }
+    ],
+    "createdAt": "2026-09-24T06:55:20.567Z",
+    "updatedAt": "2026-09-24T07:26:00.020Z",
+    "__v": 1,
+    "paymentTransaction": "6ab4c9584b156bd222c703a9",
+    "deliveryOTP": "7010",
+    "cancellationReason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "cancelledBy": "admin"
+  },
+  {
+    "_id": "6ab4cd0b4b156bd222c707cb",
+    "orderNumber": "ORD-1790233867634",
+    "orderType": "delivery",
+    "customer": "6ab4cbc24b156bd222c70588",
+    "store": "6aadf7ad43fbd98d50e4bb47",
+    "deliveryCoordinates": {
+      "lat": 28.008523686079663,
+      "lng": 77.08227518945932
+    },
+    "items": [
+      {
+        "product": "6aadf7ae43fbd98d50e4bb4b",
+        "name": "Veg biryani",
+        "image": "https://ik.imagekit.io/ECDKART/menu_items/Veg_biryani-1789786423413_WoAKNtIbm.jpg",
+        "portion": "Half",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 79,
+        "subtotal": 158,
+        "b2bPrice": 40
+      },
+      {
+        "product": "6aadf7ae43fbd98d50e4bb4b",
+        "name": "Veg biryani",
+        "image": "https://ik.imagekit.io/ECDKART/menu_items/Veg_biryani-1789786423413_WoAKNtIbm.jpg",
+        "portion": "Full",
+        "variantIndex": 0,
+        "qty": 1,
+        "price": 79,
+        "subtotal": 79,
+        "b2bPrice": 70
+      }
+    ],
+    "totalAmount": 237,
+    "deliveryCharge": 60,
+    "gst": 12,
+    "totalDiscount": 0,
+    "payableAmount": 309,
+    "address": {
+      "fullAddress": "235J+9QM, Sangel, Haryana 122107, India",
+      "landmark": "Sangel",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.08227518945932,
+          28.008523686079663
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8287320977",
+    "driverEarnings": 51,
+    "restaurantEarnings": 150,
+    "riderAdminCommission": 9,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6ab4cbc24b156bd222c70588",
+        "reason": "Found a better price elsewhere",
+        "cancelledAt": "2026-09-24T07:11:23.391Z"
+      }
+    ],
+    "createdAt": "2026-09-24T07:11:07.646Z",
+    "updatedAt": "2026-09-24T07:11:23.393Z",
+    "__v": 1,
+    "paymentTransaction": "6ab4cd0b4b156bd222c707cd",
+    "deliveryOTP": "2126",
+    "cancellationReason": "Found a better price elsewhere",
+    "cancelledBy": "customer"
+  },
+  {
+    "_id": "6ab4cd314b156bd222c70860",
+    "orderNumber": "ORD-1790233905616",
+    "orderType": "delivery",
+    "customer": "6ab4cbc24b156bd222c70588",
+    "store": "6aadf7ad43fbd98d50e4bb47",
+    "deliveryCoordinates": {
+      "lat": 28.008523686079663,
+      "lng": 77.08227518945932
+    },
+    "items": [
+      {
+        "product": "6aadf7ae43fbd98d50e4bb4b",
+        "name": "Veg biryani",
+        "image": "https://ik.imagekit.io/ECDKART/menu_items/Veg_biryani-1789786423413_WoAKNtIbm.jpg",
+        "portion": "Half",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 79,
+        "subtotal": 158,
+        "b2bPrice": 40
+      }
+    ],
+    "totalAmount": 158,
+    "deliveryCharge": 60,
+    "gst": 8,
+    "totalDiscount": 0,
+    "payableAmount": 226,
+    "address": {
+      "fullAddress": "235J+9QM, Sangel, Haryana 122107, India",
+      "landmark": "Sangel",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.08227518945932,
+          28.008523686079663
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "deliveryPhone": "8287320977",
+    "driverEarnings": 51,
+    "restaurantEarnings": 80,
+    "riderAdminCommission": 9,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6ab4cbc24b156bd222c70588",
+        "reason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+        "cancelledAt": "2026-09-24T07:42:00.010Z"
+      }
+    ],
+    "createdAt": "2026-09-24T07:11:45.619Z",
+    "updatedAt": "2026-09-24T07:42:00.018Z",
+    "__v": 1,
+    "paymentTransaction": "6ab4cd314b156bd222c70862",
+    "deliveryOTP": "9739",
+    "cancellationReason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "cancelledBy": "admin"
+  },
+  {
+    "_id": "6ab4ee944b156bd222c71f1e",
+    "orderNumber": "ORD-1790242452158",
+    "orderType": "delivery",
+    "customer": "6ab4d4b84b156bd222c70e42",
+    "store": "6aadf7ad43fbd98d50e4bb47",
+    "deliveryCoordinates": {
+      "lat": 28.04378753936103,
+      "lng": 77.08350028842688
+    },
+    "items": [
+      {
+        "product": "6aadf7ae43fbd98d50e4bb4b",
+        "name": "Veg biryani",
+        "image": "https://ik.imagekit.io/ECDKART/menu_items/Veg_biryani-1789786423413_WoAKNtIbm.jpg",
+        "portion": "Small",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 79,
+        "subtotal": 158,
+        "b2bPrice": 30
+      }
+    ],
+    "totalAmount": 158,
+    "deliveryCharge": 17,
+    "gst": 8,
+    "totalDiscount": 0,
+    "payableAmount": 183,
+    "address": {
+      "fullAddress": "23VM+FC2, Sangel-Ujina Rd, Ujina, Haryana 122107, India",
+      "landmark": "Ujina joniya chowk",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.08350028842688,
+          28.04378753936103
+        ]
+      }
+    },
+    "status": "failed",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "driverEarnings": 15,
+    "restaurantEarnings": 60,
+    "riderAdminCommission": 2,
+    "cancellationLog": [
+      {
+        "cancelledBy": "customer",
+        "cancelledByUser": "6ab4d4b84b156bd222c70e42",
+        "reason": "Payment Failed/Cancelled",
+        "cancelledAt": "2026-09-24T09:35:10.591Z"
+      }
+    ],
+    "createdAt": "2026-09-24T09:34:12.163Z",
+    "updatedAt": "2026-09-24T09:35:10.594Z",
+    "__v": 1,
+    "paymentTransaction": "6ab4ee944b156bd222c71f20",
+    "cancellationReason": "Payment Failed/Cancelled"
+  },
+  {
+    "_id": "6ab4eed14b156bd222c71f58",
+    "orderNumber": "ORD-1790242513405",
+    "orderType": "delivery",
+    "customer": "6ab4d4b84b156bd222c70e42",
+    "store": "6aadf7ad43fbd98d50e4bb47",
+    "deliveryCoordinates": {
+      "lat": 28.04378753936103,
+      "lng": 77.08350028842688
+    },
+    "items": [
+      {
+        "product": "6aadf7ae43fbd98d50e4bb4b",
+        "name": "Veg biryani",
+        "image": "https://ik.imagekit.io/ECDKART/menu_items/Veg_biryani-1789786423413_WoAKNtIbm.jpg",
+        "portion": "Small",
+        "variantIndex": 0,
+        "qty": 2,
+        "price": 79,
+        "subtotal": 158,
+        "b2bPrice": 30
+      }
+    ],
+    "totalAmount": 158,
+    "deliveryCharge": 17,
+    "gst": 8,
+    "totalDiscount": 0,
+    "payableAmount": 183,
+    "address": {
+      "fullAddress": "23VM+FC2, Sangel-Ujina Rd, Ujina, Haryana 122107, India",
+      "landmark": "Ujina joniya chowk",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          77.08350028842688,
+          28.04378753936103
+        ]
+      }
+    },
+    "status": "cancelled",
+    "deliveryStatus": "pending",
+    "rejectedDrivers": [],
+    "driverEarnings": 15,
+    "restaurantEarnings": 60,
+    "riderAdminCommission": 2,
+    "cancellationLog": [
+      {
+        "cancelledBy": "admin",
+        "cancelledByUser": "6ab4d4b84b156bd222c70e42",
+        "reason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+        "cancelledAt": "2026-09-24T10:06:00.011Z"
+      }
+    ],
+    "createdAt": "2026-09-24T09:35:13.411Z",
+    "updatedAt": "2026-09-24T10:06:00.018Z",
+    "__v": 1,
+    "paymentTransaction": "6ab4eed14b156bd222c71f5a",
+    "cancellationReason": "Auto-cancelled: Restaurant did not accept within 30 minutes.",
+    "cancelledBy": "admin"
+  }
+]

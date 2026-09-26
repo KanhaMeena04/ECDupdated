@@ -75,3 +75,8 @@ desktop.ini
 
 config/local.dart
 lib/config/local_config.dart
+
+# Android build cache
+android/.kotlin/
+android/.gradle/
+.gradle/

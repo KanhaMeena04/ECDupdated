@@ -4,7 +4,7 @@ class ApiConstants {
   static String get baseUrl {
     if (kIsWeb) return 'http://localhost:5000/api';
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:5000/api';
+      return 'http://192.168.1.11:5000/api';
     }
     return 'http://localhost:5000/api';
   }
@@ -12,10 +12,8 @@ class ApiConstants {
   static String? _restaurantId;
   static String? _authToken;
 
-  static String get restaurantId => _restaurantId ??
-      (throw StateError('Restaurant session is not authenticated'));
-  static String get authToken =>
-      _authToken ?? (throw StateError('Restaurant session is not authenticated'));
+  static String get restaurantId => _restaurantId ?? '';
+  static String get authToken => _authToken ?? '';
 
   static void setAuthenticatedSession({
     required String restaurantId,
@@ -36,10 +34,13 @@ class ApiConstants {
   // Auth & Profile
   static String get sendOtp => "$baseUrl/restaurants/send-otp";
   static String get verifyOtp => "$baseUrl/restaurants/verify-otp";
+  static String get loginWithPin => "$baseUrl/restaurants/login-with-pin";
   static String getProfile(String id) => "$baseUrl/restaurants/$id/profile";
   static String getOrderHistory(String id) => "$baseUrl/restaurants/$id/order-history";
   static String getDashboardStats(String id, String filter) => "$baseUrl/restaurants/$id/dashboard-stats?filter=$filter";
   static String get deleteAccount => "$baseUrl/restaurants/vendor/delete-account";
+  static String getApprovalStatus(String id) => "$baseUrl/restaurants/$id/status";
+  static String checkApprovalStatusByMobile(String mobile) => "$baseUrl/restaurants/status/check?mobile=$mobile";
 
   // Endpoints
   static String getRestaurantOrders(String id) => "$baseUrl/orders/restaurant/$id";

@@ -59,6 +59,8 @@ const {
   driverCodInitiate,
   driverCodVerify,
 } = require("../controllers/riderController");
+const { saveFCMToken } = require("../controllers/userController");
+router.post("/fcm-token", protect, saveFCMToken);
 router.get("/profile", protect, rider, getRiderProfile);
 router.get("/dashboard", protect, rider, getRiderDashboard);
 router.get("/summary", protect, rider, getEarningsSummary);
@@ -156,8 +158,16 @@ router.put("/admin/update/:id", protect, admin, upload.fields([
   { name: 'gst', maxCount: 1 }
 ]),updateRiderByAdmin);
 router.put("/admin/verify/:id", protect, admin, verifyRider);
+router.patch("/admin/verify/:id", protect, admin, verifyRider);
+router.put("/admin/:id/verify", protect, admin, verifyRider);
+router.patch("/admin/:id/verify", protect, admin, verifyRider);
 router.put("/admin/reject/:id", protect, admin, rejectRider);
+router.patch("/admin/reject/:id", protect, admin, rejectRider);
+router.put("/admin/:id/reject", protect, admin, rejectRider);
+router.patch("/admin/:id/reject", protect, admin, rejectRider);
 router.put("/admin/vehicle-verify/:id", protect, admin, verifyRiderVehicle);
 router.put("/admin/bank-verify/:id", protect, admin, verifyRiderBankDetails);
 router.delete("/admin/delete/:id", protect, admin, deleteRider);
+router.delete("/admin/:id", protect, admin, deleteRider);
+router.delete("/:id", protect, admin, deleteRider);
 module.exports = router;

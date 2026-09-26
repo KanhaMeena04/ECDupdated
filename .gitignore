@@ -37,3 +37,8 @@ android/app/release/
 
 # Large Archives
 *.zip
+
+# Temporary Scratch DB & Logs
+scratch/
+ECDbackend/scratch/*.log
+

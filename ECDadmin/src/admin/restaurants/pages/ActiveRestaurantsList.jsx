@@ -62,10 +62,10 @@ export default function ActiveRestaurantsList() {
   );
 
   // ✅ Shared columns (no UI change)
-  const columns = getRestaurantColumns({
+  const columns = React.useMemo(() => getRestaurantColumns({
     navigate,
     formatDate,
-  });
+  }), [navigate]);
 
   return (
     <div className="w-full lg:mt-0 p-4 xs:p-5">
@@ -87,7 +87,7 @@ export default function ActiveRestaurantsList() {
 
       <RestaurantTable
         columns={columns}
-        rows={data}
+        rows={filteredData && filteredData.length > 0 ? filteredData : data}
         loading={loading}
       />
     </div>

@@ -10,11 +10,11 @@ import { mapRefundOrders } from "../../../utils/orderData";
 export default function RefundOrders() {
   const navigate = useNavigate();
 
-  const { data, loading } = useAdminOrders({
+  const { orders, loading, error } = useAdminOrders({
     status: "refunded",
   });
 
-  const refundOrders = mapRefundOrders(data);
+  const refundOrders = mapRefundOrders(orders);
 
   const refundOrdersColumns = [
     {
@@ -96,7 +96,7 @@ export default function RefundOrders() {
     {
       key: "total",
       label: "Total",
-      render: (row) => `RM ${row.total.toFixed(2)}`,
+      render: (row) => `₹ ${Number(row.total).toFixed(2)}`,
     },
     // {
     //   key: "more",

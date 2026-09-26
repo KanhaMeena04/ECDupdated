@@ -104,7 +104,7 @@ exports.getSuggestions = async (req, res) => {
             availableRestaurants.map((entry) => entry.restaurant._id.toString())
         );
         const foods = await Product.find(
-            { 'name.en': regex, available: true },
+            { 'name.en': regex, available: true, isApproved: true, isRejected: { $ne: true } },
             { 'name.en': 1, image: 1, restaurant: 1 }
         ).populate('restaurant', 'name').limit(5);
         const suggestions = [
@@ -272,6 +272,8 @@ exports.globalSearch = async (req, res) => {
             });
         let productQuery = {
             available: true,
+            isApproved: true,
+            isRejected: { $ne: true },
             ...(regex ? { 'name.en': regex } : {})
         };
         if (formattedRestaurants.length > 0) {

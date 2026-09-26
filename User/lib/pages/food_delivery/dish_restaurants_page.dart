@@ -8,7 +8,6 @@ import '../../core/theme/app_colors.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../routes/app_routes.dart';
-import '../../services/dummy_data.dart';
 import '../../services/restaurant_api_service.dart';
 import '../../services/socket_service.dart';
 import '../../widgets/safe_image.dart';
@@ -121,7 +120,17 @@ class _DishRestaurantsPageState extends State<DishRestaurantsPage> {
 
     try {
       final results = await RestaurantApiService.searchRestaurants(categoryName);
-      final allProducts = DummyData.getProducts();
+      final popularDishes = await RestaurantApiService.getPopularDishes();
+      final allProducts = popularDishes.map((d) => Product(
+        id: d.id,
+        name: d.name,
+        description: d.description,
+        price: d.price > 0 ? d.price : 149.0,
+        image: d.imageUrl,
+        category: d.category.isNotEmpty ? d.category : 'General',
+        rating: 4.5,
+        isVeg: true,
+      )).toList();
 
       final filteredProducts = allProducts.where((p) {
         final catLower = categoryName.toLowerCase();

@@ -1,0 +1,17 @@
+[
+  {
+    "_id": "6a79b59cdc7a56775b324ebb",
+    "morningShift": {
+      "riderFeePerKm": 12,
+      "adminCommissionPerKm": 2
+    },
+    "nightShift": {
+      "riderFeePerKm": 15,
+      "adminCommissionPerKm": 2
+    },
+    "isCodEnabled": true,
+    "createdAt": "2026-08-10T11:27:24.249Z",
+    "updatedAt": "2026-09-16T12:45:48.481Z",
+    "__v": 0
+  }
+]

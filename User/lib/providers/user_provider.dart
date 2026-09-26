@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import '../services/user_api_service.dart';
 import '../services/notification_service.dart';
 import '../services/notification_api_service.dart';
 
 class UserProvider extends ChangeNotifier {
-  String _name = 'User Name';
-  String _email = 'user@email.com';
+  String _name = 'Guest User';
+  String _email = '';
   String _phone = '';
   bool _isLoading = false;
 
@@ -13,6 +14,7 @@ class UserProvider extends ChangeNotifier {
   String get email => _email;
   String get phone => _phone;
   bool get isLoading => _isLoading;
+  bool get isGuest => _phone.isEmpty && (_name == 'Guest User' || _name == 'User Name');
 
   String _avatar = '';
   String get avatar => _avatar;
@@ -26,8 +28,8 @@ class UserProvider extends ChangeNotifier {
   }
 
   void clearUser() {
-    _name = 'User Name';
-    _email = 'user@email.com';
+    _name = 'Guest User';
+    _email = '';
     _phone = '';
     _avatar = '';
     _hasFetchedProfile = false;
@@ -42,13 +44,32 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final token = await AuthService.getToken();
+      if (token == null || token.isEmpty) {
+        _name = 'Guest User';
+        _email = '';
+        _phone = '';
+        _avatar = '';
+        _hasFetchedProfile = true;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
       final profileData = await UserApiService.getProfile();
       if (profileData != null && profileData['user'] != null) {
         final userData = profileData['user'];
-        _name = userData['name'] ?? _name;
-        _email = userData['email'] ?? _email;
-        _phone = userData['phone'] ?? _phone;
+        _name = userData['name'] ?? 'User';
+        _email = userData['email'] ?? '';
+        _phone = userData['phone'] ?? '';
         if (userData['avatar'] != null) _avatar = userData['avatar'];
+      } else {
+        // Token invalid or expired — clear token and reset guest user
+        await AuthService.removeToken();
+        _name = 'Guest User';
+        _email = '';
+        _phone = '';
+        _avatar = '';
       }
 
       // Register FCM device token regardless of profile fetch success

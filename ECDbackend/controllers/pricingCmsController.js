@@ -25,6 +25,8 @@ exports.getPricingConfig = async (req, res) => {
         commissionConfig: settings.commissionConfig,
         platformFeeConfig: settings.platformFeeConfig,
         packagingFeeConfig: settings.packagingFeeConfig,
+        tipConfig: settings.tipConfig,
+        taxConfig: settings.taxConfig,
       },
       restaurants: restaurants.map(r => ({
         _id: r._id,
@@ -213,7 +215,7 @@ exports.updateCommissionConfig = async (req, res) => {
 // -------------------------------------------------------------
 exports.updateFeeConfig = async (req, res) => {
   try {
-    const { platformFeeConfig, packagingFeeConfig, reason } = req.body;
+    const { platformFeeConfig, packagingFeeConfig, tipConfig, taxConfig, reason } = req.body;
 
     const settings = await AdminSetting.getSettings();
     const oldPlatform = { ...settings.platformFeeConfig };
@@ -221,9 +223,19 @@ exports.updateFeeConfig = async (req, res) => {
 
     if (platformFeeConfig) {
       settings.platformFeeConfig = { ...settings.platformFeeConfig, ...platformFeeConfig };
+      settings.markModified('platformFeeConfig');
     }
     if (packagingFeeConfig) {
       settings.packagingFeeConfig = { ...settings.packagingFeeConfig, ...packagingFeeConfig };
+      settings.markModified('packagingFeeConfig');
+    }
+    if (tipConfig) {
+      settings.tipConfig = { ...settings.tipConfig, ...tipConfig };
+      settings.markModified('tipConfig');
+    }
+    if (taxConfig) {
+      settings.taxConfig = { ...settings.taxConfig, ...taxConfig };
+      settings.markModified('taxConfig');
     }
 
     await settings.save();
@@ -247,6 +259,8 @@ exports.updateFeeConfig = async (req, res) => {
       message: 'Fee configuration updated successfully',
       platformFeeConfig: settings.platformFeeConfig,
       packagingFeeConfig: settings.packagingFeeConfig,
+      tipConfig: settings.tipConfig,
+      taxConfig: settings.taxConfig,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

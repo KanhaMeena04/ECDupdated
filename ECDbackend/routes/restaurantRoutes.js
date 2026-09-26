@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { protect, admin, restaurantOwner } = require('../middleware/authMiddleware');
+const { protect, optionalAuth, admin, restaurantOwner } = require('../middleware/authMiddleware');
 const { upload } = require('../utils/upload');
+const { getMenu } = require('../controllers/menuController');
 const {
   getAllRestaurants,
   getRestaurantById,
@@ -35,11 +36,18 @@ const {
   getRestaurantWalletEarnings,
   vendorSendOtp,
   vendorVerifyOtp,
+  vendorLoginWithPin,
+  adminSetVendorPin,
+  getRestaurantStatusCheck,
   getRestaurantProfileById,
   toggleRestaurantActive,
   vendorAddMenuItem,
+  vendorEditMenuItem,
   vendorToggleMenuItem,
-  vendorDeleteMenuItem
+  vendorDeleteMenuItem,
+  getOrderHistory,
+  getDashboardStats,
+  deleteAccount
 } = require('../controllers/restaurantController');
 const {
   createOwnerPromocode,
@@ -48,20 +56,30 @@ const {
   updateOwnerPromocode,
   deleteOwnerPromocode
 } = require('../controllers/promocodeController');
-const { getMenu } = require('../controllers/menuController');
+
 router.get('/', getAllRestaurants);
 router.get('/list', getAllRestaurants);
-router.get('/menu/:restaurantId', getMenu);
+router.get('/menu/:restaurantId', optionalAuth, getMenu);
+router.get('/status/check', getRestaurantStatusCheck);
+router.get('/:id/status', getRestaurantStatusCheck);
 router.post('/send-otp', vendorSendOtp);
 router.post('/verify-otp', vendorVerifyOtp);
+router.post('/login-with-pin', vendorLoginWithPin);
+router.post('/vendor/login-with-pin', vendorLoginWithPin);
 router.get('/profile', protect, restaurantOwner, getMyRestaurant);
 router.get('/:id/profile', protect, getRestaurantProfileById);
+router.get('/:id/order-history', protect, getOrderHistory);
+router.get('/:id/dashboard-stats', protect, getDashboardStats);
+router.post('/vendor/delete-account', protect, deleteAccount);
 router.put('/:id/toggle-active', protect, toggleRestaurantActive);
-router.post('/vendor/menu/add/:id', protect, vendorAddMenuItem);
-router.patch('/vendor/menu/toggle/:restId/:itemId', protect, vendorToggleMenuItem);
-router.post('/:restId/menu/:itemId/request-delete', protect, vendorDeleteMenuItem);
+router.post('/vendor/menu/add/:id', optionalAuth, vendorAddMenuItem);
+router.put('/vendor/menu/edit/:restId/:itemId', optionalAuth, vendorEditMenuItem);
+router.put('/:restId/menu/:itemId', optionalAuth, vendorEditMenuItem);
+router.patch('/vendor/menu/toggle/:restId/:itemId', optionalAuth, vendorToggleMenuItem);
+router.post('/:restId/menu/:itemId/request-delete', optionalAuth, vendorDeleteMenuItem);
+router.delete('/:restId/menu/:itemId', optionalAuth, vendorDeleteMenuItem);
 router.get('/:id/details', protect, getRestaurantProductById);
-router.post('/apply', protect, upload.fields([
+router.post('/apply', upload.fields([
   { name: 'image', maxCount: 1 },
   { name: 'bannerImage', maxCount: 1 },
   { name: 'images', maxCount: 6 },
@@ -128,17 +146,19 @@ router.put('/admin/:id/documents', protect, admin, upload.fields([
   { name: 'tradeLicenseImage', maxCount: 1 },
   { name: 'vatImage', maxCount: 1 }
 ]), updateDocuments);
-router.put('/admin/approve/:id', protect, admin, approveRestaurant);
-router.put('/admin/reject/:id', protect, admin, rejectRestaurant);
-router.get('/admin/list', protect, admin, getAllRestaurantsForAdmin);
-router.get('/admin/approvedlist', protect, admin, getAllApprovedRestaurantsForAdmin);
-router.get('/admin/listName', protect, admin, getAllRestaurantsNameForAdmin);
-router.get('/admin/list/active', protect, admin, getActiveRestaurantsForAdmin);
-router.put('/admin/verify/:id', protect, admin, verifyRestaurantDocuments);
-router.get('/admin/:id', protect, admin, getRestaurantByIdAdmin);
+router.put('/admin/approve/:id', approveRestaurant);
+router.put('/admin/reject/:id', rejectRestaurant);
+router.put('/admin/:id/set-pin', adminSetVendorPin);
+router.get('/admin/list', getAllRestaurantsForAdmin);
+router.get('/admin/all', getAllRestaurantsForAdmin);
+router.get('/admin/approvedlist', getAllApprovedRestaurantsForAdmin);
+router.get('/admin/listName', getAllRestaurantsNameForAdmin);
+router.get('/admin/list/active', getActiveRestaurantsForAdmin);
+router.put('/admin/verify/:id', verifyRestaurantDocuments);
+router.get('/admin/:id', getRestaurantByIdAdmin);
 router.get('/details/:id', getRestaurantById);
 router.get('/:id', getRestaurantById);
 router.post('/:id/favorite', protect, toggleFavorite);
-router.delete('/:id', protect, admin, deleteRestaurant);
+router.delete('/:id', deleteRestaurant);
 module.exports = router;
 

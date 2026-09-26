@@ -10,11 +10,11 @@ import { mapFailedOrders } from "../../../utils/orderData";
 export default function FailedOrders() {
   const navigate = useNavigate();
 
-  const { data, loading } = useAdminOrders({
+  const { orders, loading, error } = useAdminOrders({
     status: "failed",
   });
 
-  const failedOrders = mapFailedOrders(data);
+  const failedOrders = mapFailedOrders(orders);
 
   const failedOrdersColumns = [
     {
@@ -96,7 +96,7 @@ export default function FailedOrders() {
     {
       key: "total",
       label: "Total",
-      render: (row) => `RM ${row.total.toFixed(2)}`,
+      render: (row) => `₹ ${Number(row.total).toFixed(2)}`,
     },
     {
       key: "more",

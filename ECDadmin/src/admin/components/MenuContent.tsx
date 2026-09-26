@@ -56,7 +56,7 @@ export const menuItems = [
     children: [
       { text: 'All Restaurants', path: '/restaurants' },
       { text: 'Pending Approval', path: '/pending-restaurants' },
-      { text: 'Menu Approval', path: '/approve-restaurant' },
+      { text: 'Approved Restaurants', path: '/approve-restaurant' },
       { text: 'Documents', path: '/documents' },
       { text: 'Restaurant Controls', path: '/active-restaurants' },
     ]
@@ -80,10 +80,12 @@ export const menuItems = [
     text: 'Menu',
     icon: <RestaurantMenu />,
     children: [
+      { text: 'Menu Items', path: '/catalog-master-control' },
       { text: 'Categories', path: '/category' },
-      { text: 'Subcategories', path: '/filter-category' },
-      { text: 'Products', path: '/catalog-master-control' },
-      { text: 'Approval', path: '/approve-restaurant' },
+      { text: 'Subcategories', path: '/category?tab=1' },
+      { text: 'Pending Menu Approvals', path: '/pending-menu-approvals' },
+      { text: 'Category Requests', path: '/category-requests' },
+      { text: 'Menu Approval History', path: '/menu-approval-history' },
     ]
   },
 

@@ -1,0 +1,22 @@
+[
+  {
+    "_id": "6a92c4c46e128560833b6929",
+    "imageUrl": "https://ik.imagekit.io/ECDKART/ecd-backend/15950694_Food-Facebook-Cover-Banner-08__1__yWnqDmQB1.jpg",
+    "isActive": true,
+    "createdAt": "2026-08-29T11:38:44.432Z",
+    "updatedAt": "2026-08-29T11:38:44.432Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9efdb799866971ef573d27",
+    "imageUrl": "https://ik.imagekit.io/ECDKART/ecd-backend/13003904_food-web-banner-08__1__GGjJhW6eo.jpg",
+    "isActive": true,
+    "createdAt": "2026-09-07T18:08:55.755Z",
+    "updatedAt": "2026-09-16T06:48:34.233Z",
+    "__v": 0,
+    "linkType": "category",
+    "linkUrl": "",
+    "targetId": "Burger",
+    "targetName": "Burger"
+  }
+]

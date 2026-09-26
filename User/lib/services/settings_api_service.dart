@@ -26,4 +26,20 @@ class SettingsApiService {
     }
     return true; // Default to true if fetch fails
   }
+
+  static Future<Map<String, dynamic>?> fetchSettings() async {
+    if (kFrontendPreviewMode) return null;
+    try {
+      final response = await http.get(Uri.parse(baseUrl));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return ((data['settings'] ?? data['data'] ?? data) as Map<String, dynamic>);
+        }
+      }
+    } catch (e) {
+      debugPrint("Settings fetch error: $e");
+    }
+    return null;
+  }
 }

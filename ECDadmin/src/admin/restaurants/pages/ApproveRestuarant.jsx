@@ -45,16 +45,16 @@ export default function ApproveRestaurants() {
     }));
   }, [data]);
 
-  const columns = getRestaurantColumns({
+  const columns = useMemo(() => getRestaurantColumns({
     navigate,
     formatDate,
     extraActions: [
       {
         label: "Menu",
-        onClick: (row) => navigate(`/restaurants/${row.id}/menu`) // ✅ FIX
+        onClick: (row) => navigate(`/restaurants/${row.id}/menu`)
       }
     ]
-  });
+  }), [navigate]);
 
   return (
     <div className="w-full lg:mt-0 p-4 xs:p-5">

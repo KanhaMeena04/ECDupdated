@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { API_BASE_URL } from '../../utils/utils';
 
 export default function ScheduledChangesPage() {
   const [changes, setChanges] = useState([]);
@@ -15,7 +16,7 @@ export default function ScheduledChangesPage() {
 
   const fetchChanges = async () => {
     try {
-      const res = await axios.get('/api/scheduled-changes');
+      const res = await axios.get(`${API_BASE_URL}/api/scheduled-changes`);
       if (res.data.changes) setChanges(res.data.changes);
     } catch (err) {
       toast.error('Failed to load scheduled changes');
@@ -28,7 +29,7 @@ export default function ScheduledChangesPage() {
 
   const handleCancel = async (id) => {
     try {
-      const res = await axios.patch(`/api/scheduled-changes/${id}/cancel`);
+      const res = await axios.patch(`${API_BASE_URL}/api/scheduled-changes/${id}/cancel`);
       if (res.data.success) {
         toast.success('Scheduled change cancelled');
         fetchChanges();
@@ -47,7 +48,7 @@ export default function ScheduledChangesPage() {
         return toast.error('Invalid JSON payload string');
       }
 
-      const res = await axios.post('/api/scheduled-changes', {
+      const res = await axios.post(`${API_BASE_URL}/api/scheduled-changes`, {
         title: formData.title,
         targetEntity: formData.targetEntity,
         payload: parsedPayload,

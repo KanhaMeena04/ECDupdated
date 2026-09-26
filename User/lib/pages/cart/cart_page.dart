@@ -18,6 +18,8 @@ import '../../widgets/coupons_bottom_sheet.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/flip_animation_widgets.dart';
 import '../auth/login_page.dart';
+import '../auth/register_page.dart';
+import '../../providers/user_provider.dart';
 
 class CartPage extends StatefulWidget {
   final Restaurant? restaurant;
@@ -38,6 +40,7 @@ class _CartPageState extends State<CartPage> {
 
   void _fetchDynamicDeliveryFee() {
     final cart = context.read<CartProvider>();
+    cart.fetchDynamicSettings();
     final addressProvider = context.read<AddressProvider>();
     final locationProvider = context.read<LocationProvider>();
 
@@ -69,6 +72,19 @@ class _CartPageState extends State<CartPage> {
       token = await AuthService.getToken();
       if (token == null || token.isEmpty) {
         return; // Login wasn't completed
+      }
+    }
+
+    // Check if new user needs to complete profile details
+    if (mounted) {
+      final userProvider = context.read<UserProvider>();
+      if (userProvider.isGuest || userProvider.name == 'User' || userProvider.name == 'User Name' || userProvider.name == 'Guest User') {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => RegisterPage(initialMobile: userProvider.phone),
+          ),
+        );
       }
     }
 
@@ -565,6 +581,11 @@ class _CartPageState extends State<CartPage> {
 
                   const SizedBox(height: 12),
 
+                  // 5b. Tip your Rider Section (Dynamic CMS driven)
+                  _TipRiderCard(cart: cart),
+
+                  if (cart.isTipEnabled) const SizedBox(height: 12),
+
                   // 6. Bill Details Section with Dashed Divider
                   _BillDetailsCard(cart: cart),
 
@@ -609,6 +630,7 @@ class _EstimatedDeliveryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cart = context.watch<CartProvider>();
     return Container(
       width: double.infinity,
       color: AppColors.primary.withValues(alpha: 0.08),
@@ -618,8 +640,8 @@ class _EstimatedDeliveryHeader extends StatelessWidget {
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
+            children: [
+              const Text(
                 'Estimated Delivery',
                 style: TextStyle(
                   fontSize: 12,
@@ -627,10 +649,10 @@ class _EstimatedDeliveryHeader extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              SizedBox(height: 2),
+              const SizedBox(height: 2),
               Text(
-                'Standard (20-35 minutes)',
-                style: TextStyle(
+                'Standard (${cart.restaurantDeliveryTimeMin > 0 ? cart.restaurantDeliveryTimeMin : 20}-${(cart.restaurantDeliveryTimeMin > 0 ? cart.restaurantDeliveryTimeMin : 20) + 15} minutes)',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF1F2937),
@@ -865,13 +887,60 @@ class _CartItemRow extends StatelessWidget {
   }
 }
 
-// ── 4. Offers Section ────────────────────────────────────────────────────────
-class _OffersSection extends StatelessWidget {
+// ── 4. Offers & Coupons Section (CMS/Backend Driven) ──────────────────────────
+class _OffersSection extends StatefulWidget {
   final CartProvider cart;
   const _OffersSection({required this.cart});
 
   @override
+  State<_OffersSection> createState() => _OffersSectionState();
+}
+
+class _OffersSectionState extends State<_OffersSection> {
+  List<dynamic> _coupons = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCoupons();
+  }
+
+  Future<void> _fetchCoupons() async {
+    try {
+      final coupons = await CouponApiService.getCoupons();
+      if (mounted) {
+        setState(() {
+          _coupons = coupons;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _coupons = [];
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _applyCoupon(String code) async {
+    final result = await widget.cart.applyCoupon(code);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']),
+          backgroundColor: result['success'] ? AppColors.primary : Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final cart = widget.cart;
+
     return Container(
       width: double.infinity,
       color: Colors.white,
@@ -929,37 +998,39 @@ class _OffersSection extends StatelessWidget {
             const SizedBox(height: 12),
           ],
 
-          // Offer Card 1
-          _OfferCard(
-            description: 'Get flat ₹50 off on your first order.',
-            code: 'FLAT50',
-            onApply: () => _applySampleCoupon(context, 'FLAT50'),
-          ),
-          const SizedBox(height: 10),
-
-          // Offer Card 2
-          _OfferCard(
-            description: 'Get flat ₹50 off on your first order.',
-            code: 'FLAT50',
-            onApply: () => _applySampleCoupon(context, 'FLAT50'),
-          ),
-          const SizedBox(height: 12),
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.0),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (_coupons.isNotEmpty) ...[
+            ..._coupons.take(2).map((c) {
+              final code = (c['code'] ?? 'OFFER').toString();
+              final desc = c['description'] ?? c['subHeading'] ?? c['title'] ?? 'Get special discount on your order';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10.0),
+                child: _OfferCard(
+                  description: desc.toString(),
+                  code: code,
+                  onApply: () => _applyCoupon(code),
+                ),
+              );
+            }),
+            const SizedBox(height: 4),
+          ],
 
           // View all Coupons >
           GestureDetector(
             onTap: () => CouponsBottomSheet.show(
               context,
               onApplyCoupon: (code) async {
-                final result = await cart.applyCoupon(code);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(result['message']),
-                      backgroundColor:
-                          result['success'] ? AppColors.primary : Colors.red,
-                    ),
-                  );
-                }
+                _applyCoupon(code);
               },
             ),
             child: Row(
@@ -982,18 +1053,6 @@ class _OffersSection extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  void _applySampleCoupon(BuildContext context, String code) async {
-    final result = await cart.applyCoupon(code);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']),
-          backgroundColor: result['success'] ? AppColors.primary : Colors.red,
-        ),
-      );
-    }
   }
 }
 
@@ -1272,6 +1331,110 @@ class _OrderOptionsAndNotesCard extends StatelessWidget {
   }
 }
 
+// ── 5b. Tip Rider Card (Matching Screenshot UI, CMS driven) ─────────────────
+class _TipRiderCard extends StatelessWidget {
+  final CartProvider cart;
+  const _TipRiderCard({required this.cart});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!cart.isTipEnabled) return const SizedBox.shrink();
+
+    final options = cart.tipOptions;
+    final selectedTip = cart.selectedTip;
+
+    return Container(
+      width: double.infinity,
+      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Text(
+                'Tip your rider',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              Spacer(),
+              Icon(Icons.chevron_right, color: Color(0xFF6B7280), size: 20),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            '100% of the tips go to your rider, we dont deduct anything from it',
+            style: TextStyle(
+              fontSize: 11,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+          const SizedBox(height: 14),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                // "Not Now" button
+                GestureDetector(
+                  onTap: () => cart.setSelectedTip(0.0),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: selectedTip == 0.0 ? AppColors.primary : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: selectedTip == 0.0 ? AppColors.primary : const Color(0xFFE5E7EB),
+                      ),
+                    ),
+                    child: Text(
+                      'Not Now',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: selectedTip == 0.0 ? Colors.white : const Color(0xFF374151),
+                      ),
+                    ),
+                  ),
+                ),
+                // Dynamic tip options set in Admin CMS
+                ...options.map((opt) {
+                  final isSelected = (selectedTip - opt).abs() < 0.01;
+                  return GestureDetector(
+                    onTap: () => cart.setSelectedTip(opt),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primary : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? AppColors.primary : const Color(0xFFE5E7EB),
+                        ),
+                      ),
+                      child: Text(
+                        '₹${opt.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected ? Colors.white : const Color(0xFF374151),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── 6. Bill Summary Card (Matching Screenshot 2) ─────────────────────────────────────────────────────
 class _BillDetailsCard extends StatelessWidget {
   final CartProvider cart;
@@ -1349,15 +1512,40 @@ class _BillDetailsCard extends StatelessWidget {
           const SizedBox(height: 12),
 
           // Platform fee
-          _BillRow(label: 'Platform fee', valueStr: '₹${platformFee.toStringAsFixed(2)}'),
-          const SizedBox(height: 10),
+          if (cart.isPlatformFeeEnabled) ...[
+            _BillRow(
+              label: 'Platform fee',
+              valueStr: platformFee == 0 ? 'Free' : '₹${platformFee.toStringAsFixed(2)}',
+            ),
+            const SizedBox(height: 10),
+          ],
 
           // Restaurant Packaging fee
-          _BillRow(label: 'Restaurant packaging fee', valueStr: '₹${packagingFee.toStringAsFixed(2)}'),
-          const SizedBox(height: 10),
+          if (cart.isPackagingFeeEnabled) ...[
+            _BillRow(
+              label: 'Restaurant packaging fee',
+              valueStr: packagingFee == 0 ? 'Free' : '₹${packagingFee.toStringAsFixed(2)}',
+            ),
+            const SizedBox(height: 10),
+          ],
 
-          // GST (govt. taxes) 5%
-          _BillRow(label: 'GST (govt. taxes)', valueStr: '₹${gst.toStringAsFixed(2)}'),
+          // GST (govt. taxes)
+          if (cart.isTaxEnabled && gst > 0) ...[
+            _BillRow(
+              label: 'GST (govt. taxes)',
+              valueStr: '₹${gst.toStringAsFixed(2)}',
+            ),
+            const SizedBox(height: 10),
+          ],
+
+          // Delivery Partner Tip
+          if (cart.isTipEnabled && cart.selectedTip > 0) ...[
+            _BillRow(
+              label: 'Delivery partner tip',
+              valueStr: '₹${cart.selectedTip.toStringAsFixed(2)}',
+            ),
+            const SizedBox(height: 10),
+          ],
 
           // Offer Applied if active
           if (discount > 0) ...[
@@ -2201,7 +2389,7 @@ class _PaymentBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = cart.finalAmount + cart.deliveryFee;
+    final total = CartProvider.safeNum(cart.finalAmount);
 
     return Container(
       padding: EdgeInsets.fromLTRB(

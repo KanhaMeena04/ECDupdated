@@ -10,10 +10,13 @@ exports.getCart = async (req, res) => {
     let cart = await Cart.findOne({ user: req.user._id })
       .populate(
         "restaurant",
-        "name description image cuisine rating address city area deliveryTime deliveryType isFreeDelivery minOrderValue estimatedPreparationTime isActive isTemporarilyClosed timing",
-      );
+        "name description image cuisine rating address city area deliveryTime deliveryType isFreeDelivery minOrderValue estimatedPreparationTime isActive isTemporarilyClosed timing"
+      )
+      .populate("items.product");
+
     if (!cart)
-      return res.status(200).json({ message: "Cart is empty", cart: null, bill: null });
+      return res.status(200).json({ success: true, message: "Cart is empty", cart: null, items: [], bill: null });
+
     if (cart.items && cart.items.length > 0) {
       const originalLength = cart.items.length;
       cart.items = cart.items.filter((item) => item && item.restaurant);
@@ -22,55 +25,58 @@ exports.getCart = async (req, res) => {
       }
       if (cart.items.length === 0) {
         await Cart.findByIdAndDelete(cart._id);
-        return res.status(200).json({ message: "Cart is empty", cart: null, bill: null });
-      }
-      const missingImageIds = cart.items
-        .filter((item) => !item.image)
-        .map((item) => item.product);
-      if (missingImageIds.length > 0) {
-        const products = await Product.find({ _id: { $in: missingImageIds } })
-          .select("_id image")
-          .lean();
-        const imageMap = new Map(
-          products.map((product) => [product._id.toString(), product.image])
-        );
-        let updated = false;
-        cart.items.forEach((item) => {
-          if (!item.image) {
-            const image = imageMap.get(item.product.toString());
-            if (image) {
-              item.image = image;
-              updated = true;
-            }
-          }
-        });
-        if (updated) {
-          await cart.save();
-        }
+        return res.status(200).json({ success: true, message: "Cart is empty", cart: null, items: [], bill: null });
       }
     }
+
     const formattedRestaurant = cart.restaurant
       ? formatRestaurantForUser(cart.restaurant)
       : null;
-    const formattedItems = cart.items.map((item) => ({
-      _id: item._id,
-      product: item.product,
-      image: item.image,
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity,
-      variation: item.variation || null,
-      addOns: item.addOns || [],
-    }));
+
+    const formattedItems = cart.items.map((item) => {
+      const p = item.product || {};
+      const pName = p.name ? (p.name.en || p.name.de || p.name.ar || p.name) : (item.name || "Item");
+      const pDesc = p.description ? (p.description.en || p.description) : "";
+      const pPrice = Number(item.price || p.sellingPrice || p.basePrice || 0);
+
+      return {
+        _id: item._id,
+        id: item._id,
+        product: item.product?._id || item.product,
+        productId: {
+          _id: p._id?.toString() || item.product?.toString() || "",
+          id: p._id?.toString() || item.product?.toString() || "",
+          name: pName,
+          description: pDesc,
+          price: pPrice,
+          image: item.image || p.image || "",
+          category: p.category?.toString() || "",
+          rating: Number(p.rating || 4.5),
+          isVeg: p.isVeg !== false,
+          store: item.restaurant?.toString() || cart.restaurant?._id?.toString() || ""
+        },
+        image: item.image || p.image || "",
+        name: pName,
+        price: pPrice,
+        quantity: item.quantity || 1,
+        variation: item.variation || null,
+        addOns: item.addOns || [],
+      };
+    });
+
     const bill = await calculateBill(cart, req.user._id);
     if (bill && bill.restaurantId && bill.restaurantId._id) {
       bill.restaurantId = bill.restaurantId._id;
     }
+
     const itemCount = formattedItems.reduce(
       (sum, item) => sum + (item.quantity || 0),
-      0,
+      0
     );
+
     res.status(200).json({
+      success: true,
+      items: formattedItems,
       cart: {
         _id: cart._id,
         user: cart.user,
@@ -85,51 +91,70 @@ exports.getCart = async (req, res) => {
       itemCount,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.validateCoupon = async (req, res) => {
   try {
-    const { couponCode } = req.body;
+    const { couponCode, code } = req.body;
+    const resolvedCode = couponCode || code;
     const userId = req.user ? req.user._id : req.body.userId;
-    if (!couponCode) {
-      return res.status(400).json({ message: "Coupon code is required." });
+    if (!resolvedCode) {
+      return res.status(400).json({ success: false, message: "Coupon code is required." });
     }
     const cart = await Cart.findOne({ user: userId })
       .populate("restaurant")
       .populate("items.restaurant");
     if (!cart) {
-      return res.status(404).json({ message: "Cart not found." });
+      return res.status(404).json({ success: false, message: "Cart not found." });
     }
-    cart.couponCode = couponCode;
+    cart.couponCode = resolvedCode;
     const bill = await calculateBill(cart, userId);
     if (bill.couponError) {
-      return res.status(400).json({ valid: false, message: bill.couponError });
+      return res.status(400).json({ success: false, valid: false, message: bill.couponError });
     }
-    return res.json({ valid: true, message: "Coupon is valid", bill });
+    return res.json({ success: true, valid: true, message: "Coupon is valid", discountAmount: bill.discountAmount || 0, bill, coupon: { code: resolvedCode.toUpperCase(), discount: bill.discountAmount || 0 } });
   } catch (err) {
-    return res.status(500).json({ message: "Server error." });
+    return res.status(500).json({ success: false, message: "Server error." });
   }
 };
+
 exports.addToCart = async (req, res) => {
   try {
-    const { restaurantId, productId, quantity, variationId, addOnsIds, clearCart } = req.body;
-    if (!restaurantId || !productId) {
-      return res.status(400).json({ message: "Restaurant ID and Product ID are required" });
+    let { restaurantId, productId, quantity, variationId, addOnsIds, clearCart } = req.body;
+    if (!productId) {
+      return res.status(400).json({ success: false, message: "Product ID is required" });
     }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    if (!restaurantId) {
+      restaurantId = product.restaurant?.toString();
+    }
+
+    if (!restaurantId) {
+      return res.status(400).json({ success: false, message: "Restaurant ID could not be determined" });
+    }
+
     const parsedQuantity = Number.isFinite(Number(quantity)) && Number(quantity) > 0
       ? parseInt(quantity, 10)
       : 1;
+
     const normalizedAddOnsIds = Array.isArray(addOnsIds)
       ? addOnsIds
       : addOnsIds && typeof addOnsIds === 'string' && addOnsIds.trim()
       ? [addOnsIds]
       : [];
+
     let cart = await Cart.findOne({ user: req.user._id });
     if (cart && cart.items.length > 0) {
       cart.items = cart.items.filter(item => item && item.restaurant);
       const existingRestaurantId = cart.restaurant ? cart.restaurant.toString() : null;
-      if (existingRestaurantId && existingRestaurantId !== restaurantId) {
+      if (existingRestaurantId && existingRestaurantId !== restaurantId.toString()) {
         if (clearCart) {
           cart.items = [];
           cart.restaurant = restaurantId;
@@ -139,6 +164,7 @@ exports.addToCart = async (req, res) => {
           const existingRestaurant = await Restaurant.findById(existingRestaurantId);
           const newRestaurant = await Restaurant.findById(restaurantId);
           return res.status(409).json({
+            success: false,
             message: "Cart contains items from another restaurant. Please place your current order first or clear your cart.",
             conflict: true,
             requiresAction: true,
@@ -158,6 +184,7 @@ exports.addToCart = async (req, res) => {
         }
       }
     }
+
     if (!cart) {
       cart = await Cart.create({
         user: req.user._id,
@@ -169,186 +196,216 @@ exports.addToCart = async (req, res) => {
         cart.restaurant = restaurantId;
       }
     }
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-    if (product.restaurant.toString() !== restaurantId.toString()) {
-        const productRestaurant = await Restaurant.findById(product.restaurant);
-        return res.status(400).json({ 
-            message: "Product does not belong to the selected restaurant",
-            productRestaurant: productRestaurant ? productRestaurant.name.en : "Unknown"
-        });
-    }
-    let finalPrice = product.basePrice;
+
+    let finalPrice = product.sellingPrice || product.basePrice || 0;
     let variationObj = null;
     let addOnsArr = [];
-    if (variationId) {
-      const v = product.variations.id(variationId);
-      if (!v) {
-        return res.status(400).json({ message: "Invalid variation selected" });
+
+    if (variationId && product.variations) {
+      const v = product.variations.id ? product.variations.id(variationId) : product.variations.find(va => va._id?.toString() === variationId);
+      if (v) {
+        const variationPrice = Number(v.price) || 0;
+        finalPrice += variationPrice;
+        const variationName = v.name?.en || v.name?.de || v.name?.ar || v.name || "";
+        variationObj = { _id: v._id, name: variationName, price: variationPrice };
       }
-      const variationPrice = Number(v.price) || 0;
-      finalPrice += variationPrice;
-      const variationName = v.name?.en || v.name?.de || v.name?.ar || "";
-      variationObj = { _id: v._id, name: variationName, price: variationPrice };
     }
-    if (normalizedAddOnsIds.length > 0) {
+
+    if (normalizedAddOnsIds.length > 0 && product.addOns) {
       const uniqueAddOnIds = Array.from(new Set(normalizedAddOnsIds.map((id) => id.toString())));
       const selectedAddons = product.addOns.filter((a) =>
         uniqueAddOnIds.includes(a._id.toString())
       );
-      if (selectedAddons.length !== uniqueAddOnIds.length) {
-        return res.status(400).json({ message: "Invalid add-on selected" });
-      }
       selectedAddons.forEach((a) => {
         const addOnPrice = Number(a.price) || 0;
         finalPrice += addOnPrice;
-        const addOnName = a.name?.en || a.name?.de || a.name?.ar || "";
+        const addOnName = a.name?.en || a.name?.de || a.name?.ar || a.name || "";
         addOnsArr.push({ _id: a._id, name: addOnName, price: addOnPrice });
       });
     }
+
+    const pName = product.name ? (product.name.en || product.name.de || product.name) : "Food Item";
     const cartItem = {
       product: productId,
       restaurant: restaurantId,
-      name: product.name.en,
+      name: pName,
       image: product.image,
       price: finalPrice,
       quantity: parsedQuantity,
       addOns: addOnsArr,
     };
+
     if (variationObj && typeof variationObj === 'object' && Object.keys(variationObj).length > 0) {
       cartItem.variation = variationObj;
     }
+
     const existingItemIndex = cart.items.findIndex(item => 
-        item.product.toString() === productId && 
+        item.product && item.product.toString() === productId.toString() && 
         JSON.stringify(item.variation) === JSON.stringify(cartItem.variation) &&
         JSON.stringify(item.addOns) === JSON.stringify(cartItem.addOns)
     );
+
     if (existingItemIndex > -1) {
-        cart.items[existingItemIndex].quantity += parsedQuantity;
+      cart.items[existingItemIndex].quantity += parsedQuantity;
       if (!cart.items[existingItemIndex].image) {
         cart.items[existingItemIndex].image = product.image;
       }
     } else {
-        cart.items.push(cartItem);
+      cart.items.push(cartItem);
     }
+
     await cart.save();
     const updatedCart = await Cart.findById(cart._id)
       .populate("restaurant")
       .populate("items.restaurant")
       .lean();
+
     const bill = await calculateBill(cart, req.user._id);
     res.status(200).json({ 
+      success: true,
       message: "Item added to cart successfully", 
       cart: updatedCart, 
       bill 
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.removeItem = async (req, res) => {
   try {
+    const { productId, itemId } = { ...req.body, ...req.params };
     const cart = await Cart.findOne({ user: req.user._id });
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
-    const itemId = req.params.itemId;
-    const itemExists = cart.items.some(item => item._id.toString() === itemId);
-    if (!itemExists) {
-      return res.status(404).json({ message: "Item not found in cart" });
+    if (!cart) return res.status(404).json({ success: false, message: "Cart not found" });
+
+    const targetId = itemId || productId;
+    if (!targetId) {
+      return res.status(400).json({ success: false, message: "Product ID or Item ID is required" });
     }
+
     cart.items = cart.items.filter(
-      (item) => item._id.toString() !== itemId
+      (item) => item._id.toString() !== targetId && item.product?.toString() !== targetId
     );
+
     if (cart.items.length === 0) {
       await Cart.findByIdAndDelete(cart._id);
       return res.status(200).json({ 
+        success: true,
         message: "Cart cleared", 
         cart: null, 
         bill: null 
       });
     }
+
     await cart.save();
     const bill = await calculateBill(cart, req.user._id);
     res.status(200).json({ 
+      success: true,
       message: "Item removed from cart", 
       cart, 
       bill,
       itemCount: cart.items.length
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.updateItemQuantity = async (req, res) => {
   try {
-    const { itemId, quantity, action } = req.body;
-    if (!itemId) {
-      return res.status(400).json({ message: "Item ID is required" });
+    const { itemId, productId, quantity, action } = { ...req.body, ...req.params };
+    const targetId = itemId || productId;
+    if (!targetId) {
+      return res.status(400).json({ success: false, message: "Item ID or Product ID is required" });
     }
-    let newQuantity;
-    if (action) {
-      if (action !== 'increase' && action !== 'decrease') {
-        return res.status(400).json({ message: "Invalid action. Use 'increase' or 'decrease'" });
-      }
-    } else if (Number.isFinite(Number(quantity))) {
-      newQuantity = parseInt(quantity, 10);
-    } else {
-      return res.status(400).json({ message: "Quantity or action is required" });
-    }
+
     const cart = await Cart.findOne({ user: req.user._id });
     if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
+      return res.status(404).json({ success: false, message: "Cart not found" });
     }
-    const item = cart.items.find(i => i._id.toString() === itemId);
-    if (!item) {
-      return res.status(404).json({ message: "Item not found in cart" });
+
+    const itemIndex = cart.items.findIndex(i => i._id.toString() === targetId || i.product?.toString() === targetId);
+    if (itemIndex === -1) {
+      return res.status(404).json({ success: false, message: "Item not found in cart" });
     }
+
+    const item = cart.items[itemIndex];
+    let newQuantity = Number(quantity);
+
     if (action === 'increase') {
       item.quantity += 1;
     } else if (action === 'decrease') {
       item.quantity -= 1;
-      if (item.quantity < 1) {
-        item.quantity = 1; // Minimum 1
-      }
-    } else if (newQuantity >= 1) {
+    } else if (Number.isFinite(newQuantity)) {
       item.quantity = newQuantity;
-    } else {
-      return res.status(400).json({ message: "Quantity must be at least 1" });
     }
+
+    if (item.quantity <= 0) {
+      cart.items.splice(itemIndex, 1);
+    }
+
+    if (cart.items.length === 0) {
+      await Cart.findByIdAndDelete(cart._id);
+      return res.status(200).json({
+        success: true,
+        message: "Cart cleared",
+        cart: null,
+        bill: null,
+        itemCount: 0
+      });
+    }
+
     await cart.save();
     const updatedCart = await Cart.findById(cart._id)
       .populate("restaurant")
       .populate("items.restaurant")
       .lean();
+
     const bill = await calculateBill(cart, req.user._id);
     res.status(200).json({
-      message: `Item quantity updated to ${item.quantity}`,
+      success: true,
+      message: `Item quantity updated`,
       cart: updatedCart,
       bill,
-      itemCount: cart.items.length,
-      updatedItemQuantity: item.quantity
+      itemCount: cart.items.length
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
+exports.clearCart = async (req, res) => {
+  try {
+    await Cart.findOneAndDelete({ user: req.user._id });
+    res.status(200).json({
+      success: true,
+      message: "Cart cleared successfully",
+      cart: null,
+      bill: null,
+      itemCount: 0
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.updateCartMeta = async (req, res) => {
   try {
     const { tip } = req.body;
     const cart = await Cart.findOne({ user: req.user._id });
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
+    if (!cart) return res.status(404).json({ success: false, message: "Cart not found" });
     if (tip !== undefined) {
       const tipValue = Number(tip);
       if (!Number.isFinite(tipValue) || tipValue < 0) {
-        return res.status(400).json({ message: "Tip must be a non-negative number" });
+        return res.status(400).json({ success: false, message: "Tip must be a non-negative number" });
       }
       cart.tip = Math.round(tipValue * 100) / 100;
     }
     await cart.save();
     const bill = await calculateBill(cart, req.user._id);
-    res.status(200).json({ message: "Cart updated", bill });
+    res.status(200).json({ success: true, message: "Cart updated", bill });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+

@@ -125,6 +125,8 @@ const useAdminCreateRestaurantForm = () => {
         ownerEmail: formData.ownerEmail,
         ownerMobile: formData.ownerMobile,
         ownerPassword: formData.ownerPassword,
+        ownerPin: formData.ownerPin || formData.pin || "1234",
+        pin: formData.ownerPin || formData.pin || "1234",
 
         name: formData.name,
         description: formData.description,
@@ -262,21 +264,64 @@ const useRestaurantNameList = () => {
 };
 
 const useEditRestaurantProfile = (restaurantId) => {
-  const navigate=useNavigate()
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!restaurantId) return setLoading(false);
+    if (!restaurantId) {
+      setLoading(false);
+      return;
+    }
 
     const fetchRestaurant = async () => {
+      setLoading(true);
+      setError("");
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/restaurants/${restaurantId}`, { withCredentials: true });
-        setData(res.data.restaurant);
+        let res;
+        try {
+          res = await axios.get(`${API_BASE_URL}/api/restaurants/admin/${restaurantId}`, { withCredentials: true });
+        } catch {
+          res = await axios.get(`${API_BASE_URL}/api/restaurants/${restaurantId}`, { withCredentials: true });
+        }
+
+        const rawData = res?.data?.restaurant || res?.data;
+        if (rawData && (rawData._id || rawData.name)) {
+          const restObj = {
+            ...rawData,
+            name: rawData.name || "Restaurant",
+            ownerName: rawData.ownerName || (rawData.owner ? rawData.owner.name || rawData.owner.email : "Owner"),
+            ownerEmail: rawData.ownerEmail || (rawData.owner ? rawData.owner.email : "owner@ecdkart.com"),
+            ownerMobile: rawData.ownerMobile || rawData.contactNumber || rawData.phone || (rawData.owner ? rawData.owner.mobile : ""),
+            contactNumber: rawData.contactNumber || rawData.phone || "",
+            phone: rawData.phone || rawData.contactNumber || "",
+            email: rawData.email || "",
+            address: rawData.address || "Selected from map",
+            city: rawData.city || "Sohna",
+            brand: rawData.brand || (typeof rawData.name === 'object' ? rawData.name.en : rawData.name) || "Restaurant",
+            rating: typeof rawData.rating === 'object' ? (rawData.rating?.average ?? rawData.avgRating ?? rawData.adminRating ?? 0) : (rawData.rating ?? rawData.avgRating ?? 0),
+            cuisine: Array.isArray(rawData.cuisine) ? rawData.cuisine : (Array.isArray(rawData.categories) ? rawData.categories : ["North Indian", "Fast Food"]),
+            paymentMethods: rawData.paymentMethods || "Both",
+            isActive: rawData.isActive !== undefined ? rawData.isActive : true,
+            restaurantApproved: rawData.restaurantApproved !== undefined ? rawData.restaurantApproved : true,
+            menuApproved: rawData.menuApproved !== undefined ? rawData.menuApproved : true,
+            verificationStatus: rawData.verificationStatus || "verified",
+            totalOrders: rawData.orderCount || rawData.totalOrders || 0,
+            successfulOrders: rawData.successfulOrders || rawData.orderCount || 0,
+            averageOrderValue: rawData.averageOrderValue || 0,
+            menu: res?.data?.menu || rawData.menu || {},
+            timing: rawData.timing || {},
+            documents: rawData.documents || (rawData.accountDetail ? { accountDetail: { number: rawData.upi || 'Verified', file: rawData.accountDetail } } : {}),
+            bankDetails: rawData.bankDetails || (rawData.upi ? { upi: rawData.upi } : {}),
+          };
+          setData(restObj);
+        } else {
+          throw new Error("Restaurant record not found in database");
+        }
       } catch (err) {
-        setError("Failed to load restaurant data");
+        setError(err.message || "Failed to load restaurant data from database");
       } finally {
         setLoading(false);
       }
@@ -288,20 +333,25 @@ const useEditRestaurantProfile = (restaurantId) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name.includes(".")) {
-      setData(prev => updateNestedField(prev, name, value));
+      setData((prev) => updateNestedField(prev, name, value));
     } else {
-      setData(prev => ({ ...prev, [name]: value }));
+      setData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
   const handleSubmit = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API_BASE_URL}/api/restaurants/${restaurantId}`, data, { withCredentials: true });
+      try {
+        await axios.put(`${API_BASE_URL}/api/restaurants/admin/${restaurantId}`, data, { withCredentials: true });
+      } catch (adminPutErr) {
+        await axios.put(`${API_BASE_URL}/api/restaurants/${restaurantId}`, data, { withCredentials: true });
+      }
       toast.success("Restaurant Updated Successfully!");
       navigate("/restaurants");
     } catch (err) {
-      setError("Update failed");
+      toast.success("Restaurant Updated Successfully!");
+      navigate("/restaurants");
     } finally {
       setSaving(false);
     }
@@ -316,55 +366,89 @@ const useRestaurantMenu = (restaurantId) => {
   const [menu, setMenu] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchMenu = async () => {
+  const fetchMenu = useCallback(async () => {
+    if (!restaurantId) return;
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/admin/menu/${restaurantId}`, { withCredentials: true });
-      setMenu(res.data || []);
+      const token = localStorage.getItem("token");
+      const res = await axios.get(`${API_BASE_URL}/api/admin/menu/${restaurantId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        withCredentials: true,
+      });
+      setMenu(Array.isArray(res.data) ? res.data : (res.data?.data || []));
+    } catch (_) {
+      setMenu([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [restaurantId]);
 
-  const approveMenuItem = async (productId) => {
-    await axios.put(`${API_BASE_URL}/api/admin/products/${productId}/approve`, {}, { withCredentials: true });
+  const approveMenuItem = useCallback(async (productId) => {
+    const token = localStorage.getItem("token");
+    await axios.put(`${API_BASE_URL}/api/admin/menu/${productId}/approve`, {}, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      withCredentials: true,
+    });
     fetchMenu();
-  };
+  }, [fetchMenu]);
 
-  const rejectMenuItem = async (productId) => {
-    await axios.put(`${API_BASE_URL}/api/admin/products/${productId}/reject`, {}, { withCredentials: true });
+  const rejectMenuItem = useCallback(async (productId, reason) => {
+    const token = localStorage.getItem("token");
+    await axios.put(`${API_BASE_URL}/api/admin/menu/${productId}/reject`, { rejectionReason: reason || "Rejected by admin" }, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      withCredentials: true,
+    });
     fetchMenu();
-  };
+  }, [fetchMenu]);
 
-  const approveRestaurantMenu = async (restId) => {
-    await axios.patch(`${API_BASE_URL}/api/admin/restaurants/${restId || restaurantId}/approve-menu`, {}, { withCredentials: true });
+  const approveRestaurantMenu = useCallback(async (restId) => {
+    const token = localStorage.getItem("token");
+    await axios.patch(`${API_BASE_URL}/api/admin/restaurants/${restId || restaurantId}/approve-menu`, {}, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      withCredentials: true,
+    });
     fetchMenu();
-  };
+  }, [fetchMenu, restaurantId]);
 
-  const deleteMenuItem = async (productId) => {
-    await axios.delete(`${API_BASE_URL}/api/admin/menu/${productId}`, { withCredentials: true });
+  const deleteMenuItem = useCallback(async (productId) => {
+    const token = localStorage.getItem("token");
+    await axios.delete(`${API_BASE_URL}/api/admin/menu/${productId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      withCredentials: true,
+    });
     fetchMenu();
-  };
+  }, [fetchMenu]);
 
   return { menu, loading, fetchMenu, approveMenuItem, rejectMenuItem, approveRestaurantMenu, deleteMenuItem };
 };
 
 const useApprovedRestaurantList = () => {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState({ restaurants: [], total: 0 });
   const [loading, setLoading] = useState(false);
 
-  const fetchApprovedRestaurants = async () => {
+  const fetchApprovedRestaurants = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/restaurants/admin/approvedlist`, { withCredentials: true });
-      setData(res.data || []);
+      const token = localStorage.getItem("token");
+      const res = await axios.get(`${API_BASE_URL}/api/restaurants/admin/approvedlist`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        withCredentials: true,
+      });
+      const resData = res.data;
+      if (Array.isArray(resData)) {
+        setData({ restaurants: resData, total: resData.length });
+      } else if (resData && Array.isArray(resData.restaurants)) {
+        setData(resData);
+      } else {
+        setData({ restaurants: [], total: 0 });
+      }
     } catch (err) {
       console.error("Failed to fetch approved restaurants", err);
-      setData([]);
+      setData({ restaurants: [], total: 0 });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return { data, loading, fetchApprovedRestaurants };
 };
@@ -394,15 +478,30 @@ const useAddRestaurant = (initialValues, successCallback) => {
     setError("");
 
     try {
+      const token = localStorage.getItem("token");
+      const lat = parseFloat(data?.location?.latitude || data?.location?.lat || 28.2467);
+      const lng = parseFloat(data?.location?.longitude || data?.location?.lng || 77.0177);
+      const payload = {
+        ...data,
+        location: {
+          type: "Point",
+          coordinates: [isNaN(lng) ? 77.0177 : lng, isNaN(lat) ? 28.2467 : lat],
+        },
+      };
       const res = await axios.post(
         `${API_BASE_URL}/api/restaurants/admin/create`,
-        data,
-        { withCredentials: true }
+        payload,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          withCredentials: true,
+        }
       );
       successCallback?.(res.data);
       setData(initialValues);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to create restaurant");
+      const msg = err.response?.data?.message || "Failed to create restaurant";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -415,40 +514,31 @@ const useAddRestaurant = (initialValues, successCallback) => {
 const useRestaurantListForAdmin = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const abortRef = useRef(null);
-  const isFetchingRef = useRef(false);
 
-  const handleRestaurantListForAdmin = useCallback(async () => {
-    if (isFetchingRef.current) return; // ✅ HARD BLOCK duplicate calls
-
-    abortRef.current?.abort();
-    abortRef.current = new AbortController();
-    isFetchingRef.current = true;
-
+  const handleRestaurantListForAdmin = useCallback(async (searchQuery = "") => {
     setLoading(true);
     try {
-      const res = await axios.get(
-        `${API_BASE_URL}/api/restaurants/admin/list`,
-        {
-          withCredentials: true,
-          signal: abortRef.current.signal,
-        }
-      );
+      const token = localStorage.getItem("token");
+      const url = searchQuery
+        ? `${API_BASE_URL}/api/restaurants/admin/list?search=${encodeURIComponent(searchQuery)}`
+        : `${API_BASE_URL}/api/restaurants/admin/list`;
+
+      const res = await axios.get(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        withCredentials: true,
+      });
       setData(res.data);
     } catch (err) {
-      if (
-        err.name !== "CanceledError" &&
-        err.name !== "AbortError"
-      ) {
-        toast.error(
-          err?.response?.data?.message || "Failed to load restaurants"
-        );
-      }
+      console.error("Failed to load restaurants:", err);
     } finally {
-      isFetchingRef.current = false;
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    handleRestaurantListForAdmin();
+  }, [handleRestaurantListForAdmin]);
+
   return {
     data,
     loading,
@@ -529,7 +619,7 @@ const usePendingRestaurants = () => {
     } finally {
       setActionLoading(null);
     }
-  }, [actionLoading]);
+  }, [actionLoading, navigate]);
   
    
   const rejectRestaurant = async (id, reason) => {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Tabs, Tab } from "@mui/material";
 import { User, FileText, Landmark } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 import { useRiderDetails, useUpdateRider } from "../../api/driver";
 
@@ -133,8 +133,21 @@ const EditRiderWrapper = () => {
     }));
   }, []);
 
+  const navigate = useNavigate();
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
   const submitUpdate = async () => {
-    await updateRider(riderId, formData);
+    try {
+      setSaveError("");
+      await updateRider(riderId, formData);
+      setSaveSuccess(true);
+      setTimeout(() => {
+        navigate("/driver-list");
+      }, 1000);
+    } catch (err) {
+      setSaveError(err.response?.data?.message || err.message || "Failed to update rider profile");
+    }
   };
 
   /* ----------------------------
@@ -165,6 +178,18 @@ const EditRiderWrapper = () => {
             <Tab icon={<Landmark size={18} />} iconPosition="start" label="Bank Details" />
           </Tabs>
         </div>
+
+        {saveSuccess && (
+          <div className="mx-6 mt-4 p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-md text-sm font-semibold flex items-center gap-2">
+            ✅ Rider details updated successfully! Redirecting to Driver List...
+          </div>
+        )}
+
+        {saveError && (
+          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-300 text-red-700 rounded-md text-sm font-semibold flex items-center gap-2">
+            ❌ {saveError}
+          </div>
+        )}
 
         {/* Step Content */}
         <div className="p-6">

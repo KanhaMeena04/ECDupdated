@@ -11,6 +11,15 @@ const productSchema = new mongoose.Schema(
       ref: "Category",
       required: true,
     },
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+    },
+    subcategoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+    },
+    subcategory: { type: String, default: '' },
     name: {
       en: { type: String, required: true },
       de: { type: String },
@@ -43,6 +52,31 @@ const productSchema = new mongoose.Schema(
       updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       updatedAt: { type: Date }
     },
+    pricing: {
+      b2c: {
+        mrp: { type: Number },
+        sellingPrice: { type: Number },
+        discountPercent: { type: Number, default: 0 }
+      },
+      b2b: {
+        sellingPrice: { type: Number },
+        discountPercent: { type: Number, default: 0 }
+      }
+    },
+    foodType: {
+      type: String,
+      enum: ['veg', 'non-veg', 'egg'],
+      default: 'veg'
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['draft', 'pending', 'approved', 'rejected', 'changes_requested'],
+      default: 'pending'
+    },
+    isPublished: { type: Boolean, default: false },
+    changeRequest: { type: String, default: '' },
+    rejectionReason: { type: String, default: '' },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     isVeg: { type: Boolean, default: true },
     available: { type: Boolean, default: true },
     isApproved: { type: Boolean, default: false }, // Admin approval flag - default pending

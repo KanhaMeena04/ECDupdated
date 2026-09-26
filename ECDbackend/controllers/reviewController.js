@@ -391,56 +391,68 @@ exports.getMyReviews = async (req, res) => {
 };
 exports.createReview = async (req, res) => {
     try {
-        const userId = req.user.id;
-        const { orderId, restaurantRating, riderRating, comment, photos } = req.body;
-        const order = await Order.findById(orderId);
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found' });
+        const userId = (req.user._id || req.user.id).toString();
+        const { orderId, restaurantId, rating, restaurantRating, riderRating, comment, review: reviewText, photos } = req.body;
+        const finalRating = Number(restaurantRating || rating || 5);
+        const finalComment = comment || reviewText || '';
+
+        let targetRestaurantId = restaurantId;
+        let targetRiderId = null;
+        let order = null;
+
+        if (orderId && mongoose.Types.ObjectId.isValid(orderId)) {
+            order = await Order.findById(orderId);
+            if (order) {
+                targetRestaurantId = order.restaurant;
+                targetRiderId = order.rider;
+            }
         }
-        if (order.customer.toString() !== userId) {
-            return res.status(403).json({ message: 'Not authorized to review this order' });
+
+        if (!targetRestaurantId) {
+            return res.status(400).json({ success: false, message: 'Restaurant ID is required' });
         }
-        if (order.status !== 'delivered') {
-            return res.status(400).json({ message: 'Can only review delivered orders' });
-        }
-        const existingReview = await Review.findOne({ order: orderId });
-        if (existingReview) {
-            return res.status(400).json({ message: 'Review already submitted for this order' });
-        }
+
         const review = await Review.create({
             user: userId,
-            order: orderId,
-            restaurant: order.restaurant,
-            rider: order.rider,
-            restaurantRating,
-            riderRating,
-            comment,
+            order: order ? order._id : undefined,
+            restaurant: targetRestaurantId,
+            rider: targetRiderId,
+            restaurantRating: finalRating,
+            riderRating: riderRating ? Number(riderRating) : undefined,
+            comment: finalComment,
             photos: photos || []
         });
-        if (restaurantRating) {
-            const restaurant = await Restaurant.findById(order.restaurant);
+
+        if (targetRestaurantId) {
+            const restaurant = await Restaurant.findById(targetRestaurantId);
             if (restaurant) {
-                const stats = await buildRatingStatsOptimized('restaurant', order.restaurant, 'restaurantRating');
+                const stats = await buildRatingStatsOptimized('restaurant', targetRestaurantId, 'restaurantRating');
                 restaurant.rating = stats;
                 await restaurant.save();
             }
         }
-        if (riderRating && order.rider) {
-            const rider = await Rider.findById(order.rider);
+
+        if (targetRiderId) {
+            const rider = await Rider.findById(targetRiderId);
             if (rider) {
-                const stats = await buildRatingStatsOptimized('rider', order.rider, 'riderRating');
+                const stats = await buildRatingStatsOptimized('rider', targetRiderId, 'riderRating');
                 rider.rating = stats;
                 await rider.save();
             }
         }
-        order.isRated = true;
-        await order.save();
-        res.status(201).json({
+
+        if (order) {
+            order.isRated = true;
+            await order.save();
+        }
+
+        return res.status(201).json({
+            success: true,
             message: 'Review submitted successfully',
             review
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
 exports.updateReview = async (req, res) => {

@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { API_BASE_URL } from '../../utils/utils';
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState([]);
 
   const fetchLogs = async () => {
     try {
-      const res = await axios.get('/api/admin/audit-logs');
+      const res = await axios.get(`${API_BASE_URL}/api/admin/audit-logs`);
       if (res.data.logs) setLogs(res.data.logs);
+      else if (Array.isArray(res.data)) setLogs(res.data);
     } catch (err) {
       // Fallback empty if backend audit endpoint is standard
     }

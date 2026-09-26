@@ -7,7 +7,7 @@ class ApiConstants {
   static String get baseUrl {
     if (kIsWeb) return 'http://localhost:5000/api';
     try {
-      if (Platform.isAndroid) return 'http://10.0.2.2:5000/api';
+      if (Platform.isAndroid) return 'http://192.168.1.11:5000/api';
     } catch (_) {}
     return 'http://localhost:5000/api';
   }
@@ -28,6 +28,8 @@ class ApiConstants {
 
   // User endpoints
   static String get profile => "$baseUrl/user/me";
+  static String get saveFcmToken => "$baseUrl/user/fcm-token";
+  static String get riderFcmToken => "$baseUrl/riders/fcm-token";
 
   // ✅ Driver endpoints
   static String get driverToggleOnline => "$baseUrl/drivers/toggle-online";

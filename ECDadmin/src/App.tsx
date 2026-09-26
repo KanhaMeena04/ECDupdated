@@ -4,6 +4,7 @@ import { AuthProvider } from "./admin/context/AuthContext";
 import "./App.css";
 import {Toaster} from "react-hot-toast"
 import AppRoutes from "./routes/AppRoutes";
+import ErrorBoundary from "./components/ErrorBoundary";
 // const Dashboard = lazy(() => import("./dashboard/Dashboard"));
 // const AdminLogin = lazy(() => import("./admin/pages/AdminLogin"));
 // const ChangePasswordForm = lazy(() => import("./admin/pages/ChangePassword"));
@@ -94,20 +95,20 @@ function App() {
     <Router>
       <Toaster/>
        <AuthProvider>
-        <Suspense
-          fallback={
-            <div className="p-6 text-gray-500 text-sm">
-              Loading page...
-            </div>
-          }
-        >
+        <ErrorBoundary>
+          <Suspense
+            fallback={
+              <div className="p-6 text-gray-500 text-sm">
+                Loading page...
+              </div>
+            }
+          >
             <AppRoutes />
-          <Routes>
-            {/* <Route path="/" element={<AdminLogin />} /> */}
-
-      
-        </Routes>
-      </Suspense>
+            <Routes>
+              {/* <Route path="/" element={<AdminLogin />} /> */}
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </AuthProvider>
     </Router>
   );

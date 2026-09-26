@@ -1,0 +1,93 @@
+[
+  {
+    "_id": "6ab267dae1e16edfbda3db65",
+    "appName": "ECDkart Food Delivery",
+    "logoUrl": "",
+    "contactEmail": "",
+    "contactPhone": "",
+    "termsUrl": "",
+    "privacyUrl": "",
+    "deliveryFeeConfig": {
+      "enabled": true,
+      "baseFee": 30,
+      "baseDistanceKm": 3,
+      "maxDeliveryRadiusKm": 12,
+      "isFreeDeliveryEnabled": true,
+      "freeDeliveryThreshold": 500,
+      "slabs": [
+        {
+          "_id": "6ab267dae1e16edfbda3db66",
+          "minDistanceKm": 0,
+          "maxDistanceKm": 3,
+          "fee": 30,
+          "perKmFee": 0,
+          "isActive": true
+        },
+        {
+          "_id": "6ab267dae1e16edfbda3db67",
+          "minDistanceKm": 3,
+          "maxDistanceKm": 5,
+          "fee": 40,
+          "perKmFee": 0,
+          "isActive": true
+        },
+        {
+          "_id": "6ab267dae1e16edfbda3db68",
+          "minDistanceKm": 5,
+          "maxDistanceKm": 8,
+          "fee": 60,
+          "perKmFee": 0,
+          "isActive": true
+        },
+        {
+          "_id": "6ab267dae1e16edfbda3db69",
+          "minDistanceKm": 8,
+          "maxDistanceKm": 12,
+          "fee": 80,
+          "perKmFee": 0,
+          "isActive": true
+        }
+      ]
+    },
+    "surgeConfig": {
+      "peakHour": {
+        "enabled": false,
+        "fee": 15,
+        "startTime": "12:00",
+        "endTime": "15:00"
+      },
+      "nightCharge": {
+        "enabled": false,
+        "fee": 25,
+        "startTime": "23:00",
+        "endTime": "06:00"
+      },
+      "rainCharge": {
+        "enabled": false,
+        "fee": 20
+      },
+      "highDemandCharge": {
+        "enabled": false,
+        "fee": 15
+      }
+    },
+    "commissionConfig": {
+      "globalCommissionPercent": 20,
+      "categoryCommissions": []
+    },
+    "platformFeeConfig": {
+      "enabled": true,
+      "type": "fixed",
+      "fee": 5,
+      "minFee": 5,
+      "maxFee": 20
+    },
+    "packagingFeeConfig": {
+      "enabled": true,
+      "globalPackagingFee": 10
+    },
+    "createdAt": "2026-09-22T11:34:50.464Z",
+    "updatedAt": "2026-09-22T11:34:50.464Z",
+    "__v": 0
+  }
+]

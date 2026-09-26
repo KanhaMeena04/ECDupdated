@@ -13,6 +13,7 @@ const {
     getAddresses,
     updateAddress,
     deleteAddress,
+    setDefaultAddress,
     addPaymentMethod,
     getPaymentMethods,
     deleteAccount,
@@ -24,18 +25,32 @@ const {
     removeFCMToken,
     getNotificationStatus
 } = require('../controllers/userController');
+
+// User profile aliases
 router.get('/profile', protect, getProfile);
+router.get('/me', protect, getProfile);
 router.put('/profile', protect, upload.single('profilePic'), updateProfile);
+router.put('/update-profile', protect, upload.single('profilePic'), updateProfile);
 router.post('/profile/verify-otp', protect, verifyProfileUpdateOTP);
 router.post('/profile/resend-otp', protect, resendProfileUpdateOTP);
 router.put('/change-password', protect, changePassword);
+
+// Address aliases
 router.get('/address', protect, getAddresses);
+router.get('/addresses', protect, getAddresses);
 router.post('/address', protect, addAddress);
+router.post('/addresses', protect, addAddress);
 router.put('/address/:id', protect, updateAddress);
+router.put('/addresses/:id', protect, updateAddress);
 router.delete('/address/:id', protect, deleteAddress);
+router.delete('/addresses/:id', protect, deleteAddress);
+router.patch('/address/set-default/:id', protect, setDefaultAddress);
+router.patch('/addresses/set-default/:id', protect, setDefaultAddress);
+
 router.get('/payment-methods', protect, getPaymentMethods);
 router.post('/payment-method', protect, addPaymentMethod);
 router.delete('/account', protect, deleteAccount);
+router.delete('/delete-account', protect, deleteAccount);
 router.get('/refunds', protect, getMyRefunds);
 router.get('/favorites/restaurants', protect, getFavoriteRestaurants);
 router.post('/favorites/restaurants/:id', protect, toggleFavoriteRestaurant);
@@ -45,3 +60,4 @@ router.post('/fcm-token', protect, saveFCMToken);
 router.delete('/fcm-token', protect, removeFCMToken);
 router.get('/notification-status', protect, getNotificationStatus);
 module.exports = router;
+

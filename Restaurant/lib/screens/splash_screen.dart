@@ -215,11 +215,29 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         opacity: _logoOpacity.value,
                         child: Transform.scale(
                           scale: scale,
-                          child: Image.asset(
-                            'splash_logo.png',
-                            width: 150,
-                            height: 150,
-                            fit: BoxFit.contain,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 16,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Image.asset(
+                              'splash_logo.png',
+                              height: 120,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => Image.asset(
+                                'assets/images/splash_logo.png',
+                                height: 120,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
                           ),
                         ),
                       );

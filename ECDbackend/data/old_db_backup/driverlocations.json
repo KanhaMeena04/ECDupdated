@@ -1,0 +1,514 @@
+[
+  {
+    "_id": "6a7c793df4d375ae395fbcea",
+    "driver": "6a7b106afa89714286ff270a",
+    "__v": 0,
+    "createdAt": "2026-08-12T13:46:37.991Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        75.0610117,
+        24.0821259
+      ]
+    },
+    "updatedAt": "2026-08-13T12:36:30.763Z",
+    "heading": 32.178897857666016,
+    "speed": 0.2980056405067444
+  },
+  {
+    "_id": "6a7c8db4f4d375ae395fbd50",
+    "driver": "6a7c8d806e1285608339d559",
+    "__v": 0,
+    "createdAt": "2026-08-12T15:13:56.583Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        75.0608799,
+        24.0822706
+      ]
+    },
+    "updatedAt": "2026-09-08T09:50:50.007Z",
+    "heading": 316.0182189941406,
+    "speed": 0.5770542621612549
+  },
+  {
+    "_id": "6a7d9ef0f4d375ae395ff67d",
+    "driver": "6a7d9eb36e1285608339ea53",
+    "__v": 0,
+    "createdAt": "2026-08-13T10:39:44.626Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        86.2432787,
+        20.7478111
+      ]
+    },
+    "updatedAt": "2026-08-13T11:28:47.404Z",
+    "heading": 137.0181884765625,
+    "speed": 0.32561978697776794
+  },
+  {
+    "_id": "6a7dcdf1f4d375ae39614a8a",
+    "driver": "6a7dcd796e1285608339f53a",
+    "__v": 0,
+    "createdAt": "2026-08-13T14:00:17.429Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        75.0610257,
+        24.0821343
+      ]
+    },
+    "updatedAt": "2026-08-15T14:28:17.041Z",
+    "heading": 90,
+    "speed": 0.3251022696495056
+  },
+  {
+    "_id": "6a8439f4f4d375ae396300aa",
+    "driver": "6a8439b06e128560833a5cfe",
+    "__v": 0,
+    "createdAt": "2026-08-18T10:54:44.261Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        86.2433029,
+        20.7477474
+      ]
+    },
+    "updatedAt": "2026-08-19T08:57:44.331Z",
+    "heading": 16.199342727661133,
+    "speed": 0.39131391048431396
+  },
+  {
+    "_id": "6a85c602f4d375ae396320f4",
+    "driver": "6a85c2f56e128560833a816d",
+    "__v": 0,
+    "createdAt": "2026-08-19T15:04:34.725Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        86.2434279,
+        20.7475687
+      ]
+    },
+    "updatedAt": "2026-09-08T05:50:00.009Z",
+    "heading": 74.8890380859375,
+    "speed": 2.5845677852630615
+  },
+  {
+    "_id": "6a8c6c1a3a90010e8303c370",
+    "driver": "6a850c846e128560833a75ac",
+    "__v": 0,
+    "createdAt": "2026-08-24T16:06:50.923Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0804093,
+        28.0409353
+      ]
+    },
+    "updatedAt": "2026-08-24T16:06:50.923Z"
+  },
+  {
+    "_id": "6a8e33b73a90010e830401e4",
+    "driver": "6a84fe616e128560833a74e5",
+    "__v": 0,
+    "createdAt": "2026-08-26T00:30:47.416Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0843581,
+        28.0424636
+      ]
+    },
+    "updatedAt": "2026-08-26T00:30:47.416Z"
+  },
+  {
+    "_id": "6a929ba1fe3b0e6d947cacc8",
+    "driver": "6a911f4d6e128560833b2811",
+    "__v": 0,
+    "createdAt": "2026-08-29T08:43:13.042Z",
+    "heading": 129.4704567744989,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.06686880552735,
+        28.266247534499872
+      ]
+    },
+    "speed": 0.23828493058681488,
+    "updatedAt": "2026-08-29T08:50:40.531Z"
+  },
+  {
+    "_id": "6a92ae08fe3b0e6d947cb830",
+    "driver": "6a92ad906e128560833b5b74",
+    "__v": 0,
+    "createdAt": "2026-08-29T10:01:44.245Z",
+    "heading": 246,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.070265,
+        28.2501567
+      ]
+    },
+    "speed": 3.5881285667419434,
+    "updatedAt": "2026-08-29T10:01:44.245Z"
+  },
+  {
+    "_id": "6a92c316fe3b0e6d947cc4b7",
+    "driver": "6a85c6356e128560833a8285",
+    "__v": 0,
+    "createdAt": "2026-08-29T11:31:34.192Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        75.0610302,
+        24.0821127
+      ]
+    },
+    "updatedAt": "2026-08-29T11:32:01.627Z"
+  },
+  {
+    "_id": "6a9492d6fe3b0e6d947dcbdc",
+    "driver": "6a92c27f6e128560833b6709",
+    "__v": 0,
+    "createdAt": "2026-08-30T20:30:14.001Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        76.9550918,
+        28.203494
+      ]
+    },
+    "updatedAt": "2026-08-30T20:30:19.494Z",
+    "heading": 157.6400909423828,
+    "speed": 0.3467198312282562
+  },
+  {
+    "_id": "6a95945bfe3b0e6d947e25ab",
+    "driver": "6a9592ce6e128560833b995f",
+    "__v": 0,
+    "createdAt": "2026-08-31T14:48:59.282Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0804098,
+        28.0411264
+      ]
+    },
+    "updatedAt": "2026-08-31T14:49:19.727Z",
+    "heading": 258,
+    "speed": 1.2400000095367432
+  },
+  {
+    "_id": "6a9c4f3291c7604d7d1575fd",
+    "driver": "6a92ab156e128560833b5b38",
+    "__v": 0,
+    "createdAt": "2026-09-05T17:19:46.265Z",
+    "heading": 243.4852294921875,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0984337,
+        28.184485
+      ]
+    },
+    "speed": 0.0954212173819542,
+    "updatedAt": "2026-09-05T17:19:58.406Z"
+  },
+  {
+    "_id": "6a9f04b391c7604d7d16c8b6",
+    "driver": "6a9ef97099866971ef573ad7",
+    "__v": 0,
+    "createdAt": "2026-09-07T18:38:43.440Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        75.0610175,
+        24.0820578
+      ]
+    },
+    "updatedAt": "2026-09-08T06:15:53.399Z",
+    "heading": 230,
+    "speed": 0.06119184195995331
+  },
+  {
+    "_id": "6a9fa2e017fb5ef372641fda",
+    "driver": "6a9fa28c99866971ef57750e",
+    "__v": 0,
+    "createdAt": "2026-09-08T05:53:36.262Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        86.2432854,
+        20.747589
+      ]
+    },
+    "updatedAt": "2026-09-08T06:12:39.087Z",
+    "speed": 1.6186225414276123,
+    "heading": 102.06900024414062
+  },
+  {
+    "_id": "6a9fa8ec17fb5ef3726421b0",
+    "driver": "6a9fa8c599866971ef579359",
+    "__v": 0,
+    "createdAt": "2026-09-08T06:19:24.325Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        75.0609392,
+        24.0819962
+      ]
+    },
+    "updatedAt": "2026-09-08T06:19:24.325Z"
+  },
+  {
+    "_id": "6a9fa95a17fb5ef3726421c5",
+    "driver": "6a9fa94899866971ef5794a2",
+    "__v": 0,
+    "createdAt": "2026-09-08T06:21:14.254Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        75.0610443,
+        24.0820936
+      ]
+    },
+    "updatedAt": "2026-09-08T06:29:29.862Z",
+    "heading": 7.032376766204834,
+    "speed": 7.988308429718018
+  },
+  {
+    "_id": "6a9fab1017fb5ef372642236",
+    "driver": "6a9faaf999866971ef579c0b",
+    "__v": 0,
+    "createdAt": "2026-09-08T06:28:32.106Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        86.2433136,
+        20.7476253
+      ]
+    },
+    "updatedAt": "2026-09-08T06:43:01.155Z",
+    "heading": 205.35260009765625,
+    "speed": 0.12283099442720413
+  },
+  {
+    "_id": "6aa0272217fb5ef372645de1",
+    "driver": "6aa02716092ddcee4da127d4",
+    "__v": 0,
+    "createdAt": "2026-09-08T15:17:54.744Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        75.0610427,
+        24.0820997
+      ]
+    },
+    "updatedAt": "2026-09-08T15:17:54.744Z"
+  },
+  {
+    "_id": "6aa5544317fb5ef3726b8ff7",
+    "driver": "6aa55434092ddcee4da87323",
+    "__v": 0,
+    "createdAt": "2026-09-12T13:31:47.963Z",
+    "heading": 359,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0674126,
+        28.2645525
+      ]
+    },
+    "speed": 0.8799999952316284,
+    "updatedAt": "2026-09-12T13:31:47.963Z"
+  },
+  {
+    "_id": "6aa9f93517fb5ef3726e3d5a",
+    "driver": "6aa9f92ac02785942aa47674",
+    "__v": 0,
+    "createdAt": "2026-09-16T02:04:37.511Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0843524,
+        28.0425447
+      ]
+    },
+    "updatedAt": "2026-09-16T02:04:37.511Z"
+  },
+  {
+    "_id": "6aa9f93517fb5ef3726e3d5b",
+    "driver": "6aa9f92ac02785942aa47674",
+    "__v": 0,
+    "createdAt": "2026-09-16T02:04:37.514Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0843524,
+        28.0425447
+      ]
+    },
+    "updatedAt": "2026-09-16T02:04:37.514Z"
+  },
+  {
+    "_id": "6aaaa14817fb5ef3726e86af",
+    "driver": "6aaaa137c02785942aa5397e",
+    "__v": 0,
+    "createdAt": "2026-09-16T14:01:44.495Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        86.2474447,
+        20.7517434
+      ]
+    },
+    "updatedAt": "2026-09-21T14:12:24.977Z"
+  },
+  {
+    "_id": "6aaaa42317fb5ef3726e87ee",
+    "driver": "6aaaa288c02785942aa54b8f",
+    "__v": 0,
+    "createdAt": "2026-09-16T14:13:55.938Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0850459,
+        28.0448709
+      ]
+    },
+    "updatedAt": "2026-09-16T14:13:55.973Z"
+  },
+  {
+    "_id": "6aaaa42317fb5ef3726e87f1",
+    "driver": "6aaaa288c02785942aa54b8f",
+    "__v": 0,
+    "createdAt": "2026-09-16T14:13:55.941Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0850459,
+        28.0448709
+      ]
+    },
+    "updatedAt": "2026-09-16T14:13:55.941Z"
+  },
+  {
+    "_id": "6aaaa42317fb5ef3726e87ef",
+    "driver": "6aaaa288c02785942aa54b8f",
+    "__v": 0,
+    "createdAt": "2026-09-16T14:13:55.939Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0850459,
+        28.0448709
+      ]
+    },
+    "updatedAt": "2026-09-16T14:13:55.939Z"
+  },
+  {
+    "_id": "6aaaa42317fb5ef3726e87f0",
+    "driver": "6aaaa288c02785942aa54b8f",
+    "__v": 0,
+    "createdAt": "2026-09-16T14:13:55.940Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0850459,
+        28.0448709
+      ]
+    },
+    "updatedAt": "2026-09-16T14:13:55.940Z"
+  },
+  {
+    "_id": "6aaaa42317fb5ef3726e87f2",
+    "driver": "6aaaa288c02785942aa54b8f",
+    "__v": 0,
+    "createdAt": "2026-09-16T14:13:55.943Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0850459,
+        28.0448709
+      ]
+    },
+    "updatedAt": "2026-09-16T14:13:55.943Z"
+  },
+  {
+    "_id": "6aaaa42317fb5ef3726e87f3",
+    "driver": "6aaaa288c02785942aa54b8f",
+    "__v": 0,
+    "createdAt": "2026-09-16T14:13:55.943Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0850459,
+        28.0448709
+      ]
+    },
+    "updatedAt": "2026-09-16T14:13:55.943Z"
+  },
+  {
+    "_id": "6aaaa42317fb5ef3726e87f4",
+    "driver": "6aaaa288c02785942aa54b8f",
+    "__v": 0,
+    "createdAt": "2026-09-16T14:13:55.944Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0850459,
+        28.0448709
+      ]
+    },
+    "updatedAt": "2026-09-16T14:13:55.944Z"
+  },
+  {
+    "_id": "6aaaa42317fb5ef3726e87f5",
+    "driver": "6aaaa288c02785942aa54b8f",
+    "__v": 0,
+    "createdAt": "2026-09-16T14:13:55.944Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0850459,
+        28.0448709
+      ]
+    },
+    "updatedAt": "2026-09-16T14:13:55.944Z"
+  },
+  {
+    "_id": "6aacde8317fb5ef3726f660b",
+    "driver": "6aacde7043fbd98d50e33a9e",
+    "__v": 0,
+    "createdAt": "2026-09-18T06:47:31.736Z",
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        75.895631,
+        22.7471493
+      ]
+    },
+    "updatedAt": "2026-09-18T06:47:38.547Z",
+    "heading": 89.28446960449219,
+    "speed": 0.1099037304520607
+  },
+  {
+    "_id": "6aaff00417fb5ef372710b2c",
+    "driver": "6aafefd243fbd98d50e58db3",
+    "__v": 0,
+    "createdAt": "2026-09-20T14:39:00.970Z",
+    "heading": 118.80623626708984,
+    "location": {
+      "type": "Point",
+      "coordinates": [
+        77.0853444,
+        28.0478019
+      ]
+    },
+    "speed": 0.0401516892015934,
+    "updatedAt": "2026-09-22T15:18:09.658Z"
+  }
+]

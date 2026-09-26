@@ -1,6 +1,4 @@
 import {
-  LoginOutlined,
-  PublicOutlined,
   Star,
   StarBorder,
   VisibilityOutlined,
@@ -8,7 +6,8 @@ import {
   DeleteOutline,
   ContentCopyOutlined,
 } from "@mui/icons-material";
-import { Chip, Stack } from "@mui/material";
+import { Chip, Stack, Tooltip } from "@mui/material";
+import toast from "react-hot-toast";
 
 
 
@@ -17,6 +16,7 @@ export const initialRestaurantFormState = {
   ownerEmail: "",
   ownerMobile: "",
   ownerPassword: "",
+  ownerPin: "1234",
 
   name: {
     en: "",
@@ -39,37 +39,27 @@ export const initialRestaurantFormState = {
   area: "",
 
   location: {
-    type: "Point",
-    coordinates: ["", ""], // lng, lat
+    latitude: "",
+    longitude: "",
   },
 
-  deliveryTime: "",
-  geofenceRadius: "",
-  deliveringZones: [],
-
   deliveryType: [],
-  paymentMethods: "Both",
+  deliveryTime: "30-40 mins",
 
   packagingCharge: "",
   adminCommission: "",
 
-  isFreeDelivery: false,
-  freeDeliveryContribution: 0,
-  totalFreeDeliverySpend: 0,
-
-  isActive: true,
-
-  rating: 0,
+  documents: {
+    fssai: { number: "", expiry: "", file: null },
+    gst: { number: "", file: null },
+    pan: { number: "", name: "", file: null },
+  },
 
   bankDetails: {
-    accountName: "",
-    bankName: "",
-    accountAddress: "",
-    branchName: "",
     accountNumber: "",
-    branchAddress: "",
-    swiftCode: "",
-    routingNumber: "",
+    ifscCode: "",
+    bankName: "",
+    accountHolderName: "",
   },
 
   timing: {
@@ -104,25 +94,34 @@ export const getRestaurantColumns = ({
   return [
     { key: "index", label: "" },
 
-    { key: "name", label: "Name" },
+    {
+      key: "name",
+      label: "Name",
+      render: (row) => {
+        const n = typeof row.name === 'object' && row.name !== null
+          ? (row.name.en || Object.values(row.name).find(v => typeof v === 'string' && v.trim()) || '-')
+          : (row.name || '-');
+        return <span className="font-semibold text-gray-900">{n}</span>;
+      }
+    },
     
-    {key:"ownerId", label:"OwnerId"  },
-
-    // {
-    //   key: "login",
-    //   label: "Direct Login",
-    //   render: () => (
-    //     <Stack direction="row" spacing={1}>
-    //       <LoginOutlined fontSize="small" />
-    //       <PublicOutlined fontSize="small" />
-    //     </Stack>
-    //   ),
-    // },
+    {
+      key: "ownerId",
+      label: "Owner",
+      render: (row) => {
+        if (row.ownerName && row.ownerName !== 'Restaurant') return row.ownerName;
+        if (row.ownerId && row.ownerId !== 'Restaurant') return row.ownerId;
+        const n = typeof row.name === 'object' && row.name !== null
+          ? (row.name.en || Object.values(row.name)[0])
+          : row.name;
+        return n && n !== 'Restaurant' ? `${n} Owner` : '-';
+      }
+    },
 
     {
       key: "email",
       label: "Email",
-      render: () => "**********",
+      render: (row) => row.email || row.ownerEmail || "-",
     },
 
     { key: "address", label: "Address" },
@@ -130,7 +129,20 @@ export const getRestaurantColumns = ({
     {
       key: "contact",
       label: "Contact",
-      render: () => "**********",
+      render: (row) => row.contact || row.contactNumber || row.ownerMobile || "-",
+    },
+
+    {
+      key: "pin",
+      label: "Login PIN",
+      render: (row) => (
+        <Chip
+          label={row.pin || row.ownerPin || "1234"}
+          color="primary"
+          variant="outlined"
+          size="small"
+        />
+      ),
     },
 
     {
@@ -174,34 +186,43 @@ export const getRestaurantColumns = ({
       key: "action",
       label: "Action",
       render: (row) => (
-        <Stack direction="row" spacing={1}>
-          <VisibilityOutlined
-            fontSize="small"
-            className="cursor-pointer hover:text-blue-500"
-            onClick={() =>
-              navigate(`/restaurant/${row._id || row.id}`)
-            }
-          />
-          <EditOutlined
-            fontSize="small"
-            className="cursor-pointer hover:text-green-500"
-            onClick={() =>
-              navigate(`/edit-restaurant/${row._id || row.id}`)
-            }
-          />
-          <DeleteOutline
-            fontSize="small"
-            className="cursor-pointer hover:text-red-500"
-             onClick={() => onDeleteClick(row)}
-          />
-          <ContentCopyOutlined
-            fontSize="small"
-            className="cursor-pointer hover:text-gray-500"
-            onClick={() => console.log("Copy:", row._id || row.id)}
-          />
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Tooltip title="View Details">
+            <VisibilityOutlined
+              fontSize="small"
+              className="cursor-pointer text-gray-600 hover:text-blue-600 transition-colors"
+              onClick={() => navigate(`/restaurant/${row._id || row.id}`)}
+            />
+          </Tooltip>
+          <Tooltip title="Edit Restaurant">
+            <EditOutlined
+              fontSize="small"
+              className="cursor-pointer text-gray-600 hover:text-emerald-600 transition-colors"
+              onClick={() => navigate(`/edit-restaurant/${row._id || row.id}`)}
+            />
+          </Tooltip>
+          <Tooltip title="Delete Restaurant">
+            <DeleteOutline
+              fontSize="small"
+              className="cursor-pointer text-gray-600 hover:text-red-600 transition-colors"
+              onClick={() => onDeleteClick && onDeleteClick(row)}
+            />
+          </Tooltip>
+          <Tooltip title="Copy Details">
+            <ContentCopyOutlined
+              fontSize="small"
+              className="cursor-pointer text-gray-600 hover:text-amber-600 transition-colors"
+              onClick={() => {
+                const targetId = row._id || row.id || "";
+                const rName = typeof row.name === 'object' ? (row.name.en || Object.values(row.name)[0]) : row.name;
+                const textToCopy = `Restaurant: ${rName}\nID: ${targetId}\nContact: ${row.contact || '-'}\nPIN: ${row.pin || '1234'}`;
+                navigator.clipboard.writeText(textToCopy);
+                toast.success(`Copied details of "${rName}" to clipboard!`);
+              }}
+            />
+          </Tooltip>
         </Stack>
       ),
     },
   ];
 };
-
