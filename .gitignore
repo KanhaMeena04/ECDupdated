@@ -42,3 +42,8 @@ android/app/release/
 scratch/
 ECDbackend/scratch/*.log
 
+
+.git-backup/
+
+# MongoDB local database files
+ECDbackend/data/db/
