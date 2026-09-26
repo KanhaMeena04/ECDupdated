@@ -4,7 +4,7 @@ const rawUrl =
   process.env.VITE_API_URL || 
   "http://localhost:5000";
 
-const API_BASE_URL = rawUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "");
+const API_BASE_URL = rawUrl.replace(/\/api(\/v1)?\/?$/, "").replace(/\/+$/, "");
 
 export {
   API_BASE_URL

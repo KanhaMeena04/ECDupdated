@@ -11,9 +11,9 @@ class BannerModel {
 
   factory BannerModel.fromJson(Map<String, dynamic> json) {
     return BannerModel(
-      id: json['_id'] as String,
-      imageUrl: json['imageUrl'] as String,
-      isActive: json['isActive'] as bool? ?? true,
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      imageUrl: (json['imageUrl'] ?? json['image'] ?? json['bannerImage'] ?? '').toString(),
+      isActive: json['isActive'] == true || json['isActive'] == 'true' || json['isActive'] == null,
     );
   }
 }

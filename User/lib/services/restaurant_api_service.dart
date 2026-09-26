@@ -102,7 +102,7 @@ class RestaurantApiService {
       return _getMockBanners();
     }
     try {
-      final response = await http.get(Uri.parse(bannersUrl)).timeout(const Duration(seconds: 4));
+      final response = await http.get(Uri.parse(bannersUrl)).timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         final List<dynamic> data = jsonResponse['banners'] ?? [];
@@ -165,7 +165,14 @@ class RestaurantApiService {
       
       debugPrint('RESTAURANT_API_REQUEST\nGET ${uri.toString()}');
       
-      final response = await http.get(uri).timeout(const Duration(seconds: 4));
+      http.Response response;
+      try {
+        response = await http.get(uri).timeout(const Duration(seconds: 15));
+      } catch (e) {
+        debugPrint('First fetch attempt failed ($e), retrying in 2 seconds for Render cold start...');
+        await Future.delayed(const Duration(seconds: 2));
+        response = await http.get(uri).timeout(const Duration(seconds: 25));
+      }
       
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
@@ -175,9 +182,8 @@ class RestaurantApiService {
         } else if (jsonResponse is Map) {
           restaurantsJson = jsonResponse['restaurants'] ?? jsonResponse['data'] ?? [];
         }
-        debugPrint('RESTAURANT_API_RESPONSE\nstatus = ${response.statusCode}\ncount = ${restaurantsJson.length}');
         final list = restaurantsJson.map((json) => _fromJsonToRestaurant(json)).toList();
-        if (list.isNotEmpty) return list;
+        return list;
       }
     } catch (e) {
       debugPrint('Error fetching restaurants: $e');
@@ -225,10 +231,10 @@ class RestaurantApiService {
     }
     try {
       var url = '$apiBaseUrl/menu/$identifier';
-      var response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 4));
+      var response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
         url = '$restaurantsUrl/menu/$identifier';
-        response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 4));
+        response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
       }
       debugPrint('API Response [getRestaurantMenu]: ${response.statusCode}');
       
@@ -328,7 +334,7 @@ class RestaurantApiService {
       return _getMockCategories();
     }
     try {
-      final response = await http.get(Uri.parse(categoriesUrl)).timeout(const Duration(seconds: 4));
+      final response = await http.get(Uri.parse(categoriesUrl)).timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         final List<dynamic> data = jsonResponse is Map
@@ -409,7 +415,7 @@ class RestaurantApiService {
       return mockPopularDishes;
     }
     try {
-      final response = await http.get(Uri.parse(popularDishesUrl)).timeout(const Duration(seconds: 4));
+      final response = await http.get(Uri.parse(popularDishesUrl)).timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         final List<dynamic> data = jsonResponse is List

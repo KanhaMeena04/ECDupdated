@@ -43,7 +43,7 @@ import {
   InsertDriveFile,
 } from "@mui/icons-material";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
+import { API_BASE_URL } from "../../../utils/utils";
 const BRAND_MAIN = "#ed2026";
 const BRAND_HOVER = "#c8161b";
 const BRAND_LIGHT = "#FFF5F4";
