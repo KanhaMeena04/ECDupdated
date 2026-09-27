@@ -101,13 +101,17 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 userSchema.pre("save", function (next) {
-  if (this.firstName || this.lastName) {
-    this.name = `${this.firstName || ""} ${this.lastName || ""}`.trim();
-  } else if (this.name) {
-    const parts = this.name.trim().split(" ");
-    if (parts.length > 0) {
-      this.firstName = parts[0];
-      this.lastName = parts.slice(1).join(" ");
+  if (this.isModified("firstName") || this.isModified("lastName")) {
+    const fn = (this.firstName || "").trim();
+    const ln = (this.lastName || "").trim();
+    if (fn || ln) {
+      this.name = `${fn} ${ln}`.trim();
+    }
+  } else if (this.isModified("name") || !this.firstName || this.firstName === "User") {
+    if (this.name && this.name.trim() && this.name !== "User") {
+      const parts = this.name.trim().split(" ");
+      this.firstName = parts[0] || "";
+      this.lastName = parts.slice(1).join(" ") || "";
     }
   }
   if (typeof next === 'function') next();

@@ -28,6 +28,7 @@ const connectDB = async () => {
 
     await cleanupLegacyIndexes();
     await ensureAdminUser();
+    await reconcileUserAndRiderNames();
 
     return conn;
   } catch (error) {
@@ -128,6 +129,68 @@ async function ensureAdminUser() {
     }
   } catch (err) {
     console.error('⚠️ Admin seeding check failed:', err.message);
+  }
+}
+
+async function reconcileUserAndRiderNames() {
+  try {
+    const User = require('../models/User');
+    const Rider = require('../models/Rider');
+
+    const users = await User.find({ isDeleted: { $ne: true } });
+    for (const u of users) {
+      let updated = false;
+      let fName = (u.firstName || "").trim();
+      let lName = (u.lastName || "").trim();
+      let fullName = (u.name || "").trim();
+
+      if ((!fName && !lName) || fName === "User") {
+        if (fullName && fullName !== "User") {
+          const parts = fullName.split(" ");
+          fName = parts[0] || "";
+          lName = parts.slice(1).join(" ") || "";
+          u.firstName = fName;
+          u.lastName = lName;
+          updated = true;
+        }
+      }
+      if (!fullName || fullName === "User") {
+        if (fName && fName !== "User") {
+          u.name = `${fName} ${lName}`.trim();
+          updated = true;
+        }
+      }
+      if (updated) {
+        await User.updateOne(
+          { _id: u._id },
+          { $set: { firstName: u.firstName, lastName: u.lastName, name: u.name } }
+        );
+      }
+    }
+
+    const riders = await Rider.find({}).populate('user', 'name email mobile phone');
+    for (const r of riders) {
+      if (!r.user) continue;
+      const userName = (r.user.name || "").trim();
+      const riderName = (r.name || "").trim();
+
+      const isUserGeneric = !userName || userName === 'User' || userName === 'Driver Partner' || userName.startsWith('Rider ');
+      const isRiderGeneric = !riderName || riderName === 'User' || riderName === 'Driver Partner' || riderName.startsWith('Rider ');
+
+      if (!isUserGeneric && isRiderGeneric) {
+        r.name = userName;
+        await Rider.updateOne({ _id: r._id }, { $set: { name: userName } });
+      } else if (isUserGeneric && !isRiderGeneric) {
+        const parts = riderName.split(" ");
+        await User.updateOne(
+          { _id: r.user._id },
+          { $set: { name: riderName, firstName: parts[0] || "", lastName: parts.slice(1).join(" ") || "" } }
+        );
+      }
+    }
+    console.log('✅ User & Rider profile name auto-reconciliation complete');
+  } catch (err) {
+    console.warn('⚠️ User/Rider auto-reconciliation warning:', err.message);
   }
 }
 

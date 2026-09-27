@@ -791,21 +791,34 @@ exports.getAllUsers = async (req, res) => {
 
     const formattedUsers = users.map((u) => {
       const userObj = u.toObject();
-      let fName = userObj.firstName || "";
-      let lName = userObj.lastName || "";
-      let fullName = userObj.name || "";
-      if (!fName && !lName && fullName) {
-        const parts = fullName.trim().split(" ");
-        fName = parts[0] || "";
-        lName = parts.slice(1).join(" ") || "";
+      let fName = (userObj.firstName || "").trim();
+      let lName = (userObj.lastName || "").trim();
+      let fullName = (userObj.name || "").trim();
+
+      if ((!fName && !lName) || fName === "User") {
+        if (fullName && fullName !== "User") {
+          const parts = fullName.split(" ");
+          fName = parts[0] || "";
+          lName = parts.slice(1).join(" ") || "";
+        }
       }
-      if (!fullName) {
-        fullName = `${fName} ${lName}`.trim() || "User";
+      if (!fullName || fullName === "User") {
+        if (fName && fName !== "User") {
+          fullName = `${fName} ${lName}`.trim();
+        } else {
+          fullName = "User";
+        }
       }
+
+      // Auto-reconcile DB record if name is real but firstName was "User"
+      if (fullName !== "User" && (userObj.firstName === "User" || !userObj.firstName)) {
+        User.updateOne({ _id: userObj._id }, { $set: { firstName: fName, lastName: lName, name: fullName } }).catch(() => {});
+      }
+
       return {
         ...userObj,
         firstName: fName,
-        lastName: lName,
+        lastName: lName || "-",
         name: fullName,
         wallet: `₹${(userObj.walletBalance || 0).toFixed(2)}`,
         registeredAt: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "",
@@ -828,21 +841,29 @@ exports.getUserById = async (req, res) => {
     const user = await User.findById(req.params.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
     const userObj = user.toObject();
-    let fName = userObj.firstName || "";
-    let lName = userObj.lastName || "";
-    let fullName = userObj.name || "";
-    if (!fName && !lName && fullName) {
-      const parts = fullName.trim().split(" ");
-      fName = parts[0] || "";
-      lName = parts.slice(1).join(" ") || "";
+    let fName = (userObj.firstName || "").trim();
+    let lName = (userObj.lastName || "").trim();
+    let fullName = (userObj.name || "").trim();
+
+    if ((!fName && !lName) || fName === "User") {
+      if (fullName && fullName !== "User") {
+        const parts = fullName.split(" ");
+        fName = parts[0] || "";
+        lName = parts.slice(1).join(" ") || "";
+      }
     }
-    if (!fullName) {
-      fullName = `${fName} ${lName}`.trim() || "User";
+    if (!fullName || fullName === "User") {
+      if (fName && fName !== "User") {
+        fullName = `${fName} ${lName}`.trim();
+      } else {
+        fullName = "User";
+      }
     }
+
     res.status(200).json({
       ...userObj,
       firstName: fName,
-      lastName: lName,
+      lastName: lName || "-",
       name: fullName,
       wallet: `₹${(userObj.walletBalance || 0).toFixed(2)}`,
       registeredAt: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "",

@@ -218,6 +218,19 @@ router.get("/promocode", protect, admin, getAllPromocodes);
 router.get("/promocode/:id", protect, admin, getPromocodeById);
 router.put("/promocode/:id", protect, admin, upload.single('image'), updatePromocode);
 router.delete("/promocode/:id", protect, admin, deletePromocode);
+
+// Banner Routes
+router.post("/banner", protect, admin, upload.single('image'), addBanner);
+router.get("/banner", protect, admin, getAllBanners);
+router.get("/banner/:id", protect, admin, getBannerById);
+router.put("/banner/:id", protect, admin, upload.single('image'), updateBanner);
+router.delete("/banner/:id", protect, admin, deleteBanner);
+
+router.post("/banners", protect, admin, upload.single('image'), addBanner);
+router.get("/banners", protect, admin, getAllBanners);
+router.get("/banners/:id", protect, admin, getBannerById);
+router.put("/banners/:id", protect, admin, upload.single('image'), updateBanner);
+router.delete("/banners/:id", protect, admin, deleteBanner);
 router.get(
   "/restaurants/pending-verification",
   protect,

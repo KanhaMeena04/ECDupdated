@@ -759,6 +759,15 @@ exports.userSendOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: "Mobile number is required" });
     }
 
+    const providedName = (req.body.name || req.body.fullName || "").toString().trim();
+    const providedFn = (req.body.firstName || "").toString().trim();
+    const providedLn = (req.body.lastName || "").toString().trim();
+
+    let finalName = providedName;
+    if (providedFn || providedLn) {
+      finalName = `${providedFn} ${providedLn}`.trim();
+    }
+
     const cleanDigits = phoneNum.replace(/[^0-9]/g, '');
     const last10 = cleanDigits.slice(-10);
     if (last10.length < 10) {
@@ -784,7 +793,9 @@ exports.userSendOtp = async (req, res) => {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash("user123", salt);
       user = await User.create({
-        name: `User ${last10.slice(-4)}`,
+        name: finalName || `User ${last10.slice(-4)}`,
+        firstName: providedFn || (finalName ? finalName.split(" ")[0] : ""),
+        lastName: providedLn || (finalName ? finalName.split(" ").slice(1).join(" ") : ""),
         email: `user_${last10}@ecdkart.com`,
         mobile: `+91${last10}`,
         phone: `+91${last10}`,
@@ -798,6 +809,11 @@ exports.userSendOtp = async (req, res) => {
       if (user.isDeleted) {
         user.isDeleted = false;
         user.deletedAt = undefined;
+      }
+      if (finalName && (!user.name || user.name.startsWith("User"))) {
+        user.name = finalName;
+        user.firstName = providedFn || finalName.split(" ")[0] || "";
+        user.lastName = providedLn || finalName.split(" ").slice(1).join(" ") || "";
       }
       user.otp = generatedOtp;
       user.otpExpires = otpExpires;
@@ -831,6 +847,15 @@ exports.userVerifyOtp = async (req, res) => {
     const phoneNum = (mobile || phone || "").toString().trim();
     const enteredOtp = (otp || code || "").toString().trim();
 
+    const providedName = (req.body.name || req.body.fullName || "").toString().trim();
+    const providedFn = (req.body.firstName || "").toString().trim();
+    const providedLn = (req.body.lastName || "").toString().trim();
+
+    let finalName = providedName;
+    if (providedFn || providedLn) {
+      finalName = `${providedFn} ${providedLn}`.trim();
+    }
+
     if (!phoneNum || !enteredOtp) {
       return res.status(400).json({ success: false, message: "Mobile number and OTP code are required" });
     }
@@ -863,6 +888,11 @@ exports.userVerifyOtp = async (req, res) => {
     if (user.isDeleted) {
       user.isDeleted = false;
       user.deletedAt = undefined;
+    }
+    if (finalName) {
+      user.name = finalName;
+      user.firstName = providedFn || finalName.split(" ")[0] || "";
+      user.lastName = providedLn || finalName.split(" ").slice(1).join(" ") || "";
     }
     user.isVerified = true;
     user.otp = undefined;

@@ -31,12 +31,26 @@ exports.getProfile = async (req, res) => {
 };
 exports.updateProfile = async (req, res) => {
     try {
-        const { name, email, mobile, phone, language, avatar } = req.body;
+        const { name, firstName, lastName, fullName, email, mobile, phone, language, avatar } = req.body;
         const user = await User.findById(req.user._id);
         if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
         const newPhone = phone || mobile;
-        if (name) user.name = name;
+        const providedName = (name || fullName || "").toString().trim();
+        const providedFn = (firstName || "").toString().trim();
+        const providedLn = (lastName || "").toString().trim();
+
+        if (providedFn || providedLn) {
+            user.firstName = providedFn;
+            user.lastName = providedLn;
+            user.name = `${providedFn} ${providedLn}`.trim();
+        } else if (providedName) {
+            user.name = providedName;
+            const parts = providedName.split(" ");
+            user.firstName = parts[0] || "";
+            user.lastName = parts.slice(1).join(" ") || "";
+        }
+
         if (language) user.language = language;
         if (avatar) {
             user.profilePic = avatar;
@@ -70,6 +84,22 @@ exports.updateProfile = async (req, res) => {
         }
 
         await user.save();
+
+        const Rider = require('../models/Rider');
+        if (['rider', 'driver'].includes(user.role)) {
+            await Rider.updateOne(
+                { user: user._id },
+                { 
+                    $set: { 
+                        name: user.name, 
+                        email: user.email, 
+                        mobile: user.mobile, 
+                        phone: user.phone || user.mobile,
+                        profilePic: user.profilePic
+                    } 
+                }
+            );
+        }
 
         const userObj = user.toObject ? user.toObject() : { ...user };
         userObj.id = user._id.toString();

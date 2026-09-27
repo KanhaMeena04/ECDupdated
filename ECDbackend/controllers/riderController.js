@@ -2545,16 +2545,31 @@ exports.getPendingRiders = async (req, res) => {
 
     const formatted = pendingRiders.map(r => {
       const obj = r.toObject();
+      const userName = (obj.user?.name || "").trim();
+      const riderName = (obj.name || "").trim();
+
+      const isUserGeneric = !userName || userName === 'User' || userName === 'Driver Partner' || userName.startsWith('Rider ');
+      const isRiderGeneric = !riderName || riderName === 'User' || riderName === 'Driver Partner' || riderName.startsWith('Rider ');
+
+      let resolvedName = riderName;
+      if (!isUserGeneric) {
+        resolvedName = userName;
+      } else if (!isRiderGeneric) {
+        resolvedName = riderName;
+      } else {
+        resolvedName = userName || riderName || 'Driver Partner';
+      }
+
       return {
         ...obj,
-        name: obj.name || obj.user?.name || 'Driver Partner',
+        name: resolvedName,
         phone: obj.phone || obj.mobile || obj.user?.phone || obj.user?.mobile || '',
         mobile: obj.mobile || obj.phone || obj.user?.mobile || obj.user?.phone || '',
         email: obj.email || obj.user?.email || '',
         profilePic: obj.profilePic || obj.user?.profilePic || '',
         user: obj.user || {
           _id: obj.user,
-          name: obj.name,
+          name: resolvedName,
           mobile: obj.mobile || obj.phone,
           email: obj.email
         }
@@ -2769,16 +2784,35 @@ exports.getAllRiders = async (req, res) => {
 
     const formattedRiders = riders.map(r => {
       const obj = r.toObject();
+      const userName = (obj.user?.name || "").trim();
+      const riderName = (obj.name || "").trim();
+
+      const isUserGeneric = !userName || userName === 'User' || userName === 'Driver Partner' || userName.startsWith('Rider ');
+      const isRiderGeneric = !riderName || riderName === 'User' || riderName === 'Driver Partner' || riderName.startsWith('Rider ');
+
+      let resolvedName = riderName;
+      if (!isUserGeneric) {
+        resolvedName = userName;
+      } else if (!isRiderGeneric) {
+        resolvedName = riderName;
+      } else {
+        resolvedName = userName || riderName || 'Driver Partner';
+      }
+
+      if (!isUserGeneric && isRiderGeneric && r._id) {
+        Rider.updateOne({ _id: r._id }, { $set: { name: userName } }).catch(() => {});
+      }
+
       return {
         ...obj,
-        name: obj.name || obj.user?.name || 'Driver Partner',
+        name: resolvedName,
         phone: obj.phone || obj.mobile || obj.user?.phone || obj.user?.mobile || '',
         mobile: obj.mobile || obj.phone || obj.user?.mobile || obj.user?.phone || '',
         email: obj.email || obj.user?.email || '',
         profilePic: obj.profilePic || obj.user?.profilePic || '',
         user: obj.user || {
           _id: obj.user,
-          name: obj.name,
+          name: resolvedName,
           mobile: obj.mobile || obj.phone,
           email: obj.email
         }

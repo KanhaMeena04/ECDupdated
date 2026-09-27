@@ -21,10 +21,10 @@ const AddRestaurantBannerForm = () => {
   const [preview, setPreview] = useState('');
 
   const [formData, setFormData] = useState({
-    title:"",
-    restaurant: '',
-    city: '',
-    status: '',
+    title: "",
+    restaurant: "all",
+    city: "all",
+    status: "active",
     bannerImage: null
   });
 
@@ -50,11 +50,15 @@ const AddRestaurantBannerForm = () => {
     }
 
     const payload = new FormData();
-    if (formData.restaurant) payload.append('restaurant', formData.restaurant);
+    if (formData.restaurant && formData.restaurant !== 'all') {
+      payload.append('restaurant', formData.restaurant);
+    }
     payload.append("title", formData.title || "Promo Banner");
-    if (formData.city) payload.append('city', formData.city);
-    payload.append('isActive', formData.status === 'active' || formData.status === '' || formData.status === 'true');
-    payload.append('type', formData.restaurant ? 'restaurant' : 'static');
+    if (formData.city && formData.city !== 'all') {
+      payload.append('city', formData.city);
+    }
+    payload.append('isActive', formData.status === 'active' || formData.status === 'true' || formData.status === '');
+    payload.append('type', (formData.restaurant && formData.restaurant !== 'all') ? 'restaurant' : 'static');
     payload.append('position', 1);
 
     if (formData.bannerImage) {
@@ -63,15 +67,29 @@ const AddRestaurantBannerForm = () => {
 
     try {
       await addBanner(payload);
-         navigate("/restaurant-banner")
-
-      // reset
-      setFormData({ restaurant: '', city: '', status: '', bannerImage: null });
-      setPreview('');
+      alert('✅ Banner created successfully!');
+      navigate("/restaurant-banner");
     } catch (err) {
-      console.error(err);
+      console.error('Error saving banner:', err);
+      alert('Failed to save banner: ' + (err.response?.data?.message || err.message));
     }
   };
+
+  const dynamicCityList = React.useMemo(() => {
+    const citySet = new Set();
+    if (Array.isArray(cities)) {
+      cities.forEach(c => {
+        const name = typeof c === 'string' ? c : (c.name || c.cityName);
+        if (name && name.trim()) citySet.add(name.trim());
+      });
+    }
+    if (Array.isArray(restaurants)) {
+      restaurants.forEach(r => {
+        if (r.city && r.city.trim()) citySet.add(r.city.trim());
+      });
+    }
+    return Array.from(citySet);
+  }, [cities, restaurants]);
 
   return (
     <div className="p-8 bg-gray-100 min-h-screen">
@@ -96,9 +114,9 @@ const AddRestaurantBannerForm = () => {
                 className="bg-white"
                 disabled={restaurantLoading}
               >
-                <MenuItem value="" disabled>Select Restaurant</MenuItem>
+                <MenuItem value="all">🌐 All Restaurants (General Banner)</MenuItem>
                 {restaurants?.map(r => (
-                  <MenuItem key={r._id} value={r._id}>
+                  <MenuItem key={r._id || r.id} value={r._id || r.id}>
                     {r.name}
                   </MenuItem>
                 ))}
@@ -117,24 +135,23 @@ const AddRestaurantBannerForm = () => {
                 size="small"
                 className="bg-white"
               >
-                <MenuItem value="" disabled>Select Status</MenuItem>
                 <MenuItem value="active">Active</MenuItem>
                 <MenuItem value="inactive">Inactive</MenuItem>
               </Select>
             </div>
             <div className="flex flex-col gap-2">
-  <label className="text-sm text-gray-500 font-medium">
-    Title
-  </label>
-  <input
-    type="text"
-    name="title"
-    value={formData.title}
-    onChange={handleChange}
-    placeholder="Banner Title"
-    className="bg-white border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-[#248C70]"
-  />
-</div>
+              <label className="text-sm text-gray-500 font-medium">
+                Title
+              </label>
+              <input
+                type="text"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                placeholder="Banner Title (e.g. Special Discount)"
+                className="bg-white border border-gray-300 rounded px-3 py-2 text-sm outline-none focus:border-[#248C70]"
+              />
+            </div>
 
           </div>
 
@@ -142,7 +159,7 @@ const AddRestaurantBannerForm = () => {
           <div className="space-y-6">
             <div className="flex flex-col gap-2">
               <label className="text-sm text-gray-500 font-medium">
-                City
+                City / Service Area
               </label>
               <Select
                 name="city"
@@ -153,10 +170,10 @@ const AddRestaurantBannerForm = () => {
                 className="bg-white"
                 disabled={cityLoading}
               >
-                <MenuItem value="" disabled>Select City</MenuItem>
-                {cities?.map(city => (
-                  <MenuItem key={city._id} value={city._id}>
-                    {city.name}
+                <MenuItem value="all">📍 All Cities (All Service Areas)</MenuItem>
+                {dynamicCityList.map((cityName, idx) => (
+                  <MenuItem key={idx} value={cityName}>
+                    {cityName}
                   </MenuItem>
                 ))}
               </Select>
@@ -171,14 +188,13 @@ const AddRestaurantBannerForm = () => {
                   variant="contained"
                   component="label"
                   sx={{backgroundColor:"#248C70"}}
-
                   className="bg-[#248C70] hover:bg-[#1c6d57] capitalize w-32 shadow-none py-2"
                 >
                   Choose a file
                   <input type="file" hidden onChange={handleImageChange} />
                 </Button>
 
-                <div className="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-300">
+                <div className="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-300 overflow-hidden">
                   {preview ? (
                     <img src={preview} alt="preview" className="w-full h-full object-cover" />
                   ) : (
@@ -197,7 +213,7 @@ const AddRestaurantBannerForm = () => {
               sx={{backgroundColor:"#248C70"}}
               className="bg-[#248C70] hover:bg-[#1c6d57] px-8 py-2 capitalize shadow-none text-md"
             >
-              Save
+              {loading ? 'Saving...' : 'Save Banner'}
             </Button>
           </div>
 

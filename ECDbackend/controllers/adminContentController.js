@@ -611,13 +611,32 @@ exports.deleteCancellationReason = async (req, res) => {
 };
 exports.addBanner = async (req, res) => {
     try {
-        const { title, type, targetId, targetModel, position } = req.body;
-        const image = req.file ? getFileUrl(req.file) : req.body.image;
+        const { title, type, targetId, targetModel, position, restaurant, city, isActive } = req.body;
+        let imageVal = '';
+        if (req.file) {
+            imageVal = await getFileUrl(req.file);
+        } else if (req.body.image) {
+            imageVal = await Promise.resolve(req.body.image);
+        }
+        if (imageVal && typeof imageVal.then === 'function') {
+            imageVal = await imageVal;
+        }
+        const finalImageStr = String(imageVal || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800');
+
         const banner = await Banner.create({ 
-            title, image, type, targetId, targetModel, position 
+            title: title || 'Promo Banner', 
+            image: finalImageStr, 
+            type: type || 'static', 
+            targetId, 
+            targetModel, 
+            position: position || 1,
+            restaurant: restaurant || undefined,
+            city: city || undefined,
+            isActive: isActive !== false && isActive !== 'false',
         });
         res.status(201).json({ message: "Banner created", data: banner });
     } catch (error) {
+        console.error("addBanner error:", error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -657,7 +676,9 @@ exports.updateBanner = async (req, res) => {
     try {
         const updateData = { ...req.body };
         if (req.file) {
-            updateData.image = getFileUrl(req.file);
+            let img = await getFileUrl(req.file);
+            if (img && typeof img.then === 'function') img = await img;
+            updateData.image = String(img || '');
         }
         const updatedBanner = await Banner.findByIdAndUpdate(
             req.params.id, 
