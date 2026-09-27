@@ -3139,27 +3139,60 @@ exports.deleteRider = async (req, res) => {
   try {
     const { id } = req.params;
     let rider = null;
+    let userDoc = null;
+
     if (isValidObjectId(id)) {
       rider = await Rider.findById(id);
       if (!rider) {
         rider = await Rider.findOne({ user: id });
       }
+      if (!rider) {
+        userDoc = await User.findById(id);
+      }
     }
-    if (!rider) {
+
+    if (!rider && !userDoc) {
       rider = await Rider.findOne({ $or: [{ _id: id }, { user: id }] }).catch(() => null);
     }
-    if (!rider) {
+
+    if (!rider && !userDoc) {
+      const clean10 = id.toString().replace(/[^0-9]/g, '').slice(-10);
+      if (clean10 && clean10.length === 10) {
+        userDoc = await User.findOne({
+          role: { $in: ['driver', 'rider'] },
+          $or: [
+            { mobile: `+91${clean10}` },
+            { phone: `+91${clean10}` },
+            { mobile: clean10 },
+            { phone: clean10 }
+          ]
+        }).catch(() => null);
+
+        if (userDoc) {
+          rider = await Rider.findOne({ user: userDoc._id }).catch(() => null);
+        }
+      }
+    }
+
+    if (!rider && !userDoc) {
       return res.status(404).json({ success: false, message: "Rider not found" });
     }
-    const userId = rider.user;
-    const phone = rider.mobile || rider.phone;
-    await Rider.findByIdAndDelete(rider._id);
+
+    const userId = rider?.user || userDoc?._id;
+    const phone = rider?.mobile || rider?.phone || userDoc?.mobile || userDoc?.phone;
+
+    if (rider) {
+      await Rider.findByIdAndDelete(rider._id);
+    }
+
     if (userId) {
       await User.findByIdAndUpdate(userId, { isDeleted: true, deletedAt: new Date() });
+      await User.findByIdAndDelete(userId).catch(() => null);
     }
+
     if (phone) {
       const clean10 = phone.toString().replace(/[^0-9]/g, '').slice(-10);
-      if (clean10) {
+      if (clean10 && clean10.length === 10) {
         await User.updateMany({
           role: { $in: ['driver', 'rider'] },
           $or: [
@@ -3168,9 +3201,19 @@ exports.deleteRider = async (req, res) => {
             { mobile: clean10 },
             { phone: clean10 }
           ]
-        }, { isDeleted: true, deletedAt: new Date() });
+        }, { isDeleted: true, deletedAt: new Date() }).catch(() => null);
+
+        await Rider.deleteMany({
+          $or: [
+            { mobile: `+91${clean10}` },
+            { phone: `+91${clean10}` },
+            { mobile: clean10 },
+            { phone: clean10 }
+          ]
+        }).catch(() => null);
       }
     }
+
     res.status(200).json({ success: true, message: "Rider and associated User account deleted successfully" });
   } catch (error) {
     console.error("Delete rider error:", error);
