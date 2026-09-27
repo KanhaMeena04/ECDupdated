@@ -13,6 +13,7 @@ module.exports = (io) => {
     }
     if (socket.userRole === 'restaurant_owner' && socket.restaurantId) {
       socket.join(`restaurant:${socket.restaurantId}`);
+      socket.join(`restaurant_${socket.restaurantId}`);
       console.log(`🍽️ Restaurant owner joined: ${socket.restaurantId}`);
     }
     if (socket.userRole === 'customer') {
@@ -28,6 +29,24 @@ module.exports = (io) => {
       socket.locationStreamingEnabled = false;
       socket.lastLocationBroadcast = Date.now();
     }
+
+    socket.on('join:restaurant', (restaurantId) => {
+      if (restaurantId) {
+        socket.join(`restaurant:${restaurantId}`);
+        socket.join(`restaurant_${restaurantId}`);
+        socket.join('restaurants');
+        console.log(`🍽️ Socket ${socket.id} joined restaurant room: ${restaurantId}`);
+      }
+    });
+    socket.on('restaurant:join', (restaurantId) => {
+      if (restaurantId) {
+        socket.join(`restaurant:${restaurantId}`);
+        socket.join(`restaurant_${restaurantId}`);
+        socket.join('restaurants');
+        console.log(`🍽️ Socket ${socket.id} joined restaurant room: ${restaurantId}`);
+      }
+    });
+
     socket.on('join:order', (orderId) => {
       socket.join(`order:${orderId}`);
       console.log(`📦 User ${socket.userId} joined order: ${orderId}`);

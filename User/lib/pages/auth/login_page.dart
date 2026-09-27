@@ -277,9 +277,10 @@ class _LoginPageState extends State<LoginPage>
       debugPrint('âœ… Login successful! Token: ${result.token}');
       // Token is already saved inside AuthService.verifyOtp â€” no need to save again
 
-      // Update UserProvider with the logged-in phone number
+      // Update UserProvider with the logged-in phone number & fetch profile from backend
       if (mounted) {
         context.read<UserProvider>().setUserInfo(phone: phone);
+        context.read<UserProvider>().fetchProfile();
       }
 
       if (!mounted) return;

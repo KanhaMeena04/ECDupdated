@@ -1022,23 +1022,23 @@ class _CancelOrTrackButtonState extends State<_CancelOrTrackButton> {
               if (showCancel) ...[
                 Expanded(
                   child: SizedBox(
-                    height: 38,
+                    height: 44,
                     child: OutlinedButton.icon(
                       onPressed: widget.onCancel,
                       icon: const Icon(Icons.close_rounded, size: 16),
-                      label: const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text('Cancel Order'),
+                      label: const Text(
+                        'Cancel Order',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red.shade600,
-                        side: BorderSide(color: Colors.red.shade300),
+                        side: BorderSide(color: Colors.red.shade300, width: 1.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     ),
@@ -1049,7 +1049,7 @@ class _CancelOrTrackButtonState extends State<_CancelOrTrackButton> {
               if (showTrack) ...[
                 Expanded(
                   child: SizedBox(
-                    height: 38,
+                    height: 44,
                     child: ElevatedButton.icon(
                       onPressed: () {
                         final rawItems = (widget.order['items'] as List? ?? []);
@@ -1072,20 +1072,20 @@ class _CancelOrTrackButtonState extends State<_CancelOrTrackButton> {
                         );
                       },
                       icon: const Icon(Icons.near_me_rounded, size: 16),
-                      label: const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text('Track Driver'),
+                      label: Text(
+                        (widget.order['orderType'] == 'pickup' || widget.order['orderType'] == 'self_pickup') ? 'Track Order' : 'Track Driver',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryGreen,
                         foregroundColor: Colors.white,
                         elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     ),
@@ -1095,7 +1095,7 @@ class _CancelOrTrackButtonState extends State<_CancelOrTrackButton> {
             ],
           ),
           if (showCancel) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               '$_timeLeft left to cancel',
               style: TextStyle(

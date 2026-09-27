@@ -21,10 +21,11 @@ const protect = async (req, res, next) => {
       }
     }
 
-    // Resilient fallback for local admin / dev operations
-    const isLocalOrDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development' ||
+    // Resilient fallback for local admin / dev operations ONLY for admin routes
+    const isAdminRoute = (req.originalUrl && req.originalUrl.includes('/admin')) || (req.path && req.path.includes('/admin'));
+    const isLocalOrDev = isAdminRoute && (!process.env.NODE_ENV || process.env.NODE_ENV === 'development' ||
       req.headers.origin?.includes('localhost') || req.headers.referer?.includes('localhost') ||
-      req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+      req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1');
 
     if (isLocalOrDev) {
       let adminUser = await User.findOne({ role: 'admin' }).select('-password');
@@ -37,13 +38,16 @@ const protect = async (req, res, next) => {
 
     return res.status(401).json({ message: "Not authorized, please login" });
   } catch (error) {
-    const isLocalOrDev = !process.env.NODE_ENV || process.env.NODE_ENV === 'development' ||
+    const isAdminRoute = (req.originalUrl && req.originalUrl.includes('/admin')) || (req.path && req.path.includes('/admin'));
+    const isLocalOrDev = isAdminRoute && (!process.env.NODE_ENV || process.env.NODE_ENV === 'development' ||
       req.headers.origin?.includes('localhost') || req.headers.referer?.includes('localhost') ||
-      req.ip === '127.0.0.1' || req.ip === '::1';
+      req.ip === '127.0.0.1' || req.ip === '::1');
     if (isLocalOrDev) {
       req.user = { _id: "000000000000000000000001", role: "admin", email: "admin@gmail.com", name: "Super Admin" };
       return next();
     }
+    return res.status(401).json({ message: "Not authorized, please login" });
+  }
     console.error(error);
     res.status(401).json({ message: "Not authorized, token failed" });
   }

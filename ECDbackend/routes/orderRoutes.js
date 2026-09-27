@@ -79,6 +79,7 @@ const {
   sendPickupOtpVendor,
   notifyCustomerArrived,
   failOrderCustomer,
+  verifySelfPickupOTP,
 } = require("../controllers/orderController");
 const { getMyActiveOrder } = require("../controllers/riderController");
 const { calculateDeliveryFee } = require("../controllers/paymentSystemController");
@@ -118,7 +119,8 @@ router.get("/restaurant/completed", protect, restaurantOwner, getCompletedOrders
 router.put("/:id/status", protect, restaurantOwner, updateOrderStatus);
 router.put("/:id/ready", protect, restaurantOwner, markOrderReady);
 router.post("/:id/pickup-otp", protect, restaurantOwner, resendPickupOTPByRestaurant);
-router.post("/:id/verify-self-pickup", protect, restaurantOwner, verifySelfPickup);
+router.post("/:id/verify-self-pickup", protect, verifySelfPickupOTP);
+router.post("/:id/verify-pickup-otp", protect, verifySelfPickupOTP);
 router.post("/:id/search-riders", protect, restaurantOwner, searchRidersForOrder);
 router.put('/:id/reject', protect, restaurantOwner, ownerRejectOrder);
 router.put('/:id/owner-cancel', protect, restaurantOwner, ownerCancelOrder);

@@ -10,6 +10,7 @@ import '../../providers/address_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../services/location_service.dart';
+import '../../services/notification_api_service.dart';
 import '../../widgets/safe_image.dart';
 import '../payment/address_selection_page.dart';
 import '../profile/profile_page.dart';
@@ -573,85 +574,168 @@ class CustomAppBar extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+        List<Map<String, dynamic>> notifications = [];
+        bool isLoading = true;
+
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            void loadData() async {
+              final list = await NotificationApiService.getNotifications();
+              if (modalCtx.mounted) {
+                setModalState(() {
+                  notifications = list;
+                  isLoading = false;
+                });
+              }
+            }
+
+            if (isLoading && notifications.isEmpty) {
+              loadData();
+            }
+
+            return Container(
+              height: MediaQuery.of(modalCtx).size.height * 0.65,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              const SizedBox(height: 16),
-              Row(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                    child: const Icon(Icons.notifications, color: AppColors.primary, size: 22),
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Notifications',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF2C2C2C),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.notifications, color: AppColors.primary, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Notifications',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF2C2C2C),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (notifications.isNotEmpty)
+                        TextButton(
+                          onPressed: () async {
+                            await NotificationApiService.markAllAsRead();
+                            loadData();
+                          },
+                          child: const Text('Mark all read', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: isLoading
+                        ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                        : (notifications.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.notifications_none, size: 48, color: Colors.grey.shade400),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'No notifications yet',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Your order updates & promo offers will appear here',
+                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.separated(
+                                itemCount: notifications.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                itemBuilder: (_, idx) {
+                                  final item = notifications[idx];
+                                  final type = item['type']?.toString() ?? 'general';
+                                  final title = item['title']?.toString() ?? 'Notification';
+                                  final message = item['message']?.toString() ?? '';
+                                  final createdAtStr = item['createdAt']?.toString();
+                                  final createdAt = createdAtStr != null ? DateTime.tryParse(createdAtStr) : null;
+                                  final timeAgo = createdAt != null ? _formatTimeAgo(createdAt) : 'Just now';
+
+                                  IconData iconData = Icons.notifications_active_outlined;
+                                  if (type == 'promo_offer' || title.toLowerCase().contains('offer')) {
+                                    iconData = Icons.local_offer;
+                                  } else if (type == 'order_status' || title.toLowerCase().contains('order')) {
+                                    iconData = Icons.delivery_dining;
+                                  }
+
+                                  return _buildNotificationTile(
+                                    icon: iconData,
+                                    title: title,
+                                    time: timeAgo,
+                                    subtitle: message,
+                                    isDark: isDark,
+                                  );
+                                },
+                              )),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              _buildNotificationTile(
-                icon: Icons.local_offer,
-                title: 'Special 50% Off Offer!',
-                time: '10 mins ago',
-                subtitle: 'Use code FOOD50 on your next food order.',
-                isDark: isDark,
-              ),
-              const SizedBox(height: 12),
-              _buildNotificationTile(
-                icon: Icons.delivery_dining,
-                title: 'Order Status Update',
-                time: '1 hour ago',
-                subtitle: 'Your recent order from Pizza Palace was delivered.',
-                isDark: isDark,
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
+  }
+
+  static String _formatTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} mins ago';
+    if (diff.inHours < 24) return '${diff.inHours} hrs ago';
+    return '${diff.inDays} days ago';
   }
 
   Widget _buildNotificationTile({

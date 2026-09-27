@@ -765,6 +765,7 @@ exports.userSendOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid 10-digit mobile number" });
     }
 
+    const last10Regex = new RegExp(`${last10}$`);
     const phoneVariations = [phoneNum, cleanDigits, last10, `+91${last10}`, `91${last10}`].filter(Boolean);
 
     const generatedOtp = crypto.randomInt(100000, 999999).toString();
@@ -772,10 +773,12 @@ exports.userSendOtp = async (req, res) => {
 
     let user = await User.findOne({
       $or: [
+        { mobile: last10Regex },
+        { phone: last10Regex },
         { mobile: { $in: phoneVariations } },
         { phone: { $in: phoneVariations } }
       ]
-    });
+    }).sort({ createdAt: 1 });
 
     if (!user) {
       const salt = await bcrypt.genSalt(10);
@@ -792,6 +795,10 @@ exports.userSendOtp = async (req, res) => {
         otpExpires: otpExpires
       });
     } else {
+      if (user.isDeleted) {
+        user.isDeleted = false;
+        user.deletedAt = undefined;
+      }
       user.otp = generatedOtp;
       user.otpExpires = otpExpires;
       await user.save();
@@ -830,14 +837,17 @@ exports.userVerifyOtp = async (req, res) => {
 
     const cleanDigits = phoneNum.replace(/[^0-9]/g, '');
     const last10 = cleanDigits.slice(-10);
+    const last10Regex = new RegExp(`${last10}$`);
     const phoneVariations = [phoneNum, cleanDigits, last10, `+91${last10}`, `91${last10}`].filter(Boolean);
 
     let user = await User.findOne({
       $or: [
+        { mobile: last10Regex },
+        { phone: last10Regex },
         { mobile: { $in: phoneVariations } },
         { phone: { $in: phoneVariations } }
       ]
-    });
+    }).sort({ createdAt: 1 });
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User account not found. Please send OTP first." });
@@ -850,13 +860,22 @@ exports.userVerifyOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
     }
 
+    if (user.isDeleted) {
+      user.isDeleted = false;
+      user.deletedAt = undefined;
+    }
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
     await user.save();
 
     const token = generateToken(res, user);
-    const isNewUser = !user.name || user.name.startsWith("User ") || user.name === "New Customer";
+    const userAgeMs = user.createdAt ? (Date.now() - new Date(user.createdAt).getTime()) : 0;
+    const hasOrders = (user.totalOrders && user.totalOrders > 0) || false;
+    const hasAddresses = Array.isArray(user.savedAddresses) && user.savedAddresses.length > 0;
+    const isOldAccount = userAgeMs > 5 * 60 * 1000 || hasOrders || hasAddresses;
+
+    const isNewUser = !isOldAccount && (!user.name || user.name.startsWith("User ") || user.name === "New Customer");
 
     return res.status(200).json({
       success: true,
@@ -866,10 +885,15 @@ exports.userVerifyOtp = async (req, res) => {
       isNewUser,
       user: {
         _id: user._id,
+        id: user._id,
         name: user.name,
         email: user.email,
         mobile: user.mobile,
-        role: user.role
+        phone: user.phone || user.mobile,
+        role: user.role || "customer",
+        savedAddresses: user.savedAddresses || [],
+        addresses: user.savedAddresses || [],
+        isVerified: true
       }
     });
   } catch (error) {

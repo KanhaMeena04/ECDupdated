@@ -75,10 +75,10 @@ class _CartPageState extends State<CartPage> {
       }
     }
 
-    // Check if new user needs to complete profile details
+    // Check if user is a guest user
     if (mounted) {
       final userProvider = context.read<UserProvider>();
-      if (userProvider.isGuest || userProvider.name == 'User' || userProvider.name == 'User Name' || userProvider.name == 'Guest User') {
+      if (userProvider.isGuest) {
         await Navigator.push(
           context,
           MaterialPageRoute(

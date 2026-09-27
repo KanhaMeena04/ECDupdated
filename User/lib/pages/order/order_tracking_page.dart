@@ -106,6 +106,27 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
         if (mounted) {
           setState(() {
             _trackingData = data;
+            final status = (data['status'] ?? data['order']?['status'] ?? 'pending').toString().toLowerCase();
+            final rider = data['rider'];
+            final isDelivery = widget.orderType == 'delivery';
+
+            if (isDelivery && (status == 'pending' || status == 'placed' || status == 'created')) {
+              _isFindingDriver = true;
+            } else {
+              _isFindingDriver = false;
+            }
+
+            if (status == 'delivered' || status == 'completed' || status == 'handovered') {
+              _pickupStage = 4;
+            } else if (status == 'arrived') {
+              _pickupStage = 3;
+            } else if (status == 'ready' || status == 'ready_for_pickup') {
+              _pickupStage = 2;
+            } else if (status == 'confirmed' || status == 'accepted' || status == 'preparing' || status == 'in_kitchen') {
+              _pickupStage = 1;
+            } else {
+              _pickupStage = 0;
+            }
           });
         }
       }
@@ -116,18 +137,30 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
   int get _stepFromStatus {
     final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
-    if (status == 'delivered' || status == 'completed') return 3;
-    if (status == 'picked_up' || status == 'out_for_delivery' || status == 'on_the_way' || status == 'ready' || status == 'ready_for_pickup') return 2;
-    if (status == 'confirmed' || status == 'accepted' || status == 'preparing' || status == 'in_kitchen') return 1;
-    return 0; // pending, placed
+    if (widget.orderType == 'pickup') {
+      if (status == 'delivered' || status == 'completed' || status == 'handovered') return 3;
+      if (status == 'ready' || status == 'ready_for_pickup') return 2;
+      if (status == 'confirmed' || status == 'accepted' || status == 'preparing' || status == 'in_kitchen') return 1;
+      return 0; // scheduled/placed
+    } else {
+      if (status == 'delivered' || status == 'completed') return 6;
+      if (status == 'out_for_delivery' || status == 'on_the_way') return 5;
+      if (status == 'picked_up' || status == 'partner_picked') return 4;
+      if (status == 'ready' || status == 'ready_for_pickup') return 3;
+      if (status == 'preparing' || status == 'in_kitchen') return 2;
+      if (status == 'confirmed' || status == 'accepted') return 1;
+      return 0; // placed/pending
+    }
   }
 
   String get _statusTitle {
     final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
-    if (status == 'delivered' || status == 'completed') return 'Order Delivered!';
+    if (status == 'delivered' || status == 'completed' || status == 'handovered') return 'Order Completed!';
     if (status == 'picked_up' || status == 'out_for_delivery' || status == 'on_the_way') return 'Order is on the way';
+    if (status == 'partner_picked') return 'Partner Picked Order';
     if (status == 'ready' || status == 'ready_for_pickup') return 'Food Prepared & Ready';
-    if (status == 'confirmed' || status == 'accepted' || status == 'preparing' || status == 'in_kitchen') return 'Order Accepted & Preparing';
+    if (status == 'preparing' || status == 'in_kitchen') return 'Order Preparing in Kitchen';
+    if (status == 'confirmed' || status == 'accepted') return 'Order Accepted by Restaurant';
     if (status == 'cancelled') return 'Order Cancelled';
     return 'Waiting for Restaurant Acceptance';
   }
@@ -1027,6 +1060,13 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
         : 'Order Item';
     final restName = (_trackingData?['restaurant']?['name'] ?? widget.restaurantName).toString();
 
+    final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
+    final isWaitingRestaurant = status == 'pending' || status == 'placed' || status == 'created';
+    final bannerTitle = isWaitingRestaurant ? 'Waiting for Restaurant Acceptance' : 'Finding a Driver for Your Order';
+    final bannerSubtitle = isWaitingRestaurant 
+        ? 'Your order has been sent to the restaurant. Waiting for them to review and accept.' 
+        : "We're searching for the best available driver nearby. This usually takes less than a minute.";
+
     return Stack(
       children: [
         // Background Radar Searching Map Canvas
@@ -1049,7 +1089,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Searching Banner Card
+              // Searching / Waiting Banner Card
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -1068,25 +1108,29 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                         color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.search, color: Colors.white, size: 20),
+                      child: Icon(
+                        isWaitingRestaurant ? Icons.hourglass_top_rounded : Icons.search,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Text(
-                            'Finding a Driver for Your Order',
-                            style: TextStyle(
+                            bannerTitle,
+                            style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: AppColors.primary,
                             ),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
-                            "We're searching for the best available driver nearby. This usually takes less than a minute.",
-                            style: TextStyle(
+                            bannerSubtitle,
+                            style: const TextStyle(
                               fontSize: 11,
                               color: Color(0xFF4B5563),
                               height: 1.2,
@@ -1600,7 +1644,10 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
   Widget _buildTimeline() {
     final step = _stepFromStatus;
-    final labels = ['Order Placed', 'Preparing', 'Out for Delivery', 'Delivered'];
+    final isPickup = widget.orderType == 'pickup';
+    final labels = isPickup
+        ? ['Scheduled', 'Accepted', 'Ready', 'Handovered']
+        : ['Placed', 'Accepted', 'Preparing', 'Ready', 'Partner Picked', 'On the Way', 'Delivered'];
     return Row(
       children: List.generate(labels.length, (index) {
         final isCompleted = index <= step;

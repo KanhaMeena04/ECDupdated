@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../routes/app_routes.dart';
 import '../../services/auth_service.dart';
+import '../../providers/user_provider.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -19,6 +21,11 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<UserProvider>().fetchProfile();
+      }
+    });
     _timer = Timer(const Duration(seconds: 5), () {
       if (mounted) {
         _navigate();

@@ -1,7 +1,9 @@
 const { admin, isInitialized } = require("../config/firebaseConfig");
 const User = require("../models/User");
+const Notification = require("../models/Notification");
 const socketService = require("../services/socketService");
-const { logger } = require("./logger"); // Assuming a logger exists, or we use console
+const { logger } = require("./logger");
+
 exports.sendNotification = async (userId, title, message, data = {}) => {
   try {
     if (!userId) {
@@ -9,11 +11,31 @@ exports.sendNotification = async (userId, title, message, data = {}) => {
       return false;
     }
     const userIdStr = userId.toString ? userId.toString() : String(userId);
+
+    // 1. Persist notification to MongoDB Database
+    let savedDoc = null;
+    try {
+      const type = data?.type || (title.toLowerCase().includes('offer') || title.toLowerCase().includes('discount') ? 'promo_offer' : 'order_status');
+      savedDoc = await Notification.create({
+        user: userIdStr,
+        title,
+        message,
+        type,
+        data: data || {},
+      });
+    } catch (dbErr) {
+      console.error("❌ Failed to save notification to DB:", dbErr.message);
+    }
+
+    // 2. Emit real-time WebSocket event
     try {
       socketService.emitToUser(userIdStr, "notification:new", {
+        _id: savedDoc?._id || new Date().getTime().toString(),
         title,
         message,
         data,
+        isRead: false,
+        createdAt: savedDoc?.createdAt || new Date(),
         timestamp: new Date(),
       });
       console.log(`🔌 Socket notification sent to user ${userIdStr}`);
