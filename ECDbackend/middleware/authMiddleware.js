@@ -48,9 +48,6 @@ const protect = async (req, res, next) => {
     }
     return res.status(401).json({ message: "Not authorized, please login" });
   }
-    console.error(error);
-    res.status(401).json({ message: "Not authorized, token failed" });
-  }
 };
 const admin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {

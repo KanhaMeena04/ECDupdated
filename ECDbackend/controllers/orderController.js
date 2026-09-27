@@ -499,6 +499,32 @@ exports.placeOrder = async (req, res) => {
     await User.findByIdAndUpdate(user._id, { $inc: { totalOrders: 1, totalAmountSpent: bill.toPay } });
     await Restaurant.findByIdAndUpdate(restaurantId, { $inc: { totalOrders: 1 } });
     logOrderTransition(newOrder._id, null, initialStatus, user._id, "customer", `Order placed via ${paymentMethod}`);
+
+    // Dispatch Self Pickup 4-Digit OTP Code via 2Factor SMS Gateway to User's Registered Mobile Number
+    if (isSelfPickup || newOrder.orderType === "self_pickup") {
+      const userMobile = user.mobile || user.phone || user.phoneNumber || req.body.mobile || req.body.phone || req.body.customerPhone || deliveryAddress?.phone;
+      if (userMobile) {
+        try {
+          console.log(`📱 [Self Pickup SMS] Dispatching 4-digit OTP ${pickupOtp} to ${userMobile} via 2Factor SMS provider...`);
+          sendOTP(userMobile, pickupOtp).then(res => {
+            console.log(`✅ [Self Pickup SMS] 2Factor result for ${userMobile}:`, res);
+          }).catch(smsErr => {
+            console.error("❌ SMS dispatch error for self pickup OTP:", smsErr.message);
+          });
+        } catch (smsErr) {
+          logger.error("SMS dispatch error for self pickup OTP:", smsErr);
+        }
+      }
+      try {
+        await sendNotification(
+          user._id,
+          "Self Pickup OTP Code",
+          `Your 4-digit pickup code for Order #${newOrder._id} is ${pickupOtp}. Show this code at counter for verification.`,
+          { orderId: newOrder._id, pickupOtp, type: "self_pickup_otp" }
+        );
+      } catch (notifErr) {}
+    }
+
     if (isOnlineOrder) {
       return res.status(201).json({
         success: true,
@@ -510,24 +536,6 @@ exports.placeOrder = async (req, res) => {
       });
     }
     try {
-      if (isSelfPickup || newOrder.orderType === "self_pickup") {
-        const userMobile = user.mobile || user.phone || req.body.mobile || req.body.phone;
-        if (userMobile) {
-          try {
-            console.log(`📱 [Self Pickup SMS] Sending 4-digit OTP ${pickupOtp} to ${userMobile} via SMS provider...`);
-            await sendOTP(userMobile, pickupOtp);
-          } catch (smsErr) {
-            logger.error("SMS dispatch error for self pickup OTP:", smsErr);
-          }
-        }
-        await sendNotification(
-          user._id,
-          "Self Pickup OTP Code",
-          `Your 4-digit pickup code for Order #${newOrder._id} is ${pickupOtp}. Show this code at counter for verification.`,
-          { orderId: newOrder._id, pickupOtp, type: "self_pickup_otp" }
-        );
-      }
-
       if (restaurant && restaurant.owner) {
         await sendNotification(
           restaurant.owner._id,
