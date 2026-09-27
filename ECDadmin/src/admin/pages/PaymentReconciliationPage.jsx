@@ -2,16 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { API_BASE_URL } from '../../utils/utils';
 
 export default function PaymentReconciliationPage() {
   const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchRecords = async () => {
+    setLoading(true);
     try {
-      const res = await axios.get('/api/reconciliations');
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_BASE_URL}/api/reconciliations`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.records) setRecords(res.data.records);
     } catch (err) {
       toast.error('Failed to load reconciliation reports');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -21,7 +29,10 @@ export default function PaymentReconciliationPage() {
 
   const handleResolve = async (id) => {
     try {
-      const res = await axios.patch(`/api/reconciliations/${id}/resolve`);
+      const token = localStorage.getItem('token');
+      const res = await axios.patch(`${API_BASE_URL}/api/reconciliations/${id}/resolve`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (res.data.success) {
         toast.success('Mismatch marked as resolved');
         fetchRecords();
@@ -33,12 +44,19 @@ export default function PaymentReconciliationPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h5" sx={{ fontWeight: 700, color: '#111827', mb: 1 }}>
-        Payment Gateway & Bank Reconciliation
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Monitor mismatches between order amounts, gateway receipts, refunds, and bank payouts.
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
+        <div>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: '#111827', mb: 0.5 }}>
+            Payment Gateway & Bank Reconciliation Engine
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Monitor mismatches between order amounts, gateway receipts, refunds, and bank payouts.
+          </Typography>
+        </div>
+        <Button variant="contained" sx={{ bgcolor: '#248C70', '&:hover': { bgcolor: '#1e755d' } }} onClick={fetchRecords}>
+          🔄 Refresh Reconciliation
+        </Button>
+      </Box>
 
       <Paper sx={{ width: '100%', overflow: 'hidden', borderRadius: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         <TableContainer>
@@ -57,8 +75,8 @@ export default function PaymentReconciliationPage() {
             <TableBody>
               {records.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 3, color: '#10b981', fontWeight: 600 }}>
-                    ✓ All transactions reconciled perfectly. No active mismatches found.
+                  <TableCell colSpan={7} align="center" sx={{ py: 4, color: '#10b981', fontWeight: 600 }}>
+                    {loading ? 'Performing reconciliation audit...' : '✓ All transactions reconciled perfectly across Payment Gateway ↔ Settlement ↔ Bank. No active mismatches found.'}
                   </TableCell>
                 </TableRow>
               ) : (

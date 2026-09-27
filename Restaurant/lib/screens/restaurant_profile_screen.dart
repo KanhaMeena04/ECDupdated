@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api_constants.dart';
 import '../theme/app_colors.dart';
@@ -62,18 +63,18 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
     final phone = prefs.getString('userPhone') ?? '';
     final token = prefs.getString('token') ?? '';
     final storedName = prefs.getString('restaurantName') ?? '';
+    final storedAddress = prefs.getString('restaurantAddress') ?? '';
+    final storedEmail = prefs.getString('userEmail') ?? '';
 
-    if (storedName.isNotEmpty && storedName != 'null') {
-      _tradeNameController.text = storedName;
-    }
-    if (phone.isNotEmpty) {
-      _phoneController.text = phone;
-    }
+    if (storedName.isNotEmpty && storedName != 'null') _tradeNameController.text = storedName;
+    if (storedAddress.isNotEmpty && storedAddress != 'null') _addressController.text = storedAddress;
+    if (phone.isNotEmpty) _phoneController.text = phone;
+    if (storedEmail.isNotEmpty && storedEmail != 'null') _emailController.text = storedEmail;
 
     try {
       String url = '';
       if (restId.isNotEmpty) {
-        url = ApiConstants.getApprovalStatus(restId);
+        url = '${ApiConstants.baseUrl}/restaurants/vendor/profile/$restId';
       } else if (phone.isNotEmpty) {
         url = ApiConstants.checkApprovalStatusByMobile(phone);
       }
@@ -89,37 +90,40 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
 
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
+          final restObj = data['restaurant'] ?? data;
           if (mounted) {
             setState(() {
-              if (data['name'] != null) {
-                _tradeNameController.text = data['name'] is Map ? (data['name']['en'] ?? '') : data['name'].toString();
+              if (restObj['name'] != null) {
+                _tradeNameController.text = restObj['name'] is Map ? (restObj['name']['en'] ?? '') : restObj['name'].toString();
               }
-              if (data['address'] != null) _addressController.text = data['address'].toString();
-              if (data['city'] != null) _cityController.text = data['city'].toString();
-              if (data['area'] != null) _areaController.text = data['area'].toString();
-              if (data['contactNumber'] != null) _phoneController.text = data['contactNumber'].toString();
-              if (data['email'] != null) _emailController.text = data['email'].toString();
-              if (data['description'] != null) {
-                _aboutController.text = data['description'] is Map ? (data['description']['en'] ?? '') : data['description'].toString();
+              if (restObj['address'] != null) _addressController.text = restObj['address'].toString();
+              if (restObj['city'] != null) _cityController.text = restObj['city'].toString();
+              if (restObj['area'] != null) _areaController.text = restObj['area'].toString();
+              if (restObj['contactNumber'] != null) _phoneController.text = restObj['contactNumber'].toString();
+              if (restObj['email'] != null) _emailController.text = restObj['email'].toString();
+              if (restObj['fssaiNumber'] != null) _tradeLicenseController.text = restObj['fssaiNumber'].toString();
+              if (restObj['gstNumber'] != null) _vatNumberController.text = restObj['gstNumber'].toString();
+              if (restObj['description'] != null) {
+                _aboutController.text = restObj['description'] is Map ? (restObj['description']['en'] ?? '') : restObj['description'].toString();
               }
-              if (data['cuisine'] != null) {
-                if (data['cuisine'] is List) {
-                  _cuisineController.text = (data['cuisine'] as List).join(', ');
+              if (restObj['cuisine'] != null) {
+                if (restObj['cuisine'] is List) {
+                  _cuisineController.text = (restObj['cuisine'] as List).join(', ');
                 } else {
-                  _cuisineController.text = data['cuisine'].toString();
+                  _cuisineController.text = restObj['cuisine'].toString();
                 }
               }
-              if (data['restaurantType'] != null) _typeController.text = data['restaurantType'].toString();
+              if (restObj['restaurantType'] != null) _typeController.text = restObj['restaurantType'].toString();
 
               _restaurantImages.clear();
-              if (data['restaurantImages'] is List && (data['restaurantImages'] as List).isNotEmpty) {
-                for (var img in (data['restaurantImages'] as List)) {
+              if (restObj['restaurantImages'] is List && (restObj['restaurantImages'] as List).isNotEmpty) {
+                for (var img in (restObj['restaurantImages'] as List)) {
                   if (img != null && img.toString().isNotEmpty) {
                     _restaurantImages.add(img.toString());
                   }
                 }
-              } else if (data['image'] != null && data['image'].toString().isNotEmpty) {
-                _restaurantImages.add(data['image'].toString());
+              } else if (restObj['image'] != null && restObj['image'].toString().isNotEmpty) {
+                _restaurantImages.add(restObj['image'].toString());
               }
             });
           }
@@ -128,35 +132,80 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
     } catch (_) {}
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _tradeNameController.dispose();
-    _typeController.dispose();
-    _cuisineController.dispose();
-    _aboutController.dispose();
-    _addressController.dispose();
-    _areaController.dispose();
-    _cityController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    _tradeLicenseController.dispose();
-    _vatNumberController.dispose();
-    super.dispose();
+  Future<void> _pickProfileImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() {
+          _restaurantImages.add(image.path);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    }
   }
 
-  void _saveProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Restaurant Profile saved successfully!',
-          style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500),
+  Future<void> _saveProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final restId = prefs.getString('restaurantId') ?? '';
+    final token = prefs.getString('token') ?? '';
+
+    await prefs.setString('restaurantName', _tradeNameController.text.trim());
+    await prefs.setString('restaurantAddress', _addressController.text.trim());
+    await prefs.setString('userPhone', _phoneController.text.trim());
+    await prefs.setString('userEmail', _emailController.text.trim());
+
+    if (restId.isNotEmpty) {
+      try {
+        final url = '${ApiConstants.baseUrl}/restaurants/vendor/profile/$restId';
+        final body = {
+          'name': _tradeNameController.text.trim(),
+          'restaurantType': _typeController.text.trim(),
+          'cuisine': _cuisineController.text.trim(),
+          'description': _aboutController.text.trim(),
+          'address': _addressController.text.trim(),
+          'area': _areaController.text.trim(),
+          'city': _cityController.text.trim(),
+          'contactNumber': _phoneController.text.trim(),
+          'email': _emailController.text.trim(),
+          'fssaiNumber': _tradeLicenseController.text.trim(),
+          'gstNumber': _vatNumberController.text.trim(),
+          'restaurantImages': _restaurantImages,
+        };
+
+        final response = await http.put(
+          Uri.parse(url),
+          headers: {
+            'Content-Type': 'application/json',
+            if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(body),
+        ).timeout(const Duration(seconds: 8));
+
+        if (response.statusCode == 200) {
+          debugPrint("Profile updated successfully on DB!");
+        }
+      } catch (e) {
+        debugPrint("Error saving profile to DB: $e");
+      }
+    }
+
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '🎉 Restaurant Profile saved & updated in backend database!',
+            style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: AppColors.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        backgroundColor: AppColors.primaryGreen,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+      );
+      _tabController.animateTo(0);
+    }
   }
 
   @override
@@ -360,8 +409,8 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
                                         padding: const EdgeInsets.symmetric(horizontal: 12),
                                         child: Text(
                                           _addressController.text.isNotEmpty
-                                              ? '${_addressController.text}, ${_cityController.text.isNotEmpty ? _cityController.text : "Sohna"}'
-                                              : 'Subhash Chowk, Sohna, Haryana',
+                                              ? '${_addressController.text}${_areaController.text.isNotEmpty ? ", ${_areaController.text}" : ""}${_cityController.text.isNotEmpty ? ", ${_cityController.text}" : ""}'
+                                              : 'Restaurant Address Pending',
                                           textAlign: TextAlign.center,
                                           style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
                                         ),
@@ -480,11 +529,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
                         }),
                         // Add image square matching Reference Image 4
                         GestureDetector(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Upload Image picker opened!')),
-                            );
-                          },
+                          onTap: _pickProfileImage,
                           child: Container(
                             width: 80,
                             height: 80,

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Paper, Grid, Switch, FormControlLabel, Button, TextField } from '@mui/material';
+import { Box, Typography, Paper, Grid, Switch, FormControlLabel, Button, TextField, CircularProgress } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { API_BASE_URL } from '../../utils/utils';
 
 export default function SelfPickupControlPage() {
   const [config, setConfig] = useState({
@@ -12,14 +13,53 @@ export default function SelfPickupControlPage() {
     cancellationWindowMins: 5,
     customerArrivalTimeoutMins: 30
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
+  const fetchConfig = async () => {
     try {
-      toast.success('Self Pickup rules & parameters updated successfully!');
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_BASE_URL}/api/admin/self-pickup-config`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.config) {
+        setConfig(res.data.config);
+      }
     } catch (err) {
-      toast.error('Failed to update self pickup config');
+      toast.error('Failed to load self pickup config');
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchConfig();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.put(`${API_BASE_URL}/api/admin/self-pickup-config`, config, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        toast.success('Self Pickup parameters saved to Database!');
+      }
+    } catch (err) {
+      toast.error('Failed to update self pickup config');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
+        <CircularProgress color="success" />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -75,8 +115,8 @@ export default function SelfPickupControlPage() {
             />
           </Grid>
           <Grid item xs={12} sx={{ textAlign: 'right' }}>
-            <Button variant="contained" sx={{ bgcolor: '#248C70', '&:hover': { bgcolor: '#1e755d' } }} onClick={handleSave}>
-              Save Self Pickup Settings
+            <Button variant="contained" disabled={saving} sx={{ bgcolor: '#248C70', '&:hover': { bgcolor: '#1e755d' } }} onClick={handleSave}>
+              {saving ? 'Saving...' : 'Save Self Pickup Settings'}
             </Button>
           </Grid>
         </Grid>

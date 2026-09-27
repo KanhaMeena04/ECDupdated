@@ -95,6 +95,35 @@ const AdminSettingSchema = new mongoose.Schema(
     taxConfig: {
       enabled: { type: Boolean, default: true },
       gstPercent: { type: Number, default: 5 }
+    },
+
+    // Self Pickup Master Configuration (Requirement 18)
+    selfPickupConfig: {
+      enabled: { type: Boolean, default: true },
+      pickupCapacityPerHour: { type: Number, default: 20 },
+      preparationBufferMins: { type: Number, default: 10 },
+      gracePeriodMins: { type: Number, default: 15 },
+      cancellationWindowMins: { type: Number, default: 5 },
+      customerArrivalTimeoutMins: { type: Number, default: 30 }
+    },
+
+    // Rider Earning Configuration (Requirement 13)
+    riderEarningConfig: {
+      baseEarning: { type: Number, default: 20 },
+      baseDistanceKm: { type: Number, default: 2 },
+      perKmEarning: { type: Number, default: 8 },
+      peakBonus: { type: Number, default: 10 },
+      isPeakBonusActive: { type: Boolean, default: false },
+      rainBonus: { type: Number, default: 15 },
+      isRainBonusActive: { type: Boolean, default: false },
+      nightBonus: { type: Number, default: 15 },
+      isNightBonusActive: { type: Boolean, default: false }
+    },
+
+    // Settlement Cycle Configuration (Requirement 11)
+    settlementConfig: {
+      defaultCycle: { type: String, enum: ['T+1', 'T+2', 'T+3', 'Weekly', 'Custom'], default: 'T+2' },
+      autoPayoutDay: { type: String, default: 'Sunday' }
     }
   },
   { timestamps: true }

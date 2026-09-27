@@ -776,6 +776,8 @@ exports.getAllUsers = async (req, res) => {
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: "i" } },
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
         { email: { $regex: search, $options: "i" } },
         { mobile: { $regex: search, $options: "i" } },
       ];
@@ -786,8 +788,32 @@ exports.getAllUsers = async (req, res) => {
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
+
+    const formattedUsers = users.map((u) => {
+      const userObj = u.toObject();
+      let fName = userObj.firstName || "";
+      let lName = userObj.lastName || "";
+      let fullName = userObj.name || "";
+      if (!fName && !lName && fullName) {
+        const parts = fullName.trim().split(" ");
+        fName = parts[0] || "";
+        lName = parts.slice(1).join(" ") || "";
+      }
+      if (!fullName) {
+        fullName = `${fName} ${lName}`.trim() || "User";
+      }
+      return {
+        ...userObj,
+        firstName: fName,
+        lastName: lName,
+        name: fullName,
+        wallet: `₹${(userObj.walletBalance || 0).toFixed(2)}`,
+        registeredAt: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "",
+      };
+    });
+
     res.status(200).json({
-      users,
+      users: formattedUsers,
       total,
       page,
       limit,
@@ -801,7 +827,26 @@ exports.getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
-    res.status(200).json(user);
+    const userObj = user.toObject();
+    let fName = userObj.firstName || "";
+    let lName = userObj.lastName || "";
+    let fullName = userObj.name || "";
+    if (!fName && !lName && fullName) {
+      const parts = fullName.trim().split(" ");
+      fName = parts[0] || "";
+      lName = parts.slice(1).join(" ") || "";
+    }
+    if (!fullName) {
+      fullName = `${fName} ${lName}`.trim() || "User";
+    }
+    res.status(200).json({
+      ...userObj,
+      firstName: fName,
+      lastName: lName,
+      name: fullName,
+      wallet: `₹${(userObj.walletBalance || 0).toFixed(2)}`,
+      registeredAt: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "",
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

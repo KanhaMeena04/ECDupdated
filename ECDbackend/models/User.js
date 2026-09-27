@@ -27,6 +27,14 @@ const paymentMethodSchema = new mongoose.Schema({
 });
 const userSchema = new mongoose.Schema(
   {
+    firstName: {
+      type: String,
+      default: "",
+    },
+    lastName: {
+      type: String,
+      default: "",
+    },
     name: {
       type: String,
       default: "User",
@@ -92,6 +100,19 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+userSchema.pre("save", function (next) {
+  if (this.firstName || this.lastName) {
+    this.name = `${this.firstName || ""} ${this.lastName || ""}`.trim();
+  } else if (this.name) {
+    const parts = this.name.trim().split(" ");
+    if (parts.length > 0) {
+      this.firstName = parts[0];
+      this.lastName = parts.slice(1).join(" ");
+    }
+  }
+  if (typeof next === 'function') next();
+});
+
 userSchema.index({ email: 1, isDeleted: 1 });
 userSchema.index({ mobile: 1, isDeleted: 1 });
 userSchema.index({ role: 1 });

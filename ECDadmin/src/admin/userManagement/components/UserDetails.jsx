@@ -57,10 +57,28 @@ const UserDetail = () => {
           <div className="grid grid-cols-2 gap-y-8 max-w-4xl">
             <Box>
               <Typography className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-1">
-                Username
+                First Name
               </Typography>
-              <Typography className="text-gray-700 text-sm">
-                {userData.name}
+              <Typography className="text-gray-700 text-sm font-semibold">
+                {userData.firstName || (userData.name ? userData.name.split(' ')[0] : 'N/A')}
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-1">
+                Last Name
+              </Typography>
+              <Typography className="text-gray-700 text-sm font-semibold">
+                {userData.lastName || (userData.name ? userData.name.split(' ').slice(1).join(' ') : 'N/A')}
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-1">
+                Full Name
+              </Typography>
+              <Typography className="text-gray-700 text-sm font-semibold">
+                {userData.name || 'User'}
               </Typography>
             </Box>
 
@@ -69,7 +87,7 @@ const UserDetail = () => {
                 E-mail
               </Typography>
               <Typography className="text-gray-700 text-sm">
-                {userData.email}
+                {userData.email || 'N/A'}
               </Typography>
             </Box>
 
@@ -78,7 +96,7 @@ const UserDetail = () => {
                 Phone
               </Typography>
               <Typography className="text-gray-700 text-sm">
-                {userData.mobile}
+                {userData.mobile || userData.phone || 'N/A'}
               </Typography>
             </Box>
 
@@ -86,8 +104,8 @@ const UserDetail = () => {
               <Typography className="text-gray-400 text-xs uppercase font-bold tracking-wider mb-1">
                 Wallet Balance
               </Typography>
-              <Typography className="text-gray-700 text-sm">
-                {userData.walletBalance}
+              <Typography className="text-gray-700 text-sm font-bold text-emerald-600">
+                {userData.wallet || `₹${(Number(userData.walletBalance) || 0).toFixed(2)}`}
               </Typography>
             </Box>
 
@@ -96,7 +114,7 @@ const UserDetail = () => {
                 Created At
               </Typography>
               <Typography className="text-gray-700 text-sm">
-                {userData.createdAt}
+                {userData.registeredAt || (userData.createdAt ? new Date(userData.createdAt).toLocaleString('en-IN') : 'N/A')}
               </Typography>
             </Box>
           </div>

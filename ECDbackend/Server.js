@@ -81,7 +81,8 @@ const io = socketIO(server, {
 app.set('io', io);
 
 io.on('connection', (socket) => {
-  debugLog('Socket connected:', socket.id);
+  // debugLog('Socket connected:', socket.id);
+  console.log('Socket connected:', socket.id);
   socket.on('joinOrder', (orderId) => {
     if (orderId) {
       socket.join(`order_${orderId}`);
@@ -233,6 +234,7 @@ const featureFlagRoutes = require('./routes/featureFlagRoutes');
 const scheduledChangeRoutes = require('./routes/scheduledChangeRoutes');
 const serviceAreaRoutes = require('./routes/serviceAreaRoutes');
 const reconciliationRoutes = require('./routes/reconciliationRoutes');
+const settlementRoutes = require('./routes/settlementRoutes');
 
 app.use('/api/rules', ruleEngineRoutes);
 app.use('/api/v1/rules', ruleEngineRoutes);
@@ -246,6 +248,8 @@ app.use('/api/service-areas', serviceAreaRoutes);
 app.use('/api/v1/service-areas', serviceAreaRoutes);
 app.use('/api/reconciliations', reconciliationRoutes);
 app.use('/api/v1/reconciliations', reconciliationRoutes);
+app.use('/api/settlements', settlementRoutes);
+app.use('/api/v1/settlements', settlementRoutes);
 
 app.use('/api/training', trainingRoutes);
 app.use('/api/v1/training', trainingRoutes);

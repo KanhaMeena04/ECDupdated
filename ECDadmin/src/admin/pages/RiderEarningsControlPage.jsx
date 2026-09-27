@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Paper, Grid, TextField, Button, Switch, FormControlLabel, Divider } from '@mui/material';
+import { Box, Typography, Paper, Grid, TextField, Button, Switch, FormControlLabel, Divider, CircularProgress } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import { API_BASE_URL } from '../../utils/utils';
 
 export default function RiderEarningsControlPage() {
   const [config, setConfig] = useState({
@@ -15,14 +16,53 @@ export default function RiderEarningsControlPage() {
     nightBonus: 15,
     isNightBonusActive: false
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
+  const fetchConfig = async () => {
     try {
-      toast.success('Rider base rates & bonus structure updated!');
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_BASE_URL}/api/admin/rider-earning-config`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.config) {
+        setConfig(res.data.config);
+      }
     } catch (err) {
-      toast.error('Failed to save rider earning config');
+      toast.error('Failed to load rider earning config');
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchConfig();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.put(`${API_BASE_URL}/api/admin/rider-earning-config`, config, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        toast.success('Rider base rates & surge bonus structure saved to Database!');
+      }
+    } catch (err) {
+      toast.error('Failed to save rider earning config');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
+        <CircularProgress color="success" />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -69,8 +109,8 @@ export default function RiderEarningsControlPage() {
           </Grid>
 
           <Grid item xs={12} sx={{ textAlign: 'right' }}>
-            <Button variant="contained" sx={{ bgcolor: '#248C70', '&:hover': { bgcolor: '#1e755d' } }} onClick={handleSave}>
-              Save Rider Earning Config
+            <Button variant="contained" disabled={saving} sx={{ bgcolor: '#248C70', '&:hover': { bgcolor: '#1e755d' } }} onClick={handleSave}>
+              {saving ? 'Saving...' : 'Save Rider Earning Config'}
             </Button>
           </Grid>
         </Grid>

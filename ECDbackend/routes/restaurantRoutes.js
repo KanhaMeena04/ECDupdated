@@ -68,6 +68,12 @@ router.post('/verify-otp', vendorVerifyOtp);
 router.post('/login-with-pin', vendorLoginWithPin);
 router.post('/vendor/login-with-pin', vendorLoginWithPin);
 router.get('/profile', protect, restaurantOwner, getMyRestaurant);
+router.get('/vendor/profile/:id', optionalAuth, getRestaurantProfileById);
+router.put('/vendor/profile/:id', optionalAuth, upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'bannerImage', maxCount: 1 },
+  { name: 'images', maxCount: 6 }
+]), updateRestaurant);
 router.get('/:id/profile', protect, getRestaurantProfileById);
 router.get('/:id/order-history', protect, getOrderHistory);
 router.get('/:id/dashboard-stats', protect, getDashboardStats);

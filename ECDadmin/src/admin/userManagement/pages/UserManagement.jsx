@@ -111,18 +111,25 @@ const UserManagement = () => {
             {data.users.map((user, index) => (
               <TableRow key={user._id} className="hover:bg-gray-50">
                 <TableCell className="border-r text-center font-medium">{index + 1}</TableCell>
-                <TableCell className="border-r text-gray-600 text-xs">{user.name}</TableCell>
-                <TableCell className="border-r text-gray-600 text-xs">{user.email}</TableCell>
-                <TableCell className="border-r text-gray-600 text-xs">{user.mobile}</TableCell>
+                <TableCell className="border-r text-gray-800 text-xs font-medium">
+                  <div>{user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : user.name || 'User'}</div>
+                  {(user.firstName || user.lastName) && (
+                    <div className="text-[10px] text-gray-500 font-normal">
+                      First: <span className="font-semibold text-gray-700">{user.firstName || '-'}</span> | Last: <span className="font-semibold text-gray-700">{user.lastName || '-'}</span>
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="border-r text-gray-600 text-xs">{user.email || 'N/A'}</TableCell>
+                <TableCell className="border-r text-gray-600 text-xs">{user.mobile || user.phone || 'N/A'}</TableCell>
                 <TableCell className="border-r text-gray-600 text-xs">{user.type || 'web'}</TableCell>
                 <TableCell className="border-r text-gray-600 text-xs">
-                  {new Date(user.createdAt).toLocaleString()}
+                  {user.createdAt ? new Date(user.createdAt).toLocaleString('en-IN') : 'N/A'}
                 </TableCell>
                 <TableCell className="border-r text-gray-600 text-xs">
-                  {user.registeredAt || ''}
+                  {user.registeredAt || (user.createdAt ? new Date(user.createdAt).toLocaleString('en-IN') : 'N/A')}
                 </TableCell>
-                <TableCell className="border-r text-gray-600 text-xs font-semibold">
-                  {user.wallet || 'RM 0.00'}
+                <TableCell className="border-r text-gray-800 text-xs font-semibold">
+                  {user.wallet || `₹${(user.walletBalance || 0).toFixed(2)}`}
                 </TableCell>
 
                 <TableCell>

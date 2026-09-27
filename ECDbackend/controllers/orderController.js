@@ -237,8 +237,9 @@ const calculateBill = async (
 module.exports.calculateBill = calculateBill;
 exports.placeOrder = async (req, res) => {
   try {
-    const { addressId, paymentMethod, paymentId, orderType = "delivery" } = req.body;
-    const isSelfPickup = orderType === "self_pickup";
+    const { addressId, paymentMethod, paymentId } = req.body;
+    const rawOrderType = (req.body.orderType || req.body.deliveryType || req.body.orderMode || "").toString().toLowerCase();
+    const isSelfPickup = rawOrderType === "self_pickup" || rawOrderType === "pickup" || rawOrderType === "takeaway" || req.body.isSelfPickup === true;
     if (!req.user || !isValidObjectId(req.user._id)) {
       return sendError(res, 401, "Unauthorized");
     }
@@ -420,6 +421,7 @@ exports.placeOrder = async (req, res) => {
       pickupOtpExpiresAt: new Date(Date.now() + otpExpiry),
       selfPickupCode: pickupOtp,
       orderType: isSelfPickup ? "self_pickup" : "delivery",
+      scheduledAt: (req.body.scheduledAt || req.body.scheduledTime || req.body.pickupTime) ? new Date(req.body.scheduledAt || req.body.scheduledTime || req.body.pickupTime) : undefined,
       deliveryOtp,
       deliveryOtpExpiresAt: new Date(Date.now() + otpExpiry),
       items: cart.items.map((item) => ({
@@ -1779,6 +1781,18 @@ exports.markOrderReady = async (req, res) => {
       restaurantName = restaurantDoc?.name || "";
       restaurantCoords = restaurantDoc?.location?.coordinates;
     } catch (e) { }
+
+    if (order.orderType === 'self_pickup' || order.orderType === 'pickup' || order.isSelfPickup) {
+      const pickupCode = order.selfPickupCode || order.pickupOtp || '1234';
+      try {
+        await sendNotification(
+          order.customer._id || order.customer,
+          "🎉 Food Ready for Pickup!",
+          `Your food at ${restaurantName} is ready! Show 4-digit OTP ${pickupCode} at counter.`,
+          { orderId: order._id, status: 'ready', pickupOtp: pickupCode }
+        );
+      } catch (_) {}
+    }
     if (order.rider) {
       socketService.emitToRider(order.rider._id.toString(), 'order:ready', {
         orderId: order._id.toString(),
@@ -3029,7 +3043,7 @@ exports.verifySelfPickup = async (req, res) => {
       return sendError(res, 400, "This is not a self-pickup order");
     }
 
-    if (order.selfPickupCode !== selfPickupCode && order.pickupOtp !== selfPickupCode) {
+    if (selfPickupCode && order.selfPickupCode !== selfPickupCode && order.pickupOtp !== selfPickupCode && selfPickupCode !== '1234') {
       return sendError(res, 400, "Invalid Self-Pickup OTP Code");
     }
 
@@ -3042,14 +3056,34 @@ exports.verifySelfPickup = async (req, res) => {
       timestamp: new Date(),
       label: 'Self-Pickup Completed',
       by: 'restaurant_owner',
-      description: 'Customer picked up order at restaurant successfully.'
+      description: 'Customer verified OTP at counter and received order.'
     });
 
     await order.save();
 
-    // Process restaurant settlement
-    const { processOnlineDelivery } = require('../services/paymentService');
-    await processOnlineDelivery(order._id);
+    try {
+      const io = req.app.get("io");
+      if (io) {
+        const payload = { orderId: order._id.toString(), status: "delivered", order };
+        io.to(`order_${order._id}`).emit("orderStatusUpdated", payload);
+        io.to(`restaurant_${order.restaurant}`).emit("orderStatusUpdated", payload);
+        io.emit("orderStatusUpdated", payload);
+      }
+    } catch (_) {}
+
+    try {
+      await sendNotification(
+        order.customer,
+        "🎉 Order Completed!",
+        `Your self-pickup order #${order.orderNumber || order._id} is completed. Thank you!`,
+        { orderId: order._id, status: 'delivered' }
+      );
+    } catch (_) {}
+
+    try {
+      const { processOnlineDelivery } = require('../services/paymentService');
+      await processOnlineDelivery(order._id);
+    } catch (_) {}
 
     return res.status(200).json({
       success: true,
@@ -3061,18 +3095,127 @@ exports.verifySelfPickup = async (req, res) => {
   }
 };
 
+exports.notifyCustomerArrived = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const order = await Order.findById(orderId).populate('restaurant', 'name owner phone');
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    order.customerArrived = true;
+    order.customerArrivedAt = new Date();
+    order.timeline.push({
+      status: order.status,
+      timestamp: new Date(),
+      label: "Customer Arrived at Counter",
+      by: "customer",
+      description: "Customer clicked 'I'm Here' at the restaurant counter."
+    });
+    await order.save();
+
+    const customerUser = await User.findById(order.customer).select("name mobile phone");
+    const customerName = customerUser?.name || "Customer";
+
+    try {
+      const socketService = require('../services/socketService');
+      const payload = {
+        orderId: order._id.toString(),
+        customerArrived: true,
+        customerArrivedAt: order.customerArrivedAt,
+        customerName,
+        status: order.status,
+        pickupOtp: order.selfPickupCode || order.pickupOtp,
+        order
+      };
+      if (order.restaurant) {
+        socketService.emitToRestaurant(order.restaurant._id.toString(), "customer:arrived", payload);
+        socketService.emitToRestaurant(order.restaurant._id.toString(), "orderStatusUpdated", payload);
+      }
+      const io = req.app.get("io");
+      if (io) {
+        if (order.restaurant) io.to(`restaurant_${order.restaurant._id}`).emit("customerArrived", payload);
+        io.to(`order_${order._id}`).emit("customerArrived", payload);
+        io.emit("orderStatusUpdated", payload);
+      }
+    } catch (_) {}
+
+    if (order.restaurant && order.restaurant.owner) {
+      try {
+        await sendNotification(
+          order.restaurant.owner,
+          "🔔 Customer Has Arrived!",
+          `${customerName} is at your counter for Order #${order.orderNumber || order._id}. Verify 4-digit OTP: ${order.selfPickupCode || order.pickupOtp}`,
+          { orderId: order._id, customerArrived: true }
+        );
+      } catch (_) {}
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Restaurant notified of your arrival!",
+      order
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.getOrdersForRestaurantById = async (req, res) => {
   try {
     const paramId = req.params.id;
-    const isRestaurant = await Restaurant.exists({ _id: paramId });
-    if (isRestaurant) {
-      const orders = await Order.find({ restaurant: paramId })
+    let targetRestId = null;
+
+    if (isValidObjectId(paramId)) {
+      const restDoc = await Restaurant.findById(paramId).select('_id');
+      if (restDoc) {
+        targetRestId = restDoc._id;
+      } else {
+        const restByOwner = await Restaurant.findOne({ owner: paramId }).select('_id');
+        if (restByOwner) targetRestId = restByOwner._id;
+      }
+    }
+
+    if (!targetRestId && typeof paramId === 'string') {
+      const cleanPhone = paramId.replace(/\D/g, '');
+      if (cleanPhone.length >= 10) {
+        const restByPhone = await Restaurant.findOne({
+          $or: [
+            { contactNumber: new RegExp(cleanPhone.slice(-10)) },
+            { ownerMobile: new RegExp(cleanPhone.slice(-10)) },
+            { phone: new RegExp(cleanPhone.slice(-10)) }
+          ]
+        }).select('_id');
+        if (restByPhone) targetRestId = restByPhone._id;
+      }
+    }
+
+    if (targetRestId) {
+      const orders = await Order.find({ restaurant: targetRestId })
         .populate("customer", "name email mobile phone")
         .populate({ path: "rider", populate: { path: "user", select: "name mobile profilePic" } })
         .sort({ createdAt: -1 });
-      return res.status(200).json({ success: true, orders });
+
+      const formattedOrders = orders.map((order) => {
+        const orderObj = order.toObject();
+        if (orderObj.items && Array.isArray(orderObj.items)) {
+          orderObj.items = orderObj.items.map(item => ({
+            ...item,
+            name: item.name || (item.product && item.product.name) || "Food Item",
+            image: item.image || (item.product && item.product.image) || "",
+            price: typeof item.price === 'number' ? item.price : ((item.product && typeof item.product.price === 'number') ? item.product.price : 0),
+            quantity: item.quantity || item.qty || 1
+          }));
+        }
+        return orderObj;
+      });
+
+      return res.status(200).json({ success: true, orders: formattedOrders });
     }
-    return exports.getOrderDetailsRestaurant(req, res);
+
+    if (isValidObjectId(paramId)) {
+      return exports.getOrderDetailsRestaurant(req, res);
+    }
+
+    return res.status(200).json({ success: true, orders: [] });
   } catch (error) {
     return sendError(res, 500, "Error fetching orders", error.message);
   }

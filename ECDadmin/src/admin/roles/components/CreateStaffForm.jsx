@@ -1,114 +1,144 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../../../utils/utils';
 
 const CreateStaffForm = () => {
-  const [activeTab, setActiveTab] = useState('English');
+  const navigate = useNavigate();
+  const [roles, setRoles] = useState([]);
   const [formData, setFormData] = useState({
-    role: '',
-    userName: '',
-    email: 'admin@deliware.app',
-    password: '',
-    status: ''
+    roleId: '',
+    name: '',
+    email: '',
+    phone: '',
+    password: ''
   });
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`${API_BASE_URL}/api/admin/roles`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.data.roles) {
+          setRoles(res.data.roles);
+        }
+      } catch (err) {
+        toast.error('Failed to load roles');
+      }
+    };
+    fetchRoles();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.name || !formData.email || !formData.password || !formData.roleId) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${API_BASE_URL}/api/admin/staff`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        toast.success('Staff user created successfully!');
+        navigate('/staff');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create staff member');
+    }
+  };
+
   return (
     <div className="bg-gray-50 p-8 min-h-screen">
-      <div className="max-w-6xl mx-auto bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+        <h2 className="text-xl font-bold mb-6 text-gray-800">Add Staff Personnel</h2>
         
-        {/* Language Tabs */}
-        <div className="flex space-x-6 border-b border-gray-100 mb-6">
-          {['English', 'Arabic'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-2 px-1 flex items-center gap-2 text-sm font-medium transition-colors ${
-                activeTab === tab 
-                ? 'text-teal-600 border-b-2 border-teal-600' 
-                : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'
-              }`}
-            >
-              <span className="text-xs">🌐</span> {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* Form Fields */}
-        <form className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-          
-          {/* Role (Left) */}
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
           <div className="flex flex-col gap-1">
-            <label className="text-gray-500 text-sm">Role</label>
+            <label className="text-gray-600 text-sm font-medium">Assigned Role*</label>
             <select 
-              name="role"
-              className="border border-gray-200 rounded-md p-2 text-gray-400 focus:outline-none focus:ring-1 focus:ring-teal-500"
+              name="roleId"
+              value={formData.roleId}
+              className="border border-gray-300 rounded-md p-2 text-gray-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               onChange={handleChange}
             >
               <option value="">Select Role</option>
-              <option value="admin">Admin</option>
-              <option value="staff">Staff</option>
+              {roles.map((r) => (
+                <option key={r._id} value={r._id}>{r.name} ({r.accountType})</option>
+              ))}
             </select>
           </div>
 
-          {/* User Name (Right) */}
           <div className="flex flex-col gap-1">
-            <label className="text-gray-500 text-sm">User Name*</label>
+            <label className="text-gray-600 text-sm font-medium">Full Name*</label>
             <input 
               type="text" 
-              name="userName"
-              placeholder="User Name"
-              className="border border-gray-200 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-teal-500"
+              name="name"
+              placeholder="e.g. John Doe"
+              value={formData.name}
+              className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               onChange={handleChange}
             />
           </div>
 
-          {/* Email (Left) */}
           <div className="flex flex-col gap-1">
-            <label className="text-gray-500 text-sm">Email*</label>
+            <label className="text-gray-600 text-sm font-medium">Email Address*</label>
             <input 
               type="email" 
               name="email"
+              placeholder="staff@ecdkart.co.in"
               value={formData.email}
-              className="border border-gray-200 rounded-md p-2 text-gray-600 focus:outline-none focus:ring-1 focus:ring-teal-500"
+              className="border border-gray-300 rounded-md p-2 text-gray-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               onChange={handleChange}
             />
           </div>
 
-          {/* Password (Right) */}
           <div className="flex flex-col gap-1">
-            <label className="text-gray-500 text-sm">Password</label>
+            <label className="text-gray-600 text-sm font-medium">Phone Number</label>
+            <input 
+              type="text" 
+              name="phone"
+              placeholder="+91 9876543210"
+              value={formData.phone}
+              className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1 md:col-span-2">
+            <label className="text-gray-600 text-sm font-medium">Password*</label>
             <input 
               type="password" 
               name="password"
-              placeholder="......"
-              className="border border-gray-200 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-teal-500"
+              placeholder="••••••••"
+              value={formData.password}
+              className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               onChange={handleChange}
             />
           </div>
 
-          {/* Status (Left - Span 1 col) */}
-          <div className="flex flex-col gap-1">
-            <label className="text-gray-500 text-sm">Status</label>
-            <select 
-              name="status"
-              className="border border-gray-200 rounded-md p-2 text-gray-400 focus:outline-none focus:ring-1 focus:ring-teal-500"
-              onChange={handleChange}
-            >
-              <option value="">Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-
-          {/* Save Button */}
-          <div className="md:col-span-2 mt-4">
+          <div className="md:col-span-2 mt-4 flex gap-3">
             <button 
               type="submit" 
               className="bg-[#00a684] hover:bg-[#008f72] text-white font-bold py-2 px-8 rounded transition-colors"
             >
-              Save
+              Save Staff Member
+            </button>
+            <button 
+              type="button" 
+              onClick={() => navigate('/staff')}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-6 rounded transition-colors"
+            >
+              Cancel
             </button>
           </div>
         </form>

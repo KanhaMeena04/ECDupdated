@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+
 const promocodeSchema = new mongoose.Schema({
     title: { type: String, required: true },
     description: { type: String, required: true },
@@ -9,38 +10,45 @@ const promocodeSchema = new mongoose.Schema({
         uppercase: true, 
         trim: true 
     },
-    image: { type: String }, // URL from upload
+    image: { type: String },
     restaurant: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Restaurant', 
-        default: null // Null means "All Restaurants" (Global)
+        default: null
     },
     offerType: { 
         type: String, 
         enum: ['percent', 'amount', 'free_delivery'], 
         required: true 
     },
-    discountValue: { type: Number, required: true }, // e.g. 20 (%) or 100 ($)
-    maxDiscountAmount: { type: Number }, // Cap for percentage offers (e.g. Max $50 off)
+    discountValue: { type: Number, required: true },
+    maxDiscountAmount: { type: Number },
     minOrderValue: { type: Number, default: 0 },
+    fundingSource: {
+        type: String,
+        enum: ['ECDKART', 'RESTAURANT', 'SHARED'],
+        default: 'ECDKART'
+    },
+    restaurantSharePercent: { type: Number, default: 0 },
+    adminSharePercent: { type: Number, default: 100 },
     adminContribution: { type: Number, default: 0 }, 
-    usageLimitPerCoupon: { type: Number, default: 0 }, // 0 = Unlimited
-    usageLimitPerUser: { type: Number, default: 1 },   // How many times 1 user can use it
+    usageLimitPerCoupon: { type: Number, default: 0 },
+    usageLimitPerUser: { type: Number, default: 1 },
     availableFrom: { type: Date, required: true },
     expiryDate: { type: Date, required: true },
-    promoType: { type: String, default: 'general' }, // e.g. "General", "Hidden", "Welcome"
+    promoType: { type: String, default: 'general' },
     paymentMethods: { 
-        type: [String], // ["wallet", "card", "cod"]
+        type: [String],
         default: ['all'] 
     },
     isTimeBound: { type: Boolean, default: false },
     activeDays: {
-        type: [String], // ["Monday", "Wednesday", "Friday"]
+        type: [String],
         default: []
     },
     timeSlots: [{
-        startTime: String, // "10:00"
-        endTime: String    // "14:00"
+        startTime: String,
+        endTime: String
     }],
     status: { 
         type: String, 
@@ -48,4 +56,5 @@ const promocodeSchema = new mongoose.Schema({
         default: 'active' 
     }
 }, { timestamps: true });
+
 module.exports = mongoose.model('Promocode', promocodeSchema);

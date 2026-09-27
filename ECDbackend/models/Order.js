@@ -60,6 +60,8 @@ const orderSchema = new mongoose.Schema(
     gracePeriodMinutes: { type: Number, default: 15 },
     selfPickupCode: { type: String },
     selfPickupVerifiedAt: { type: Date },
+    customerArrived: { type: Boolean, default: false },
+    customerArrivedAt: { type: Date },
     paymentMethod: {
       type: String,
       enum: ["cod", "card", "wallet", "online"],

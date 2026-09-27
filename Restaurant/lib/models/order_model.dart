@@ -195,7 +195,10 @@ class Order {
       parsedEarnings = double.tryParse(json['restaurantEarnings'].toString());
     }
 
-    final isPickup = json['orderType']?.toString().toLowerCase() == 'pickup' || json['orderType']?.toString().toLowerCase() == 'self_pickup';
+    final rawOrderType = json['orderType']?.toString().toLowerCase() ?? '';
+    final rawDeliveryType = json['deliveryType']?.toString().toLowerCase() ?? '';
+    final isPickup = rawOrderType == 'pickup' || rawOrderType == 'self_pickup' || rawDeliveryType == 'pickup' || rawDeliveryType == 'self_pickup' || json['isSelfPickup'] == true;
+
     String parsedAddress = isPickup ? 'Self Pickup Counter' : 'Customer Delivery Location';
 
     if (json['deliveryAddress'] != null) {
@@ -221,13 +224,13 @@ class Order {
       status: parsedStatus,
       totalAmount: parsedAmount,
       restaurantEarning: parsedEarnings,
-      pickupOtp: json['pickupOtp']?.toString() ?? json['pickupOTP']?.toString(),
+      pickupOtp: json['pickupOtp']?.toString() ?? json['pickupOTP']?.toString() ?? json['selfPickupCode']?.toString(),
       riderName: parsedRiderName,
       riderId: parsedRiderId,
       riderPhone: parsedRiderPhone,
       items: parsedItems,
-      orderType: json['orderType']?.toString() ?? 'delivery',
-      pickupTime: json['pickupTime']?.toString(),
+      orderType: isPickup ? 'pickup' : (json['orderType']?.toString() ?? 'delivery'),
+      pickupTime: json['pickupTime']?.toString() ?? json['scheduledAt']?.toString() ?? json['scheduledTime']?.toString(),
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
       address: parsedAddress,
     );

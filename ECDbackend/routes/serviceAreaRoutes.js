@@ -1,7 +1,82 @@
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
 const ServiceArea = require('../models/ServiceArea');
 const { protect, admin } = require('../middleware/authMiddleware');
+
+// Public/Admin: Search Location (Geocoding Proxy)
+router.get('/search-location', async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query || !query.trim()) {
+      return res.status(400).json({ success: false, message: 'Search query is required' });
+    }
+    const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=in&limit=8&q=${encodeURIComponent(query)}`;
+    const response = await axios.get(searchUrl, {
+      headers: { 'User-Agent': 'ECDKart-Delivery-App/1.0' }
+    });
+    
+    const results = (response.data || []).map((item) => {
+      const addr = item.address || {};
+      const state = addr.state || addr.region || 'Madhya Pradesh';
+      const district = addr.state_district || addr.county || addr.city_district || addr.city || 'Indore';
+      const city = addr.city || addr.town || addr.village || addr.suburb || addr.municipality || 'Indore';
+      const zone = addr.suburb || addr.neighbourhood || addr.residential || addr.road || addr.quarter || (item.display_name ? item.display_name.split(',')[0] : 'Vijay Nagar');
+      const pincode = addr.postcode || '';
+      
+      return {
+        displayName: item.display_name,
+        lat: parseFloat(item.lat),
+        lng: parseFloat(item.lon),
+        state,
+        district,
+        city,
+        zone,
+        pincode
+      };
+    });
+    
+    res.json({ success: true, count: results.length, results });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Public/Admin: Reverse Geocode (Lat/Lng -> Address Details Proxy)
+router.get('/reverse-geocode', async (req, res) => {
+  try {
+    const { lat, lng } = req.query;
+    if (!lat || !lng) {
+      return res.status(400).json({ success: false, message: 'Latitude and Longitude are required' });
+    }
+    const revUrl = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=${lat}&lon=${lng}`;
+    const response = await axios.get(revUrl, {
+      headers: { 'User-Agent': 'ECDKart-Delivery-App/1.0' }
+    });
+    
+    const item = response.data || {};
+    const addr = item.address || {};
+    const state = addr.state || addr.region || 'Madhya Pradesh';
+    const district = addr.state_district || addr.county || addr.city_district || addr.city || 'Indore';
+    const city = addr.city || addr.town || addr.village || addr.suburb || addr.municipality || 'Indore';
+    const zone = addr.suburb || addr.neighbourhood || addr.residential || addr.road || addr.quarter || (item.display_name ? item.display_name.split(',')[0] : 'Vijay Nagar');
+    const pincode = addr.postcode || '';
+
+    res.json({
+      success: true,
+      displayName: item.display_name || '',
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      state,
+      district,
+      city,
+      zone,
+      pincode
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // Public/App: Get active service areas
 router.get('/active', async (req, res) => {

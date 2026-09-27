@@ -2927,17 +2927,70 @@ exports.getRiderLiveTracking = async (req, res) => {
   }
 };
 
+exports.getActiveRidersWithLocations = async (req, res) => {
+  try {
+    const riders = await Rider.find({ isActive: true })
+      .populate('user', 'name firstName lastName email mobile profilePic')
+      .lean();
+
+    const formatted = riders.map(r => ({
+      _id: r._id,
+      riderId: r._id,
+      name: r.name || (r.user ? `${r.user.firstName || r.user.name || 'Rider'}` : 'Rider'),
+      mobile: r.mobile || r.phone || r.user?.mobile || '',
+      currentLocation: r.currentLocation || {
+        type: 'Point',
+        coordinates: [75.8822, 22.7235] // Default coordinates [lng, lat]
+      },
+      isAvailable: r.isAvailable,
+      status: r.status,
+      workCity: r.workCity
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: formatted.length,
+      riders: formatted
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getRiderLiveTracking = async (req, res) => {
+  try {
+    const { riderId } = req.params;
+    if (!isValidObjectId(riderId)) {
+      return res.status(400).json({ success: false, message: "Invalid rider ID" });
+    }
+
+    const rider = await Rider.findById(riderId).populate('user', 'name email mobile profilePic');
+    if (!rider) return res.status(404).json({ success: false, message: "Rider not found" });
+
+    return res.status(200).json({
+      success: true,
+      rider
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.getRiderDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    let rider = null;
-    if (isValidObjectId(id)) {
-      rider = await Rider.findById(id).populate('user', 'name email mobile phone profilePic role');
-      if (!rider) {
-        rider = await Rider.findOne({ user: id }).populate('user', 'name email mobile phone profilePic role');
-      }
+    if (id === 'live') {
+      return exports.getActiveRidersWithLocations(req, res);
     }
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: "Invalid rider ID format" });
+    }
+
+    let rider = await Rider.findById(id).populate('user', 'name email mobile phone profilePic role');
     if (!rider) {
+      rider = await Rider.findOne({ user: id }).populate('user', 'name email mobile phone profilePic role');
+    }
+    if (!rider && isValidObjectId(id)) {
       const user = await User.findById(id);
       if (user && ['driver', 'rider'].includes(user.role)) {
         rider = await Rider.create({

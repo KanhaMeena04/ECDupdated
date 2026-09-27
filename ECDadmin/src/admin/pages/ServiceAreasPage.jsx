@@ -21,21 +21,42 @@ import {
   IconButton,
   Slider,
   CircularProgress,
-  Tooltip
+  Tooltip,
+  List,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
+  InputAdornment
 } from '@mui/material';
-import { Edit2, Trash2, MapPin, Navigation, Compass, Plus, RefreshCw } from 'lucide-react';
+import { Edit2, Trash2, MapPin, Navigation, Compass, Plus, RefreshCw, X } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { API_BASE_URL } from '../../utils/utils';
+import { MapContainer, TileLayer, Marker, Circle } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyCN7XqyxOj5lgr2uaMNrTOg6PzHTOGa0xU';
+// Fix Leaflet green marker icon URL
+const greenMarkerIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
 
 export default function ServiceAreasPage() {
   const [areas, setAreas] = useState([]);
   const [openModal, setOpenModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
+
+  // Search & Geocoding State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   const [formData, setFormData] = useState({
     state: 'Madhya Pradesh',
@@ -53,11 +74,7 @@ export default function ServiceAreasPage() {
   });
 
   const mapRef = useRef(null);
-  const googleMapObj = useRef(null);
-  const markerObj = useRef(null);
-  const circleObj = useRef(null);
-  const autocompleteRef = useRef(null);
-  const searchInputRef = useRef(null);
+  const markerRef = useRef(null);
 
   const fetchAreas = async () => {
     try {
@@ -72,144 +89,116 @@ export default function ServiceAreasPage() {
     fetchAreas();
   }, []);
 
-  // Load Google Maps API script
+  const mapCenter = [Number(formData.lat) || 22.7533, Number(formData.lng) || 75.8937];
+
+  // Update Map Center smoothly when lat/lng changes
   useEffect(() => {
-    if (window.google && window.google.maps) {
-      setIsMapLoaded(true);
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => setIsMapLoaded(true);
-    script.onerror = () => toast.error('Google Maps failed to load');
-    document.head.appendChild(script);
-  }, []);
-
-  // Initialize Map inside modal
-  useEffect(() => {
-    if (!openModal || !isMapLoaded || !mapRef.current) return;
-
-    const initialPos = { lat: Number(formData.lat) || 22.7533, lng: Number(formData.lng) || 75.8937 };
-
-    const map = new window.google.maps.Map(mapRef.current, {
-      center: initialPos,
-      zoom: 12,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: true,
-      zoomControl: true,
-    });
-    googleMapObj.current = map;
-
-    const marker = new window.google.maps.Marker({
-      position: initialPos,
-      map: map,
-      draggable: true,
-      title: 'Service Area Center',
-    });
-    markerObj.current = marker;
-
-    const circle = new window.google.maps.Circle({
-      map: map,
-      radius: (Number(formData.deliveryRadiusKm) || 25) * 1000,
-      fillColor: '#248C70',
-      fillOpacity: 0.18,
-      strokeColor: '#248C70',
-      strokeOpacity: 0.8,
-      strokeWeight: 2,
-    });
-    circle.bindTo('center', marker, 'position');
-    circleObj.current = circle;
-
-    // Handle marker drag
-    marker.addListener('dragend', (e) => {
-      const newLat = e.latLng.lat();
-      const newLng = e.latLng.lng();
-      reverseGeocode(newLat, newLng);
-    });
-
-    // Handle map click
-    map.addListener('click', (e) => {
-      const newLat = e.latLng.lat();
-      const newLng = e.latLng.lng();
-      marker.setPosition({ lat: newLat, lng: newLng });
-      reverseGeocode(newLat, newLng);
-    });
-
-    // Autocomplete input
-    if (searchInputRef.current) {
-      const autocomplete = new window.google.maps.places.Autocomplete(searchInputRef.current, {
-        types: ['geocode', 'establishment'],
-        componentRestrictions: { country: 'in' },
-      });
-      autocomplete.bindTo('bounds', map);
-      autocompleteRef.current = autocomplete;
-
-      autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace();
-        if (place.geometry && place.geometry.location) {
-          const newLat = place.geometry.location.lat();
-          const newLng = place.geometry.location.lng();
-          map.setCenter({ lat: newLat, lng: newLng });
-          map.setZoom(13);
-          marker.setPosition({ lat: newLat, lng: newLng });
-          extractPlaceComponents(place, newLat, newLng);
-        }
-      });
-    }
-  }, [openModal, isMapLoaded]);
-
-  // Update radius circle dynamically when slider/input changes
-  useEffect(() => {
-    if (circleObj.current) {
-      circleObj.current.setRadius((Number(formData.deliveryRadiusKm) || 25) * 1000);
-    }
-  }, [formData.deliveryRadiusKm]);
-
-  // Reverse Geocode (Lat/Lng -> Address Details)
-  const reverseGeocode = async (lat, lng) => {
-    setFormData((prev) => ({ ...prev, lat, lng }));
-    if (!window.google || !window.google.maps) return;
-    const geocoder = new window.google.maps.Geocoder();
-    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-      if (status === 'OK' && results[0]) {
-        extractPlaceComponents(results[0], lat, lng);
+    if (mapRef.current) {
+      try {
+        mapRef.current.flyTo(mapCenter, 13, { duration: 1.2 });
+      } catch (err) {
+        console.log('Map view update:', err);
       }
-    });
+    }
+  }, [formData.lat, formData.lng]);
+
+  // Attach Map Click Listener cleanly when modal is open
+  useEffect(() => {
+    if (!openModal) return;
+    const timer = setTimeout(() => {
+      if (mapRef.current) {
+        const map = mapRef.current;
+        map.off('click');
+        map.on('click', (e) => {
+          if (e && e.latlng) {
+            handleReverseGeocode(e.latlng.lat, e.latlng.lng);
+          }
+        });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [openModal]);
+
+  // Handle Search Location submit
+  const handleLocationSearch = async (e) => {
+    if (e) e.preventDefault();
+    if (!searchQuery || !searchQuery.trim()) return;
+
+    setIsSearching(true);
+    setShowSearchResults(true);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/service-areas/search-location`, {
+        params: { query: searchQuery.trim() },
+      });
+      if (res.data.results && res.data.results.length > 0) {
+        setSearchResults(res.data.results);
+      } else {
+        setSearchResults([]);
+        toast.error('No matching locations found');
+      }
+    } catch (err) {
+      console.error('Location search error:', err);
+      toast.error('Error searching location');
+    } finally {
+      setIsSearching(false);
+    }
   };
 
-  const extractPlaceComponents = (place, lat, lng) => {
-    let state = 'Madhya Pradesh';
-    let district = 'Indore';
-    let city = 'Indore';
-    let zone = '';
-    let pincode = '';
-
-    if (place.address_components) {
-      for (const comp of place.address_components) {
-        const types = comp.types;
-        if (types.includes('administrative_area_level_1')) state = comp.long_name;
-        if (types.includes('administrative_area_level_2')) district = comp.long_name;
-        if (types.includes('locality')) city = comp.long_name;
-        if (types.includes('sublocality') || types.includes('neighborhood') || types.includes('route')) {
-          if (!zone) zone = comp.long_name;
-        }
-        if (types.includes('postal_code')) pincode = comp.long_name;
-      }
-    }
-
+  // Handle selecting a location search result
+  const handleSelectSearchResult = (item) => {
     setFormData((prev) => ({
       ...prev,
-      state: state || prev.state,
-      district: district || prev.district,
-      city: city || prev.city,
-      zone: zone || place.name || prev.zone,
-      pincode: pincode || prev.pincode,
-      lat: Number(lat.toFixed(6)),
-      lng: Number(lng.toFixed(6)),
+      lat: Number(item.lat.toFixed(6)),
+      lng: Number(item.lng.toFixed(6)),
+      state: item.state || prev.state,
+      district: item.district || prev.district,
+      city: item.city || prev.city,
+      zone: item.zone || prev.zone,
+      pincode: item.pincode || prev.pincode,
     }));
+    setShowSearchResults(false);
+    setSearchQuery(item.displayName);
+    toast.success(`Selected location: ${item.zone || item.city}`);
+  };
+
+  // Reverse Geocode (Lat/Lng -> Address Details) via Backend API Proxy
+  const handleReverseGeocode = async (lat, lng) => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/service-areas/reverse-geocode`, {
+        params: { lat, lng },
+      });
+      if (res.data.success) {
+        setFormData((prev) => ({
+          ...prev,
+          lat: Number(lat.toFixed(6)),
+          lng: Number(lng.toFixed(6)),
+          state: res.data.state || prev.state,
+          district: res.data.district || prev.district,
+          city: res.data.city || prev.city,
+          zone: res.data.zone || prev.zone,
+          pincode: res.data.pincode || prev.pincode,
+        }));
+        if (res.data.displayName) {
+          setSearchQuery(res.data.displayName);
+        }
+      }
+    } catch (err) {
+      console.error('Reverse geocode error:', err);
+      setFormData((prev) => ({
+        ...prev,
+        lat: Number(lat.toFixed(6)),
+        lng: Number(lng.toFixed(6)),
+      }));
+    }
+  };
+
+  // Marker Drag End Handler
+  const handleMarkerDragEnd = () => {
+    const marker = markerRef.current;
+    if (marker != null) {
+      const { lat, lng } = marker.getLatLng();
+      handleReverseGeocode(lat, lng);
+    }
   };
 
   // Fetch Browser Live GPS Location
@@ -225,13 +214,7 @@ export default function ServiceAreasPage() {
         const liveLng = pos.coords.longitude;
         setIsLocating(false);
         toast.success(`Fetched live location: ${liveLat.toFixed(4)}, ${liveLng.toFixed(4)}`);
-
-        if (googleMapObj.current && markerObj.current) {
-          googleMapObj.current.setCenter({ lat: liveLat, lng: liveLng });
-          googleMapObj.current.setZoom(13);
-          markerObj.current.setPosition({ lat: liveLat, lng: liveLng });
-        }
-        reverseGeocode(liveLat, liveLng);
+        handleReverseGeocode(liveLat, liveLng);
       },
       (err) => {
         setIsLocating(false);
@@ -268,6 +251,9 @@ export default function ServiceAreasPage() {
 
   const handleOpenAdd = () => {
     setEditingId(null);
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchResults(false);
     setFormData({
       state: 'Madhya Pradesh',
       district: 'Indore',
@@ -287,10 +273,13 @@ export default function ServiceAreasPage() {
 
   const handleOpenEdit = (area) => {
     setEditingId(area._id);
+    setSearchQuery(`${area.zone || area.city}, ${area.city}`);
+    setSearchResults([]);
+    setShowSearchResults(false);
     setFormData({
-      state: area.state || '',
-      district: area.district || '',
-      city: area.city || '',
+      state: area.state || 'Madhya Pradesh',
+      district: area.district || 'Indore',
+      city: area.city || 'Indore',
       zone: area.zone || '',
       village: area.village || '',
       pincode: area.pincode || '',
@@ -335,7 +324,7 @@ export default function ServiceAreasPage() {
             Service Area Radius & Coverage Control
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Configure Pincode-wise, City-wise & 25 KM Radius Service Zones with Real Google Maps API location.
+            Configure Pincode-wise, City-wise & 25 KM Radius Service Zones with Real Interactive Leaflet / OpenStreetMap Location Search & Geocoding.
           </Typography>
         </div>
         <Box sx={{ display: 'flex', gap: 1.5 }}>
@@ -398,7 +387,7 @@ export default function ServiceAreasPage() {
                         {area.coordinates?.lat ? `${area.coordinates.lat.toFixed(4)}, ${area.coordinates.lng.toFixed(4)}` : 'Live Pick'}
                       </Typography>
                     </TableCell>
-                    <TableCell><Chip label={`${area.deliveryRadiusKm || 25} km Radius`} color="primary" variant="soft" size="small" sx={{ bgcolor: '#e8f5e9', color: '#248C70', fontWeight: 800 }} /></TableCell>
+                    <TableCell><Chip label={`${area.deliveryRadiusKm || 25} km Radius`} color="primary" variant="outlined" size="small" sx={{ bgcolor: '#e8f5e9', color: '#248C70', fontWeight: 800 }} /></TableCell>
                     <TableCell>{`₹${area.baseDeliveryFee}`}</TableCell>
                     <TableCell>{`₹${area.minimumOrderValue}`}</TableCell>
                     <TableCell>
@@ -427,9 +416,9 @@ export default function ServiceAreasPage() {
         </TableContainer>
       </Paper>
 
-      {/* Interactive Google Map & Location Setup Modal */}
-      <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800, bgcolor: '#f9fafb', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Interactive Map & Location Setup Modal */}
+      <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3, overflow: 'visible' } }}>
+        <DialogTitle sx={{ fontWeight: 800, bgcolor: '#f9fafb', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 2 }}>
           <span>{editingId ? 'Edit Service Area & Radius' : 'Add New Service Area (25 KM Radius)'}</span>
           <Button
             variant="contained"
@@ -437,46 +426,139 @@ export default function ServiceAreasPage() {
             startIcon={isLocating ? <CircularProgress size={14} color="inherit" /> : <Navigation size={14} />}
             disabled={isLocating}
             onClick={handleFetchLiveLocation}
-            sx={{ bgcolor: '#248C70', textTransform: 'none', fontWeight: 700 }}
+            sx={{ bgcolor: '#248C70', '&:hover': { bgcolor: '#1e755d' }, textTransform: 'none', fontWeight: 700 }}
           >
             {isLocating ? 'Fetching GPS...' : 'Fetch Live GPS Location'}
           </Button>
         </DialogTitle>
 
-        <DialogContent sx={{ pt: 2.5 }}>
+        <DialogContent sx={{ pt: 3, pb: 2 }}>
           <Grid container spacing={2}>
             {/* Search location bar */}
             <Grid item xs={12}>
-              <TextField
-                inputRef={searchInputRef}
-                fullWidth
-                size="small"
-                label="Search Map Location / Landmark (Google Places API)"
-                placeholder="Type area name, landmark or city e.g. Vijay Nagar, Indore..."
-                InputProps={{
-                  startAdornment: <MapPin size={18} className="text-gray-400 mr-2" />,
-                }}
-              />
-            </Grid>
+              <Box component="form" onSubmit={handleLocationSearch} sx={{ position: 'relative' }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Search Map Location / Landmark / Area / City"
+                  placeholder="Type area name or landmark e.g. Vijay Nagar, Sapna Sangeeta, Indore..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => { if (searchResults.length > 0) setShowSearchResults(true); }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <MapPin size={18} className="text-[#248C70]" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        {searchQuery && (
+                          <IconButton size="small" onClick={() => { setSearchQuery(''); setSearchResults([]); setShowSearchResults(false); }}>
+                            <X size={16} />
+                          </IconButton>
+                        )}
+                        <Button
+                          type="submit"
+                          variant="contained"
+                          size="small"
+                          disabled={isSearching}
+                          sx={{ bgcolor: '#248C70', '&:hover': { bgcolor: '#1e755d' }, textTransform: 'none', fontWeight: 700, ml: 1, px: 2 }}
+                        >
+                          {isSearching ? <CircularProgress size={16} color="inherit" /> : 'Search'}
+                        </Button>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      bgcolor: '#ffffff',
+                      borderRadius: 2,
+                    }
+                  }}
+                />
 
-            {/* Google Map View */}
-            <Grid item xs={12}>
-              <Box sx={{ width: '100%', height: 260, borderRadius: 2, overflow: 'hidden', border: '2px solid #248C70', position: 'relative' }}>
-                <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
-                {!isMapLoaded && (
-                  <Box sx={{ position: 'absolute', inset: 0, bgcolor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <CircularProgress color="success" />
-                  </Box>
+                {/* Floating Search Results Dropdown */}
+                {showSearchResults && searchResults.length > 0 && (
+                  <Paper
+                    elevation={8}
+                    sx={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      zIndex: 1400,
+                      mt: 1,
+                      maxHeight: 240,
+                      overflowY: 'auto',
+                      borderRadius: 2,
+                      border: '1px solid #e5e7eb',
+                    }}
+                  >
+                    <List size="small" disablePadding>
+                      {searchResults.map((item, idx) => (
+                        <ListItemButton
+                          key={idx}
+                          onClick={() => handleSelectSearchResult(item)}
+                          sx={{
+                            borderBottom: '1px solid #f3f4f6',
+                            '&:hover': { bgcolor: '#e8f5e9' },
+                            py: 1,
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 32 }}>
+                            <MapPin size={18} className="text-[#248C70]" />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={item.displayName}
+                            secondary={`Zone: ${item.zone || item.city} | Lat: ${item.lat.toFixed(4)}, Lng: ${item.lng.toFixed(4)}`}
+                            primaryTypographyProps={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}
+                            secondaryTypographyProps={{ fontSize: '11px', color: '#6b7280' }}
+                          />
+                        </ListItemButton>
+                      ))}
+                    </List>
+                  </Paper>
                 )}
               </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', fontStyle: 'italic' }}>
-                * Click anywhere on map or drag the pin marker to set exact location center & radius.
+            </Grid>
+
+            {/* Interactive Leaflet Map View */}
+            <Grid item xs={12}>
+              <Box sx={{ width: '100%', height: 280, borderRadius: 2, overflow: 'hidden', border: '2px solid #248C70', position: 'relative' }}>
+                <MapContainer
+                  center={mapCenter}
+                  zoom={13}
+                  style={{ width: '100%', height: '100%' }}
+                  zoomControl={true}
+                  ref={mapRef}
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  />
+                  <Marker
+                    position={mapCenter}
+                    icon={greenMarkerIcon}
+                    draggable={true}
+                    eventHandlers={{ dragend: handleMarkerDragEnd }}
+                    ref={markerRef}
+                  />
+                  <Circle
+                    center={mapCenter}
+                    radius={(Number(formData.deliveryRadiusKm) || 25) * 1000}
+                    pathOptions={{ color: '#248C70', fillColor: '#248C70', fillOpacity: 0.18, weight: 2 }}
+                  />
+                </MapContainer>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', fontStyle: 'italic', fontWeight: 500 }}>
+                * Click anywhere on map or drag green pin marker to set exact location center & radius.
               </Typography>
             </Grid>
 
             {/* Delivery Radius Slider */}
             <Grid item xs={12} sm={6}>
-              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5, color: '#111827' }}>
                 Service Delivery Radius: {formData.deliveryRadiusKm} KM
               </Typography>
               <Slider

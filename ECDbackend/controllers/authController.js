@@ -22,8 +22,19 @@ const generateToken = (res, user) => {
 };
 exports.registerInitiate = async (req, res) => {
   try {
-    const { name, email, password, mobile, role } = req.body;
-    if (!name || !email || !password || !mobile) {
+    const { name, firstName, lastName, email, password, mobile, role } = req.body;
+    let finalFirstName = firstName || "";
+    let finalLastName = lastName || "";
+    let finalName = name || "";
+    if (!finalFirstName && !finalLastName && finalName) {
+      const parts = finalName.trim().split(" ");
+      finalFirstName = parts[0] || "";
+      finalLastName = parts.slice(1).join(" ") || "";
+    }
+    if (!finalName && (finalFirstName || finalLastName)) {
+      finalName = `${finalFirstName} ${finalLastName}`.trim();
+    }
+    if ((!finalName && !finalFirstName) || !email || !password || !mobile) {
       return res.status(400).json({ message: "All fields are required" });
     }
     const allowedRoles = ["customer", "restaurant_owner", "rider"];
@@ -41,7 +52,9 @@ exports.registerInitiate = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     if (existingUser && existingUser.isDeleted) {
-      existingUser.name = name;
+      existingUser.name = finalName;
+      existingUser.firstName = finalFirstName;
+      existingUser.lastName = finalLastName;
       existingUser.email = email;
       existingUser.mobile = mobile;
       existingUser.password = hashedPassword;
@@ -57,7 +70,9 @@ exports.registerInitiate = async (req, res) => {
       await existingUser.save();
     } else {
       await User.create({
-        name,
+        name: finalName,
+        firstName: finalFirstName,
+        lastName: finalLastName,
         email,
         mobile,
         password: hashedPassword,
@@ -301,7 +316,8 @@ riderId: riderDoc?._id || null,
 message: "Login Successfully",
 });
 } catch (err) {
-res.status(500).json({ message: "Server Error" + err });
+  console.error("Login User Error:", err);
+  res.status(500).json({ message: err.message || "Server Error: " + err });
 }
 };
 

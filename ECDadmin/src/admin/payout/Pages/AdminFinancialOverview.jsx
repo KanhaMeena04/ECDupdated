@@ -12,7 +12,9 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Divider,
+  Chip
 } from '@mui/material';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -23,6 +25,7 @@ import { API_BASE_URL } from '../../../utils/utils';
 
 const AdminFinancialOverview = () => {
   const [summary, setSummary] = useState(null);
+  const [finance, setFinance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -37,17 +40,24 @@ const AdminFinancialOverview = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE_URL}/payment/admin/summary`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'x-auth-token': token || ''
-        }
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSummary(data);
-      } else {
-        setError(data.message || 'Failed to fetch financial summary');
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'x-auth-token': token || ''
+      };
+
+      const [summaryRes, financeRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/payment/admin/summary`, { headers }),
+        fetch(`${API_BASE_URL}/api/admin/finance/dashboard`, { headers })
+      ]);
+
+      const summaryData = await summaryRes.json();
+      const financeData = await financeRes.json();
+
+      if (summaryData.success) {
+        setSummary(summaryData.data || summaryData);
+      }
+      if (financeData.success) {
+        setFinance(financeData.data);
       }
     } catch (err) {
       setError('Error connecting to backend server');
@@ -60,7 +70,7 @@ const AdminFinancialOverview = () => {
     setPayoutLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE_URL}/payment/admin/weekly-payout`, {
+      const res = await fetch(`${API_BASE_URL}/api/payment/admin/weekly-payout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +96,7 @@ const AdminFinancialOverview = () => {
   return (
     <Box sx={{ p: 3, backgroundColor: '#F9FAFB', minHeight: '100vh' }}>
       <PageHeader
-        title="Admin Platform Financial Overview & Weekly Payouts"
+        title="Admin Platform Financial Overview & Net Platform Revenue"
         breadcrumbs={[
           { label: "Payouts" },
           { label: "Financial Summary", active: true }
@@ -108,10 +118,10 @@ const AdminFinancialOverview = () => {
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <TrendingUpIcon sx={{ mr: 1 }} />
-                    <Typography variant="subtitle2">Total Admin Commission</Typography>
+                    <Typography variant="subtitle2">Net Platform Revenue</Typography>
                   </Box>
                   <Typography variant="h4" fontWeight="bold">
-                    ₹{summary?.totalCommission?.toFixed(2) || '0.00'}
+                    ₹{finance?.netPlatformRevenue?.toFixed(2) || '0.00'}
                   </Typography>
                 </CardContent>
               </Card>
@@ -122,10 +132,10 @@ const AdminFinancialOverview = () => {
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <StorefrontIcon sx={{ mr: 1 }} />
-                    <Typography variant="subtitle2">Restaurant Pending Payouts</Typography>
+                    <Typography variant="subtitle2">Commission Revenue</Typography>
                   </Box>
                   <Typography variant="h4" fontWeight="bold">
-                    ₹{summary?.totalRestaurantPending?.toFixed(2) || '0.00'}
+                    ₹{finance?.commissionRevenue?.toFixed(2) || summary?.totalCommissionEarned?.toFixed(2) || '0.00'}
                   </Typography>
                 </CardContent>
               </Card>
@@ -136,10 +146,10 @@ const AdminFinancialOverview = () => {
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <TwoWheelerIcon sx={{ mr: 1 }} />
-                    <Typography variant="subtitle2">Rider Pending Payouts</Typography>
+                    <Typography variant="subtitle2">Delivery Margin</Typography>
                   </Box>
                   <Typography variant="h4" fontWeight="bold">
-                    ₹{summary?.totalRiderPending?.toFixed(2) || '0.00'}
+                    ₹{finance?.deliveryMargin?.toFixed(2) || '0.00'}
                   </Typography>
                 </CardContent>
               </Card>
@@ -150,15 +160,65 @@ const AdminFinancialOverview = () => {
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <AccountBalanceWalletIcon sx={{ mr: 1 }} />
-                    <Typography variant="subtitle2">Rider Cash in Hand (COD)</Typography>
+                    <Typography variant="subtitle2">Rider COD Cash In Hand</Typography>
                   </Box>
                   <Typography variant="h4" fontWeight="bold">
-                    ₹{summary?.totalRiderCashInHand?.toFixed(2) || '0.00'}
+                    ₹{summary?.totalCODCollected?.toFixed(2) || '0.00'}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
           </Grid>
+
+          {/* Formula Breakdown Panel */}
+          {finance && (
+            <Paper sx={{ p: 3, mb: 4, borderRadius: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                Net Platform Revenue Formula Breakdown
+              </Typography>
+              <Typography variant="caption" color="textSecondary" display="block" sx={{ mb: 2 }}>
+                Net Platform Revenue = Commission + Delivery Margin + Customer Fees − Promotional Subsidy − Platform Refunds − Gateway Costs
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6} sm={4} md={2}>
+                  <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', borderRadius: 2 }}>
+                    <Typography variant="caption" color="textSecondary">Commission</Typography>
+                    <Typography variant="subtitle1" fontWeight="bold" color="success.main">+₹{finance.commissionRevenue}</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                  <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', borderRadius: 2 }}>
+                    <Typography variant="caption" color="textSecondary">Delivery Margin</Typography>
+                    <Typography variant="subtitle1" fontWeight="bold" color="success.main">+₹{finance.deliveryMargin}</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                  <Box sx={{ p: 1.5, bgcolor: '#f0fdf4', borderRadius: 2 }}>
+                    <Typography variant="caption" color="textSecondary">Customer Fees</Typography>
+                    <Typography variant="subtitle1" fontWeight="bold" color="success.main">+₹{finance.customerFees}</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                  <Box sx={{ p: 1.5, bgcolor: '#fef2f2', borderRadius: 2 }}>
+                    <Typography variant="caption" color="textSecondary">Promo Subsidy</Typography>
+                    <Typography variant="subtitle1" fontWeight="bold" color="error.main">-₹{finance.promotionalSubsidy}</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                  <Box sx={{ p: 1.5, bgcolor: '#fef2f2', borderRadius: 2 }}>
+                    <Typography variant="caption" color="textSecondary">Platform Refunds</Typography>
+                    <Typography variant="subtitle1" fontWeight="bold" color="error.main">-₹{finance.platformBorneRefunds}</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6} sm={4} md={2}>
+                  <Box sx={{ p: 1.5, bgcolor: '#fef2f2', borderRadius: 2 }}>
+                    <Typography variant="caption" color="textSecondary">Gateway Costs</Typography>
+                    <Typography variant="subtitle1" fontWeight="bold" color="error.main">-₹{finance.gatewayCosts}</Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+          )}
 
           <Paper sx={{ p: 4, borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', textAlign: 'center' }}>
             <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>

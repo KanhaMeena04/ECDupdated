@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
@@ -23,18 +24,50 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   bool _riderArrivedAlert = true;
   bool _orderPickedUpAlert = true;
 
-  void _saveSettings() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Notification settings saved successfully!',
-          style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500),
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _newOrderAlert = prefs.getBool('notif_newOrder') ?? true;
+        _cancellationAlert = prefs.getBool('notif_cancellation') ?? true;
+        _foodReadyAlert = prefs.getBool('notif_foodReady') ?? true;
+        _orderDelayAlert = prefs.getBool('notif_orderDelay') ?? true;
+        _riderAssignedAlert = prefs.getBool('notif_riderAssigned') ?? true;
+        _riderArrivedAlert = prefs.getBool('notif_riderArrived') ?? true;
+        _orderPickedUpAlert = prefs.getBool('notif_orderPickedUp') ?? true;
+      });
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notif_newOrder', _newOrderAlert);
+    await prefs.setBool('notif_cancellation', _cancellationAlert);
+    await prefs.setBool('notif_foodReady', _foodReadyAlert);
+    await prefs.setBool('notif_orderDelay', _orderDelayAlert);
+    await prefs.setBool('notif_riderAssigned', _riderAssignedAlert);
+    await prefs.setBool('notif_riderArrived', _riderArrivedAlert);
+    await prefs.setBool('notif_orderPickedUp', _orderPickedUpAlert);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '🎉 Notification preferences saved & live updated!',
+            style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500),
+          ),
+          backgroundColor: AppColors.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        backgroundColor: AppColors.primaryGreen,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+      );
+    }
   }
 
   @override

@@ -437,4 +437,43 @@ router.get('/category-requests', protect, admin, getAdminCategoryRequests);
 router.put('/category-requests/:id/approve', protect, admin, approveCategoryRequest);
 router.put('/category-requests/:id/reject', protect, admin, rejectCategoryRequest);
 
+// Audit Logs Route
+const { getAuditLogs } = require("../controllers/auditLogController");
+router.get('/audit-logs', protect, admin, getAuditLogs);
+
+// Finance Dashboard Route
+const { getFinanceDashboard } = require("../controllers/financeController");
+router.get('/finance/dashboard', protect, admin, getFinanceDashboard);
+
+// Role & Permission (RBAC) Routes
+const {
+  getAllRoles,
+  createRole,
+  updateRole,
+  deleteRole,
+  getAllStaff,
+  createStaff,
+  deleteStaff
+} = require("../controllers/roleStaffController");
+router.get('/roles', protect, admin, getAllRoles);
+router.post('/roles', protect, admin, createRole);
+router.put('/roles/:id', protect, admin, updateRole);
+router.delete('/roles/:id', protect, admin, deleteRole);
+router.get('/staff', protect, admin, getAllStaff);
+router.post('/staff', protect, admin, createStaff);
+router.delete('/staff/:id', protect, admin, deleteStaff);
+
+// Rider Earning Config & Self Pickup Config Routes
+const {
+  getRiderEarningConfig,
+  updateRiderEarningConfig,
+  getSelfPickupConfig,
+  updateSelfPickupConfig
+} = require("../controllers/adminSettingsController");
+router.get('/rider-earning-config', protect, admin, getRiderEarningConfig);
+router.put('/rider-earning-config', protect, admin, updateRiderEarningConfig);
+router.get('/self-pickup-config', protect, admin, getSelfPickupConfig);
+router.put('/self-pickup-config', protect, admin, updateSelfPickupConfig);
+
 module.exports = router;
+

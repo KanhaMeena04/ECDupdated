@@ -77,6 +77,7 @@ const {
   completePickupVendor,
   cancelOrderVendor,
   sendPickupOtpVendor,
+  notifyCustomerArrived,
   failOrderCustomer,
 } = require("../controllers/orderController");
 const { getMyActiveOrder } = require("../controllers/riderController");
@@ -96,6 +97,8 @@ router.post("/restaurant/send-pickup-otp/:orderId", protect, sendPickupOtpVendor
 
 router.get("/:id/details", protect, generalOrderLimiter, getOrderDetails);
 router.get("/:id/customer", protect, customer, generalOrderLimiter, getOrderDetailsCustomer); // ✅ Explicit customer route
+router.post("/:id/im-here", protect, customer, notifyCustomerArrived); // ✅ Customer "I'm Here" button
+router.post("/:id/customer-arrived", protect, customer, notifyCustomerArrived);
 router.post("/:id/cancel", protect, customer, validateCancelOrder, handleValidationErrors, generalOrderLimiter, customerCancelOrder);
 router.post("/:id/fail", protect, failOrderCustomer);
 router.get("/:id/timeline", protect, generalOrderLimiter, getOrderTimeline);

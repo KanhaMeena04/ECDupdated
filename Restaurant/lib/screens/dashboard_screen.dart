@@ -719,8 +719,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  bool _isOrderPickupType(Order o) {
+    return o.isSelfPickup || o.orderType.toLowerCase() == 'pickup' || o.orderType.toLowerCase() == 'self_pickup';
+  }
+
   int _getCountForStatus(String status) {
-    return _orders.where((o) => o.orderType == _selectedOrderType && o.status == status).length;
+    return _orders.where((o) {
+      final bool matchesType = _selectedOrderType == 'pickup' ? _isOrderPickupType(o) : !_isOrderPickupType(o);
+      if (!matchesType) return false;
+      if (status == 'Ready') return o.status == 'Ready' || o.status == 'Ready for Pickup';
+      return o.status == status;
+    }).length;
   }
 
   @override
@@ -745,9 +754,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildHomeScreenContent() {
     // Filter orders based on status filter & order type
     final filteredOrders = _orders.where((o) {
-      final matchesType = o.orderType == _selectedOrderType;
-      if (_selectedStatusFilter == 'All') return matchesType;
-      return matchesType && o.status == _selectedStatusFilter;
+      final bool matchesType = _selectedOrderType == 'pickup' ? _isOrderPickupType(o) : !_isOrderPickupType(o);
+      if (!matchesType) return false;
+      if (_selectedStatusFilter == 'All') return true;
+      if (_selectedStatusFilter == 'Ready') return o.status == 'Ready' || o.status == 'Ready for Pickup';
+      return o.status == _selectedStatusFilter;
     }).toList();
 
     return Column(

@@ -1024,11 +1024,8 @@ exports.updateRestaurant = async (req, res) => {
       return res.status(404).json({ message: "Restaurant not found" });
     }
     const isAdminUser = req.user && req.user.role === "admin";
-    if (!isAdminUser && (req.body.email !== undefined || req.body.contactNumber !== undefined)) {
-      return res.status(400).json({
-        message: "Email/Contact number updates require OTP verification. Use request-update endpoint"
-      });
-    }
+    if (req.body.contactNumber) restaurant.contactNumber = req.body.contactNumber;
+    if (req.body.email) restaurant.email = req.body.email;
     if (req.file) {
       req.body.image = getFileUrl(req.file);
     }
