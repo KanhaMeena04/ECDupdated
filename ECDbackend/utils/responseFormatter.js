@@ -24,11 +24,33 @@ const getRatingCount = (rating) => {
   }
   return 0;
 };
-exports.formatRestaurantForUser = (restaurant) => {
+exports.formatRestaurantForUser = (restaurant, userLat = null, userLng = null) => {
   if (!restaurant) return null;
   const isOverridden = restaurant.adminOverride && restaurant.adminOverride.isOverridden;
+  
+  let dist = restaurant.distanceKm !== undefined ? Number(restaurant.distanceKm) : 1.5;
+  if (userLat != null && userLng != null && restaurant.location?.coordinates?.length === 2) {
+    const [rLng, rLat] = restaurant.location.coordinates;
+    if (rLat && rLng) {
+      const R = 6371;
+      const dLat = (rLat - userLat) * (Math.PI / 180);
+      const dLon = (rLng - userLng) * (Math.PI / 180);
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(userLat * (Math.PI / 180)) * Math.cos(rLat * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      dist = Math.round(R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))) * 10) / 10;
+    }
+  }
+
+  const prepTime = restaurant.estimatedPreparationTime || restaurant.prepTime || 15;
+  const computedDeliveryMin = prepTime + Math.round(dist * 3);
+  const deliveryTime = isOverridden && restaurant.adminOverride.deliveryTime !== undefined 
+      ? restaurant.adminOverride.deliveryTime 
+      : (restaurant.deliveryTime || computedDeliveryMin);
+
   return {
     _id: restaurant._id,
+    id: restaurant._id,
     name: restaurant.name,
     description: restaurant.description,
     restaurantType: restaurant.restaurantType,
@@ -43,11 +65,15 @@ exports.formatRestaurantForUser = (restaurant) => {
     area: restaurant.area,
     phone: restaurant.phone || restaurant.contactNumber,
     contactNumber: restaurant.contactNumber,
-    deliveryTime: isOverridden && restaurant.adminOverride.deliveryTime !== undefined ? restaurant.adminOverride.deliveryTime : restaurant.deliveryTime,
+    distanceKm: dist,
+    distance: dist,
+    deliveryTime: deliveryTime,
+    deliveryTimeMin: typeof deliveryTime === 'number' ? deliveryTime : computedDeliveryMin,
+    deliveryTimeFormatted: `${Math.max(15, computedDeliveryMin - 5)}-${computedDeliveryMin + 5} mins`,
     deliveryType: restaurant.deliveryType || [],
     isFreeDelivery: restaurant.isFreeDelivery,
     minOrderValue: restaurant.minOrderValue || 0,
-    estimatedPreparationTime: restaurant.estimatedPreparationTime || 15,
+    estimatedPreparationTime: prepTime,
     isActive: isOverridden && restaurant.adminOverride.isActive !== undefined ? restaurant.adminOverride.isActive : restaurant.isActive,
     isOnline: isOverridden && restaurant.adminOverride.isOnline !== undefined ? restaurant.adminOverride.isOnline : (restaurant.isOnline !== undefined ? restaurant.isOnline : true),
     isFeatured: isOverridden && restaurant.adminOverride.isFeatured !== undefined ? restaurant.adminOverride.isFeatured : (restaurant.isFeatured || false),

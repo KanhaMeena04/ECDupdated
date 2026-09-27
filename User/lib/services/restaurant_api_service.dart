@@ -106,13 +106,12 @@ class RestaurantApiService {
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         final List<dynamic> data = jsonResponse['banners'] ?? [];
-        final list = data.map((json) => BannerModel.fromJson(json)).toList();
-        if (list.isNotEmpty) return list;
+        return data.map((json) => BannerModel.fromJson(json)).toList();
       }
     } catch (e) {
       debugPrint('Error fetching banners: $e');
     }
-    return _getMockBanners();
+    return [];
   }
 
   static List<BannerModel> _getMockBanners() {

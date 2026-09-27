@@ -44,17 +44,17 @@ const AddRestaurantBannerForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.restaurant || !formData.city) {
-      console.error('Restaurant and City are required');
+    if (!formData.bannerImage && !formData.title) {
+      alert('Please upload a banner image or enter a title');
       return;
     }
 
     const payload = new FormData();
-    payload.append('restaurant', formData.restaurant);
-    payload.append("title", formData.title);
-    payload.append('city', formData.city);
-    payload.append('isActive', formData.status === 'active');
-    payload.append('type', 'restaurant');
+    if (formData.restaurant) payload.append('restaurant', formData.restaurant);
+    payload.append("title", formData.title || "Promo Banner");
+    if (formData.city) payload.append('city', formData.city);
+    payload.append('isActive', formData.status === 'active' || formData.status === '' || formData.status === 'true');
+    payload.append('type', formData.restaurant ? 'restaurant' : 'static');
     payload.append('position', 1);
 
     if (formData.bannerImage) {
