@@ -34,19 +34,9 @@ const normalizeProductName = (name) => {
   return name.de || name.ar || null;
 };
 const buildRestaurantBaseQuery = () => ({
-  isActive: true,
+  isActive: { $ne: false },
   isTemporarilyClosed: { $ne: true },
-  $and: [
-    {
-      restaurantApproved: true,
-    },
-    {
-      menuApproved: true,
-    },
-    {
-      verificationStatus: "verified",
-    },
-  ],
+  restaurantApproved: { $ne: false }
 });
 const buildBestSellerMap = async (restaurantIds) => {
   if (!restaurantIds.length) {

@@ -3,6 +3,8 @@ const Restaurant = require('../models/Restaurant');
 const Category = require('../models/Category');
 const Order = require('../models/Order');
 const AdminSetting = require('../models/AdminSetting');
+const Product = require('../models/Product');
+const mongoose = require('mongoose');
 
 /**
  * Calculates complete order pricing, delivery fees, surge charges, platform fees, packaging fees,
@@ -32,12 +34,24 @@ async function calculateOrderPrice({
     let categoriesInCart = new Set();
 
     for (const item of items) {
-      let itemPrice = item.price || item.basePrice || 0;
+      let itemPrice = Number(item.price || item.basePrice || item.sellingPrice || 0);
+      if (!itemPrice || itemPrice <= 0) {
+        const prodId = item.product || item.productId || item._id;
+        if (prodId && (typeof prodId === 'object' || mongoose.Types.ObjectId.isValid(prodId))) {
+          const targetId = typeof prodId === 'object' ? prodId._id : prodId;
+          if (targetId) {
+            const dbProd = await Product.findById(targetId);
+            if (dbProd) {
+              itemPrice = Number(dbProd.sellingPrice || dbProd.price || dbProd.basePrice || dbProd.regularPrice || 0);
+            }
+          }
+        }
+      }
       if (item.variation && item.variation.price) {
-        itemPrice += item.variation.price;
+        itemPrice += Number(item.variation.price) || 0;
       }
       if (item.addOns && Array.isArray(item.addOns)) {
-        const addOnsTotal = item.addOns.reduce((sum, addon) => sum + (addon.price || 0), 0);
+        const addOnsTotal = item.addOns.reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
         itemPrice += addOnsTotal;
       }
       itemTotal += itemPrice * (item.quantity || 1);

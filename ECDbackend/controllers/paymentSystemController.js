@@ -336,3 +336,35 @@ exports.getAllRiderWallets = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+
+exports.calculateDeliveryFee = async (req, res) => {
+  try {
+    const { distanceKm, distance, userLocation, restaurantLocation } = req.body || {};
+    let dist = parseFloat(distanceKm || distance) || 0;
+    if (!dist && userLocation && restaurantLocation) {
+      const lat1 = userLocation.latitude || userLocation.lat;
+      const lon1 = userLocation.longitude || userLocation.lng;
+      const lat2 = restaurantLocation.latitude || restaurantLocation.lat;
+      const lon2 = restaurantLocation.longitude || restaurantLocation.lng;
+      if (lat1 && lon1 && lat2 && lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        dist = R * c;
+      }
+    }
+    const charges = calculateDeliveryCharges(dist);
+    return res.status(200).json({
+      success: true,
+      deliveryFee: charges.totalDeliveryFee,
+      fee: charges.totalDeliveryFee,
+      data: charges
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};

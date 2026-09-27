@@ -1072,6 +1072,11 @@ exports.updateRestaurant = async (req, res) => {
       "city",
       "area",
       "location",
+      "isOnline",
+      "isActive",
+      "isTemporarilyClosed",
+      "autoAcceptOrders",
+      "isSelfPickupEnabled"
     ];
     const adminAllowed = ownerAllowed.concat([
       "contactNumber",
@@ -1081,7 +1086,6 @@ exports.updateRestaurant = async (req, res) => {
       "deliveringZones",
       "deliveryType",
       "paymentMethods",
-      "isActive",
       "restaurantApproved",
       "verificationStatus",
       "verificationNotes",
@@ -1092,7 +1096,6 @@ exports.updateRestaurant = async (req, res) => {
       "minOrderValue",
       "estimatedPreparationTime",
       "taxConfig",
-      "isTemporarilyClosed",
       "timing",
       "rating",
       "adminRating",
@@ -1104,6 +1107,13 @@ exports.updateRestaurant = async (req, res) => {
     allowed.forEach((field) => {
       if (updates[field] !== undefined) sanitized[field] = updates[field];
     });
+
+    if (sanitized.isOnline !== undefined || sanitized.isActive !== undefined || sanitized.isTemporarilyClosed !== undefined) {
+      const isOnlineVal = sanitized.isOnline !== undefined ? Boolean(sanitized.isOnline) : (sanitized.isActive !== undefined ? Boolean(sanitized.isActive) : !Boolean(sanitized.isTemporarilyClosed));
+      sanitized.isOnline = isOnlineVal;
+      sanitized.isActive = isOnlineVal;
+      sanitized.isTemporarilyClosed = !isOnlineVal;
+    }
     if (updates.rating !== undefined || updates.adminRating !== undefined || updates.avgRating !== undefined || updates.ratingAverage !== undefined) {
       const rawUpRating = updates.rating !== undefined
         ? (typeof updates.rating === 'object' ? updates.rating?.average : updates.rating)
@@ -2679,10 +2689,31 @@ exports.toggleRestaurantActive = async (req, res) => {
   try {
     const rest = await Restaurant.findById(req.params.id);
     if (!rest) return res.status(404).json({ message: "Restaurant not found" });
-    rest.isOnline = !rest.isOnline;
-    rest.isActive = rest.isOnline;
+
+    let nextOnline;
+    if (req.body && req.body.isOnline !== undefined) {
+      nextOnline = Boolean(req.body.isOnline);
+    } else if (req.body && req.body.isActive !== undefined) {
+      nextOnline = Boolean(req.body.isActive);
+    } else if (req.body && req.body.status !== undefined) {
+      const s = String(req.body.status).toLowerCase();
+      nextOnline = ['online', 'active', 'open'].includes(s);
+    } else {
+      nextOnline = !rest.isOnline;
+    }
+
+    rest.isOnline = nextOnline;
+    rest.isActive = nextOnline;
+    rest.isTemporarilyClosed = !nextOnline;
     await rest.save();
-    return res.status(200).json({ success: true, isOnline: rest.isOnline, isActive: rest.isActive, restaurant: rest });
+
+    return res.status(200).json({
+      success: true,
+      isOnline: rest.isOnline,
+      isActive: rest.isActive,
+      isTemporarilyClosed: rest.isTemporarilyClosed,
+      restaurant: rest
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

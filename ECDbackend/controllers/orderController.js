@@ -175,6 +175,7 @@ const calculateBill = async (
     const tip = normalizeTip(cart?.tip);
     const pricingResult = await calculateOrderPrice({
       items: restaurantItems.map((item) => ({
+        product: item.product,
         price: item.price,
         quantity: item.quantity,
         variation: item.variation,
@@ -493,6 +494,20 @@ exports.placeOrder = async (req, res) => {
         restaurantId: restaurantId.toString(),
         customerId: user._id.toString(),
         customerName: user.name,
+        customerPhone: user.mobile || user.phone,
+        customerLocation: {
+          latitude: deliveryAddress.location?.coordinates ? deliveryAddress.location.coordinates[1] : 0,
+          longitude: deliveryAddress.location?.coordinates ? deliveryAddress.location.coordinates[0] : 0,
+          coordinates: deliveryAddress.location?.coordinates || [0, 0]
+        },
+        deliveryAddress: deliveryAddress.addressLine,
+        customer: {
+          id: user._id,
+          name: user.name,
+          phone: user.mobile || user.phone,
+          address: deliveryAddress.addressLine,
+          location: deliveryAddress.location?.coordinates || [0, 0]
+        },
         restaurantName: restaurant.name,
         items: cart.items.length,
         itemCount: cart.items.length,
@@ -516,11 +531,20 @@ exports.placeOrder = async (req, res) => {
     }
     try {
       socketService.emitToAdmin("order:new", {
+        orderId: newOrder._id,
         orderIds: [newOrder._id],
         customerName: user.name,
+        customerPhone: user.mobile || user.phone,
+        customerLocation: {
+          latitude: deliveryAddress.location?.coordinates ? deliveryAddress.location.coordinates[1] : 0,
+          longitude: deliveryAddress.location?.coordinates ? deliveryAddress.location.coordinates[0] : 0,
+          coordinates: deliveryAddress.location?.coordinates || [0, 0]
+        },
+        deliveryAddress: deliveryAddress.addressLine,
         restaurantCount: 1,
         totalAmount: totalPayment,
         paymentMethod,
+        status: "placed",
         timestamp: new Date(),
       });
     } catch (err) { }
@@ -1745,7 +1769,12 @@ function getRiderNotificationTitle(status) {
 }
 exports.markOrderReady = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id)
+    const targetId = req.params.id || req.params.orderId;
+    const isObjectId = mongoose.Types.ObjectId.isValid(targetId) && String(targetId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: targetId }, { orderId: targetId }, { orderNumber: targetId }] }
+      : { $or: [{ orderId: targetId }, { orderNumber: targetId }] };
+    const order = await Order.findOne(orderFilter)
       .populate("customer", "name")
       .populate("restaurant", "name")
       .populate("rider", "user")
@@ -2081,7 +2110,11 @@ exports.trackOrder = async (req, res) => {
   try {
     const { calculateDistance, calculateETA } = require('../utils/locationUtils');
     const orderId = req.params.id || req.params.orderId;
-    const order = await Order.findById(orderId)
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+    const order = await Order.findOne(orderFilter)
       .populate("restaurant", "location name address phone contactNumber ownerPhone owner")
       .populate("rider", "user currentLocation vehicle contactNumber name")
       .populate("rider.user", "name mobile profilePic");
@@ -3224,7 +3257,11 @@ exports.getOrdersForRestaurantById = async (req, res) => {
 exports.prepareOrderVendor = async (req, res) => {
   try {
     const orderId = req.params.orderId || req.params.id;
-    const order = await Order.findById(orderId);
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+    const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ message: "Order not found" });
     order.status = "preparing";
     order.timeline.push({ status: "preparing", timestamp: new Date() });
@@ -3254,7 +3291,11 @@ exports.verifyPickupVendor = async (req, res) => {
   try {
     const orderId = req.params.orderId || req.params.id;
     const { otp } = req.body;
-    const order = await Order.findById(orderId);
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+    const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ message: "Order not found" });
     if (otp && order.pickupOTP && order.pickupOTP !== otp && otp !== "1234") {
       return res.status(400).json({ message: "Invalid OTP" });
@@ -3281,7 +3322,11 @@ exports.verifyPickupVendor = async (req, res) => {
 exports.completePickupVendor = async (req, res) => {
   try {
     const orderId = req.params.orderId || req.params.id;
-    const order = await Order.findById(orderId);
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+    const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ message: "Order not found" });
     order.status = "out_for_delivery";
     order.timeline.push({ status: "out_for_delivery", timestamp: new Date() });
@@ -3366,9 +3411,12 @@ exports.getOrdersForRestaurantById = async (req, res) => {
 
 exports.customerCancelOrder = async (req, res) => {
   try {
-    const orderId = req.params.id;
-    const { reason = "Cancelled by user" } = req.body;
-    const order = await Order.findById(orderId);
+    const orderId = req.params.id || req.params.orderId;
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+    const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
 
     if (order.customer && order.customer.toString() !== req.user._id.toString() && req.user.role !== 'admin') {

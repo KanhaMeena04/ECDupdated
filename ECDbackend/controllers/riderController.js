@@ -2578,26 +2578,44 @@ exports.verifyRider = async (req, res) => {
     if (!rider) return res.status(404).json({ success: false, message: "Rider not found" });
 
     const newStatus = status || 'approved';
-    rider.verificationStatus = newStatus;
-    rider.riderVerified = newStatus === 'approved';
-    if (rider.vehicle) {
-      rider.vehicle.vehicleVerified = newStatus === 'approved';
-      if (rider.vehicle.vehicleApproval) {
-        rider.vehicle.vehicleApproval.status = newStatus;
+    if (newStatus === 'approved') {
+      rider.riderVerified = true;
+      const isVehicleVerified = Boolean(
+        rider.vehicle && 
+        (rider.vehicle.vehicleVerified === true || rider.vehicle.vehicleApproval?.status === 'approved') &&
+        (rider.vehicle.number || rider.vehicle.model || rider.vehicle.type)
+      );
+      if (isVehicleVerified) {
+        rider.verificationStatus = 'approved';
+      } else {
+        rider.verificationStatus = 'pending';
       }
-    }
-    if (rider.bankDetails) {
-      rider.bankDetails.verified = newStatus === 'approved';
-      rider.bankDetails.verificationStatus = newStatus;
-    }
-    if (newStatus === 'rejected') {
+      if (rider.bankDetails) {
+        rider.bankDetails.verified = true;
+        rider.bankDetails.verificationStatus = 'approved';
+      }
+    } else if (newStatus === 'rejected') {
+      rider.verificationStatus = 'rejected';
+      rider.riderVerified = false;
+      if (rider.vehicle) {
+        rider.vehicle.vehicleVerified = false;
+        if (rider.vehicle.vehicleApproval) {
+          rider.vehicle.vehicleApproval.status = 'rejected';
+        }
+      }
+      if (rider.bankDetails) {
+        rider.bankDetails.verified = false;
+        rider.bankDetails.verificationStatus = 'rejected';
+      }
       rider.rejectionReason = reason || 'Admin rejected application';
       rider.rejectionDate = new Date();
+    } else {
+      rider.verificationStatus = 'pending';
     }
     await rider.save();
     if (rider.user) {
       await User.findByIdAndUpdate(rider.user._id || rider.user, {
-        isVerified: newStatus === 'approved'
+        isVerified: rider.verificationStatus === 'approved'
       }).catch(e => console.error('User isVerified sync error:', e));
     }
 
@@ -3137,12 +3155,12 @@ exports.deleteRider = async (req, res) => {
     const phone = rider.mobile || rider.phone;
     await Rider.findByIdAndDelete(rider._id);
     if (userId) {
-      await User.findByIdAndDelete(userId);
+      await User.findByIdAndUpdate(userId, { isDeleted: true, deletedAt: new Date() });
     }
     if (phone) {
       const clean10 = phone.toString().replace(/[^0-9]/g, '').slice(-10);
       if (clean10) {
-        await User.deleteMany({
+        await User.updateMany({
           role: { $in: ['driver', 'rider'] },
           $or: [
             { mobile: `+91${clean10}` },
@@ -3150,7 +3168,7 @@ exports.deleteRider = async (req, res) => {
             { mobile: clean10 },
             { phone: clean10 }
           ]
-        });
+        }, { isDeleted: true, deletedAt: new Date() });
       }
     }
     res.status(200).json({ success: true, message: "Rider and associated User account deleted successfully" });
@@ -4426,8 +4444,15 @@ exports.getMyActiveOrder = async (req, res) => {
 
 exports.driverToggleOnline = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    const user = await User.findById(req.user._id);
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
     let riderDoc = await Rider.findOne({ user: req.user._id });
-    if (!riderDoc) return res.status(404).json({ message: "Rider profile not found" });
+    if (!riderDoc) return res.status(404).json({ success: false, message: "User not found" });
     riderDoc.isOnline = !riderDoc.isOnline;
     riderDoc.status = riderDoc.isOnline ? "active" : "inactive";
     await riderDoc.save();

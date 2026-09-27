@@ -78,6 +78,8 @@ const io = socketIO(server, {
   pingInterval: 25000
 });
 app.set('io', io);
+const socketService = require('./services/socketService');
+socketService.init(io);
 
 io.on('connection', (socket) => {
   // debugLog('Socket connected:', socket.id);

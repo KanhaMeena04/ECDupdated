@@ -81,6 +81,12 @@ const {
   failOrderCustomer,
 } = require("../controllers/orderController");
 const { getMyActiveOrder } = require("../controllers/riderController");
+const { calculateDeliveryFee } = require("../controllers/paymentSystemController");
+
+router.post("/calculate-fee", calculateDeliveryFee);
+router.post("/calculate-delivery-fee", calculateDeliveryFee);
+router.get("/tracking/:id", protect, trackOrder);
+router.get("/:id/tracking", protect, trackOrder);
 
 router.post("/place", protect, checkServiceAvailability, validatePlaceOrder, handleValidationErrors, placeOrderLimiter, placeOrder);
 router.get("/my-orders", protect, generalOrderLimiter, getMyOrders);

@@ -498,6 +498,8 @@ exports.driverSendOtp = async (req, res) => {
   try {
     const { mobile, phone } = req.body;
     const phoneNum = (mobile || phone || "").toString().trim();
+    const providedName = (req.body.name || req.body.firstName || req.body.fullName || req.body.riderName || "").toString().trim();
+
     if (!phoneNum) {
       return res.status(400).json({ message: "Mobile number is required" });
     }
@@ -516,12 +518,16 @@ exports.driverSendOtp = async (req, res) => {
       ]
     });
 
+    if (user && user.isDeleted) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
     if (!user) {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash("admin123", salt);
       const cleanEmail = `rider_${last10}@ecdkart.com`;
       user = await User.create({
-        name: `Rider ${last10.slice(-4)}`,
+        name: providedName || `Rider ${last10.slice(-4)}`,
         email: cleanEmail,
         mobile: `+91${last10}`,
         phone: `+91${last10}`,
@@ -532,6 +538,9 @@ exports.driverSendOtp = async (req, res) => {
         otpExpires: otpExpires
       });
     } else {
+      if (providedName && user.name !== providedName) {
+        user.name = providedName;
+      }
       user.otp = generatedOtp;
       user.otpExpires = otpExpires;
       await user.save();
@@ -541,7 +550,7 @@ exports.driverSendOtp = async (req, res) => {
     if (!riderDoc) {
       riderDoc = await Rider.create({
         user: user._id,
-        name: user.name || `Rider ${last10.slice(-4)}`,
+        name: user.name || providedName || `Rider ${last10.slice(-4)}`,
         phone: `+91${last10}`,
         mobile: `+91${last10}`,
         email: user.email,
@@ -552,6 +561,9 @@ exports.driverSendOtp = async (req, res) => {
         isAvailable: false,
         status: "inactive"
       });
+    } else if (providedName && riderDoc.name !== providedName) {
+      riderDoc.name = providedName;
+      await riderDoc.save();
     }
 
     // Dispatch real SMS via 2Factor / Twilio
@@ -581,6 +593,7 @@ exports.driverVerifyOtp = async (req, res) => {
     const { mobile, phone, otp } = req.body;
     const phoneNum = (mobile || phone || "").toString().trim();
     const enteredOtp = (otp || "").toString().trim();
+    const providedName = (req.body.name || req.body.firstName || req.body.fullName || req.body.riderName || "").toString().trim();
 
     if (!phoneNum || !enteredOtp) {
       return res.status(400).json({ message: "Mobile and OTP are required" });
@@ -597,8 +610,8 @@ exports.driverVerifyOtp = async (req, res) => {
       ]
     });
 
-    if (!user) {
-      return res.status(404).json({ message: "Driver account not found. Please send OTP first." });
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
     const isValidDevOtp = ["123456", "000000", "1234"].includes(enteredOtp);
@@ -608,6 +621,9 @@ exports.driverVerifyOtp = async (req, res) => {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
+    if (providedName && user.name !== providedName) {
+      user.name = providedName;
+    }
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
@@ -617,7 +633,7 @@ exports.driverVerifyOtp = async (req, res) => {
     if (!riderDoc) {
       riderDoc = await Rider.create({
         user: user._id,
-        name: user.name || `Rider ${last10.slice(-4)}`,
+        name: user.name || providedName || `Rider ${last10.slice(-4)}`,
         phone: user.phone || user.mobile,
         mobile: user.mobile,
         email: user.email,
@@ -628,6 +644,9 @@ exports.driverVerifyOtp = async (req, res) => {
         isAvailable: false,
         status: "inactive"
       });
+    } else if (providedName && riderDoc.name !== providedName) {
+      riderDoc.name = providedName;
+      await riderDoc.save();
     }
 
     const token = generateToken(res, user);
@@ -656,24 +675,34 @@ exports.driverLoginWithPin = async (req, res) => {
   try {
     const { mobile, phone } = req.body;
     const phoneNum = mobile || phone;
+    const providedName = (req.body.name || req.body.firstName || req.body.fullName || req.body.riderName || "").toString().trim();
+
     let user = await User.findOne({ $or: [{ mobile: phoneNum || null }, { email: phoneNum || null }] });
+    if (user && user.isDeleted) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
     if (!user) {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash("admin123", salt);
       user = await User.create({
-        name: `Rider ${phoneNum ? phoneNum.slice(-4) : "Demo"}`,
+        name: providedName || (phoneNum ? `Rider ${phoneNum.slice(-4)}` : "Demo"),
         email: `rider_${Date.now()}@ecdkart.com`,
         mobile: phoneNum || "+919999888777",
         password: hashedPassword,
         role: "rider",
         isVerified: true
       });
+    } else if (providedName && user.name !== providedName) {
+      user.name = providedName;
+      await user.save();
     }
+
     let riderDoc = await Rider.findOne({ user: user._id });
     if (!riderDoc) {
       riderDoc = await Rider.create({
         user: user._id,
-        name: user.name,
+        name: user.name || providedName,
         phone: user.phone || user.mobile,
         mobile: user.mobile,
         email: user.email,
@@ -684,7 +713,11 @@ exports.driverLoginWithPin = async (req, res) => {
         isAvailable: false,
         status: "inactive"
       });
+    } else if (providedName && riderDoc.name !== providedName) {
+      riderDoc.name = providedName;
+      await riderDoc.save();
     }
+
     const token = generateToken(res, user);
     return res.status(200).json({
       success: true,

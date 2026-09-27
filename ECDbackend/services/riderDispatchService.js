@@ -109,9 +109,10 @@ exports.findAndNotifyRider = async (orderId) => {
                 batchSize: successfulRequests.length,
                 expiresIn: BATCH_TIMEOUT_MS / 1000
             };
-            socketService.emitToRider(rider.user.toString(), 'rider:new_order_request', requestData);
+            const riderUserId = rider.user?._id ? rider.user._id.toString() : rider.user.toString();
+            socketService.emitToRider(riderUserId, 'rider:new_order_request', requestData);
             sendNotification(
-                rider.user,
+                riderUserId,
                 '🚀 New Delivery Request!',
                 `Earn ₹${riderEarning} — ${restaurant.name} → ${order.deliveryAddress?.area || 'Customer'}`,
                 { orderId: order._id.toString(), requestId: request._id.toString(), type: 'dispatch_request' }
@@ -321,8 +322,9 @@ exports.handleRiderResponse = async (riderUserId, requestId, action) => {
             }).select('rider');
             for (const req of otherPendingRiders) {
                 const otherRider = await Rider.findById(req.rider).select('user');
-                if (otherRider) {
-                    socketService.emitToRider(otherRider.user.toString(), 'rider:order_taken', {
+                if (otherRider && otherRider.user) {
+                    const otherUserId = otherRider.user._id ? otherRider.user._id.toString() : otherRider.user.toString();
+                    socketService.emitToRider(otherUserId, 'rider:order_taken', {
                         orderId: targetOrder._id,
                         message: 'This order was accepted by another rider'
                     });

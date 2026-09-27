@@ -36,10 +36,9 @@ exports.getSuggestions = async (req, res) => {
         const regex = new RegExp(q, 'i'); // Case-insensitive
         const restaurantQuery = {
             'name.en': regex,
-            isActive: true,
-            restaurantApproved: true,
-            menuApproved: true,
-            isTemporarilyClosed: false
+            isActive: { $ne: false },
+            restaurantApproved: { $ne: false },
+            isTemporarilyClosed: { $ne: true }
         };
         if (hasCoords) {
             restaurantQuery.location = {
@@ -177,10 +176,9 @@ exports.globalSearch = async (req, res) => {
             );
         }
         let restaurantQuery = {
-            isActive: true,
-            restaurantApproved: true,
-            menuApproved: true,
-            isTemporarilyClosed: false,
+            isActive: { $ne: false },
+            restaurantApproved: { $ne: false },
+            isTemporarilyClosed: { $ne: true },
             ...(regex ? {
                 $or: [
                     { 'name.en': regex },
@@ -342,10 +340,9 @@ exports.getSearchLanding = async (req, res) => {
         let nearbyRestaurants = [];
         if (hasCoords) {
             const restaurantQuery = {
-                restaurantApproved: true,
-                menuApproved: true,
-                isActive: true,
-                isTemporarilyClosed: false,
+                restaurantApproved: { $ne: false },
+                isActive: { $ne: false },
+                isTemporarilyClosed: { $ne: true },
                 location: {
                     $near: {
                         $geometry: { type: 'Point', coordinates: [parsedLng, parsedLat] },
