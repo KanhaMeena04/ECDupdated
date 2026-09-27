@@ -499,7 +499,7 @@ class _OrderCard extends StatelessWidget {
                         children: [
                           Text(orderNumber, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF), fontWeight: FontWeight.w500)),
                           const SizedBox(height: 2),
-                          Text('${items.length} items  •  ₹${total.toInt()}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF2C2C2C))),
+                          Text('${itemsList.length} items  •  ₹${total.toInt()}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF2C2C2C))),
                         ],
                       ),
                     ),

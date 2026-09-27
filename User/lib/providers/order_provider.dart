@@ -13,6 +13,11 @@ class OrderProvider with ChangeNotifier {
   List<dynamic> get activeOrders => _groupedOrders['active'] ?? [];
   List<dynamic> get pastOrders => _groupedOrders['past'] ?? [];
   List<dynamic> get cancelledOrders => _groupedOrders['cancelled'] ?? [];
+  List<dynamic> get orders => [
+        ...activeOrders,
+        ...pastOrders,
+        ...cancelledOrders,
+      ];
   bool get isLoading => _isLoading;
   String? get error => _error;
 
