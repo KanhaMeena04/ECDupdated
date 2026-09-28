@@ -70,6 +70,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         context.read<AuthBloc>().add(const CheckAuthStatus());
         _showApprovalCelebrationDialog(title, body);
       } else {
+        if (type == 'dispatch_request' || type == 'order_available' || title.toLowerCase().contains('delivery request') || title.toLowerCase().contains('order')) {
+          context.read<DriverBloc>().add(const LoadActiveOrders());
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -497,14 +500,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               );
             } else if (state is ActiveOrdersLoaded) {
               if (state.orders.isNotEmpty) {
-                final activeOrder = state.orders.first;
+                final incomingIndex = state.orders.indexWhere((o) => o['deliveryStatus'] == 'driver_notified');
+                final activeOrder = incomingIndex != -1 ? state.orders[incomingIndex] : state.orders.first;
                 final processKey = '${activeOrder['_id']}_${activeOrder['updatedAt'] ?? ''}';
                 if (activeOrder['deliveryStatus'] == 'driver_notified' && !_showIncomingOrder && !_processedOrders.contains(processKey)) {
                   setState(() => _showIncomingOrder = true);
                   _playOrderRingtone();
                   _timerController.reset();
                   _timerController.forward();
-                } else if (activeOrder['deliveryStatus'] != 'driver_notified' || _processedOrders.contains(processKey)) {
+                } else if (incomingIndex == -1 || _processedOrders.contains(processKey)) {
                   if (_showIncomingOrder || _isRingtonePlaying) {
                     _stopOrderRingtone();
                     setState(() => _showIncomingOrder = false);
@@ -937,7 +941,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   Widget _buildIncomingOrderPopup() {
     return BlocBuilder<DriverBloc, DriverState>(
       builder: (context, state) {
-        final activeOrder = state.orders.isNotEmpty ? state.orders.first : null;
+        final incomingIndex = state.orders.indexWhere((o) => o['deliveryStatus'] == 'driver_notified');
+        final activeOrder = incomingIndex != -1 ? state.orders[incomingIndex] : (state.orders.isNotEmpty ? state.orders.first : null);
         if (activeOrder == null) return const SizedBox.shrink();
 
         final storeName = activeOrder['store']?['name'] ?? activeOrder['restaurant']?['name'] ?? 'FreshNow Store';
@@ -1011,7 +1016,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                                 children: [
                                   FittedBox(
                                     child: Text(
-                                      "ACCEPT ORDER",
+                                      "NEW ORDER REQUEST",
                                       style: GoogleFonts.poppins(
                                         fontSize: 18,
                                         fontWeight: FontWeight.w900,
@@ -1022,7 +1027,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    "Assignment expires in ${(15 * (1.0 - _timerController.value)).ceil()}s",
+                                    "Expires in ${(15 * (1.0 - _timerController.value)).ceil()}s",
                                     style: GoogleFonts.poppins(
                                       fontSize: 11,
                                       color: Colors.grey[500],
@@ -1038,11 +1043,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      "New Delivery Assigned!",
+                      "New Delivery Request!",
                       style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black54,
+                        color: Colors.black87,
                       ),
                     ),
                   ],
@@ -1150,7 +1155,63 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     ),
                   ],
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
+
+                // Explicit ACCEPT and REJECT Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          _stopOrderRingtone();
+                          final String? orderId = activeOrder['_id'];
+                          final String updatedAt = activeOrder['updatedAt'] ?? '';
+                          if (orderId != null) {
+                            _processedOrders.add('${orderId}_$updatedAt');
+                            context.read<DriverBloc>().add(DeclineOrder(orderId: orderId));
+                          }
+                          _timerController.stop();
+                          setState(() => _showIncomingOrder = false);
+                        },
+                        icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                        label: Text("REJECT", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red[600],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          _stopOrderRingtone();
+                          final String? orderId = activeOrder['_id'];
+                          final String updatedAt = activeOrder['updatedAt'] ?? '';
+                          if (orderId != null) {
+                            _processedOrders.add('${orderId}_$updatedAt');
+                            context.read<DriverBloc>().add(AcceptOrder(orderId: orderId));
+                          }
+                          _timerController.stop();
+                          setState(() => _showIncomingOrder = false);
+                        },
+                        icon: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                        label: Text("ACCEPT", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryGreen,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 
                 // Slide to Accept Interaction
                 _buildSlideAction(),

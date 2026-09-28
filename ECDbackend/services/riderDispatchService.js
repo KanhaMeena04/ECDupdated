@@ -112,10 +112,13 @@ exports.findAndNotifyRider = async (orderId) => {
             };
             const riderUserId = rider.user?._id ? rider.user._id.toString() : rider.user.toString();
             socketService.emitToRider(riderUserId, 'rider:new_order_request', requestData);
+            const restNameStr = typeof restaurant.name === 'object'
+                ? (restaurant.name.en || restaurant.name.hi || Object.values(restaurant.name)[0] || 'Restaurant')
+                : (restaurant.name || 'Restaurant');
             sendNotification(
                 riderUserId,
                 '🚀 New Delivery Request!',
-                `Earn ₹${riderEarning} — ${restaurant.name} → ${order.deliveryAddress?.area || 'Customer'}`,
+                `Earn ₹${riderEarning} — ${restNameStr} → ${order.deliveryAddress?.area || 'Customer'}`,
                 { orderId: order._id.toString(), requestId: request._id.toString(), type: 'dispatch_request' }
             ).catch(() => { }); // non-blocking
         }

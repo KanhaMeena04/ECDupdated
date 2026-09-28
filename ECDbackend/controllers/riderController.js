@@ -4469,23 +4469,57 @@ exports.getMyActiveOrder = async (req, res) => {
       });
     }
 
-    // 2. If no assigned active order, check for incoming unassigned delivery orders
-    const unassignedOrders = await Order.find({
-      orderType: { $ne: 'self_pickup' },
-      rider: null,
-      status: { $in: ['placed', 'accepted', 'preparing', 'ready'] },
-      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-    })
-      .populate('customer', 'name phone mobile')
-      .populate('restaurant', 'name address location contactNumber phone')
-      .sort({ createdAt: -1 })
-      .limit(3);
+    // 2. If no assigned active order, check for incoming pending RideRequests or unassigned delivery orders
+    const RideRequest = require('../models/RideRequest');
+    const pendingRequests = await RideRequest.find({
+      rider: riderProfile._id,
+      status: 'pending'
+    }).populate({
+      path: 'order',
+      populate: [
+        { path: 'customer', select: 'name phone mobile' },
+        { path: 'restaurant', select: 'name address location contactNumber phone' }
+      ]
+    }).sort({ createdAt: -1 });
+
+    let unassignedOrders = [];
+    if (pendingRequests.length > 0) {
+      unassignedOrders = pendingRequests
+        .map(r => r.order)
+        .filter(o => o && !o.rider && ['placed', 'accepted', 'preparing', 'ready'].includes(o.status));
+    }
+
+    if (unassignedOrders.length === 0) {
+      const rejectedRequestOrders = await RideRequest.find({
+        rider: riderProfile._id,
+        status: { $in: ['rejected', 'timeout'] }
+      }).select('order');
+      const rejectedOrderIds = rejectedRequestOrders.map(r => r.order.toString());
+
+      unassignedOrders = await Order.find({
+        _id: { $nin: rejectedOrderIds },
+        orderType: { $ne: 'self_pickup' },
+        rider: null,
+        status: { $in: ['placed', 'accepted', 'preparing', 'ready'] },
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      })
+        .populate('customer', 'name phone mobile')
+        .populate('restaurant', 'name address location contactNumber phone')
+        .sort({ createdAt: -1 })
+        .limit(3);
+    }
 
     if (unassignedOrders.length > 0) {
       const incomingList = unassignedOrders.map(o => {
-        const storeName = typeof o.restaurant?.name === 'object' ? (o.restaurant.name.en || JSON.stringify(o.restaurant.name)) : (o.restaurant?.name || 'Restaurant');
-        const storeAddress = typeof o.restaurant?.address === 'object' ? (o.restaurant.address.addressLine || JSON.stringify(o.restaurant.address)) : (o.restaurant?.address || 'Restaurant Address');
-        const custAddress = typeof o.deliveryAddress?.addressLine === 'string' ? o.deliveryAddress.addressLine : (o.deliveryAddress ? JSON.stringify(o.deliveryAddress) : 'Customer Address');
+        const storeName = typeof o.restaurant?.name === 'object'
+          ? (o.restaurant.name.en || o.restaurant.name.hi || Object.values(o.restaurant.name)[0] || 'Restaurant')
+          : (o.restaurant?.name || 'Restaurant');
+        const storeAddress = typeof o.restaurant?.address === 'object'
+          ? (o.restaurant.address.addressLine || o.restaurant.address.street || Object.values(o.restaurant.address)[0] || 'Restaurant Address')
+          : (o.restaurant?.address || 'Restaurant Address');
+        const custAddress = typeof o.deliveryAddress?.addressLine === 'string'
+          ? o.deliveryAddress.addressLine
+          : (o.deliveryAddress ? (o.deliveryAddress.area || JSON.stringify(o.deliveryAddress)) : 'Customer Address');
 
         return {
           _id: o._id,
