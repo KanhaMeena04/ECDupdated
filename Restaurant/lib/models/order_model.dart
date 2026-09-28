@@ -28,6 +28,7 @@ class Order {
   int gracePeriodMinutes;
   DateTime? readyAt;
   DateTime? cancelledAt;
+  String? cancellationReason;
   final String paymentMethod;
 
   Order({
@@ -246,6 +247,7 @@ class Order {
       paymentMethod: parsedPaymentMethod,
       pickupTime: json['pickupTime']?.toString() ?? json['scheduledAt']?.toString() ?? json['scheduledTime']?.toString(),
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
+      cancellationReason: json['cancellationReason']?.toString() ?? json['reason']?.toString(),
       address: parsedAddress,
     );
   }
