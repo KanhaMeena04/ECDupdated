@@ -259,9 +259,9 @@ class RestaurantApiService {
   static Future<Map<String, dynamic>> verifyPickup(String orderId, String otp) async {
     try {
       final response = await http.post(
-        Uri.parse(ApiConstants.verifyPickup(orderId)),
+        Uri.parse('${ApiConstants.baseUrl}/orders/restaurant/verify-pickup/$orderId'),
         headers: _getHeaders(),
-        body: jsonEncode({'otp': otp.trim()}),
+        body: jsonEncode({'otp': otp.trim(), 'code': otp.trim()}),
       ).timeout(const Duration(seconds: 15));
 
       final data = jsonDecode(response.body);
@@ -285,12 +285,12 @@ class RestaurantApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> verifyPickup(String orderId, String otp) async {
+  static Future<Map<String, dynamic>> cancelOrder(String orderId, [String? reason]) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}/orders/restaurant/verify-pickup/$orderId'),
+        Uri.parse('${ApiConstants.baseUrl}/orders/restaurant/cancel/$orderId'),
         headers: _getHeaders(),
-        body: jsonEncode({'otp': otp, 'code': otp}),
+        body: jsonEncode({'reason': reason ?? 'Cancelled by restaurant'}),
       ).timeout(const Duration(seconds: 15));
 
       final data = jsonDecode(response.body);

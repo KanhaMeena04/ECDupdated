@@ -538,15 +538,19 @@ exports.driverSendOtp = async (req, res) => {
         otpExpires: otpExpires
       });
     } else {
-      if (providedName && user.name !== providedName) {
-        user.name = providedName;
-      }
       user.otp = generatedOtp;
       user.otpExpires = otpExpires;
       await user.save();
     }
     
-    let riderDoc = await Rider.findOne({ user: user._id });
+    let riderDoc = await Rider.findOne({
+      $or: [
+        { user: user._id },
+        { phone: { $in: phoneVariations } },
+        { mobile: { $in: phoneVariations } }
+      ]
+    });
+
     if (!riderDoc) {
       riderDoc = await Rider.create({
         user: user._id,
@@ -561,8 +565,8 @@ exports.driverSendOtp = async (req, res) => {
         isAvailable: false,
         status: "inactive"
       });
-    } else if (providedName && riderDoc.name !== providedName) {
-      riderDoc.name = providedName;
+    } else if (!riderDoc.user || riderDoc.user.toString() !== user._id.toString()) {
+      riderDoc.user = user._id;
       await riderDoc.save();
     }
 
@@ -621,15 +625,19 @@ exports.driverVerifyOtp = async (req, res) => {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
-    if (providedName && user.name !== providedName) {
-      user.name = providedName;
-    }
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
     await user.save();
 
-    let riderDoc = await Rider.findOne({ user: user._id });
+    let riderDoc = await Rider.findOne({
+      $or: [
+        { user: user._id },
+        { phone: { $in: phoneVariations } },
+        { mobile: { $in: phoneVariations } }
+      ]
+    });
+
     if (!riderDoc) {
       riderDoc = await Rider.create({
         user: user._id,
@@ -644,8 +652,8 @@ exports.driverVerifyOtp = async (req, res) => {
         isAvailable: false,
         status: "inactive"
       });
-    } else if (providedName && riderDoc.name !== providedName) {
-      riderDoc.name = providedName;
+    } else if (!riderDoc.user || riderDoc.user.toString() !== user._id.toString()) {
+      riderDoc.user = user._id;
       await riderDoc.save();
     }
 
@@ -674,10 +682,22 @@ exports.driverVerifyOtp = async (req, res) => {
 exports.driverLoginWithPin = async (req, res) => {
   try {
     const { mobile, phone } = req.body;
-    const phoneNum = mobile || phone;
-    const providedName = (req.body.name || req.body.firstName || req.body.fullName || req.body.riderName || "").toString().trim();
+    const phoneNum = (mobile || phone || "").toString().trim();
+    if (!phoneNum) {
+      return res.status(400).json({ success: false, message: "Mobile number is required" });
+    }
 
-    let user = await User.findOne({ $or: [{ mobile: phoneNum || null }, { email: phoneNum || null }] });
+    const cleanDigits = phoneNum.replace(/[^0-9]/g, '');
+    const last10 = cleanDigits.slice(-10);
+    const phoneVariations = [phoneNum, cleanDigits, last10, `+91${last10}`, `91${last10}`].filter(Boolean);
+
+    let user = await User.findOne({
+      $or: [
+        { mobile: { $in: phoneVariations } },
+        { phone: { $in: phoneVariations } }
+      ]
+    });
+
     if (user && user.isDeleted) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
@@ -686,23 +706,28 @@ exports.driverLoginWithPin = async (req, res) => {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash("admin123", salt);
       user = await User.create({
-        name: providedName || (phoneNum ? `Rider ${phoneNum.slice(-4)}` : "Demo"),
-        email: `rider_${Date.now()}@ecdkart.com`,
-        mobile: phoneNum || "+919999888777",
+        name: `Rider ${last10.slice(-4)}`,
+        email: `rider_${last10}@ecdkart.com`,
+        mobile: `+91${last10}`,
+        phone: `+91${last10}`,
         password: hashedPassword,
         role: "rider",
         isVerified: true
       });
-    } else if (providedName && user.name !== providedName) {
-      user.name = providedName;
-      await user.save();
     }
 
-    let riderDoc = await Rider.findOne({ user: user._id });
+    let riderDoc = await Rider.findOne({
+      $or: [
+        { user: user._id },
+        { phone: { $in: phoneVariations } },
+        { mobile: { $in: phoneVariations } }
+      ]
+    });
+
     if (!riderDoc) {
       riderDoc = await Rider.create({
         user: user._id,
-        name: user.name || providedName,
+        name: user.name,
         phone: user.phone || user.mobile,
         mobile: user.mobile,
         email: user.email,
@@ -713,8 +738,8 @@ exports.driverLoginWithPin = async (req, res) => {
         isAvailable: false,
         status: "inactive"
       });
-    } else if (providedName && riderDoc.name !== providedName) {
-      riderDoc.name = providedName;
+    } else if (!riderDoc.user || riderDoc.user.toString() !== user._id.toString()) {
+      riderDoc.user = user._id;
       await riderDoc.save();
     }
 

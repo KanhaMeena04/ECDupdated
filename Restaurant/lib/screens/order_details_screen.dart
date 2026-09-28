@@ -139,11 +139,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   void _showSearchingRiderModal() async {
+    Timer? searchTimer;
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) {
-        Timer(const Duration(seconds: 3), () async {
+        searchTimer = Timer(const Duration(seconds: 3), () async {
           if (Navigator.canPop(dialogContext)) {
             Navigator.pop(dialogContext);
           }
