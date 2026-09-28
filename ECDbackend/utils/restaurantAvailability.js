@@ -88,31 +88,15 @@ const getCurrentTimeInfoInZone = (referenceDate = new Date(), timeZone = process
 };
 
 /**
- * Fast boolean check if restaurant is open right now.
+ * Fast boolean check if restaurant is open right now (Default 24x7 open mode).
  */
 const isRestaurantOpenNow = (restaurant, referenceDate = new Date()) => {
   if (!restaurant) return false;
-  if (restaurant.isActive === false) return false;
-  if (restaurant.restaurantApproved === false) return false;
-  if (restaurant.isTemporarilyClosed) return false;
-  if (!restaurant.timing) return true;
-
-  const timeZone = process.env.RESTAURANT_TIMEZONE || 'Asia/Kolkata';
-  const { currentDay, currentMinutes } = getCurrentTimeInfoInZone(referenceDate, timeZone);
-
-  const todayTiming = restaurant.timing[currentDay];
-  if (!todayTiming) return true;
-  if (todayTiming.isClosed) return false;
-
-  if (todayTiming.open && todayTiming.close) {
-    return isTimeWithinRange(currentMinutes, todayTiming.open, todayTiming.close);
-  }
-
-  return true;
+  return true; // 24x7 open mode for testing/ordering
 };
 
 /**
- * Detailed availability check returning `{ available: boolean, reason?: string }`.
+ * Detailed availability check returning `{ available: boolean, reason?: string }` (Default 24x7 open mode).
  */
 const checkRestaurantAvailability = async (restaurantIdOrObject) => {
   let restaurant = restaurantIdOrObject;
@@ -128,38 +112,8 @@ const checkRestaurantAvailability = async (restaurantIdOrObject) => {
   if (!restaurant) {
     return { available: false, reason: 'Restaurant not found' };
   }
-  if (restaurant.isActive === false) {
-    return { available: false, reason: 'Restaurant is inactive' };
-  }
-  if (restaurant.restaurantApproved === false) {
-    return { available: false, reason: 'Restaurant is not approved' };
-  }
-  if (restaurant.isTemporarilyClosed) {
-    return { available: false, reason: 'Restaurant is temporarily closed' };
-  }
-  if (restaurant.timing) {
-    const timeZone = process.env.RESTAURANT_TIMEZONE || 'Asia/Kolkata';
-    const { currentDay, currentMinutes } = getCurrentTimeInfoInZone(new Date(), timeZone);
-    const todayTiming = restaurant.timing[currentDay];
-
-    if (todayTiming) {
-      if (todayTiming.isClosed) {
-        return { 
-          available: false, 
-          reason: `Restaurant is closed on ${currentDay}s` 
-        };
-      }
-      if (todayTiming.open && todayTiming.close) {
-        const isOpen = isTimeWithinRange(currentMinutes, todayTiming.open, todayTiming.close);
-        if (!isOpen) {
-          return {
-            available: false,
-            reason: `Restaurant is closed. Hours: ${todayTiming.open} - ${todayTiming.close}`
-          };
-        }
-      }
-    }
-  }
+  
+  // 24x7 open mode by default
   return { available: true };
 };
 
