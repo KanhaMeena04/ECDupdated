@@ -11,10 +11,11 @@ const BATCH_SIZE = 5;              // How many riders to notify at once
 const BATCH_TIMEOUT_MS = 45000;   // 45 seconds for a batch to respond before sending next batch
 exports.findAndNotifyRider = async (orderId) => {
     try {
-        const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+        const targetId = String(orderId?._id || orderId || '').trim();
+        const isObjectId = mongoose.Types.ObjectId.isValid(targetId) && targetId.length === 24;
         const orderFilter = isObjectId
-          ? { $or: [{ _id: orderId }, { orderId: orderId }] }
-          : { orderId: orderId };
+          ? { $or: [{ _id: targetId }, { orderId: targetId }, { orderNumber: targetId }] }
+          : { $or: [{ orderId: targetId }, { orderNumber: targetId }] };
         const order = await Order.findOne(orderFilter);
         if (!order) return console.error('Order not found for dispatch:', orderId);
         if (order.rider || ['cancelled', 'delivered', 'picked_up'].includes(order.status)) return;
@@ -138,10 +139,11 @@ async function checkBatchTimeout(orderId, requestIds) {
             { _id: { $in: requestIds }, status: 'pending' },
             { $set: { status: 'timeout' } }
         );
-        const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+        const targetId = String(orderId?._id || orderId || '').trim();
+        const isObjectId = mongoose.Types.ObjectId.isValid(targetId) && targetId.length === 24;
         const orderFilter = isObjectId
-          ? { $or: [{ _id: orderId }, { orderId: orderId }] }
-          : { orderId: orderId };
+          ? { $or: [{ _id: targetId }, { orderId: targetId }, { orderNumber: targetId }] }
+          : { $or: [{ orderId: targetId }, { orderNumber: targetId }] };
         const order = await Order.findOne(orderFilter).select('rider status');
         if (!order) return;
         if (order.rider || ['cancelled', 'delivered'].includes(order.status)) {

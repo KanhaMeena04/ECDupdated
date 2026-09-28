@@ -3963,10 +3963,11 @@ exports.acceptOrder = async (req, res) => {
         suggestion: "Complete or cancel current order first"
       });
     }
-    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const targetId = String(orderId?._id || orderId || '').trim();
+    const isObjectId = mongoose.Types.ObjectId.isValid(targetId) && targetId.length === 24;
     const orderFilter = isObjectId
-      ? { $or: [{ _id: orderId }, { orderId: orderId }] }
-      : { orderId: orderId };
+      ? { $or: [{ _id: targetId }, { orderId: targetId }, { orderNumber: targetId }] }
+      : { $or: [{ orderId: targetId }, { orderNumber: targetId }] };
 
     const orderToValidate = await Order.findOne(orderFilter);
     if (!orderToValidate) {
@@ -4215,10 +4216,11 @@ exports.rejectOrder = async (req, res) => {
       return res.status(404).json({ message: "Rider profile not found" });
     }
     const riderId = riderProfile._id;
-    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const targetId = String(orderId?._id || orderId || '').trim();
+    const isObjectId = mongoose.Types.ObjectId.isValid(targetId) && targetId.length === 24;
     const orderFilter = isObjectId
-      ? { $or: [{ _id: orderId }, { orderId: orderId }] }
-      : { orderId: orderId };
+      ? { $or: [{ _id: targetId }, { orderId: targetId }, { orderNumber: targetId }] }
+      : { $or: [{ orderId: targetId }, { orderNumber: targetId }] };
 
     const order = await Order.findOne(orderFilter)
       .populate('customer', 'name')
