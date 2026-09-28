@@ -3951,16 +3951,17 @@ exports.acceptOrder = async (req, res) => {
       return res.status(404).json({ message: "Rider profile not found" });
     }
     const riderId = riderProfile._id;
-    const activeOrder = await Order.findOne({
+    const MAX_ACTIVE_ORDERS_PER_RIDER = 5;
+    const activeOrdersCount = await Order.countDocuments({
       rider: riderId,
       status: { $in: ['assigned', 'reached_restaurant', 'picked_up', 'delivery_arrived'] }
     });
-    if (activeOrder) {
+    if (activeOrdersCount >= MAX_ACTIVE_ORDERS_PER_RIDER) {
       return res.status(400).json({
-        message: "You already have an active delivery",
-        activeOrderId: activeOrder._id,
-        currentStatus: activeOrder.status,
-        suggestion: "Complete or cancel current order first"
+        message: `You already have ${activeOrdersCount} active deliveries. Maximum limit is ${MAX_ACTIVE_ORDERS_PER_RIDER} orders at a time.`,
+        activeOrdersCount,
+        maxLimit: MAX_ACTIVE_ORDERS_PER_RIDER,
+        suggestion: "Complete your current active deliveries first before accepting more"
       });
     }
     const targetId = String(orderId?._id || orderId || '').trim();
@@ -4029,11 +4030,6 @@ exports.acceptOrder = async (req, res) => {
         await order.save();
       }
     }
-    const RideRequest = require('../models/RideRequest');
-    await RideRequest.updateMany(
-      { rider: riderId, status: 'pending', order: { $ne: order._id } },
-      { $set: { status: 'rejected' } }
-    );
     const { logRiderAssignment, logOrderTransition } = require("../utils/logger");
     logRiderAssignment(order._id, riderId, order.restaurant, "manual");
     logOrderTransition(
@@ -4043,7 +4039,8 @@ exports.acceptOrder = async (req, res) => {
       riderUserId,
       "rider",
     );
-    await Rider.findOneAndUpdate({ user: riderUserId }, { isAvailable: false });
+    const newActiveCount = activeOrdersCount + 1;
+    await Rider.findOneAndUpdate({ user: riderUserId }, { isAvailable: newActiveCount < MAX_ACTIVE_ORDERS_PER_RIDER });
 
     // Send 4-digit Pickup OTP via SMS and Push Notification to Rider's Phone Number
     try {
@@ -4334,140 +4331,145 @@ exports.getMyActiveOrder = async (req, res) => {
     const { calculateDistance } = require('../utils/locationUtils');
     const riderCoords = riderProfile.currentLocation?.coordinates || [77.0658, 28.2888];
 
-    // 1. Check if rider has an ongoing assigned order
-    const order = await Order.findOne({
+    // 1. Check if rider has any ongoing assigned orders (up to 5)
+    const activeOrders = await Order.find({
       rider: riderProfile._id,
       status: { $in: ['assigned', 'reached_restaurant', 'picked_up', 'delivery_arrived'] }
     })
       .populate('customer', 'name phone mobile')
       .populate('restaurant', 'name address location contactNumber phone')
       .populate('rider', 'user currentLocation vehicle')
-      .populate('rider.user', 'name mobile');
+      .populate('rider.user', 'name mobile')
+      .sort({ createdAt: -1 });
 
-    if (order) {
-      const restaurantCoords = order.restaurant?.location?.coordinates || riderCoords;
-      const customerCoords = order.deliveryAddress?.coordinates || riderCoords;
-      let distanceInfo = null;
-      if (riderCoords && restaurantCoords && customerCoords) {
-        const distanceToRestaurant = calculateDistance(riderCoords, restaurantCoords);
-        const distanceToCustomer = calculateDistance(riderCoords, customerCoords);
-        const totalDistance = distanceToRestaurant + distanceToCustomer;
-        distanceInfo = {
-          toRestaurant: {
-            km: Math.round(distanceToRestaurant * 100) / 100,
-            meters: Math.round(distanceToRestaurant * 1000),
-            etaMinutes: Math.ceil(distanceToRestaurant / 0.33)
-          },
-          toCustomer: {
-            km: Math.round(distanceToCustomer * 100) / 100,
-            meters: Math.round(distanceToCustomer * 1000),
-            etaMinutes: Math.ceil(distanceToCustomer / 0.33)
-          },
-          total: {
-            km: Math.round(totalDistance * 100) / 100,
-            meters: Math.round(totalDistance * 1000),
-            etaMinutes: Math.ceil(totalDistance / 0.33)
-          }
+    if (activeOrders && activeOrders.length > 0) {
+      const formattedOrders = activeOrders.map(order => {
+        const restaurantCoords = order.restaurant?.location?.coordinates || riderCoords;
+        const customerCoords = order.deliveryAddress?.coordinates || riderCoords;
+        let distanceInfo = null;
+        if (riderCoords && restaurantCoords && customerCoords) {
+          const distanceToRestaurant = calculateDistance(riderCoords, restaurantCoords);
+          const distanceToCustomer = calculateDistance(riderCoords, customerCoords);
+          const totalDistance = distanceToRestaurant + distanceToCustomer;
+          distanceInfo = {
+            toRestaurant: {
+              km: Math.round(distanceToRestaurant * 100) / 100,
+              meters: Math.round(distanceToRestaurant * 1000),
+              etaMinutes: Math.ceil(distanceToRestaurant / 0.33)
+            },
+            toCustomer: {
+              km: Math.round(distanceToCustomer * 100) / 100,
+              meters: Math.round(distanceToCustomer * 1000),
+              etaMinutes: Math.ceil(distanceToCustomer / 0.33)
+            },
+            total: {
+              km: Math.round(totalDistance * 100) / 100,
+              meters: Math.round(totalDistance * 1000),
+              etaMinutes: Math.ceil(totalDistance / 0.33)
+            }
+          };
+        }
+
+        let nextAction = {
+          action: '',
+          instruction: '',
+          requiredOtp: null
         };
-      }
+        switch (order.status) {
+          case 'assigned':
+            nextAction = {
+              action: 'GO_TO_RESTAURANT',
+              instruction: 'Navigate to restaurant to pick up the order',
+              endpoint: `/api/riders/orders/${order._id}/arrive-restaurant`,
+              requiredOtp: null
+            };
+            break;
+          case 'picked_up':
+            nextAction = {
+              action: 'GO_TO_CUSTOMER',
+              instruction: 'Navigate to customer to deliver the order',
+              endpoint: `/api/riders/orders/${order._id}/arrive-customer`,
+              requiredOtp: null
+            };
+            break;
+          case 'delivery_arrived':
+            nextAction = {
+              action: 'VERIFY_DELIVERY',
+              instruction: 'Verify delivery OTP from customer to complete delivery',
+              endpoint: '/api/riders/orders/verify-delivery',
+              requiredOtp: 'deliveryOtp'
+            };
+            break;
+        }
 
-      let nextAction = {
-        action: '',
-        instruction: '',
-        requiredOtp: null
-      };
-      switch (order.status) {
-        case 'assigned':
-          nextAction = {
-            action: 'GO_TO_RESTAURANT',
-            instruction: 'Navigate to restaurant to pick up the order',
-            endpoint: `/api/riders/orders/${order._id}/arrive-restaurant`,
-            requiredOtp: null
-          };
-          break;
-        case 'picked_up':
-          nextAction = {
-            action: 'GO_TO_CUSTOMER',
-            instruction: 'Navigate to customer to deliver the order',
-            endpoint: `/api/riders/orders/${order._id}/arrive-customer`,
-            requiredOtp: null
-          };
-          break;
-        case 'delivery_arrived':
-          nextAction = {
-            action: 'VERIFY_DELIVERY',
-            instruction: 'Verify delivery OTP from customer to complete delivery',
-            endpoint: '/api/riders/orders/verify-delivery',
-            requiredOtp: 'deliveryOtp'
-          };
-          break;
-      }
+        const storeName = typeof order.restaurant?.name === 'object' ? (order.restaurant.name.en || JSON.stringify(order.restaurant.name)) : (order.restaurant?.name || 'Restaurant');
+        const storeAddress = typeof order.restaurant?.address === 'object' ? (order.restaurant.address.addressLine || JSON.stringify(order.restaurant.address)) : (order.restaurant?.address || 'Restaurant Address');
+        const custAddress = typeof order.deliveryAddress?.addressLine === 'string' ? order.deliveryAddress.addressLine : (order.deliveryAddress ? JSON.stringify(order.deliveryAddress) : 'Customer Address');
 
-      const storeName = typeof order.restaurant?.name === 'object' ? (order.restaurant.name.en || JSON.stringify(order.restaurant.name)) : (order.restaurant?.name || 'Restaurant');
-      const storeAddress = typeof order.restaurant?.address === 'object' ? (order.restaurant.address.addressLine || JSON.stringify(order.restaurant.address)) : (order.restaurant?.address || 'Restaurant Address');
-      const custAddress = typeof order.deliveryAddress?.addressLine === 'string' ? order.deliveryAddress.addressLine : (order.deliveryAddress ? JSON.stringify(order.deliveryAddress) : 'Customer Address');
-
-      const formattedOrder = {
-        _id: order._id,
-        orderId: order._id,
-        deliveryStatus: order.status === 'assigned' ? 'accepted' : order.status,
-        status: order.status,
-        store: {
-          _id: order.restaurant?._id,
-          name: storeName,
-          address: storeAddress,
-          phone: order.restaurant?.contactNumber || order.restaurant?.phone || ''
-        },
-        restaurant: {
-          _id: order.restaurant?._id,
-          name: storeName,
-          address: storeAddress,
-          phone: order.restaurant?.contactNumber || order.restaurant?.phone || '',
-          location: order.restaurant?.location,
-          pickupOtp: order.pickupOtp,
-          pickupOtpExpiry: order.pickupOtpExpiresAt
-        },
-        customer: {
-          _id: order.customer?._id,
-          name: order.customer?.name || 'Customer',
-          phone: order.customer?.phone || order.customer?.mobile || '',
-          address: custAddress,
+        return {
+          _id: order._id,
+          orderId: order._id,
+          orderNumber: order.orderNumber || order.orderId || order._id,
+          deliveryStatus: order.status === 'assigned' ? 'accepted' : order.status,
+          status: order.status,
+          store: {
+            _id: order.restaurant?._id,
+            name: storeName,
+            address: storeAddress,
+            phone: order.restaurant?.contactNumber || order.restaurant?.phone || ''
+          },
+          restaurant: {
+            _id: order.restaurant?._id,
+            name: storeName,
+            address: storeAddress,
+            phone: order.restaurant?.contactNumber || order.restaurant?.phone || '',
+            location: order.restaurant?.location,
+            pickupOtp: order.pickupOtp,
+            pickupOtpExpiry: order.pickupOtpExpiresAt
+          },
+          customer: {
+            _id: order.customer?._id,
+            name: order.customer?.name || 'Customer',
+            phone: order.customer?.phone || order.customer?.mobile || '',
+            address: custAddress,
+            deliveryAddress: custAddress,
+            deliveryOtp: order.deliveryOtp,
+            deliveryOtpExpiry: order.deliveryOtpExpiresAt
+          },
           deliveryAddress: custAddress,
-          deliveryOtp: order.deliveryOtp,
-          deliveryOtpExpiry: order.deliveryOtpExpiresAt
-        },
-        deliveryAddress: custAddress,
-        driverEarnings: order.riderEarning || ((order.deliveryFee || 30) * 0.7),
-        deliveryCharge: order.deliveryFee || 30,
-        payableAmount: order.totalAmount,
-        totalAmount: order.totalAmount,
-        paymentMethod: order.paymentMethod,
-        paymentStatus: order.paymentStatus,
-        items: (order.items || []).map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        earnings: {
-          riderEarning: order.riderEarning || 0,
-          tip: order.tip || 0,
-          total: (order.riderEarning || 0) + (order.tip || 0)
-        },
-        distances: distanceInfo,
-        nextAction,
-        timeline: order.timeline,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt || order.createdAt
-      };
+          driverEarnings: order.riderEarning || ((order.deliveryFee || 30) * 0.7),
+          deliveryCharge: order.deliveryFee || 30,
+          payableAmount: order.totalAmount,
+          totalAmount: order.totalAmount,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
+          items: (order.items || []).map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price
+          })),
+          earnings: {
+            riderEarning: order.riderEarning || 0,
+            tip: order.tip || 0,
+            total: (order.riderEarning || 0) + (order.tip || 0)
+          },
+          distances: distanceInfo,
+          nextAction,
+          timeline: order.timeline,
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt || order.createdAt
+        };
+      });
 
       return res.status(200).json({
         success: true,
         hasActiveOrder: true,
-        orders: [formattedOrder],
-        data: [formattedOrder],
-        order: formattedOrder,
-        distances: distanceInfo,
-        nextAction
+        activeOrdersCount: formattedOrders.length,
+        orders: formattedOrders,
+        data: formattedOrders,
+        order: formattedOrders[0],
+        distances: formattedOrders[0].distances,
+        nextAction: formattedOrders[0].nextAction
       });
     }
 

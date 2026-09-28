@@ -2128,7 +2128,6 @@ exports.searchRidersForOrder = async (req, res) => {
         },
       },
       isOnline: true,
-      isAvailable: true,
       verificationStatus: 'approved',
     });
     if (nearbyRiderCount === 0) {
