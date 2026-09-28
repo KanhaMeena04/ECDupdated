@@ -14,6 +14,7 @@ class CartProvider with ChangeNotifier {
   String? _restaurantId;
   String? _restaurantName;
   String? _restaurantImageUrl;
+  String? _restaurantAddress;
   int _restaurantDeliveryTimeMin = 25;
 
   // ── Order Type (Delivery / Pickup) & Slot Selection ────────────────────────
@@ -71,6 +72,7 @@ class CartProvider with ChangeNotifier {
   String? get restaurantId => _restaurantId;
   String? get restaurantName => _restaurantName;
   String? get restaurantImageUrl => _restaurantImageUrl;
+  String? get restaurantAddress => _restaurantAddress;
   int get restaurantDeliveryTimeMin => _restaurantDeliveryTimeMin;
   void setRestaurantDeliveryTime(int mins) {
     _restaurantDeliveryTimeMin = mins;
@@ -246,12 +248,14 @@ class CartProvider with ChangeNotifier {
     required String restaurantId,
     required String restaurantName,
     required String restaurantImageUrl,
+    String? restaurantAddress,
     int deliveryTimeMin = 25,
     String imageUrl = '',
   }) async {
     _restaurantId = restaurantId;
     _restaurantName = restaurantName;
     _restaurantImageUrl = restaurantImageUrl;
+    if (restaurantAddress != null) _restaurantAddress = restaurantAddress;
     if (deliveryTimeMin > 0) {
       _restaurantDeliveryTimeMin = deliveryTimeMin;
     }
@@ -278,6 +282,7 @@ class CartProvider with ChangeNotifier {
     required String restaurantId,
     required String restaurantName,
     required String restaurantImageUrl,
+    String? restaurantAddress,
     int deliveryTimeMin = 25,
     String imageUrl = '',
   }) async {
@@ -286,6 +291,7 @@ class CartProvider with ChangeNotifier {
     _restaurantId = restaurantId;
     _restaurantName = restaurantName;
     _restaurantImageUrl = restaurantImageUrl;
+    if (restaurantAddress != null) _restaurantAddress = restaurantAddress;
     if (deliveryTimeMin > 0) {
       _restaurantDeliveryTimeMin = deliveryTimeMin;
     }
@@ -342,6 +348,7 @@ class CartProvider with ChangeNotifier {
     _restaurantId = null;
     _restaurantName = null;
     _restaurantImageUrl = null;
+    _restaurantAddress = null;
     _restaurantDeliveryTimeMin = 25;
     _orderType = 'delivery';
     _pickupDate = PickupSlotHelper.getDynamicDates().first;

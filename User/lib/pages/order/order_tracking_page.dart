@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
@@ -130,6 +131,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                 data['orderType'] == 'pickup' ||
                 data['isSelfPickup'] == true ||
                 data['order']?['isSelfPickup'] == true;
+            final rider = data['rider'] ?? data['order']?['rider'];
 
             if (!isSelfPickup && (status == 'ready' || status == 'ready_for_pickup' || status == 'searching_for_rider') && rider == null) {
               _isFindingDriver = true;

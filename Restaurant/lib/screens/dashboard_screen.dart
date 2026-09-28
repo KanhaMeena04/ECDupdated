@@ -1645,45 +1645,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     // 6. Delivered / Completed / Handed Over
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '🎉 Order Completed',
-            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
-          ),
-          const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20),
-        ],
-      ),
-    );
-  }
+    if (s == 'delivered' || s == 'completed' || s == 'handovered') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
-              child: Text(
-                'Your order has been delivered successfully.\nOrder completed.',
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                ),
-              ),
+            Text(
+              '🎉 Order Completed',
+              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
             ),
-            const Icon(
-              Icons.delivery_dining_rounded,
-              color: AppColors.primaryGreen,
-              size: 26,
-            ),
+            const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20),
           ],
         ),
       );
-    } else if (order.status == 'Cancelled') {
+    } else if (s == 'cancelled' || s == 'rejected' || order.status == 'Cancelled') {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(

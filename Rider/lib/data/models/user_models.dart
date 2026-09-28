@@ -233,13 +233,22 @@ class UserModel extends Equatable {
         rawData?['isOnline'] == true
     );
 
-    final isReturning = (json['isReturning'] == true ||
-            rawUser?['isReturning'] == true ||
-            rawRider?['isReturning'] == true ||
-            rawData?['isReturning'] == true) &&
-        json['isNewUser'] != true &&
-        rawUser?['isNewUser'] != true &&
-        rawData?['isNewUser'] != true;
+    final isExplicitNewUser = json['isNewUser'] == true ||
+        rawUser?['isNewUser'] == true ||
+        rawData?['isNewUser'] == true;
+
+    final isReturning = !isExplicitNewUser && (
+        json['isReturning'] == true ||
+        rawUser?['isReturning'] == true ||
+        rawRider?['isReturning'] == true ||
+        rawData?['isReturning'] == true ||
+        json['isRegistered'] == true ||
+        rawUser?['isRegistered'] == true ||
+        json['isNewUser'] == false ||
+        rawUser?['isNewUser'] == false ||
+        (name.isNotEmpty && !name.toLowerCase().startsWith('rider ') && name.toLowerCase() != 'new partner') ||
+        (phone.isNotEmpty && (riderId != null && riderId.isNotEmpty))
+    );
 
     final upi = json['upi']?.toString() ??
         json['upiId']?.toString() ??

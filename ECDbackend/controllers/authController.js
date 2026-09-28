@@ -579,10 +579,15 @@ exports.driverSendOtp = async (req, res) => {
       console.error("SMS Dispatch error (driverSendOtp):", smsErr.message);
     }
     
+    const isRegistered = !!(user && user.name && !user.name.startsWith("Rider ") && user.name !== "New Customer");
+
     return res.status(200).json({
       success: true,
       message: "OTP sent successfully to driver",
       mobile: phoneNum,
+      isRegistered,
+      isReturning: isRegistered,
+      isNewUser: !isRegistered,
       testOtp: generatedOtp,
       smsDispatched: smsResult ? smsResult.success : false
     });
@@ -656,20 +661,36 @@ exports.driverVerifyOtp = async (req, res) => {
       await riderDoc.save();
     }
 
+    const isReturning = !!(
+      (user && user.name && !user.name.startsWith("Rider ") && user.name !== "New Customer") ||
+      (riderDoc && riderDoc.name && !riderDoc.name.startsWith("Rider ")) ||
+      (riderDoc && (riderDoc.riderVerified || riderDoc.verificationStatus === "approved" || riderDoc.vehicle?.number))
+    );
+    const isNewUser = !isReturning;
+
     const token = generateToken(res, user);
     return res.status(200).json({
       success: true,
       message: "Driver login successful",
       token,
+      isReturning,
+      isNewUser,
+      isRegistered: isReturning,
       user: {
         _id: user._id,
         name: user.name,
         email: user.email,
         mobile: user.mobile,
         role: user.role,
-        riderId: riderDoc._id
+        riderId: riderDoc._id,
+        isReturning,
+        isNewUser
       },
-      rider: riderDoc,
+      rider: {
+        ...(riderDoc ? (riderDoc.toObject ? riderDoc.toObject() : riderDoc) : {}),
+        isReturning,
+        isNewUser
+      },
       riderId: riderDoc._id
     });
   } catch (error) {
