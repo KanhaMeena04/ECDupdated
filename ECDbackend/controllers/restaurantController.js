@@ -1541,7 +1541,10 @@ exports.getMyRestaurant = async (req, res) => {
         email: restaurant.email,
         verificationStatus: restaurant.verificationStatus,
         restaurantApproved: restaurant.restaurantApproved,
-        isActive: restaurant.isActive,
+        isActive: restaurant.isActive !== undefined ? restaurant.isActive : true,
+        isOnline: restaurant.isOnline !== undefined ? restaurant.isOnline : true,
+        id: restaurant._id,
+        restaurantId: restaurant._id,
         rejectionReason: restaurant.rejectionReason || null,
         rejectionDate: restaurant.rejectionDate || null,
         verificationNotes: restaurant.verificationNotes || null,
@@ -1553,7 +1556,7 @@ exports.getMyRestaurant = async (req, res) => {
         documents: restaurant.documents,
         bankDetails: restaurant.bankDetails,
         timing: restaurant.timing,
-        isTemporarilyClosed: restaurant.isTemporarilyClosed,
+        isTemporarilyClosed: restaurant.isTemporarilyClosed || false,
         isFreeDelivery: restaurant.isFreeDelivery,
         freeDeliveryContribution: restaurant.freeDeliveryContribution,
         owner: restaurant.owner,
@@ -2115,7 +2118,19 @@ exports.getAllRestaurants = async (req, res) => {
       ];
     }
 
-    const candidateRestaurants = await Restaurant.find(baseQuery).limit(100).lean();
+    let candidateRestaurants = [];
+    try {
+      candidateRestaurants = await Restaurant.find(baseQuery).limit(100).lean();
+    } catch (err) {
+      const fallbackQuery = { ...baseQuery };
+      delete fallbackQuery.location;
+      candidateRestaurants = await Restaurant.find(fallbackQuery).limit(100).lean();
+    }
+    if (candidateRestaurants.length === 0 && hasUserCoords) {
+      const fallbackQuery = { ...baseQuery };
+      delete fallbackQuery.location;
+      candidateRestaurants = await Restaurant.find(fallbackQuery).limit(100).lean();
+    }
 
     // 1. Preload categories map (ID -> Title)
     const allCats = await Category.find().lean();

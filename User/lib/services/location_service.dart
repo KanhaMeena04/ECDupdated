@@ -25,8 +25,8 @@ Future<Position?> getCurrentPositionSafe() async {
     if (permission == LocationPermission.deniedForever) return null;
 
     return await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.medium,
-      timeLimit: const Duration(seconds: 4),
+      desiredAccuracy: LocationAccuracy.high,
+      timeLimit: const Duration(seconds: 8),
     );
   } catch (_) {
     return null;

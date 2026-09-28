@@ -44,9 +44,33 @@ import {
 } from "@mui/icons-material";
 
 import { API_BASE_URL } from "../../../utils/utils";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
 const BRAND_MAIN = "#ed2026";
 const BRAND_HOVER = "#c8161b";
 const BRAND_LIGHT = "#FFF5F4";
+
+const greenMarkerIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+function MapClickHandler({ onMapClick }) {
+  useMapEvents({
+    click(e) {
+      if (e && e.latlng) {
+        onMapClick(e.latlng.lat, e.latlng.lng);
+      }
+    },
+  });
+  return null;
+}
 
 const AddRestaurantForm = () => {
   const navigate = useNavigate();
@@ -68,11 +92,17 @@ const AddRestaurantForm = () => {
 
   // 3. Location & GPS (Step 3 of App)
   const [address, setAddress] = useState("");
-  const [area, setArea] = useState("Subhash Chowk");
-  const [city, setCity] = useState("Sohna");
-  const [latitude, setLatitude] = useState("28.2478");
-  const [longitude, setLongitude] = useState("77.0624");
+  const [area, setArea] = useState("");
+  const [city, setCity] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+
+  // Search Map / Location State
+  const [locationSearchQuery, setLocationSearchQuery] = useState("");
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const [locationSearchResults, setLocationSearchResults] = useState([]);
+  const [showLocationResults, setShowLocationResults] = useState(false);
 
   // 4. KYC Documents (Step 4 of App: FSSAI & GST)
   const [fssaiNumber, setFssaiNumber] = useState("");
@@ -127,21 +157,50 @@ const AddRestaurantForm = () => {
     });
   };
 
+  // Reverse Geocode (lat, lng -> address, city, area)
+  const handleReverseGeocode = async (lat, lng) => {
+    setLatitude(String(Number(lat).toFixed(6)));
+    setLongitude(String(Number(lng).toFixed(6)));
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/service-areas/reverse-geocode`, {
+        params: { lat, lng }
+      }).catch(() => null);
+      if (res && res.data && res.data.success) {
+        if (res.data.displayName) setAddress(res.data.displayName);
+        if (res.data.city) setCity(res.data.city);
+        if (res.data.zone) setArea(res.data.zone);
+      } else {
+        const nomRes = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`).catch(() => null);
+        if (nomRes && nomRes.data) {
+          const item = nomRes.data;
+          const addr = item.address || {};
+          if (item.display_name) setAddress(item.display_name);
+          const c = addr.city || addr.town || addr.village || addr.county || "";
+          const a = addr.suburb || addr.neighbourhood || addr.residential || addr.road || "";
+          if (c) setCity(c);
+          if (a) setArea(a);
+        }
+      }
+    } catch (err) {
+      console.error("Reverse geocode error:", err);
+    }
+  };
+
   // Auto Detect GPS Location
   const handleAutoDetectLocation = async () => {
     setIsDetectingLocation(true);
     try {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            setLatitude(pos.coords.latitude.toFixed(6));
-            setLongitude(pos.coords.longitude.toFixed(6));
+          async (pos) => {
+            await handleReverseGeocode(pos.coords.latitude, pos.coords.longitude);
             setIsDetectingLocation(false);
           },
-          async () => {
+          async (err) => {
+            console.warn("Geolocation error:", err);
             await fetchIpLocation();
           },
-          { timeout: 8000 }
+          { enableHighAccuracy: true, timeout: 10000 }
         );
       } else {
         await fetchIpLocation();
@@ -154,22 +213,48 @@ const AddRestaurantForm = () => {
   const fetchIpLocation = async () => {
     try {
       const res = await axios.get("https://ipapi.co/json/").catch(() => null);
-      if (res && res.data) {
-        setLatitude(String(res.data.latitude || "28.2478"));
-        setLongitude(String(res.data.longitude || "77.0624"));
-        if (res.data.city) setCity(res.data.city);
-        if (res.data.region) setArea(res.data.region);
-        if (!address) setAddress(`${res.data.city || "Sohna"}, ${res.data.region || "Haryana"}`);
-      } else {
-        setLatitude("28.2478");
-        setLongitude("77.0624");
+      if (res && res.data && res.data.latitude && res.data.longitude) {
+        await handleReverseGeocode(res.data.latitude, res.data.longitude);
       }
-    } catch {
-      setLatitude("28.2478");
-      setLongitude("77.0624");
+    } catch (err) {
+      console.error(err);
     } finally {
       setIsDetectingLocation(false);
     }
+  };
+
+  const handleLocationSearch = async (e) => {
+    if (e) e.preventDefault();
+    if (!locationSearchQuery || !locationSearchQuery.trim()) return;
+    setIsSearchingLocation(true);
+    setShowLocationResults(true);
+    try {
+      const res = await axios.get("https://nominatim.openstreetmap.org/search", {
+        params: { q: locationSearchQuery.trim(), format: "json", addressdetails: 1, limit: 5 }
+      });
+      if (res.data && res.data.length > 0) {
+        setLocationSearchResults(res.data);
+      } else {
+        setLocationSearchResults([]);
+      }
+    } catch (err) {
+      console.error("Location search error:", err);
+      setLocationSearchResults([]);
+    } finally {
+      setIsSearchingLocation(false);
+    }
+  };
+
+  const handleSelectSearchResult = (item) => {
+    const lat = parseFloat(item.lat);
+    const lng = parseFloat(item.lon);
+    setLatitude(lat.toFixed(6));
+    setLongitude(lng.toFixed(6));
+    setAddress(item.display_name || "");
+    const addr = item.address || {};
+    setCity(addr.city || addr.town || addr.village || addr.county || "");
+    setArea(addr.suburb || addr.neighbourhood || addr.residential || addr.road || "");
+    setShowLocationResults(false);
   };
 
   // Add Menu Item
@@ -249,12 +334,12 @@ const AddRestaurantForm = () => {
       ownerPassword: cleanPin,
       ownerPin: cleanPin,
       pin: cleanPin,
-      address: address.trim() || `${area}, ${city}`,
-      city: city.trim() || "Sohna",
-      area: area.trim() || "Subhash Chowk",
+      address: address.trim() || `${area}, ${city}`.trim(),
+      city: city.trim(),
+      area: area.trim(),
       location: {
         type: "Point",
-        coordinates: [parseFloat(longitude || "77.0624"), parseFloat(latitude || "28.2478")],
+        coordinates: [parseFloat(longitude || "0"), parseFloat(latitude || "0")],
       },
       image: restaurantImages.length > 0 ? restaurantImages[0] : null,
       bannerImage: restaurantImages.length > 0 ? restaurantImages[0] : null,
@@ -566,6 +651,69 @@ const AddRestaurantForm = () => {
           </Button>
         }
       >
+        {/* Search Map / Location Bar */}
+        <Grid item xs={12}>
+          <Box sx={{ position: "relative" }}>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <TextField
+                label="Search Map / Location"
+                value={locationSearchQuery}
+                onChange={(e) => setLocationSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleLocationSearch(); } }}
+                fullWidth
+                placeholder="Type city, area, street, or landmark to search on map..."
+                size="small"
+              />
+              <Button
+                variant="contained"
+                onClick={handleLocationSearch}
+                disabled={isSearchingLocation}
+                sx={{ bgcolor: BRAND_MAIN, "&:hover": { bgcolor: "#008a68" }, textTransform: "none", px: 3 }}
+              >
+                {isSearchingLocation ? <CircularProgress size={18} color="inherit" /> : "Search"}
+              </Button>
+            </Box>
+
+            {/* Location Search Dropdown Results */}
+            {showLocationResults && locationSearchResults.length > 0 && (
+              <Paper
+                elevation={6}
+                sx={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  zIndex: 1400,
+                  mt: 0.5,
+                  maxHeight: 220,
+                  overflowY: "auto",
+                  borderRadius: 2,
+                }}
+              >
+                {locationSearchResults.map((resItem, idx) => (
+                  <Box
+                    key={idx}
+                    onClick={() => handleSelectSearchResult(resItem)}
+                    sx={{
+                      p: 1.5,
+                      borderBottom: "1px solid #F1F5F9",
+                      cursor: "pointer",
+                      "&:hover": { bgcolor: BRAND_LIGHT },
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: "#1E293B" }}>
+                      {resItem.display_name}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: "#64748B" }}>
+                      Lat: {parseFloat(resItem.lat).toFixed(4)}, Lng: {parseFloat(resItem.lon).toFixed(4)}
+                    </Typography>
+                  </Box>
+                ))}
+              </Paper>
+            )}
+          </Box>
+        </Grid>
+
         <Grid item xs={12}>
           <TextField
             label="Complete Street Address *"
@@ -583,7 +731,7 @@ const AddRestaurantForm = () => {
             onChange={(e) => setArea(e.target.value)}
             fullWidth
             required
-            placeholder="e.g. Subhash Chowk"
+            placeholder="e.g. Cyber City / Sector 14"
           />
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -593,26 +741,65 @@ const AddRestaurantForm = () => {
             onChange={(e) => setCity(e.target.value)}
             fullWidth
             required
-            placeholder="e.g. Sohna / Gurugram"
+            placeholder="e.g. Gurugram / Delhi / Indore"
           />
         </Grid>
         <Grid item xs={12} sm={6}>
           <TextField
-            label="Latitude (°N)"
+            label="Latitude (°N) *"
             value={latitude}
             onChange={(e) => setLatitude(e.target.value)}
             fullWidth
-            placeholder="e.g. 28.2478"
+            required
+            placeholder="e.g. 28.4595"
           />
         </Grid>
         <Grid item xs={12} sm={6}>
           <TextField
-            label="Longitude (°E)"
+            label="Longitude (°E) *"
             value={longitude}
             onChange={(e) => setLongitude(e.target.value)}
             fullWidth
-            placeholder="e.g. 77.0624"
+            required
+            placeholder="e.g. 77.0266"
           />
+        </Grid>
+
+        {/* Interactive Leaflet Map for Location Selection */}
+        <Grid item xs={12}>
+          <Box sx={{ mt: 1, borderRadius: 2, overflow: "hidden", border: "1px solid #CBD5E1" }}>
+            <Typography variant="caption" sx={{ p: 1, display: "block", bgcolor: "#F8FAFC", color: "#475569", fontWeight: 600 }}>
+              📍 Click Map or Drag Marker to Pin Exact Restaurant Coordinates
+            </Typography>
+            <div style={{ height: "260px", width: "100%", position: "relative" }}>
+              <MapContainer
+                center={[parseFloat(latitude) || 28.6139, parseFloat(longitude) || 77.2090]}
+                zoom={latitude && longitude ? 15 : 5}
+                style={{ height: "100%", width: "100%" }}
+                scrollWheelZoom={true}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
+                <MapClickHandler onMapClick={handleReverseGeocode} />
+                {latitude && longitude && (
+                  <Marker
+                    position={[parseFloat(latitude), parseFloat(longitude)]}
+                    icon={greenMarkerIcon}
+                    draggable={true}
+                    eventHandlers={{
+                      dragend: (e) => {
+                        const marker = e.target;
+                        const pos = marker.getLatLng();
+                        handleReverseGeocode(pos.lat, pos.lng);
+                      },
+                    }}
+                  />
+                )}
+              </MapContainer>
+            </div>
+          </Box>
         </Grid>
       </FormSectionCard>
 

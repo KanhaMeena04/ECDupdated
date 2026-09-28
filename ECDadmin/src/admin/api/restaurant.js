@@ -157,8 +157,8 @@ const useAdminCreateRestaurantForm = () => {
         location: {
           type: "Point",
           coordinates: [
-            parseFloat(formData.longitude || 77.081),
-            parseFloat(formData.latitude || 28.248)
+            parseFloat(formData.longitude || 0),
+            parseFloat(formData.latitude || 0)
           ]
         },
       };
@@ -479,13 +479,13 @@ const useAddRestaurant = (initialValues, successCallback) => {
 
     try {
       const token = localStorage.getItem("token");
-      const lat = parseFloat(data?.location?.latitude || data?.location?.lat || 28.2467);
-      const lng = parseFloat(data?.location?.longitude || data?.location?.lng || 77.0177);
+      const lat = parseFloat(data?.location?.latitude || data?.location?.lat || data?.latitude || 0);
+      const lng = parseFloat(data?.location?.longitude || data?.location?.lng || data?.longitude || 0);
       const payload = {
         ...data,
         location: {
           type: "Point",
-          coordinates: [isNaN(lng) ? 77.0177 : lng, isNaN(lat) ? 28.2467 : lat],
+          coordinates: [isNaN(lng) ? 0 : lng, isNaN(lat) ? 0 : lat],
         },
       };
       const res = await axios.post(

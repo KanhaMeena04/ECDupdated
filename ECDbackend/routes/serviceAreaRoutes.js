@@ -56,10 +56,10 @@ router.get('/reverse-geocode', async (req, res) => {
     
     const item = response.data || {};
     const addr = item.address || {};
-    const state = addr.state || addr.region || 'Madhya Pradesh';
-    const district = addr.state_district || addr.county || addr.city_district || addr.city || 'Indore';
-    const city = addr.city || addr.town || addr.village || addr.suburb || addr.municipality || 'Indore';
-    const zone = addr.suburb || addr.neighbourhood || addr.residential || addr.road || addr.quarter || (item.display_name ? item.display_name.split(',')[0] : 'Vijay Nagar');
+    const state = addr.state || addr.region || '';
+    const district = addr.state_district || addr.county || addr.city_district || addr.city || '';
+    const city = addr.city || addr.town || addr.village || addr.suburb || addr.municipality || '';
+    const zone = addr.suburb || addr.neighbourhood || addr.residential || addr.road || addr.quarter || (item.display_name ? item.display_name.split(',')[0] : '');
     const pincode = addr.postcode || '';
 
     res.json({

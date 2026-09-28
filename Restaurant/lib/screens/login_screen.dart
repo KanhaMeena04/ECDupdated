@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api_constants.dart';
 import '../theme/app_theme.dart';
@@ -455,33 +456,55 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _fetchCurrentLocation() async {
     setState(() => _isFetchingLocation = true);
     try {
-      double lat = 28.2478;
-      double lng = 77.0624;
-      String? city;
-      String? region;
-
-      try {
-        final ipRes = await http
-            .get(Uri.parse('https://ipapi.co/json/'))
-            .timeout(const Duration(seconds: 4));
-        if (ipRes.statusCode == 200) {
-          final data = jsonDecode(ipRes.body);
-          if (data['latitude'] is num && data['longitude'] is num) {
-            lat = (data['latitude'] as num).toDouble();
-            lng = (data['longitude'] as num).toDouble();
-            city = data['city']?.toString();
-            region = data['region']?.toString();
-          }
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('GPS is disabled. Please enable location services on your device.'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
-      } catch (e) {
-        debugPrint('IP location fetch fallback: $e');
       }
 
-      await _reverseGeocode(lat, lng,
-          fallbackCity: city, fallbackRegion: region);
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      Position? position;
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 10),
+        );
+      } else {
+        position = await Geolocator.getLastKnownPosition();
+      }
+
+      if (position != null) {
+        await _reverseGeocode(position.latitude, position.longitude);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not fetch GPS location. Please select on map or enter manually.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
     } catch (e) {
       debugPrint('Location detection error: $e');
-      await _reverseGeocode(28.2478, 77.0624);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Location detection error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isFetchingLocation = false);
@@ -489,86 +512,99 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _reverseGeocode(double lat, double lng,
-      {String? fallbackCity, String? fallbackRegion}) async {
+  Future<void> _reverseGeocode(double lat, double lng) async {
     String formattedAddress = '';
     String area = '';
-    String city = fallbackCity ?? '';
+    String city = '';
 
-    try {
-      final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/geocode/json?latlng=$lat,$lng&key=$_googleMapsApiKey',
-      );
-      final res = await http.get(url).timeout(const Duration(seconds: 5));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        if (data['status'] == 'OK' && (data['results'] as List).isNotEmpty) {
-          final first = data['results'][0];
-          formattedAddress = first['formatted_address'] ?? '';
+    if (_googleMapsApiKey.isNotEmpty) {
+      try {
+        final url = Uri.parse(
+          'https://maps.googleapis.com/maps/api/geocode/json?latlng=$lat,$lng&key=$_googleMapsApiKey',
+        );
+        final res = await http.get(url).timeout(const Duration(seconds: 5));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          if (data['status'] == 'OK' && (data['results'] as List).isNotEmpty) {
+            final first = data['results'][0];
+            formattedAddress = first['formatted_address'] ?? '';
 
-          final addressComponents = first['address_components'] as List? ?? [];
-          for (var comp in addressComponents) {
-            final types = (comp['types'] as List? ?? [])
-                .map((t) => t.toString())
-                .toList();
-            if (types.contains('sublocality') ||
-                types.contains('sublocality_level_1') ||
-                types.contains('sublocality_level_2') ||
-                types.contains('neighborhood')) {
-              if (area.isEmpty) area = comp['long_name'] ?? '';
-            }
-            if (types.contains('locality')) {
-              city = comp['long_name'] ?? '';
-            } else if (city.isEmpty &&
-                types.contains('administrative_area_level_2')) {
-              city = comp['long_name'] ?? '';
+            final addressComponents = first['address_components'] as List? ?? [];
+            for (var comp in addressComponents) {
+              final types = (comp['types'] as List? ?? [])
+                  .map((t) => t.toString())
+                  .toList();
+              if (types.contains('sublocality') ||
+                  types.contains('sublocality_level_1') ||
+                  types.contains('sublocality_level_2') ||
+                  types.contains('neighborhood')) {
+                if (area.isEmpty) area = comp['long_name'] ?? '';
+              }
+              if (types.contains('locality')) {
+                city = comp['long_name'] ?? '';
+              } else if (city.isEmpty &&
+                  types.contains('administrative_area_level_2')) {
+                city = comp['long_name'] ?? '';
+              }
             }
           }
         }
+      } catch (e) {
+        debugPrint('Google reverse geocode error: $e');
       }
-    } catch (e) {
-      debugPrint('Google reverse geocode error: $e');
     }
 
     if (formattedAddress.isEmpty) {
-      formattedAddress = area.isNotEmpty
-          ? '$area, ${city.isNotEmpty ? city : "Sohna"}'
-          : 'Subhash Chowk, Sohna, Haryana';
-      if (area.isEmpty) area = 'Subhash Chowk';
-      if (city.isEmpty) city = 'Sohna';
+      try {
+        final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&addressdetails=1',
+        );
+        final res = await http.get(url, headers: {'User-Agent': 'EcdkartRestaurantApp/1.0'}).timeout(const Duration(seconds: 5));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          formattedAddress = data['display_name'] ?? '';
+          final addr = data['address'] as Map<String, dynamic>? ?? {};
+          area = addr['suburb'] ?? addr['neighbourhood'] ?? addr['residential'] ?? addr['road'] ?? addr['quarter'] ?? '';
+          city = addr['city'] ?? addr['town'] ?? addr['village'] ?? addr['county'] ?? addr['state_district'] ?? '';
+        }
+      } catch (e) {
+        debugPrint('Nominatim reverse geocode error: $e');
+      }
     }
 
     if (mounted) {
       setState(() {
         _latitudeController.text = lat.toStringAsFixed(6);
         _longitudeController.text = lng.toStringAsFixed(6);
-        _addressController.text = formattedAddress;
+        if (formattedAddress.isNotEmpty) _addressController.text = formattedAddress;
         if (area.isNotEmpty) _areaController.text = area;
         if (city.isNotEmpty) _cityController.text = city;
-        _selectedPinLabel = formattedAddress;
+        _selectedPinLabel = formattedAddress.isNotEmpty ? formattedAddress : '$lat, $lng';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_rounded,
-                  color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Location Pinned: $formattedAddress',
-                  style: GoogleFonts.poppins(
-                      fontSize: 12, fontWeight: FontWeight.w600),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+      if (formattedAddress.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded,
+                    color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Location Pinned: $formattedAddress',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, fontWeight: FontWeight.w600),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            backgroundColor: AppTheme.primaryGreen,
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: AppTheme.primaryGreen,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -5146,7 +5182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                           .isNotEmpty
                                                       ? _addressController.text
                                                           .trim()
-                                                      : 'SUBHASH CHOWK, SOHNA')
+                                                      : 'TAP MAP TO PICK LOCATION')
                                                   .toUpperCase(),
                                               style: GoogleFonts.poppins(
                                                 fontSize: 10,

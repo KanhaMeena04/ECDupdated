@@ -82,17 +82,55 @@ const socketService = require('./services/socketService');
 socketService.init(io);
 
 io.on('connection', (socket) => {
-  // debugLog('Socket connected:', socket.id);
-  console.log('Socket connected:', socket.id);
-  socket.on('joinOrder', (orderId) => {
-    if (orderId) {
-      socket.join(`order_${orderId}`);
-    }
+  console.log('⚡ Socket connected:', socket.id);
+
+  socket.on('joinOrder', (target) => {
+    if (!target) return;
+    const str = String(target);
+    const room = (str.startsWith('order_') || str.startsWith('restaurant_') || str.startsWith('user_') || str.startsWith('rider_') || str.includes(':'))
+      ? str
+      : `order_${str}`;
+    socket.join(room);
+    console.log(`📡 Socket ${socket.id} joined room via joinOrder: ${room}`);
   });
-  socket.on('leaveOrder', (orderId) => {
-    if (orderId) {
-      socket.leave(`order_${orderId}`);
-    }
+
+  socket.on('leaveOrder', (target) => {
+    if (!target) return;
+    const str = String(target);
+    const room = str.startsWith('order_') ? str : `order_${str}`;
+    socket.leave(room);
+  });
+
+  socket.on('joinRoom', (room) => {
+    if (!room) return;
+    socket.join(String(room));
+    console.log(`📡 Socket ${socket.id} joined room via joinRoom: ${room}`);
+  });
+
+  socket.on('joinRestaurant', (restaurantId) => {
+    if (!restaurantId) return;
+    const idStr = String(restaurantId);
+    socket.join(`restaurant_${idStr}`);
+    socket.join(`restaurant:${idStr}`);
+    console.log(`📡 Socket ${socket.id} joined restaurant rooms: restaurant_${idStr}, restaurant:${idStr}`);
+  });
+
+  socket.on('joinUser', (userId) => {
+    if (!userId) return;
+    const idStr = String(userId);
+    socket.join(`user_${idStr}`);
+    socket.join(`user:${idStr}`);
+  });
+
+  socket.on('joinRider', (riderId) => {
+    if (!riderId) return;
+    const idStr = String(riderId);
+    socket.join(`rider_${idStr}`);
+    socket.join(`rider:${idStr}`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔌 Socket disconnected:', socket.id);
   });
 });
 const initCronJobs = require('./services/cronService');

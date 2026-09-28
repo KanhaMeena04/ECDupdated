@@ -6,10 +6,10 @@ import '../services/location_service.dart';
 import '../services/restaurant_api_service.dart';
 
 class LocationProvider extends ChangeNotifier {
-  String _location = 'Vijay Nagar, Indore';
-  String _subAddress = 'Madhya Pradesh, India';
-  double? lat = 22.7533;
-  double? lng = 75.8937;
+  String _location = 'Select Location';
+  String _subAddress = '';
+  double? lat;
+  double? lng;
   double? deviceLat;
   double? deviceLng;
   bool _isLocationSet = false;

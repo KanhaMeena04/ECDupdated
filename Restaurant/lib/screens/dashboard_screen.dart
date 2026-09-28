@@ -276,6 +276,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'Content-Type': 'application/json',
             if (token.isNotEmpty) 'Authorization': 'Bearer $token',
           },
+          body: jsonEncode({
+            'isOnline': val,
+            'isActive': val,
+            'isTemporarilyClosed': !val,
+          }),
         ).timeout(const Duration(seconds: 5));
       }
     } catch (_) {}
