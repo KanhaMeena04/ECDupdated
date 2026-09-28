@@ -599,18 +599,60 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                             final res = await RestaurantApiService.verifyPickup(widget.order.id, input);
                             if (res['success'] == true) {
                               if (mounted) Navigator.pop(context);
+                              final isSelf = widget.order.isSelfPickup;
                               setState(() {
-                                _currentStatus = 'Picked Up';
-                                widget.order.status = 'Picked Up';
+                                _currentStatus = isSelf ? 'Delivered' : 'Picked Up';
+                                widget.order.status = isSelf ? 'Delivered' : 'Picked Up';
+                                if (isSelf) _customerArrived = true;
                               });
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('🎉 4-Digit Rider Pickup OTP Verified! Order handed over to rider.'),
-                                    backgroundColor: AppColors.primaryGreen,
-                                    duration: Duration(seconds: 4),
-                                  ),
-                                );
+                                if (isSelf) {
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (ctx) => AlertDialog(
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.check_circle_rounded, color: AppColors.primaryGreen, size: 64),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            'Self Pickup Delivered!',
+                                            style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Order #${widget.order.id} has been handed over to customer ${widget.order.customerName} and saved in Database as Completed.',
+                                            textAlign: TextAlign.center,
+                                            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
+                                          ),
+                                          const SizedBox(height: 20),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              Navigator.pop(ctx);
+                                              Navigator.pop(context, true);
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.primaryGreen,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                            ),
+                                            child: Text('Done & Go Back', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('🎉 4-Digit Rider Pickup OTP Verified! Order handed over to rider.'),
+                                      backgroundColor: AppColors.primaryGreen,
+                                      duration: Duration(seconds: 4),
+                                    ),
+                                  );
+                                }
                               }
                             } else {
                               setModalState(() => _otpError = true);
@@ -918,32 +960,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     ),
                   ],
 
-                  // Simulation Button for Testing Customer Arrival
-                  if (widget.order.isSelfPickup && !_customerArrived && _currentStatus != 'Handed Over' && _currentStatus != 'Delivered') ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _customerArrived = true;
-                            widget.order.customerArrived = true;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('🔔 Simulated Customer Arrival ("I\'m Here")!'),
-                              backgroundColor: Colors.orange,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.directions_run, size: 16, color: Colors.orange),
-                        label: Text('Simulate Customer Arrival ("I\'m Here")', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.orange[800])),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.orange),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                  ],
+
 
                   // Status Banner Alert
                   Container(
@@ -1002,26 +1019,27 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         : ['Prepared', 'Ready', 'Pickup', 'Delivered'];
 
     int activeIndex = 0;
+    final s = _currentStatus.toLowerCase().trim();
     if (widget.order.isSelfPickup) {
-      if (_currentStatus == 'Pending' || _currentStatus == 'Placed') {
+      if (s == 'pending' || s == 'placed') {
         activeIndex = 0;
-      } else if (_currentStatus == 'Preparing') {
+      } else if (s == 'preparing') {
         activeIndex = 1;
-      } else if (_currentStatus == 'Ready for Pickup' || _currentStatus == 'Ready') {
-        activeIndex = 2;
-      } else if (_customerArrived && _currentStatus != 'Handed Over') {
+      } else if (s == 'ready for pickup' || s == 'ready_for_pickup' || s == 'ready') {
+        activeIndex = _customerArrived ? 3 : 2;
+      } else if (_customerArrived && s != 'handed over' && s != 'delivered' && s != 'picked_up' && s != 'completed') {
         activeIndex = 3;
-      } else if (_currentStatus == 'Handed Over' || _currentStatus == 'Delivered') {
+      } else if (s == 'handed over' || s == 'delivered' || s == 'picked_up' || s == 'completed') {
         activeIndex = 4;
       }
     } else {
-      if (_currentStatus == 'Preparing' || _currentStatus == 'Placed') {
+      if (s == 'preparing' || s == 'placed' || s == 'pending') {
         activeIndex = 0;
-      } else if (_currentStatus == 'Ready') {
+      } else if (s == 'ready') {
         activeIndex = 1;
-      } else if (_currentStatus == 'Picked Up') {
+      } else if (s == 'picked_up' || s == 'out_for_delivery') {
         activeIndex = 2;
-      } else if (_currentStatus == 'Delivered') {
+      } else if (s == 'delivered' || s == 'completed') {
         activeIndex = 3;
       }
     }

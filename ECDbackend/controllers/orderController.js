@@ -3431,16 +3431,26 @@ exports.verifyPickupVendor = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid 4-digit Pickup OTP" });
     }
 
+    const isSelfPickup = order.orderType === 'self_pickup' || order.orderType === 'pickup' || order.orderType === 'takeaway' || order.isSelfPickup;
     const oldStatus = order.status;
-    order.status = "picked_up";
-    order.pickedUpAt = new Date();
+    const newStatus = isSelfPickup ? "delivered" : "picked_up";
+
+    order.status = newStatus;
+    order.deliveryStatus = newStatus;
+    if (isSelfPickup) {
+      order.deliveredAt = new Date();
+    } else {
+      order.pickedUpAt = new Date();
+    }
     order.pickupOtpVerifiedAt = new Date();
     order.timeline.push({
-      status: "picked_up",
+      status: newStatus,
       timestamp: new Date(),
-      label: "Picked Up",
+      label: isSelfPickup ? "Self Pickup Delivered" : "Picked Up",
       by: "restaurant_owner",
-      description: "Order pickup 4-digit OTP verified by restaurant. Handed over to rider."
+      description: isSelfPickup
+        ? "Customer 4-digit OTP verified at counter. Self-pickup order delivered."
+        : "Order pickup 4-digit OTP verified by restaurant. Handed over to rider."
     });
     await order.save();
 
@@ -3451,22 +3461,26 @@ exports.verifyPickupVendor = async (req, res) => {
 
     const updateData = {
       orderId: order._id.toString(),
-      status: "picked_up",
+      status: newStatus,
       oldStatus,
-      message: `🚀 Out for Delivery! ${riderName} has picked up your order and is on the way!`,
-      riderName: riderName,
+      message: isSelfPickup
+        ? "🎉 Self Pickup Delivered! Thank you for ordering with us."
+        : `🚀 Out for Delivery! ${riderName} has picked up your order and is on the way!`,
+      riderName: isSelfPickup ? null : riderName,
       timestamp: new Date()
     };
 
     if (order.customer?._id) {
       socketService.emitToCustomer(order.customer._id.toString(), "order:status", updateData);
-      socketService.emitToCustomer(order.customer._id.toString(), "order:picked_up", updateData);
+      socketService.emitToCustomer(order.customer._id.toString(), isSelfPickup ? "order:delivered" : "order:picked_up", updateData);
       try {
         await sendNotification(
           order.customer._id,
-          "🚀 Out for Delivery!",
-          `Your order is on the way! ${riderName} has picked up your order from the restaurant.`,
-          { orderId: order._id.toString(), status: "picked_up", type: "order_status" }
+          isSelfPickup ? "🎉 Self Pickup Delivered!" : "🚀 Out for Delivery!",
+          isSelfPickup
+            ? "Your self-pickup order has been completed and handed over at counter!"
+            : `Your order is on the way! ${riderName} has picked up your order from the restaurant.`,
+          { orderId: order._id.toString(), status: newStatus, type: "order_status" }
         );
       } catch (_) {}
     }
@@ -3485,7 +3499,15 @@ exports.verifyPickupVendor = async (req, res) => {
       }
     } catch (_) {}
 
-    return res.status(200).json({ success: true, message: "Rider pickup OTP verified successfully! Order is out for delivery.", order });
+    return res.status(200).json({
+      success: true,
+      isSelfPickup,
+      status: newStatus,
+      message: isSelfPickup
+        ? "🎉 Customer OTP verified! Self pickup order completed and saved as Delivered."
+        : "Rider pickup OTP verified successfully! Order is out for delivery.",
+      order
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
