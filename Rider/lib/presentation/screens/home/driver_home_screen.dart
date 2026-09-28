@@ -127,6 +127,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DriverBloc>().add(const LoadActiveOrders());
       NotificationService.syncWithdrawalNotifications();
+      _startPollingActiveOrders();
+    });
+  }
+
+  void _startPollingActiveOrders() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted && _isOnline) {
+        context.read<DriverBloc>().add(const LoadActiveOrders(isSilent: true));
+      }
     });
   }
 
@@ -312,6 +322,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     // Auto-refresh orders when going online
     if (newStatus) {
       context.read<DriverBloc>().add(const LoadActiveOrders());
+      _startPollingActiveOrders();
+    } else {
+      _pollingTimer?.cancel();
     }
   }
 
