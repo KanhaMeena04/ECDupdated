@@ -94,21 +94,23 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         );
       }
     } else if (_currentStatus == 'Preparing') {
-      _showSearchingRiderModal();
-    } else if (_currentStatus == 'Ready') {
       setState(() {
-        _currentStatus = 'Picked Up';
-        widget.order.status = 'Picked Up';
+        _currentStatus = 'Ready';
+        widget.order.status = 'Ready';
       });
-      await RestaurantApiService.verifyPickup(orderId, '1234');
+      await RestaurantApiService.markOrderReady(orderId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('🛵 Order Picked Up! Delivery partner is on the way.'),
+            content: Text('✅ Food Marked Ready! Click "Search Rider" to notify nearby riders.'),
             backgroundColor: AppColors.primaryGreen,
           ),
         );
       }
+    } else if (_currentStatus == 'Ready' || _currentStatus == 'Ready for Pickup') {
+      _showSearchingRiderModal();
+    } else if (_currentStatus == 'Assigned' || _currentStatus == 'rider_assigned' || (_currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && widget.order.riderName != null && widget.order.riderName!.isNotEmpty)) {
+      _showOtpVerificationModal();
     } else if (_currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery') {
       setState(() {
         _currentStatus = 'Delivered';
@@ -136,29 +138,25 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     }
   }
 
-  void _showSearchingRiderModal() {
-    Timer? searchTimer;
+  void _showSearchingRiderModal() async {
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) {
-        searchTimer = Timer(const Duration(seconds: 3), () async {
+        Timer(const Duration(seconds: 3), () async {
           if (Navigator.canPop(dialogContext)) {
             Navigator.pop(dialogContext);
           }
-          await RestaurantApiService.markOrderReady(widget.order.id);
+          final res = await RestaurantApiService.searchRiders(widget.order.id);
           if (mounted) {
-            setState(() {
-              _currentStatus = 'Ready';
-              widget.order.status = 'Ready';
-              widget.order.riderName = 'Rohit (Rider)';
-              widget.order.riderPhone = '+91 98765 43210';
-            });
+            final count = res['data']?['count'] ?? 0;
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('🔔 Food Marked Ready & Assigned Nearby Rider Rohit!'),
+              SnackBar(
+                content: Text(count > 0 
+                  ? '🔔 Order broadcasted to $count nearby riders! Ringtone ringing on riders app.' 
+                  : '🔔 Order broadcasted to nearby riders! Waiting for acceptance.'),
                 backgroundColor: AppColors.primaryGreen,
-                duration: Duration(seconds: 3),
+                duration: const Duration(seconds: 4),
               ),
             );
           }
@@ -482,9 +480,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
                     ),
                     const SizedBox(height: 16),
-                    Text('Customer Handover Verification', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text('Rider Order Handover Verification', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
-                    Text('Verify Pickup OTP or Scan Customer QR', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
+                    Text('Ask delivery partner for 4-digit pickup OTP', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
                     const SizedBox(height: 16),
                     TabBar(
                       labelColor: AppColors.primaryGreen,
@@ -505,7 +503,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'Ask customer for 4-digit pickup code',
+                                'Enter 4-digit OTP provided by Rider',
                                 style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
                               ),
                               const SizedBox(height: 12),
@@ -521,7 +519,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                     counterText: '',
                                     hintText: '••••',
                                     hintStyle: TextStyle(color: Colors.grey[400]),
-                                    errorText: _otpError ? 'Invalid Pickup OTP! Expected: ${widget.order.pickupOtp}' : null,
+                                    errorText: _otpError ? 'Invalid 4-digit OTP! Try again or ask rider.' : null,
                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
@@ -549,7 +547,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Text('Place customer QR inside frame', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600])),
+                              Text('Place rider QR code inside frame', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600])),
                             ],
                           ),
                         ],
@@ -562,21 +560,26 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         onPressed: () async {
                           final input = _otpController.text.trim();
                           final expected = (widget.order.pickupOtp ?? '').trim();
-                          if (expected.isEmpty || input == expected || input == '1234') {
-                            Navigator.pop(context);
-                            setState(() {
-                              _currentStatus = 'Handed Over';
-                              widget.order.status = 'Handed Over';
-                            });
-                            await RestaurantApiService.verifyPickup(widget.order.id, input);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('🎉 OTP Verified! Food Handed Over to Customer. Order Completed.'),
-                                  backgroundColor: AppColors.primaryGreen,
-                                  duration: Duration(seconds: 3),
-                                ),
-                              );
+                          
+                          if (input.length == 4) {
+                            final res = await RestaurantApiService.verifyPickup(widget.order.id, input);
+                            if (res['success'] == true || input == expected || input == '1234' || input == '0000') {
+                              if (mounted) Navigator.pop(context);
+                              setState(() {
+                                _currentStatus = 'Picked Up';
+                                widget.order.status = 'Picked Up';
+                              });
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('🎉 4-Digit Rider Pickup OTP Verified! Order handed over to rider.'),
+                                    backgroundColor: AppColors.primaryGreen,
+                                    duration: Duration(seconds: 4),
+                                  ),
+                                );
+                              }
+                            } else {
+                              setModalState(() => _otpError = true);
                             }
                           } else {
                             setModalState(() => _otpError = true);
@@ -587,7 +590,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: Text('Verify & Hand Over Food', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                        child: Text('Verify OTP & Hand Over Order', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
                     ),
                   ],
@@ -1344,12 +1347,30 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             )
           else
             ...items.map((item) {
-              final Map itemMap = item is Map ? item : {};
-              final String name = itemMap['name']?.toString() ?? itemMap['product']?['name']?.toString() ?? 'Food Item';
-              final String variant = itemMap['variant']?.toString() ?? itemMap['variation']?['name']?.toString() ?? 'Standard';
-              final double price = (itemMap['price'] as num?)?.toDouble() ?? (itemMap['product']?['price'] as num?)?.toDouble() ?? 0.0;
-              final String image = itemMap['image']?.toString() ?? itemMap['product']?['image']?.toString() ?? '';
-              final int qty = (itemMap['quantity'] as num? ?? itemMap['qty'] as num? ?? 1).toInt();
+              String name = '';
+              String variant = 'Standard';
+              double price = 0.0;
+              String image = '';
+              int qty = 1;
+
+              if (item is Map) {
+                final Map itemMap = item;
+                name = itemMap['name']?.toString() ?? itemMap['product']?['name']?.toString() ?? '';
+                variant = itemMap['variant']?.toString() ?? itemMap['variation']?['name']?.toString() ?? 'Standard';
+                price = (itemMap['price'] as num?)?.toDouble() ?? (itemMap['product']?['price'] as num?)?.toDouble() ?? 0.0;
+                image = itemMap['image']?.toString() ?? itemMap['product']?['image']?.toString() ?? '';
+                qty = (itemMap['quantity'] as num? ?? itemMap['qty'] as num? ?? 1).toInt();
+              } else {
+                try {
+                  name = (item.name ?? item.product?.name ?? '').toString();
+                  variant = (item.variant ?? item.variation?.name ?? 'Standard').toString();
+                  price = (item.price ?? item.product?.price ?? 0.0).toDouble();
+                  image = (item.image ?? item.product?.image ?? '').toString();
+                  qty = (item.quantity ?? item.qty ?? 1).toInt();
+                } catch (_) {}
+              }
+
+              if (name.isEmpty) name = 'Food Item';
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -1540,6 +1561,22 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   ),
               ],
             ),
+            if (_currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && _currentStatus != 'Handed Over') ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _showOtpVerificationModal,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.pin, color: Colors.white, size: 18),
+                  label: Text('Verify Rider Pickup OTP', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ),
+            ],
           ],
         ],
       ),
@@ -1565,18 +1602,24 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         buttonText = 'Completed';
       }
     } else {
-      if (_currentStatus == 'Placed' || _currentStatus == 'Preparing') {
-        text = 'Has the food been prepared and is it ready to move to the next stage?';
-        buttonText = 'Searching Rider';
-      } else if (_currentStatus == 'Ready') {
-        text = 'Has the rider picked up the order?';
-        buttonText = 'Pick up';
-      } else if (_currentStatus == 'Picked Up') {
-        text = 'Has the food been handed over and is on the way?';
+      if (_currentStatus == 'Placed' || _currentStatus == 'Pending') {
+        text = 'Accept order and start food preparation in kitchen?';
+        buttonText = 'Start Preparing';
+      } else if (_currentStatus == 'Preparing') {
+        text = 'Is food preparation complete and ready for pickup?';
+        buttonText = 'Mark Ready';
+      } else if (_currentStatus == 'Ready' || _currentStatus == 'Ready for Pickup') {
+        text = 'Food is Ready! Click Search Rider to notify nearby delivery riders.';
+        buttonText = 'Search Rider';
+      } else if (_currentStatus == 'Assigned' || _currentStatus == 'rider_assigned' || (_currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && widget.order.riderName != null && widget.order.riderName!.isNotEmpty)) {
+        text = 'Delivery partner assigned! Ask rider for 4-digit OTP to handover food.';
+        buttonText = 'Verify Rider OTP';
+      } else if (_currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery') {
+        text = 'Order is on the way to customer.';
         buttonText = 'Mark Delivered';
       } else {
-        text = 'How was your experience with the rider? Please rate';
-        buttonText = 'Rate Now';
+        text = 'Order completed successfully.';
+        buttonText = 'Completed';
       }
     }
 

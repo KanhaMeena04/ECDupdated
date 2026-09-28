@@ -443,6 +443,39 @@ exports.placeOrder = async (req, res) => {
     const deliveryOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const otpExpiry = 100 * 60 * 1000; // 100 minutes
     const orderNumber = "ECD" + Date.now().toString(36).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+    
+    // Enrich cart items with Product details (name, image, price) if missing
+    const enrichedItems = await Promise.all(
+      cart.items.map(async (item) => {
+        let pName = item.name || (item.product && typeof item.product === 'object' ? item.product.name : null);
+        let pImage = item.image || (item.product && typeof item.product === 'object' ? item.product.image : null);
+        let pPrice = (typeof item.price === 'number' && item.price > 0) ? item.price : ((item.product && typeof item.product === 'object' && typeof item.product.price === 'number') ? item.product.price : null);
+
+        const prodId = item.product?._id || item.product || item.productId;
+        if ((!pName || !pPrice || !pImage) && prodId && mongoose.Types.ObjectId.isValid(prodId)) {
+          try {
+            const dbProd = await Product.findById(prodId).select('name image price basePrice pricing');
+            if (dbProd) {
+              if (!pName) pName = typeof dbProd.name === 'object' ? (dbProd.name.en || Object.values(dbProd.name)[0]) : dbProd.name;
+              if (!pImage) pImage = dbProd.image || '';
+              if (!pPrice || pPrice === 0) pPrice = dbProd.price || dbProd.basePrice || dbProd.pricing?.b2c?.sellingPrice || 0;
+            }
+          } catch (_) {}
+        }
+
+        return {
+          product: prodId,
+          name: pName || 'Food Item',
+          image: pImage || '',
+          quantity: item.quantity || item.qty || 1,
+          price: Number(pPrice || 0),
+          variation: item.variation ? { name: item.variation.name, price: item.variation.price } : undefined,
+          addOns: item.addOns || [],
+          restaurant: restaurantId
+        };
+      })
+    );
+
     const newOrder = await Order.create({
       customer: user._id,
       orderNumber,
@@ -455,16 +488,7 @@ exports.placeOrder = async (req, res) => {
       scheduledAt: (req.body.scheduledAt || req.body.scheduledTime || req.body.pickupTime) ? new Date(req.body.scheduledAt || req.body.scheduledTime || req.body.pickupTime) : undefined,
       deliveryOtp,
       deliveryOtpExpiresAt: new Date(Date.now() + otpExpiry),
-      items: cart.items.map((item) => ({
-        product: item.product,
-        name: item.name || item.product?.name,
-        image: item.image || item.product?.image || "",
-        quantity: item.quantity || 1,
-        price: item.price || item.product?.price || 0,
-        variation: item.variation ? { name: item.variation.name, price: item.variation.price } : undefined,
-        addOns: item.addOns,
-        restaurant: restaurantId
-      })),
+      items: enrichedItems,
       itemTotal: bill.itemTotal,
       tax: bill.tax,
       deliveryFee: isSelfPickup ? 0 : bill.deliveryFee,
@@ -2065,7 +2089,7 @@ exports.searchRidersForOrder = async (req, res) => {
     if (order.rider) {
       return res.status(400).json({ message: "Order already assigned to a rider" });
     }
-    if (!['accepted', 'ready'].includes(order.status)) {
+    if (!['placed', 'accepted', 'preparing', 'ready'].includes(order.status)) {
       return res.status(400).json({
         message: "Order is not eligible for rider search",
         status: order.status,
@@ -2206,6 +2230,12 @@ exports.trackOrder = async (req, res) => {
     if (order.restaurant?.location?.coordinates?.length === 2) {
       restLng = Number(order.restaurant.location.coordinates[0]);
       restLat = Number(order.restaurant.location.coordinates[1]);
+    } else if (order.restaurant) {
+      const restDoc = await Restaurant.findById(order.restaurant._id || order.restaurant).select('location');
+      if (restDoc?.location?.coordinates?.length === 2) {
+        restLng = Number(restDoc.location.coordinates[0]);
+        restLat = Number(restDoc.location.coordinates[1]);
+      }
     }
 
     if (order.deliveryAddress?.coordinates?.length === 2) {
@@ -3370,7 +3400,7 @@ exports.verifyPickupVendor = async (req, res) => {
     const orderFilter = isObjectId
       ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
       : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
-    const order = await Order.findOne(orderFilter).populate('customer').populate('restaurant');
+    const order = await Order.findOne(orderFilter).populate('customer').populate('restaurant').populate('rider');
     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
 
     const expectedOtp = (order.pickupOtp || order.pickupOTP || order.selfPickupCode || "").toString().trim();
@@ -3391,6 +3421,8 @@ exports.verifyPickupVendor = async (req, res) => {
     });
     await order.save();
 
+    const riderName = (order.rider && order.rider.name) ? order.rider.name : 'Delivery partner';
+
     const socketService = require("../services/socketService");
     const { sendNotification } = require("../utils/notificationService");
 
@@ -3398,24 +3430,26 @@ exports.verifyPickupVendor = async (req, res) => {
       orderId: order._id.toString(),
       status: "picked_up",
       oldStatus,
-      message: "Your order is on the way!",
+      message: `🚀 Out for Delivery! ${riderName} has picked up your order and is on the way!`,
+      riderName: riderName,
       timestamp: new Date()
     };
 
     if (order.customer?._id) {
       socketService.emitToCustomer(order.customer._id.toString(), "order:status", updateData);
+      socketService.emitToCustomer(order.customer._id.toString(), "order:picked_up", updateData);
       try {
         await sendNotification(
           order.customer._id,
           "🚀 Out for Delivery!",
-          "Delivery partner has picked up your order and is on the way!",
+          `Your order is on the way! ${riderName} has picked up your order from the restaurant.`,
           { orderId: order._id.toString(), status: "picked_up", type: "order_status" }
         );
       } catch (_) {}
     }
 
     if (order.rider) {
-      const riderUserId = order.rider.user ? order.rider.user.toString() : order.rider.toString();
+      const riderUserId = order.rider.user ? order.rider.user.toString() : order.rider._id.toString();
       socketService.emitToRider(riderUserId, "order:status", updateData);
       socketService.emitToRider(riderUserId, "order:picked_up", updateData);
     }
@@ -3428,7 +3462,7 @@ exports.verifyPickupVendor = async (req, res) => {
       }
     } catch (_) {}
 
-    return res.status(200).json({ success: true, message: "Pickup 4-digit OTP verified successfully!", order });
+    return res.status(200).json({ success: true, message: "Rider pickup OTP verified successfully! Order is out for delivery.", order });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

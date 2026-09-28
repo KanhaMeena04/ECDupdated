@@ -3978,6 +3978,10 @@ exports.acceptOrder = async (req, res) => {
     if (orderToValidate.status === 'cancelled') {
       return res.status(400).json({ message: "Order has been cancelled" });
     }
+    const pickupOtp = (orderToValidate.pickupOtp && String(orderToValidate.pickupOtp).length === 4)
+      ? String(orderToValidate.pickupOtp)
+      : Math.floor(1000 + Math.random() * 9000).toString();
+
     const order = await Order.findOneAndUpdate(
       {
         _id: orderId,
@@ -3988,6 +3992,7 @@ exports.acceptOrder = async (req, res) => {
         $set: {
           rider: riderId,
           status: "assigned",       // ✅ FIXED: Change to "assigned" when rider accepts
+          pickupOtp: pickupOtp,
           "riderNotificationStatus.acceptedBy": riderId
         },
         $push: {
@@ -4033,6 +4038,29 @@ exports.acceptOrder = async (req, res) => {
       "rider",
     );
     await Rider.findOneAndUpdate({ user: riderUserId }, { isAvailable: false });
+
+    // Send 4-digit Pickup OTP via SMS and Push Notification to Rider's Phone Number
+    try {
+      const riderUserObj = await User.findById(riderUserId);
+      const riderMobile = riderUserObj?.mobile || riderProfile.contactNumber || riderProfile.phone;
+      if (riderMobile) {
+        const orderNum = order.orderId || order._id.toString().slice(-6);
+        console.log(`📱 Sending 4-digit Pickup OTP ${pickupOtp} via SMS to Rider mobile: ${riderMobile} for Order #${orderNum}`);
+        await sendOTP(riderMobile, pickupOtp);
+      }
+    } catch (smsErr) {
+      console.error("SMS dispatch error for rider pickup OTP:", smsErr.message);
+    }
+
+    try {
+      await sendNotification(
+        riderUserId,
+        "🔑 Order Pickup OTP",
+        `Your 4-digit Pickup OTP for Order #${order.orderId || order._id.toString().slice(-6)} is ${pickupOtp}. Tell this OTP to the restaurant owner upon arrival for pickup.`,
+        { orderId: order._id.toString(), pickupOtp, type: "pickup_otp" }
+      );
+    } catch (e) { }
+
     try {
       await sendNotification(
         order.customer,

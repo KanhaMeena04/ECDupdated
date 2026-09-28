@@ -271,12 +271,26 @@ class RestaurantApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> cancelOrder(String orderId, String reason) async {
+  static Future<Map<String, dynamic>> searchRiders(String orderId) async {
     try {
       final response = await http.post(
-        Uri.parse(ApiConstants.cancelOrder(orderId)),
+        Uri.parse('${ApiConstants.baseUrl}/orders/$orderId/search-riders'),
         headers: _getHeaders(),
-        body: jsonEncode({'reason': reason}),
+      ).timeout(const Duration(seconds: 15));
+
+      final data = jsonDecode(response.body);
+      return {'success': response.statusCode >= 200 && response.statusCode < 300, 'data': data, 'message': data['message']};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  static Future<Map<String, dynamic>> verifyPickup(String orderId, String otp) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}/orders/restaurant/verify-pickup/$orderId'),
+        headers: _getHeaders(),
+        body: jsonEncode({'otp': otp, 'code': otp}),
       ).timeout(const Duration(seconds: 15));
 
       final data = jsonDecode(response.body);

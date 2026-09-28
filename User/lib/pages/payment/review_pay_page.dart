@@ -532,7 +532,11 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
       'paymentMethod': isCod ? 'cod' : 'online',
       'items': cart.items
           .map((item) => ({
+                'product': item.product.id,
                 'productId': item.product.id,
+                'name': item.product.name,
+                'image': item.product.image,
+                'price': item.product.price,
                 'quantity': item.quantity,
               }))
           .toList(),
