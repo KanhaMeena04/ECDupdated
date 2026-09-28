@@ -28,7 +28,7 @@ class Order {
   int gracePeriodMinutes;
   DateTime? readyAt;
   DateTime? cancelledAt;
-  String? cancellationReason;
+  final String paymentMethod;
 
   Order({
     required this.id,
@@ -46,6 +46,7 @@ class Order {
     this.pickupOtp,
     this.items = const [],
     this.orderType = 'delivery',
+    this.paymentMethod = 'Online Payment',
     this.pickupTime,
     this.createdAt,
     this.address = '',
@@ -215,6 +216,18 @@ class Order {
       }
     }
 
+    String parsedPaymentMethod = 'Via Online Payment';
+    final rawPay = (json['paymentMethod'] ?? json['paymentMode'] ?? json['paymentType'] ?? '').toString().toLowerCase();
+    if (rawPay == 'cod' || rawPay == 'cash_on_delivery' || rawPay == 'cash') {
+      parsedPaymentMethod = 'Cash on Delivery';
+    } else if (rawPay == 'wallet') {
+      parsedPaymentMethod = 'Via Wallet Payment';
+    } else if (rawPay.contains('online') || rawPay.contains('upi') || rawPay.contains('razorpay') || rawPay.contains('card') || rawPay == 'paid') {
+      parsedPaymentMethod = 'Via Online Payment';
+    } else if (json['paymentMethod'] != null && json['paymentMethod'].toString().isNotEmpty) {
+      parsedPaymentMethod = json['paymentMethod'].toString();
+    }
+
     return Order(
       id: json['orderNumber']?.toString() ?? json['_id']?.toString() ?? 'N/A',
       backendId: json['_id']?.toString() ?? '',
@@ -230,6 +243,7 @@ class Order {
       riderPhone: parsedRiderPhone,
       items: parsedItems,
       orderType: isPickup ? 'pickup' : (json['orderType']?.toString() ?? 'delivery'),
+      paymentMethod: parsedPaymentMethod,
       pickupTime: json['pickupTime']?.toString() ?? json['scheduledAt']?.toString() ?? json['scheduledTime']?.toString(),
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
       address: parsedAddress,

@@ -578,9 +578,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _rejectOrder(Order order) async {
     setState(() {
-      _orders.removeWhere((o) => o.id == order.id);
+      _orders.removeWhere((o) => o.id == order.id || o.backendId == order.backendId);
     });
-    await RestaurantApiService.cancelOrder(order.id, 'Rejected by restaurant');
+    final targetId = order.backendId.isNotEmpty ? order.backendId : order.id;
+    await RestaurantApiService.cancelOrder(targetId, 'Rejected by restaurant');
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -589,6 +590,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
           duration: Duration(seconds: 2),
         ),
       );
+    }
+  }
+
+  void _deleteOrder(Order order) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete Order', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to delete order #${order.id}? It will be permanently removed.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            child: Text('Delete', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() {
+        _orders.removeWhere((o) => o.id == order.id || o.backendId == order.backendId);
+      });
+      final targetId = order.backendId.isNotEmpty ? order.backendId : order.id;
+      await RestaurantApiService.deleteOrder(targetId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Order permanently deleted.'),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -1284,30 +1324,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        order.customerName,
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              order.customerName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: Text(
+                              '#${order.id}',
+                              style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
+                            ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         order.address,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: Colors.grey[500],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: order.paymentMethod.toLowerCase().contains('cod') || order.paymentMethod.toLowerCase().contains('cash')
+                              ? Colors.amber.shade50
+                              : Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          order.paymentMethod,
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: order.paymentMethod.toLowerCase().contains('cod') || order.paymentMethod.toLowerCase().contains('cash')
+                                ? Colors.amber.shade900
+                                : Colors.blue.shade900,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right, color: Colors.black87),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order)),
-                  ).then((_) => setState(() {})),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+                      tooltip: 'Delete Order',
+                      onPressed: () => _deleteOrder(order),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right, color: Colors.black87),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order)),
+                      ).then((_) => _fetchLiveOrders(isSilent: true)),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1544,6 +1638,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // 3. Ready / Ready for Pickup
     if (s == 'ready' || s == 'ready_for_pickup' || s == 'ready for pickup') {
+      final hasRider = order.riderName != null && order.riderName!.isNotEmpty;
+      if (hasRider) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                '🚴 Rider ${order.riderName} Assigned! Ask 4-digit OTP.',
+                style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order))).then((_) => _fetchLiveOrders(isSilent: true)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              ),
+              child: Text(
+                'Verify Rider OTP',
+                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+            ),
+          ],
+        );
+      }
       if (isSelfPickup) {
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1572,11 +1696,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '✅ Food Ready! Broadcast to riders',
+            '✅ Food Ready! Click Search Rider',
             style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order))).then((_) => _fetchLiveOrders(isSilent: true)),
+            onPressed: () async {
+              final targetId = order.backendId.isNotEmpty ? order.backendId : order.id;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('🔍 Searching nearby delivery riders...'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)),
+              );
+              await RestaurantApiService.searchRiders(targetId);
+              _fetchLiveOrders(isSilent: true);
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange[800],
               elevation: 0,

@@ -45,6 +45,39 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     super.dispose();
   }
 
+  void _deleteOrderFromDetails() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete Order', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Text('Are you sure you want to permanently delete order #${widget.order.id}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            child: Text('Delete', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final targetId = widget.order.backendId.isNotEmpty ? widget.order.backendId : widget.order.id;
+      await RestaurantApiService.deleteOrder(targetId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order permanently deleted.'), backgroundColor: Colors.redAccent),
+        );
+        Navigator.pop(context, true);
+      }
+    }
+  }
+
   Future<void> _advanceOrderState() async {
     final orderId = widget.order.id;
     if (widget.order.isSelfPickup) {
@@ -812,16 +845,26 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                 child: const Icon(Icons.arrow_back, color: Colors.black87, size: 20),
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: widget.order.isSelfPickup ? Colors.orange : AppColors.primaryGreen,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                widget.order.isSelfPickup ? 'SELF PICKUP' : 'DELIVERY',
-                                style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  onPressed: _deleteOrderFromDetails,
+                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 24),
+                                  tooltip: 'Delete Order',
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: widget.order.isSelfPickup ? Colors.orange : AppColors.primaryGreen,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    widget.order.isSelfPickup ? 'SELF PICKUP' : 'DELIVERY',
+                                    style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -1461,7 +1504,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           const Divider(height: 20),
           _buildInfoRow('Order ID', '#${widget.order.id}'),
           const SizedBox(height: 10),
-          _buildInfoRow('Payment Method', 'Via Online Payment'),
+          _buildInfoRow('Payment Method', widget.order.paymentMethod),
         ],
       ),
     );

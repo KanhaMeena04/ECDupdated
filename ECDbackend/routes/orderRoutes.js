@@ -76,6 +76,7 @@ const {
   verifyPickupVendor,
   completePickupVendor,
   cancelOrderVendor,
+  deleteOrderVendor,
   sendPickupOtpVendor,
   notifyCustomerArrived,
   failOrderCustomer,
@@ -100,6 +101,8 @@ router.post("/restaurant/ready/:orderId", protect, readyOrderVendor);
 router.post("/restaurant/verify-pickup/:orderId", protect, verifyPickupVendor);
 router.post("/restaurant/complete-pickup/:orderId", protect, completePickupVendor);
 router.post("/restaurant/cancel/:orderId", protect, cancelOrderVendor);
+router.post("/restaurant/delete/:orderId", protect, deleteOrderVendor);
+router.delete("/restaurant/delete/:orderId", protect, deleteOrderVendor);
 router.post("/restaurant/send-pickup-otp/:orderId", protect, sendPickupOtpVendor);
 
 router.get("/:id/details", protect, generalOrderLimiter, getOrderDetails);

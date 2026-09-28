@@ -1954,14 +1954,9 @@ exports.markOrderReady = async (req, res) => {
       } catch (e) {
         console.error("Push notify error for assigned rider", e);
       }
-    } else if (order.orderType !== 'self_pickup' && order.orderType !== 'pickup' && order.orderType !== 'takeaway' && !order.isSelfPickup) {
-      // Trigger rider dispatch searching ONLY for delivery orders
-      try {
-        const riderDispatchService = require('../services/riderDispatchService');
-        riderDispatchService.findAndNotifyRider(order._id);
-      } catch (dispatchErr) {
-        logger.error("Rider dispatch error on markOrderReady", { orderId: order._id, error: dispatchErr.message });
-      }
+    } else if (false) {
+      // Manual Search Rider button will trigger rider dispatch
+    }
       try {
         if (restaurantCoords && restaurantCoords.length === 2) {
           const nearbyRiders = await Rider.find({
@@ -2098,8 +2093,8 @@ exports.searchRidersForOrder = async (req, res) => {
     const targetId = req.params.id || req.params.orderId;
     const isObjectId = mongoose.Types.ObjectId.isValid(targetId) && String(targetId).length === 24;
     const orderFilter = isObjectId
-      ? { $or: [{ _id: targetId }, { orderId: targetId }] }
-      : { orderId: targetId };
+      ? { $or: [{ _id: targetId }, { orderId: targetId }, { orderNumber: targetId }] }
+      : { $or: [{ orderId: targetId }, { orderNumber: targetId }] };
 
     const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ message: "Order not found" });
@@ -2742,12 +2737,22 @@ exports.ownerRejectOrder = async (req, res) => {
     const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
 
-    const restaurant = await Restaurant.findOne({ owner: req.user._id });
-    if (
-      !restaurant ||
-      (order.restaurant.toString() !== restaurant._id.toString() && order.restaurant.toString() !== restaurant.owner.toString())
-    ) {
-      return res.status(403).json({ success: false, message: "Access denied" });
+    let restaurant = await Restaurant.findOne({ owner: req.user._id });
+    if (!restaurant) {
+      restaurant = await Restaurant.findById(req.user._id);
+    }
+    if (!restaurant && req.user.restaurantId) {
+      restaurant = await Restaurant.findById(req.user.restaurantId);
+    }
+    const isOwner = restaurant && (
+      order.restaurant.toString() === restaurant._id.toString() ||
+      (restaurant.owner && order.restaurant.toString() === restaurant.owner.toString())
+    );
+    const isAdmin = req.user.role === "admin";
+    if (!isOwner && !isAdmin) {
+      if (!restaurant || order.restaurant.toString() !== restaurant._id.toString()) {
+        return res.status(403).json({ success: false, message: "Access denied" });
+      }
     }
 
     const oldStatus = order.status;
@@ -2840,12 +2845,22 @@ exports.ownerCancelOrder = async (req, res) => {
     const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
 
-    const restaurant = await Restaurant.findOne({ owner: req.user._id });
-    if (
-      !restaurant ||
-      (order.restaurant.toString() !== restaurant._id.toString() && order.restaurant.toString() !== restaurant.owner.toString())
-    ) {
-      return res.status(403).json({ success: false, message: "Access denied" });
+    let restaurant = await Restaurant.findOne({ owner: req.user._id });
+    if (!restaurant) {
+      restaurant = await Restaurant.findById(req.user._id);
+    }
+    if (!restaurant && req.user.restaurantId) {
+      restaurant = await Restaurant.findById(req.user.restaurantId);
+    }
+    const isOwner = restaurant && (
+      order.restaurant.toString() === restaurant._id.toString() ||
+      (restaurant.owner && order.restaurant.toString() === restaurant.owner.toString())
+    );
+    const isAdmin = req.user.role === "admin";
+    if (!isOwner && !isAdmin) {
+      if (!restaurant || order.restaurant.toString() !== restaurant._id.toString()) {
+        return res.status(403).json({ success: false, message: "Access denied" });
+      }
     }
 
     if (order.status === "cancelled") {
@@ -3742,6 +3757,25 @@ exports.verifySelfPickupOTP = async (req, res) => {
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.deleteOrderVendor = async (req, res) => {
+  try {
+    const orderId = req.params.orderId || req.params.id;
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+
+    const order = await Order.findOneAndDelete(orderFilter);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    return res.status(200).json({ success: true, message: "Order permanently deleted", orderId: order._id });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 

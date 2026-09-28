@@ -300,6 +300,20 @@ class RestaurantApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> deleteOrder(String orderId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}/orders/restaurant/delete/$orderId'),
+        headers: _getHeaders(),
+      ).timeout(const Duration(seconds: 15));
+
+      final data = jsonDecode(response.body);
+      return {'success': response.statusCode == 200, 'data': data, 'message': data['message']};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ==================== MENU MANAGEMENT ====================
 
   static Future<Map<String, dynamic>> getMenu() async {
