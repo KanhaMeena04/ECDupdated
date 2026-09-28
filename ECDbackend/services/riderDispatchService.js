@@ -32,17 +32,16 @@ exports.findAndNotifyRider = async (orderId) => {
                 _id: { $nin: alreadyNotifiedRiderIds },
                 isOnline: true,
                 currentLocation: {
-                    $near: {
-                        $geometry: {
-                            type: 'Point',
-                            coordinates: restaurant.location.coordinates
-                        },
-                        $maxDistance: SEARCH_RADIUS_KM * 1000
+                    $geoWithin: {
+                        $centerSphere: [
+                            restaurant.location.coordinates,
+                            SEARCH_RADIUS_KM / 6378.1
+                        ]
                     }
                 }
             }).populate('user', 'name mobile').limit(BATCH_SIZE);
         } catch (geoErr) {
-            console.warn('[Dispatch] GeoNear error, falling back to online riders:', geoErr.message);
+            console.warn('[Dispatch] Geo query error, falling back to online riders:', geoErr.message);
         }
 
         if (nearbyRiders.length === 0) {

@@ -2046,19 +2046,27 @@ exports.searchRidersForOrder = async (req, res) => {
       order: order._id,
       status: { $in: ['timeout', 'rejected'] }
     });
-    const nearbyRiderCount = await Rider.countDocuments({
-      currentLocation: {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: [restaurantCoords[0], restaurantCoords[1]],
-          },
-          $maxDistance: 1000000, // Match dispatch service radius (1000km dev)
+    let nearbyRiderCount = 0;
+    try {
+      nearbyRiderCount = await Rider.countDocuments({
+        currentLocation: {
+          $geoWithin: {
+            $centerSphere: [
+              [restaurantCoords[0], restaurantCoords[1]],
+              1000 / 6378.1
+            ]
+          }
         },
-      },
-      isOnline: true,
-      verificationStatus: 'approved',
-    });
+        isOnline: true,
+        verificationStatus: 'approved',
+      });
+    } catch (geoCountErr) {
+      nearbyRiderCount = await Rider.countDocuments({
+        isOnline: true,
+        verificationStatus: 'approved',
+      });
+    }
+
     if (nearbyRiderCount === 0) {
       logger.info('[SearchRiders] No online riders found, emitting no_rider_found immediately', {
         orderId: order._id,
@@ -2085,20 +2093,26 @@ exports.searchRidersForOrder = async (req, res) => {
       console.warn("Error triggering rider dispatch after manual search", { error: e.message, orderId: order._id });
     }
     try {
-      const nearbyRiders = await Rider.find({
-        currentLocation: {
-          $near: {
-            $geometry: {
-              type: "Point",
-              coordinates: [restaurantCoords[0], restaurantCoords[1]],
-            },
-            $maxDistance: 100000,
+      let nearbyRiders = [];
+      try {
+        nearbyRiders = await Rider.find({
+          currentLocation: {
+            $geoWithin: {
+              $centerSphere: [
+                [restaurantCoords[0], restaurantCoords[1]],
+                1000 / 6378.1
+              ]
+            }
           },
-        },
-        isOnline: true,
-        isAvailable: true,
-        verificationStatus: 'approved',
-      }).select('_id user').limit(10);
+          isOnline: true,
+          verificationStatus: 'approved',
+        }).select('_id user').limit(10);
+      } catch (findGeoErr) {
+        nearbyRiders = await Rider.find({
+          isOnline: true,
+          verificationStatus: 'approved',
+        }).select('_id user').limit(10);
+      }
       const notificationPromises = nearbyRiders.map(async (rider) => {
         try {
           const riderUser = await User.findById(rider.user).select('_id');
