@@ -30,8 +30,6 @@ exports.findAndNotifyRider = async (orderId) => {
             nearbyRiders = await Rider.find({
                 _id: { $nin: alreadyNotifiedRiderIds },
                 isOnline: true,
-                isAvailable: true,
-                verificationStatus: 'approved',
                 currentLocation: {
                     $near: {
                         $geometry: {
@@ -49,8 +47,7 @@ exports.findAndNotifyRider = async (orderId) => {
         if (nearbyRiders.length === 0) {
             nearbyRiders = await Rider.find({
                 _id: { $nin: alreadyNotifiedRiderIds },
-                isOnline: true,
-                verificationStatus: 'approved'
+                isOnline: true
             }).populate('user', 'name mobile').limit(BATCH_SIZE);
         }
 

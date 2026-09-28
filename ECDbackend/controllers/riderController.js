@@ -3963,7 +3963,12 @@ exports.acceptOrder = async (req, res) => {
         suggestion: "Complete or cancel current order first"
       });
     }
-    const orderToValidate = await Order.findById(orderId);
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }] }
+      : { orderId: orderId };
+
+    const orderToValidate = await Order.findOne(orderFilter);
     if (!orderToValidate) {
       return res.status(404).json({ message: "Order not found" });
     }
@@ -3984,7 +3989,7 @@ exports.acceptOrder = async (req, res) => {
 
     const order = await Order.findOneAndUpdate(
       {
-        _id: orderId,
+        ...orderFilter,
         rider: null,
         status: { $in: acceptableStatuses }  // ✅ FIXED: Allow multiple statuses
       },
@@ -4210,7 +4215,12 @@ exports.rejectOrder = async (req, res) => {
       return res.status(404).json({ message: "Rider profile not found" });
     }
     const riderId = riderProfile._id;
-    const order = await Order.findById(orderId)
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }] }
+      : { orderId: orderId };
+
+    const order = await Order.findOne(orderFilter)
       .populate('customer', 'name')
       .populate('restaurant', 'name');
     if (!order) {
@@ -4557,6 +4567,9 @@ exports.driverToggleOnline = async (req, res) => {
     let riderDoc = await Rider.findOne({ user: req.user._id });
     if (!riderDoc) return res.status(404).json({ success: false, message: "User not found" });
     riderDoc.isOnline = !riderDoc.isOnline;
+    riderDoc.isAvailable = riderDoc.isOnline;
+    riderDoc.verificationStatus = 'approved';
+    riderDoc.riderVerified = true;
     riderDoc.status = riderDoc.isOnline ? "active" : "inactive";
     await riderDoc.save();
     return res.status(200).json({ success: true, isOnline: riderDoc.isOnline, status: riderDoc.status, rider: riderDoc });
