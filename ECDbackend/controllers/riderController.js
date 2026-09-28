@@ -4334,7 +4334,7 @@ exports.getMyActiveOrder = async (req, res) => {
     // 1. Check if rider has any ongoing assigned orders (up to 5)
     const activeOrders = await Order.find({
       rider: riderProfile._id,
-      status: { $in: ['assigned', 'reached_restaurant', 'picked_up', 'delivery_arrived'] }
+      status: { $in: ['placed', 'accepted', 'preparing', 'ready', 'assigned', 'rider_assigned', 'rider_accepted', 'reached_store', 'reached_restaurant', 'picked_up', 'out_for_delivery', 'delivery_arrived'] }
     })
       .populate('customer', 'name phone mobile')
       .populate('restaurant', 'name address location contactNumber phone')
@@ -4371,12 +4371,21 @@ exports.getMyActiveOrder = async (req, res) => {
         }
 
         let nextAction = {
-          action: '',
-          instruction: '',
+          action: 'GO_TO_RESTAURANT',
+          instruction: 'Navigate to restaurant to pick up the order',
+          endpoint: `/api/riders/orders/${order._id}/arrive-restaurant`,
           requiredOtp: null
         };
         switch (order.status) {
+          case 'placed':
+          case 'accepted':
+          case 'preparing':
+          case 'ready':
           case 'assigned':
+          case 'rider_assigned':
+          case 'rider_accepted':
+          case 'reached_store':
+          case 'reached_restaurant':
             nextAction = {
               action: 'GO_TO_RESTAURANT',
               instruction: 'Navigate to restaurant to pick up the order',
@@ -4385,6 +4394,7 @@ exports.getMyActiveOrder = async (req, res) => {
             };
             break;
           case 'picked_up':
+          case 'out_for_delivery':
             nextAction = {
               action: 'GO_TO_CUSTOMER',
               instruction: 'Navigate to customer to deliver the order',

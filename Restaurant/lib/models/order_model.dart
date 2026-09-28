@@ -133,17 +133,50 @@ class Order {
       }
     }
 
+    String? parsedRiderName;
+    String? parsedRiderId;
+    String? parsedRiderPhone;
+    if (json['assignedDriver'] != null && json['assignedDriver'] is Map) {
+      parsedRiderName = json['assignedDriver']['name']?.toString();
+      parsedRiderId = json['assignedDriver']['riderId']?.toString() ?? json['assignedDriver']['_id']?.toString();
+      parsedRiderPhone = json['assignedDriver']['phone']?.toString() ?? json['assignedDriver']['mobile']?.toString();
+    } else if (json['rider'] != null) {
+      if (json['rider'] is Map) {
+        final rMap = json['rider'] as Map;
+        final uMap = rMap['user'] is Map ? rMap['user'] as Map : {};
+        parsedRiderName = uMap['name']?.toString() ?? rMap['name']?.toString() ?? rMap['riderName']?.toString();
+        parsedRiderPhone = uMap['mobile']?.toString() ?? uMap['phone']?.toString() ?? rMap['phone']?.toString() ?? rMap['mobile']?.toString();
+        parsedRiderId = rMap['_id']?.toString() ?? rMap['id']?.toString();
+      } else {
+        parsedRiderId = json['rider'].toString();
+      }
+    }
+
+    if (json['riderName'] != null && (parsedRiderName == null || parsedRiderName.isEmpty)) {
+      parsedRiderName = json['riderName'].toString();
+    }
+    if (json['riderPhone'] != null && (parsedRiderPhone == null || parsedRiderPhone.isEmpty)) {
+      parsedRiderPhone = json['riderPhone'].toString();
+    }
+    if (json['riderId'] != null && (parsedRiderId == null || parsedRiderId.isEmpty)) {
+      parsedRiderId = json['riderId'].toString();
+    }
+
     String parsedStatus = 'Placed';
     final rawStatus = json['status']?.toString().toLowerCase();
     final rawDeliveryStatus = json['deliveryStatus']?.toString().toLowerCase();
 
-    if (rawStatus == 'placed' || rawStatus == 'pending' || rawStatus == 'confirmed') {
+    if (rawStatus == 'assigned' || rawStatus == 'rider_assigned' || rawStatus == 'rider_accepted' || rawStatus == 'reached_restaurant' || rawStatus == 'reached_store' || rawDeliveryStatus == 'accepted' || rawDeliveryStatus == 'assigned' || rawDeliveryStatus == 'reached_store') {
+      parsedStatus = 'Rider Assigned';
+    } else if (rawStatus == 'placed' || rawStatus == 'pending' || rawStatus == 'confirmed') {
       parsedStatus = 'Placed';
     } else if (rawStatus == 'preparing') {
       parsedStatus = 'Preparing';
     } else if (rawStatus == 'ready') {
       if (rawDeliveryStatus == 'driver_not_found') {
         parsedStatus = 'Rider Not Found';
+      } else if (parsedRiderId != null || parsedRiderName != null) {
+        parsedStatus = 'Rider Assigned';
       } else {
         parsedStatus = 'Ready';
       }
@@ -159,30 +192,15 @@ class Order {
       parsedStatus = 'Delivered';
     }
     
-    if (rawDeliveryStatus == 'accepted' || rawDeliveryStatus == 'assigned' || rawDeliveryStatus == 'reached_store') {
+    if ((parsedRiderId != null || parsedRiderName != null) && parsedStatus != 'Picked Up' && parsedStatus != 'Delivered' && parsedStatus != 'Cancelled') {
       parsedStatus = 'Rider Assigned';
-    } else if (rawDeliveryStatus == 'picked_up' && parsedStatus != 'Delivered') {
-      parsedStatus = 'Picked Up';
-    } else if (rawDeliveryStatus == 'delivered') {
-      parsedStatus = 'Delivered';
+      if (parsedRiderName == null || parsedRiderName.isEmpty) {
+        parsedRiderName = 'Delivery Partner';
+      }
     }
 
     if ((json['orderType']?.toString().toLowerCase() == 'pickup' || json['orderType']?.toString().toLowerCase() == 'self_pickup') && (rawStatus == 'ready' || rawStatus == 'preparing')) {
       parsedStatus = rawStatus == 'ready' ? 'Ready for Pickup' : 'Preparing';
-    }
-
-    String? parsedRiderName;
-    String? parsedRiderId;
-    String? parsedRiderPhone;
-    if (json['assignedDriver'] != null && json['assignedDriver'] is Map) {
-      parsedRiderName = json['assignedDriver']['name']?.toString();
-      parsedRiderId = json['assignedDriver']['riderId']?.toString() ?? '#RID-${json['assignedDriver']['_id']?.toString().substring(0, 4)}';
-      parsedRiderPhone = json['assignedDriver']['phone']?.toString();
-    } else if (json['rider'] != null && json['rider'] is Map) {
-      final rMap = json['rider'] as Map;
-      final uMap = rMap['user'] is Map ? rMap['user'] as Map : {};
-      parsedRiderName = uMap['name']?.toString() ?? rMap['name']?.toString();
-      parsedRiderPhone = uMap['mobile']?.toString() ?? rMap['phone']?.toString();
     }
 
     double parsedAmount = 0.0;

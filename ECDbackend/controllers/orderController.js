@@ -1113,8 +1113,8 @@ exports.getRestaurantOrders = async (req, res) => {
     const orders = await Order.find({ restaurant: restaurant._id })
       .populate("customer", "name email mobile phone")
       .populate("items.product", "name image price")
-      .populate("rider", "user rating")
-      .populate("rider.user", "name mobile profilePic")
+      .populate("rider", "user rating name phone mobile vehicle")
+      .populate("rider.user", "name mobile profilePic phone")
       .select('-timeline -riderNotificationStatus')
       .sort({ createdAt: -1 });
     const formattedOrders = orders.map((order) => {
