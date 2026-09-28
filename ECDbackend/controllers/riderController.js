@@ -3989,16 +3989,22 @@ exports.acceptOrder = async (req, res) => {
       ? String(orderToValidate.pickupOtp)
       : Math.floor(1000 + Math.random() * 9000).toString();
 
+    const riderUserObj = await User.findById(riderUserId);
+    const riderPhoneVal = riderUserObj?.mobile || riderUserObj?.phone || riderProfile.contactNumber || riderProfile.phone || riderProfile.mobile || "";
+    const riderNameVal = riderProfile.name || riderUserObj?.name || "Rider Partner";
+
     const order = await Order.findOneAndUpdate(
       {
         ...orderFilter,
         rider: null,
-        status: { $in: acceptableStatuses }  // ✅ FIXED: Allow multiple statuses
+        status: { $in: acceptableStatuses }
       },
       {
         $set: {
           rider: riderId,
-          status: "assigned",       // ✅ FIXED: Change to "assigned" when rider accepts
+          riderName: riderNameVal,
+          riderPhone: riderPhoneVal,
+          status: "assigned",
           pickupOtp: pickupOtp,
           "riderNotificationStatus.acceptedBy": riderId
         },
@@ -4034,8 +4040,8 @@ exports.acceptOrder = async (req, res) => {
     logRiderAssignment(order._id, riderId, order.restaurant, "manual");
     logOrderTransition(
       order._id,
-      orderToValidate.status,  // Old status (accepted/preparing/ready)
-      "assigned",              // New status
+      orderToValidate.status,
+      "assigned",
       riderUserId,
       "rider",
     );
@@ -4044,8 +4050,7 @@ exports.acceptOrder = async (req, res) => {
 
     // Send 4-digit Pickup OTP via SMS and Push Notification to Rider's Phone Number
     try {
-      const riderUserObj = await User.findById(riderUserId);
-      const riderMobile = riderUserObj?.mobile || riderProfile.contactNumber || riderProfile.phone;
+      const riderMobile = riderPhoneVal;
       if (riderMobile) {
         const orderNum = order.orderId || order._id.toString().slice(-6);
         console.log(`📱 Sending 4-digit Pickup OTP ${pickupOtp} via SMS to Rider mobile: ${riderMobile} for Order #${orderNum}`);
@@ -4079,8 +4084,11 @@ exports.acceptOrder = async (req, res) => {
       const assignmentData = {
         orderId: order._id,
         riderId: riderId,
-        riderName: riderProfile.name || "Rider",
+        riderName: riderNameVal,
+        riderPhone: riderPhoneVal,
+        riderMobile: riderPhoneVal,
         status: "assigned",
+        deliveryStatus: "assigned",
         timestamp: new Date(),
       };
       socketService.emitToCustomer(

@@ -20,6 +20,8 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Rider",
     },
+    riderName: { type: String },
+    riderPhone: { type: String },
     idempotencyKey: {
       type: String,
       required: true,

@@ -8,6 +8,8 @@ import '../models/order_model.dart';
 import '../services/restaurant_api_service.dart';
 import '../theme/app_colors.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 class OrderDetailsScreen extends StatefulWidget {
   final Order order;
   const OrderDetailsScreen({super.key, required this.order});
@@ -25,6 +27,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   final TextEditingController _prepNoteController = TextEditingController();
   final TextEditingController _bufferReasonController = TextEditingController();
   bool _otpError = false;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -35,14 +38,60 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     _selectedBufferTime = widget.order.bufferTimeMinutes;
     _prepNoteController.text = widget.order.prepNote ?? '';
     _bufferReasonController.text = widget.order.bufferReason ?? '';
+    _fetchFreshOrderDetails();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) _fetchFreshOrderDetails(isSilent: true);
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _otpController.dispose();
     _prepNoteController.dispose();
     _bufferReasonController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchFreshOrderDetails({bool isSilent = false}) async {
+    try {
+      final targetId = widget.order.backendId.isNotEmpty ? widget.order.backendId : widget.order.id;
+      final token = ApiConstants.authToken;
+      final res = await http.get(
+        Uri.parse('${ApiConstants.baseUrl}/orders/restaurant/$targetId/details'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final orderJson = data['data'] ?? data['order'] ?? data;
+        if (orderJson != null && orderJson is Map<String, dynamic>) {
+          final updatedOrder = Order.fromJson(orderJson);
+          if (mounted) {
+            setState(() {
+              _currentStatus = updatedOrder.status;
+              widget.order.status = updatedOrder.status;
+              if (updatedOrder.riderName != null && updatedOrder.riderName!.isNotEmpty) {
+                widget.order.riderName = updatedOrder.riderName;
+              }
+              if (updatedOrder.riderPhone != null && updatedOrder.riderPhone!.isNotEmpty) {
+                widget.order.riderPhone = updatedOrder.riderPhone;
+              }
+              if (updatedOrder.riderId != null && updatedOrder.riderId!.isNotEmpty) {
+                widget.order.riderId = updatedOrder.riderId;
+              }
+              if (updatedOrder.pickupOtp != null && updatedOrder.pickupOtp!.isNotEmpty) {
+                widget.order.pickupOtp = updatedOrder.pickupOtp;
+              }
+              widget.order.customerArrived = updatedOrder.customerArrived;
+              _customerArrived = updatedOrder.customerArrived;
+            });
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   void _deleteOrderFromDetails() async {
@@ -1014,12 +1063,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildProgressStepTracker() {
+    final s = _currentStatus.toLowerCase().trim();
+    if (s == 'picked_up' || s == 'out_for_delivery' || s == 'delivered' || s == 'handed over' || s == 'completed') {
+      return const SizedBox.shrink();
+    }
+
     final steps = widget.order.isSelfPickup
         ? ['Accept', 'Preparing', 'Ready', 'Arrived', 'Handover']
         : ['Prepared', 'Ready', 'Pickup', 'Delivered'];
 
     int activeIndex = 0;
-    final s = _currentStatus.toLowerCase().trim();
     if (widget.order.isSelfPickup) {
       if (s == 'pending' || s == 'placed') {
         activeIndex = 0;
@@ -1555,7 +1608,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildRiderDetailsCard() {
-    final hasRider = widget.order.riderName != null && widget.order.riderName!.isNotEmpty;
+    final hasRider = (widget.order.riderName != null && widget.order.riderName!.isNotEmpty) || (widget.order.riderId != null && widget.order.riderId!.isNotEmpty);
 
     return Container(
       width: double.infinity,
@@ -1597,19 +1650,44 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.order.riderName!, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
-                      if (widget.order.riderPhone != null)
+                      Text(
+                        (widget.order.riderName != null && widget.order.riderName!.isNotEmpty) ? widget.order.riderName! : 'Delivery Partner',
+                        style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                      ),
+                      if (widget.order.riderPhone != null && widget.order.riderPhone!.isNotEmpty)
                         Text(widget.order.riderPhone!, style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600])),
                     ],
                   ),
                 ),
-                if (widget.order.riderPhone != null && widget.order.riderPhone!.isNotEmpty)
-                  ElevatedButton.icon(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-                    icon: const Icon(Icons.call, size: 14, color: Colors.white),
-                    label: Text('Call Now', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                if (widget.order.riderPhone != null && widget.order.riderPhone!.isNotEmpty) ...[
+                  IconButton(
+                    onPressed: () async {
+                      final uri = Uri.parse('tel:${widget.order.riderPhone}');
+                      if (await canLaunchUrl(uri)) await launchUrl(uri);
+                    },
+                    icon: const Icon(Icons.call),
+                    color: AppColors.primaryGreen,
+                    tooltip: 'Call Rider',
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
+                      padding: const EdgeInsets.all(8),
+                    ),
                   ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    onPressed: () async {
+                      final uri = Uri.parse('sms:${widget.order.riderPhone}');
+                      if (await canLaunchUrl(uri)) await launchUrl(uri);
+                    },
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    color: Colors.blue[700],
+                    tooltip: 'Chat / SMS Rider',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  ),
+                ],
               ],
             ),
             if (_currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && _currentStatus != 'Handed Over') ...[
@@ -1635,6 +1713,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildBottomActionBar() {
+    final s = _currentStatus.toLowerCase().trim();
+    if (s == 'picked_up' || s == 'out_for_delivery' || s == 'delivered' || s == 'handed over' || s == 'completed') {
+      return const SizedBox.shrink();
+    }
     String text = '';
     String buttonText = '';
 
