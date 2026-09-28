@@ -294,7 +294,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (_isRingtonePlaying) return;
       _isRingtonePlaying = true;
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
-      await _audioPlayer.play(AssetSource('audio/notification.ogg'));
+      await _audioPlayer.play(AssetSource('audio/ordertone.mpeg'));
     } catch (e) {
       debugPrint('Error playing ringtone: $e');
     }

@@ -21,6 +21,7 @@ import '../order/order_tracking_screen.dart';
 import '../wallet/rider_wallet_screen.dart';
 import 'widgets/notifications_sheet.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -40,6 +41,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   late AnimationController _timerController;
   Timer? _pollingTimer;
   StreamSubscription? _notificationSub;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isRingtonePlaying = false;
 
   // ECD Kart brand colors
   static const Color primaryGreen = Color(0xFF248C70);
@@ -98,6 +101,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     )..addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         if (mounted && _showIncomingOrder) {
+          _stopOrderRingtone();
           final state = context.read<DriverBloc>().state;
           final activeOrder = state.orders.isNotEmpty ? state.orders.first : null;
           if (activeOrder != null && activeOrder['deliveryStatus'] == 'driver_notified') {
@@ -341,12 +345,34 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     context.read<DriverBloc>().add(MarkReachedStore(currentUser: user));
   }
 
+  void _playOrderRingtone() async {
+    try {
+      if (_isRingtonePlaying) return;
+      _isRingtonePlaying = true;
+      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer.play(AssetSource('ordertone.mpeg'));
+    } catch (e) {
+      debugPrint('Error playing ringtone: $e');
+    }
+  }
+
+  void _stopOrderRingtone() async {
+    try {
+      _isRingtonePlaying = false;
+      await _audioPlayer.stop();
+    } catch (e) {
+      debugPrint('Error stopping ringtone: $e');
+    }
+  }
+
   @override
   void dispose() {
+    _stopOrderRingtone();
     _notificationSub?.cancel();
     _stopLocationTracking();
     _timerController.dispose();
     _pollingTimer?.cancel();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -379,6 +405,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         BlocListener<DriverBloc, DriverState>(
           listener: (context, state) {
             if (state is OnlineStatusUpdated) {
+              _stopOrderRingtone();
               final authState = context.read<AuthBloc>().state;
               final isVerified = authState is Authenticated && authState.user.isVerified;
               setState(() => _isOnline = isVerified ? state.isOnline : false);
@@ -461,8 +488,19 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 final processKey = '${activeOrder['_id']}_${activeOrder['updatedAt'] ?? ''}';
                 if (activeOrder['deliveryStatus'] == 'driver_notified' && !_showIncomingOrder && !_processedOrders.contains(processKey)) {
                   setState(() => _showIncomingOrder = true);
+                  _playOrderRingtone();
                   _timerController.reset();
                   _timerController.forward();
+                } else if (activeOrder['deliveryStatus'] != 'driver_notified' || _processedOrders.contains(processKey)) {
+                  if (_showIncomingOrder || _isRingtonePlaying) {
+                    _stopOrderRingtone();
+                    setState(() => _showIncomingOrder = false);
+                  }
+                }
+              } else {
+                if (_showIncomingOrder || _isRingtonePlaying) {
+                  _stopOrderRingtone();
+                  setState(() => _showIncomingOrder = false);
                 }
               }
             }
@@ -1194,6 +1232,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
 
               if (direction == DismissDirection.startToEnd) {
                 // Accept
+                _stopOrderRingtone();
                 if (orderId != null) {
                   _processedOrders.add(processKey!);
                   context.read<DriverBloc>().add(AcceptOrder(orderId: orderId));
@@ -1203,6 +1242,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 return true;
               } else if (direction == DismissDirection.endToStart) {
                 // Deny
+                _stopOrderRingtone();
                 if (orderId != null) {
                   _processedOrders.add(processKey!);
                   context.read<DriverBloc>().add(DeclineOrder(orderId: orderId));
