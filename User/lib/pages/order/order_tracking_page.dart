@@ -57,6 +57,23 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
   Timer? _pollingTimer;
 
+  String _cleanRestaurantName(dynamic rawName) {
+    if (rawName == null) return 'Restaurant';
+    final str = rawName.toString().trim();
+    if (str.isEmpty) return 'Restaurant';
+    if (str.contains('{en:')) {
+      final match = RegExp(r'\{en:\s*([^}]+)\}').firstMatch(str);
+      if (match != null) return match.group(1)?.trim() ?? str;
+    }
+    if (str.startsWith('{') && str.endsWith('}')) {
+      try {
+        final decoded = jsonDecode(str);
+        if (decoded is Map && decoded.containsKey('en')) return decoded['en'].toString();
+      } catch (_) {}
+    }
+    return str;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -107,10 +124,14 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
           setState(() {
             _trackingData = data;
             final status = (data['status'] ?? data['order']?['status'] ?? 'pending').toString().toLowerCase();
-            final rider = data['rider'];
-            final isDelivery = widget.orderType == 'delivery';
+            final isSelfPickup = widget.orderType == 'pickup' ||
+                widget.orderType == 'self_pickup' ||
+                data['orderType'] == 'self_pickup' ||
+                data['orderType'] == 'pickup' ||
+                data['isSelfPickup'] == true ||
+                data['order']?['isSelfPickup'] == true;
 
-            if (isDelivery && (status == 'ready' || status == 'ready_for_pickup' || status == 'searching_for_rider') && rider == null) {
+            if (!isSelfPickup && (status == 'ready' || status == 'ready_for_pickup' || status == 'searching_for_rider') && rider == null) {
               _isFindingDriver = true;
             } else {
               _isFindingDriver = false;
@@ -464,7 +485,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             ),
           );
         },
-        child: widget.orderType == 'pickup'
+        child: (widget.orderType == 'pickup' || widget.orderType == 'self_pickup' || _trackingData?['orderType'] == 'self_pickup' || _trackingData?['orderType'] == 'pickup' || _trackingData?['isSelfPickup'] == true || _trackingData?['order']?['isSelfPickup'] == true)
             ? KeyedSubtree(
                 key: ValueKey('pickup_stage_$_pickupStage'),
                 child: _buildSelfPickupTrackingState(),
@@ -695,7 +716,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                                   Text(
                                     widget.pickupOtp.isNotEmpty
                                         ? widget.pickupOtp
-                                        : (_trackingData?['pickupOtp'] ?? _trackingData?['order']?['pickupOtp'] ?? _trackingData?['selfPickupCode'] ?? '1234').toString(),
+                                        : (_trackingData?['pickupOtp'] ?? _trackingData?['order']?['pickupOtp'] ?? _trackingData?['selfPickupCode'] ?? '----').toString(),
                                     style: const TextStyle(
                                       fontSize: 28,
                                       fontWeight: FontWeight.w900,
@@ -709,7 +730,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                                     onPressed: () {
                                       final otpText = widget.pickupOtp.isNotEmpty
                                           ? widget.pickupOtp
-                                          : (_trackingData?['pickupOtp'] ?? _trackingData?['order']?['pickupOtp'] ?? _trackingData?['selfPickupCode'] ?? '1234').toString();
+                                          : (_trackingData?['pickupOtp'] ?? _trackingData?['order']?['pickupOtp'] ?? _trackingData?['selfPickupCode'] ?? '----').toString();
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(content: Text('OTP $otpText copied!')),
                                       );
@@ -866,7 +887,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              widget.restaurantName,
+                              _cleanRestaurantName(_trackingData?['restaurant']?['name'] ?? widget.restaurantName),
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
@@ -1063,7 +1084,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     final itemName = firstItem != null 
         ? (firstItem['name'] ?? firstItem['product']?['name'] ?? 'Order Item').toString() 
         : 'Order Item';
-    final restName = (_trackingData?['restaurant']?['name'] ?? widget.restaurantName).toString();
+    final restName = _cleanRestaurantName(_trackingData?['restaurant']?['name'] ?? widget.restaurantName);
 
     final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
     final isWaitingRestaurant = status == 'pending' || status == 'placed' || status == 'created';

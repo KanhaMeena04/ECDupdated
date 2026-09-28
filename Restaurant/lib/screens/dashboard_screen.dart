@@ -550,6 +550,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ).timeout(const Duration(seconds: 5));
                     } catch (_) {}
                     await RestaurantApiService.prepareOrder(order.id);
+                    _fetchLiveOrders(isSilent: true);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -558,6 +559,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           duration: const Duration(seconds: 2),
                         ),
                       );
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order)),
+                      ).then((_) => _fetchLiveOrders(isSilent: true));
                     }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
@@ -609,7 +614,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               order.riderName = 'Ramesh Kumar (Rider)';
               order.riderPhone = '+91 98765 43210';
               if (!_otpControllers.containsKey(order.id)) {
-                _otpControllers[order.id] = TextEditingController(text: '1234');
+                _otpControllers[order.id] = TextEditingController();
               }
             });
             ScaffoldMessenger.of(context).showSnackBar(
@@ -700,18 +705,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _handlePickup(Order order) async {
-    setState(() {
-      order.status = 'Picked Up';
-    });
-    await RestaurantApiService.verifyPickup(order.id, '1234');
-    if (mounted) {
+    final enteredOtp = _otpControllers[order.id]?.text.trim() ?? '';
+    if (enteredOtp.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Order picked up by rider!'),
-          backgroundColor: AppColors.primaryGreen,
-          duration: Duration(seconds: 2),
+          content: Text('Please enter 4-digit OTP'),
+          backgroundColor: Colors.red,
         ),
       );
+      return;
+    }
+    final res = await RestaurantApiService.verifyPickup(order.id, enteredOtp);
+    if (res['success'] == true) {
+      setState(() {
+        order.status = 'Picked Up';
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Order picked up by rider!'),
+            backgroundColor: AppColors.primaryGreen,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['message'] ?? 'Invalid Pickup OTP'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -742,7 +768,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   bool _isOrderPickupType(Order o) {
-    return o.isSelfPickup || o.orderType.toLowerCase() == 'pickup' || o.orderType.toLowerCase() == 'self_pickup';
+    return o.isSelfPickup || o.orderType.toLowerCase() == 'pickup' || o.orderType.toLowerCase() == 'self_pickup' || o.orderType.toLowerCase() == 'takeaway';
   }
 
   int _getCountForStatus(String status) {
@@ -750,6 +776,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final bool matchesType = _selectedOrderType == 'pickup' ? _isOrderPickupType(o) : !_isOrderPickupType(o);
       if (!matchesType) return false;
       if (status == 'Ready') return o.status == 'Ready' || o.status == 'Ready for Pickup';
+      if (status == 'Delivered') return o.status == 'Delivered' || o.status == 'Handed Over' || o.status == 'Picked Up' || o.status == 'Completed';
       return o.status == status;
     }).length;
   }
@@ -780,6 +807,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (!matchesType) return false;
       if (_selectedStatusFilter == 'All') return true;
       if (_selectedStatusFilter == 'Ready') return o.status == 'Ready' || o.status == 'Ready for Pickup';
+      if (_selectedStatusFilter == 'Delivered') return o.status == 'Delivered' || o.status == 'Handed Over' || o.status == 'Picked Up' || o.status == 'Completed';
       return o.status == _selectedStatusFilter;
     }).toList();
 
@@ -1437,84 +1465,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // State Action Section matching exact reference images
+  // State Action Section matching real backend order lifecycle
   Widget _buildCardActionArea(Order order) {
-    if (order.isSelfPickup) {
-      if (order.status == 'Placed' || order.status == 'Pending') {
-        return Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => _rejectOrder(order),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.primaryGreen, width: 1.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: Text(
-                  'Reject',
-                  style: GoogleFonts.poppins(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order))).then((_) => setState(() {})),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryGreen,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: Text(
-                  'Accept Order',
-                  style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-              ),
-            ),
-          ],
-        );
-      } else if (order.status == 'Preparing' || order.status == 'Ready' || order.status == 'Ready for Pickup') {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              order.customerArrived ? '🔔 Customer at Counter!' : 'Self Pickup Verification',
-              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order))).then((_) => setState(() {})),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: order.customerArrived ? Colors.orange : AppColors.primaryGreen,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              ),
-              child: Text(
-                order.customerArrived ? 'Verify OTP' : 'View / Handover',
-                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-            ),
-          ],
-        );
-      } else {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(10)),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Food Handed Over & Order Completed', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87)),
-              const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20),
-            ],
-          ),
-        );
-      }
-    }
+    final s = order.status.toLowerCase().trim();
+    final bool isSelfPickup = order.isSelfPickup;
 
-    final s = order.status.toLowerCase();
-    if (s == 'placed' || s == 'pending' || order.status == 'Placed' || order.status == 'Pending') {
+    // 1. Placed / Pending
+    if (s == 'placed' || s == 'pending') {
       return Row(
         children: [
           Expanded(
@@ -1527,11 +1484,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               child: Text(
                 'Reject',
-                style: GoogleFonts.poppins(
-                  color: AppColors.primaryGreen,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+                style: GoogleFonts.poppins(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
           ),
@@ -1540,124 +1493,176 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: ElevatedButton(
               onPressed: () => _acceptOrder(order),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryGreen, // Primary Green Theme
+                backgroundColor: AppColors.primaryGreen,
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               child: Text(
-                'Accept',
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+                'Accept Order',
+                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
           ),
         ],
       );
-    } else if (order.status == 'Preparing') {
+    }
+
+    // 2. Preparing / Accepted
+    if (s == 'preparing' || s == 'accepted') {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Food is ready for\npickup',
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
+            '🍳 Kitchen Preparing Food',
+            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
           ),
           ElevatedButton(
-            onPressed: () => _markSearchingRider(order),
+            onPressed: () async {
+              setState(() => order.status = 'Ready');
+              await RestaurantApiService.markOrderReady(order.id);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('✅ Food Marked Ready! Click "Search Rider" to notify nearby riders.'), backgroundColor: AppColors.primaryGreen),
+                );
+              }
+            },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryGreen, // Solid green theme button
+              backgroundColor: AppColors.primaryGreen,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             ),
             child: Text(
-              'Searching Rider',
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
+              'Mark Ready',
+              style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
         ],
       );
-    } else if (order.status == 'Ready') {
+    }
+
+    // 3. Ready / Ready for Pickup
+    if (s == 'ready' || s == 'ready_for_pickup' || s == 'ready for pickup') {
+      if (isSelfPickup) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              order.customerArrived ? '🔔 Customer Arrived at Counter!' : 'Self Pickup Verification',
+              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order))).then((_) => _fetchLiveOrders(isSilent: true)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: order.customerArrived ? Colors.orange : AppColors.primaryGreen,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              ),
+              child: Text(
+                'Verify OTP',
+                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ],
+        );
+      }
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Has the rider picked\nup your food?',
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
+            '✅ Food Ready! Broadcast to riders',
+            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
           ),
           ElevatedButton(
-            onPressed: () => _handlePickup(order),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order))).then((_) => _fetchLiveOrders(isSilent: true)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryGreen,
+              backgroundColor: Colors.orange[800],
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             ),
             child: Text(
-              'Pick up',
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
+              'Search Rider',
+              style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
         ],
       );
-    } else if (order.status == 'Picked Up') {
+    }
+
+    // 4. Assigned / Rider Assigned / Reached Store
+    if (s == 'assigned' || s == 'rider_assigned' || s == 'rider_accepted' || s == 'reached_store' || s == 'reached_restaurant' || (order.riderName != null && order.riderName!.isNotEmpty && s != 'picked_up' && s != 'out_for_delivery' && s != 'delivered')) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(
+              '🚴 Rider ${order.riderName ?? ''} Assigned! Ask 4-digit OTP.',
+              style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order))).then((_) => _fetchLiveOrders(isSilent: true)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            child: Text(
+              'Verify Rider OTP',
+              style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // 5. Picked Up / Out for Delivery
+    if (s == 'picked_up' || s == 'out_for_delivery' || s == 'on_the_way') {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFFBEB),
+          color: const Color(0xFFF3F4F6),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFFDE68A), width: 1),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Your order is almost there!',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
-              ),
+              '🚀 Handed Over to Rider (${order.riderName ?? 'Delivery Partner'})',
+              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
             ),
-            GestureDetector(
-              onTap: () => _markDelivered(order),
-              child: const Icon(
-                Icons.two_wheeler_rounded,
-                color: AppColors.primaryGreen,
-                size: 24,
-              ),
-            ),
+            const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20),
           ],
         ),
       );
-    } else if (order.status == 'Delivered') {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFBEB),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFFDE68A), width: 1),
-        ),
-        child: Row(
+    }
+
+    // 6. Delivered / Completed / Handed Over
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '🎉 Order Completed',
+            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+          ),
+          const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20),
+        ],
+      ),
+    );
+  }
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(

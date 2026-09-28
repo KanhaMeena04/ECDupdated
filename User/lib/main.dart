@@ -117,7 +117,7 @@ class _ECDKartAppState extends State<ECDKartApp> {
             ),
           );
         }
-      } else if (data != null && data['status'] == 'picked_up') {
+      } else if (data != null && data['status'] == 'picked_up' && data['orderType'] != 'self_pickup' && data['orderType'] != 'pickup' && data['isSelfPickup'] != true) {
         final context = AppRoutes.rootNavigatorKey.currentContext;
         final driverName = data['driverName'] ?? 'Rider';
         final driverPhone = data['driverPhone'] ?? '';

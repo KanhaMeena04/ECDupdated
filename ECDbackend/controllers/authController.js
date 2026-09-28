@@ -618,10 +618,9 @@ exports.driverVerifyOtp = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const isValidDevOtp = ["123456", "000000", "1234"].includes(enteredOtp);
     const isValidUserOtp = user.otp && user.otp === enteredOtp && user.otpExpires > new Date();
 
-    if (!isValidDevOtp && !isValidUserOtp) {
+    if (!isValidUserOtp) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
@@ -903,10 +902,9 @@ exports.userVerifyOtp = async (req, res) => {
       return res.status(404).json({ success: false, message: "User account not found. Please send OTP first." });
     }
 
-    const isValidDevOtp = process.env.NODE_ENV !== "production" && ["123456", "000000", "1234"].includes(enteredOtp);
     const isValidUserOtp = user.otp && user.otp === enteredOtp && user.otpExpires > new Date();
 
-    if (!isValidDevOtp && !isValidUserOtp) {
+    if (!isValidUserOtp) {
       return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
     }
 

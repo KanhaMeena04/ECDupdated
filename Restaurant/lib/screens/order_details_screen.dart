@@ -564,7 +564,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           
                           if (input.length == 4) {
                             final res = await RestaurantApiService.verifyPickup(widget.order.id, input);
-                            if (res['success'] == true || input == expected || input == '1234' || input == '0000') {
+                            if (res['success'] == true) {
                               if (mounted) Navigator.pop(context);
                               setState(() {
                                 _currentStatus = 'Picked Up';
@@ -1616,15 +1616,15 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         text = 'Delivery partner assigned! Ask rider for 4-digit OTP to handover food.';
         buttonText = 'Verify Rider OTP';
       } else if (_currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery') {
-        text = 'Order is on the way to customer.';
-        buttonText = 'Mark Delivered';
+        text = 'Order handed over to rider. Rider is delivering to customer.';
+        buttonText = 'Handed Over to Rider';
       } else {
         text = 'Order completed successfully.';
         buttonText = 'Completed';
       }
     }
 
-    final isDelivered = _currentStatus == 'Delivered' || _currentStatus == 'Handed Over';
+    final isDelivered = _currentStatus == 'Delivered' || _currentStatus == 'Handed Over' || _currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery';
 
     return Container(
       padding: const EdgeInsets.all(16),

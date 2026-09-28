@@ -40,7 +40,7 @@ class ApiService {
       }
     } catch (e) {
       log("Error sending OTP to backend: $e");
-      return {"success": true, "message": "OTP sent successfully to +91$cleanPhone (Demo OTP: 123456)"};
+      return {"success": false, "message": "Network error sending OTP: $e"};
     }
   }
 
@@ -312,9 +312,9 @@ class ApiService {
         headers: await _getHeaders(),
       ).timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body);
-      return {'success': true, 'otp': data['otp'] ?? '1234', 'message': data['message'] ?? 'Pickup OTP sent'};
+      return {'success': response.statusCode == 200, 'message': data['message'] ?? 'Pickup OTP sent'};
     } catch (e) {
-      return {"success": true, "otp": "1234", "message": "Pickup OTP sent"};
+      return {"success": false, "message": "Failed to send pickup OTP: $e"};
     }
   }
 

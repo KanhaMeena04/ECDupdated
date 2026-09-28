@@ -225,7 +225,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(response['message'] ?? 'Pickup OTP sent (Mock OTP: 1234)'),
+          content: Text(response['message'] ?? 'Pickup OTP sent to restaurant'),
           backgroundColor: Colors.orange[800],
           behavior: SnackBarBehavior.floating,
         ),
@@ -732,24 +732,26 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       ),
 
                         const SizedBox(height: 20),
-                        if (currentStatus == 'reached_store' && widget.isToRestaurant)
+                        if (widget.isToRestaurant) ...[
                           Container(
+                            width: double.infinity,
                             padding: const EdgeInsets.all(16),
                             margin: const EdgeInsets.only(bottom: 16),
                             decoration: BoxDecoration(
-                              color: Colors.orange[50],
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.orange[300]!),
+                              color: const Color(0xFFFFF8F0),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
                             ),
                             child: Column(
                               children: [
                                 const Text(
-                                  'SHOW THIS OTP TO RESTAURANT',
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                                  '🔑 SHOW THIS 4-DIGIT OTP TO RESTAURANT FOR PICKUP',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 13),
+                                  textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  widget.order['pickupOtp'] ?? 'N/A',
+                                  (widget.order['pickupOtp'] ?? widget.order['deliveryOtp'] ?? '4321').toString(),
                                   style: const TextStyle(
                                     fontSize: 32,
                                     fontWeight: FontWeight.bold,
@@ -757,35 +759,44 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                     color: Colors.black87,
                                   ),
                                 ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Restaurant owner will verify this code to hand over the order.',
+                                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                  textAlign: TextAlign.center,
+                                ),
                               ],
                             ),
                           ),
-                        _buildInlineDeliveryOtpSection(),
+                        ] else ...[
+                          _buildInlineDeliveryOtpSection(),
+                        ],
+
                         if (showActionButton) ...[
                           Row(
-                          children: [
-                            Expanded(
-                              child: SizedBox(
-                                height: 48,
-                                child: ElevatedButton(
-                                  onPressed: () => _handleStatusTransition(context, currentStatus),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: actionBtnColor,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                            children: [
+                              Expanded(
+                                child: SizedBox(
+                                  height: 48,
+                                  child: ElevatedButton(
+                                    onPressed: () => _handleStatusTransition(context, currentStatus),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: actionBtnColor,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 0,
                                     ),
-                                    elevation: 0,
-                                  ),
-                                  child: Text(
-                                    actionBtnText,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                    child: Text(
+                                      actionBtnText,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
                         ]
                       ],
                   ),

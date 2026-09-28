@@ -1900,8 +1900,8 @@ exports.markOrderReady = async (req, res) => {
       restaurantCoords = restaurantDoc?.location?.coordinates;
     } catch (e) { }
 
-    if (order.orderType === 'self_pickup' || order.orderType === 'pickup' || order.isSelfPickup) {
-      const pickupCode = order.selfPickupCode || order.pickupOtp || '1234';
+    if (order.orderType === 'self_pickup' || order.orderType === 'pickup' || order.orderType === 'takeaway' || order.isSelfPickup) {
+      const pickupCode = order.selfPickupCode || order.pickupOtp;
       try {
         await sendNotification(
           order.customer._id || order.customer,
@@ -1941,15 +1941,13 @@ exports.markOrderReady = async (req, res) => {
       } catch (e) {
         console.error("Push notify error for assigned rider", e);
       }
-    } else {
-      // Trigger rider dispatch searching for delivery order
-      if (order.orderType !== 'self_pickup' && order.orderType !== 'pickup') {
-        try {
-          const riderDispatchService = require('../services/riderDispatchService');
-          riderDispatchService.findAndNotifyRider(order._id);
-        } catch (dispatchErr) {
-          logger.error("Rider dispatch error on markOrderReady", { orderId: order._id, error: dispatchErr.message });
-        }
+    } else if (order.orderType !== 'self_pickup' && order.orderType !== 'pickup' && order.orderType !== 'takeaway' && !order.isSelfPickup) {
+      // Trigger rider dispatch searching ONLY for delivery orders
+      try {
+        const riderDispatchService = require('../services/riderDispatchService');
+        riderDispatchService.findAndNotifyRider(order._id);
+      } catch (dispatchErr) {
+        logger.error("Rider dispatch error on markOrderReady", { orderId: order._id, error: dispatchErr.message });
       }
       try {
         if (restaurantCoords && restaurantCoords.length === 2) {
@@ -3072,35 +3070,23 @@ exports.resendOTP = async (req, res) => {
     }
     await order.save();
     if (otpType === 'pickup') {
-      if (order.restaurant?.owner) {
-        await sendNotification(
-          order.restaurant.owner,
-          "New Pickup OTP",
-          `New pickup OTP for order ${orderId}: ${newOtp}`,
-          { orderId, otp: newOtp, otpType: 'pickup' }
-        );
-      }
       if (riderUserId) {
         await sendNotification(
           riderUserId,
-          "New Pickup OTP",
-          `Pickup OTP was resent to restaurant for order ${orderId}.`,
-          { orderId, otpType: 'pickup' }
+          "🔑 New Pickup OTP",
+          `Your 4-digit Pickup OTP for order #${order.orderId || orderId.slice(-6)} is ${newOtp}. Share this OTP with restaurant owner.`,
+          { orderId, otp: newOtp, otpType: 'pickup' }
         );
       }
       try {
-        if (order.restaurant?.owner) {
-          const ownerUser = await User.findById(order.restaurant.owner).select('mobile');
-          if (ownerUser?.mobile) {
-            await sendOTP(ownerUser.mobile, newOtp);
-          } else if (order.restaurant?.phone) {
-            await sendOTP(order.restaurant.phone, newOtp);
-          }
-        } else if (order.restaurant?.phone) {
-          await sendOTP(order.restaurant.phone, newOtp);
+        const riderUserObj = await User.findById(riderUserId);
+        const riderMobile = riderUserObj?.mobile || (order.rider && (order.rider.mobile || order.rider.phone));
+        if (riderMobile) {
+          console.log(`📱 [resendOTP Pickup] Sending 4-digit OTP ${newOtp} to Rider mobile: ${riderMobile}`);
+          await sendOTP(riderMobile, newOtp);
         }
       } catch (smsErr) {
-        console.error('Twilio SMS failed (resend pickupOtp to restaurant):', smsErr.message);
+        console.error('SMS failed (resend pickupOtp to rider):', smsErr.message);
       }
     } else {
       await sendNotification(
@@ -3404,8 +3390,8 @@ exports.verifyPickupVendor = async (req, res) => {
     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
 
     const expectedOtp = (order.pickupOtp || order.pickupOTP || order.selfPickupCode || "").toString().trim();
-    if (enteredOtp && expectedOtp && enteredOtp !== expectedOtp && enteredOtp !== "1234" && enteredOtp !== "0000") {
-      return res.status(400).json({ success: false, message: "Invalid 4-digit Pickup Code" });
+    if (!expectedOtp || enteredOtp !== expectedOtp) {
+      return res.status(400).json({ success: false, message: "Invalid 4-digit Pickup OTP" });
     }
 
     const oldStatus = order.status;
@@ -3477,20 +3463,28 @@ exports.completePickupVendor = async (req, res) => {
       : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
     const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ message: "Order not found" });
-    order.status = "out_for_delivery";
-    order.timeline.push({ status: "out_for_delivery", timestamp: new Date() });
+
+    const isSelfPickup = order.orderType === 'self_pickup' || order.orderType === 'pickup' || order.orderType === 'takeaway' || order.isSelfPickup;
+    const newStatus = isSelfPickup ? "delivered" : "out_for_delivery";
+    order.status = newStatus;
+    order.deliveryStatus = newStatus;
+    order.timeline.push({
+      status: newStatus,
+      timestamp: new Date(),
+      description: isSelfPickup ? "Self-pickup food handed over to customer." : "Food handed over to rider."
+    });
     await order.save();
 
     try {
       const io = req.app.get("io");
       if (io) {
-        const payload = { orderId: order._id.toString(), status: "out_for_delivery", order };
+        const payload = { orderId: order._id.toString(), status: newStatus, order };
         io.to(`order_${order._id}`).emit("orderStatusUpdated", payload);
         io.emit("orderStatusUpdated", payload);
       }
     } catch (_) {}
 
-    return res.status(200).json({ success: true, message: "Pickup completed", order });
+    return res.status(200).json({ success: true, message: isSelfPickup ? "Order handed over and completed" : "Pickup completed", order });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -3661,7 +3655,7 @@ exports.verifySelfPickupOTP = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    if (order.pickupOtp !== enteredCode && enteredCode !== "1234" && enteredCode !== "0000") {
+    if (order.pickupOtp !== enteredCode) {
       return res.status(400).json({ success: false, message: "Invalid 4-digit pickup code" });
     }
 

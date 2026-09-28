@@ -460,7 +460,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _currentOrder['pickupOtp'] ?? _currentOrder['pickupOTP'] ?? _currentOrder['selfPickupCode'] ?? (_currentOrder['otps']?['pickup']?['otp']) ?? '1234',
+                        _currentOrder['pickupOtp'] ?? _currentOrder['pickupOTP'] ?? _currentOrder['selfPickupCode'] ?? (_currentOrder['otps']?['pickup']?['otp']) ?? '----',
                         style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,

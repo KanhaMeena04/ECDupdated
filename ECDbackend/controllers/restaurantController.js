@@ -2624,11 +2624,9 @@ exports.vendorVerifyOtp = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "Partner account not found. Please send OTP first." });
     }
-    const isProduction = process.env.NODE_ENV === "production";
-    const isValidDevOtp = !isProduction && (otp === "123456" || otp === "512345");
     const isValidUserOtp = user.otp && user.otp === String(otp).trim() && user.otpExpires > new Date();
 
-    if (!isValidDevOtp && !isValidUserOtp) {
+    if (!isValidUserOtp) {
       return res.status(400).json({ message: "Invalid or expired OTP. Please try again." });
     }
     user.isVerified = true;

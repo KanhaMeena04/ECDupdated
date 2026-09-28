@@ -620,9 +620,10 @@ class _CartPageState extends State<CartPage> {
                   const SizedBox(height: 12),
 
                   // 5b. Tip your Rider Section (Dynamic CMS driven)
-                  _TipRiderCard(cart: cart),
-
-                  if (cart.isTipEnabled) const SizedBox(height: 12),
+                  if (cart.orderType != 'pickup') ...[
+                    _TipRiderCard(cart: cart),
+                    if (cart.isTipEnabled) const SizedBox(height: 12),
+                  ],
 
                   // 6. Bill Details Section with Dashed Divider
                   _BillDetailsCard(cart: cart),
@@ -730,7 +731,7 @@ class _RestaurantHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = restaurant?.name ?? cart.restaurantName ?? 'Cellar Door Restaurant';
+    final name = restaurant?.name ?? cart.restaurantName ?? 'Selected Restaurant';
     final cuisine = (restaurant?.cuisine != null && restaurant!.cuisine.isNotEmpty)
         ? restaurant!.cuisine
         : 'Pizza, Italian, Fast Food';

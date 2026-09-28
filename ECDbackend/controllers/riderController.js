@@ -3464,7 +3464,7 @@ exports.verifyDelivery = async (req, res) => {
         code: "OTP_EXPIRED"
       });
     }
-    if (order.deliveryOtp !== otp) {
+    if (!order.deliveryOtp || order.deliveryOtp !== otp) {
       return res.status(400).json({ message: "Invalid Delivery OTP" });
     }
     const oldStatus = order.status;

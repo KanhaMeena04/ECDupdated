@@ -1327,9 +1327,9 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
                     ),
                     const SizedBox(height: 2),
-                    const Text(
-                      'Cellar Door Restaurant, Plot 42 Main Market, Vijay Nagar, Indore',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                    Text(
+                      cart.restaurantAddress ?? (cart.restaurantName != null ? '${cart.restaurantName}' : 'Selected Restaurant Store Counter'),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
                     ),
                   ] else ...[
                     GestureDetector(
@@ -1415,7 +1415,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
             const SizedBox(height: 12),
 
             // ── 2. Tip your rider Section (CMS Driven) ─────────────────────
-            if (cart.isTipEnabled)
+            if (cart.isTipEnabled && cart.orderType != 'pickup')
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.all(16),

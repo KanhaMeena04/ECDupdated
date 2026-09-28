@@ -39,7 +39,7 @@ class AuthService {
   // ── Send OTP ───────────────────────────────────────────────────────────────
   static Future<AuthResult> sendOtp(String phone) async {
     if (kFrontendPreviewMode) {
-      return AuthResult.success(message: 'OTP sent (Preview Code: 123456)');
+      return AuthResult.success(message: 'OTP sent to your mobile number');
     }
     try {
       final phoneStr = _normalizePhone(phone);
