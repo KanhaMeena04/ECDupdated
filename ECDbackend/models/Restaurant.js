@@ -5,8 +5,8 @@ const translationSchema = {
   ar: { type: String },
 };
 const dailyTimingSchema = {
-  open: { type: String }, // e.g., "09:00"
-  close: { type: String }, // e.g., "22:00"
+  open: { type: String, default: "00:00" }, // e.g., "00:00" (24x7 default)
+  close: { type: String, default: "23:59" }, // e.g., "23:59" (24x7 default)
   isClosed: { type: Boolean, default: false } // For holidays/closed days
 };
 const restaurantSchema = new mongoose.Schema(

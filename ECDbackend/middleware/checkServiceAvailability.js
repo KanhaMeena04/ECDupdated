@@ -3,58 +3,7 @@ const Restaurant = require('../models/Restaurant');
 const Rider = require('../models/Rider');
 const Cart = require('../models/Cart');
 const { logger } = require('../utils/logger');
-const checkRestaurantAvailability = async (restaurantId) => {
-  const restaurant = await Restaurant.findById(restaurantId);
-  if (!restaurant) {
-    return { available: false, reason: 'Restaurant not found' };
-  }
-  if (!restaurant.isActive) {
-    return { available: false, reason: 'Restaurant is inactive' };
-  }
-  if (!restaurant.restaurantApproved) {
-    return { available: false, reason: 'Restaurant is not approved' };
-  }
-  if (restaurant.isTemporarilyClosed) {
-    return { available: false, reason: 'Restaurant is temporarily closed' };
-  }
-  if (restaurant.timing) {
-    const now = new Date();
-    const timeZone = process.env.RESTAURANT_TIMEZONE || 'Asia/Kolkata';
-    const dayFormatter = new Intl.DateTimeFormat('en-US', {
-      weekday: 'long',
-      timeZone,
-    });
-    const timeFormatter = new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      timeZone,
-    });
-    const currentDay = dayFormatter.format(now).toLowerCase();
-    const timeParts = timeFormatter.formatToParts(now);
-    const hourPart = timeParts.find((p) => p.type === 'hour');
-    const minutePart = timeParts.find((p) => p.type === 'minute');
-    const currentTime = `${hourPart?.value || '00'}:${minutePart?.value || '00'}`; // HH:MM
-    const todayTiming = restaurant.timing[currentDay];
-    if (todayTiming) {
-      if (todayTiming.isClosed) {
-        return { 
-          available: false, 
-          reason: `Restaurant is closed on ${currentDay}s` 
-        };
-      }
-      if (todayTiming.open && todayTiming.close) {
-        if (currentTime < todayTiming.open || currentTime > todayTiming.close) {
-          return {
-            available: false,
-            reason: `Restaurant is closed. Hours: ${todayTiming.open} - ${todayTiming.close}`
-          };
-        }
-      }
-    }
-  }
-  return { available: true };
-};
+const { checkRestaurantAvailability } = require('../utils/restaurantAvailability');
 const checkRiderAvailability = async (restaurantLocation, minimumRiders = 1) => {
   try {
     let nearbyRiders = 0;

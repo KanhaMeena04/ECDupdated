@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node Server.js",
     "seed": "node scripts/seedEcdkartData.js",
-    "seed:categories": "node scripts/seedMasterCategories.js"
+    "seed:categories": "node scripts/seedMasterCategories.js",
+    "make-24x7": "node scripts/make_all_restaurants_24x7.js"
   },
   "keywords": [],
   "author": "",

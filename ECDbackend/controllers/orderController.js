@@ -270,6 +270,7 @@ exports.placeOrder = async (req, res) => {
     const { addressId, paymentMethod, paymentId } = req.body;
     const rawOrderType = (req.body.orderType || req.body.deliveryType || req.body.orderMode || "").toString().toLowerCase();
     const isSelfPickup = rawOrderType === "self_pickup" || rawOrderType === "pickup" || rawOrderType === "takeaway" || req.body.isSelfPickup === true;
+    const orderType = isSelfPickup ? 'self_pickup' : 'delivery';
     if (!req.user || !isValidObjectId(req.user._id)) {
       return sendError(res, 401, "Unauthorized");
     }

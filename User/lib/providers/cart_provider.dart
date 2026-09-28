@@ -350,6 +350,54 @@ class CartProvider with ChangeNotifier {
     removeCoupon();
   }
 
+  // ── Coupon Methods ─────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> applyCoupon(String code) async {
+    if (_restaurantId == null) {
+       return {'success': false, 'message': 'Cannot apply coupon to empty cart'};
+    }
+
+    try {
+      final result = await CouponApiService.applyCoupon(
+        code: code,
+        storeId: _restaurantId!,
+        orderAmount: totalAmount,
+      );
+      
+      if (result != null && result['valid'] == true) {
+        _appliedCoupon = result['coupon'];
+        _discountAmount = (result['discountAmount'] as num).toDouble();
+        notifyListeners();
+        return {'success': true, 'message': result['message'] ?? 'Coupon applied successfully!'};
+      }
+      return {'success': false, 'message': result?['message'] ?? 'Failed to apply coupon'};
+    } catch (e) {
+      return {'success': false, 'message': 'Error applying coupon'};
+    }
+  }
+
+  void removeCoupon() {
+    _appliedCoupon = null;
+    _discountAmount = 0.0;
+    notifyListeners();
+  }
+
+  // ── Delivery Fee ──────────────────────────────────────────────────────────
+  Future<void> calculateDeliveryFee(double lat, double lng) async {
+    if (_restaurantId == null) return;
+    
+    try {
+      final result = await OrderApiService.calculateDeliveryFee(_restaurantId!, lat, lng);
+      if (result != null && result['success'] == true) {
+        // Backend returns deliveryCharge
+        _deliveryFee = (result['deliveryCharge'] as num?)?.toDouble() ?? 40.0;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching dynamic delivery fee: $e');
+    }
+  }
+}
+
 class PickupSlotHelper {
   static const List<String> months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -427,50 +475,3 @@ class PickupSlotHelper {
   }
 }
 
-  // ── Coupon Methods ─────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> applyCoupon(String code) async {
-    if (_restaurantId == null) {
-       return {'success': false, 'message': 'Cannot apply coupon to empty cart'};
-    }
-
-    try {
-      final result = await CouponApiService.applyCoupon(
-        code: code,
-        storeId: _restaurantId!,
-        orderAmount: totalAmount,
-      );
-      
-      if (result != null && result['valid'] == true) {
-        _appliedCoupon = result['coupon'];
-        _discountAmount = (result['discountAmount'] as num).toDouble();
-        notifyListeners();
-        return {'success': true, 'message': result['message'] ?? 'Coupon applied successfully!'};
-      }
-      return {'success': false, 'message': result?['message'] ?? 'Failed to apply coupon'};
-    } catch (e) {
-      return {'success': false, 'message': 'Error applying coupon'};
-    }
-  }
-
-  void removeCoupon() {
-    _appliedCoupon = null;
-    _discountAmount = 0.0;
-    notifyListeners();
-  }
-
-  // ── Delivery Fee ──────────────────────────────────────────────────────────
-  Future<void> calculateDeliveryFee(double lat, double lng) async {
-    if (_restaurantId == null) return;
-    
-    try {
-      final result = await OrderApiService.calculateDeliveryFee(_restaurantId!, lat, lng);
-      if (result != null && result['success'] == true) {
-        // Backend returns deliveryCharge
-        _deliveryFee = (result['deliveryCharge'] as num?)?.toDouble() ?? 40.0;
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Error fetching dynamic delivery fee: $e');
-    }
-  }
-}
