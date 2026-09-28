@@ -149,9 +149,17 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   LatLng _getRestaurantLatLng() {
     try {
       final store = widget.order['store'];
-      if (store != null && store['location'] != null && store['location']['coordinates'] != null) {
-        final coords = store['location']['coordinates'] as List;
-        return LatLng(coords[1].toDouble(), coords[0].toDouble());
+      final restaurant = widget.order['restaurant'];
+      final storeLoc = store?['location'] ?? restaurant?['location'] ?? widget.order['restaurantLocation'] ?? widget.order['location'];
+      if (storeLoc != null && storeLoc['coordinates'] != null) {
+        final coords = storeLoc['coordinates'] as List;
+        if (coords.length >= 2) {
+          final lat = coords[1].toDouble();
+          final lng = coords[0].toDouble();
+          if (lat != 0 && lng != 0) {
+            return LatLng(lat, lng);
+          }
+        }
       }
     } catch (_) {}
     return const LatLng(28.4951, 77.0878); // Gurgaon Cyber Hub
@@ -751,7 +759,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  (widget.order['pickupOtp'] ?? widget.order['deliveryOtp'] ?? '4321').toString(),
+                                  ((widget.order['pickupOtp'] ?? widget.order['store']?['pickupOtp'] ?? widget.order['restaurant']?['pickupOtp'] ?? widget.order['deliveryOtp']) ?? '----').toString(),
                                   style: const TextStyle(
                                     fontSize: 32,
                                     fontWeight: FontWeight.bold,

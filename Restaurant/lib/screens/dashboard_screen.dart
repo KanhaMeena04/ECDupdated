@@ -1638,7 +1638,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // 3. Ready / Ready for Pickup
     if (s == 'ready' || s == 'ready_for_pickup' || s == 'ready for pickup') {
-      final hasRider = order.riderName != null && order.riderName!.isNotEmpty;
+      final hasRider = (order.riderName != null && order.riderName!.isNotEmpty) || (order.riderId != null && order.riderId!.isNotEmpty);
       if (hasRider) {
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -140,10 +140,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           ),
         );
       }
+    } else if (_currentStatus == 'Assigned' || _currentStatus == 'assigned' || _currentStatus == 'rider_assigned' || (_currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && ((widget.order.riderName != null && widget.order.riderName!.isNotEmpty) || (widget.order.riderId != null && widget.order.riderId!.isNotEmpty)))) {
+      _showOtpVerificationModal();
     } else if (_currentStatus == 'Ready' || _currentStatus == 'Ready for Pickup') {
       _showSearchingRiderModal();
-    } else if (_currentStatus == 'Assigned' || _currentStatus == 'rider_assigned' || (_currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && widget.order.riderName != null && widget.order.riderName!.isNotEmpty)) {
-      _showOtpVerificationModal();
     } else if (_currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery') {
       setState(() {
         _currentStatus = 'Delivered';
@@ -1670,12 +1670,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       } else if (_currentStatus == 'Preparing') {
         text = 'Is food preparation complete and ready for pickup?';
         buttonText = 'Mark Ready';
+      } else if (_currentStatus == 'Assigned' || _currentStatus == 'assigned' || _currentStatus == 'rider_assigned' || (_currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && ((widget.order.riderName != null && widget.order.riderName!.isNotEmpty) || (widget.order.riderId != null && widget.order.riderId!.isNotEmpty)))) {
+        text = 'Delivery partner assigned! Ask rider for 4-digit OTP to handover food.';
+        buttonText = 'Verify Rider OTP';
       } else if (_currentStatus == 'Ready' || _currentStatus == 'Ready for Pickup') {
         text = 'Food is Ready! Click Search Rider to notify nearby delivery riders.';
         buttonText = 'Search Rider';
-      } else if (_currentStatus == 'Assigned' || _currentStatus == 'rider_assigned' || (_currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && widget.order.riderName != null && widget.order.riderName!.isNotEmpty)) {
-        text = 'Delivery partner assigned! Ask rider for 4-digit OTP to handover food.';
-        buttonText = 'Verify Rider OTP';
       } else if (_currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery') {
         text = 'Order handed over to rider. Rider is delivering to customer.';
         buttonText = 'Handed Over to Rider';

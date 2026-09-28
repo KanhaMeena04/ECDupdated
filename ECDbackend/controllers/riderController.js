@@ -4412,10 +4412,13 @@ exports.getMyActiveOrder = async (req, res) => {
           orderNumber: order.orderNumber || order.orderId || order._id,
           deliveryStatus: order.status === 'assigned' ? 'accepted' : order.status,
           status: order.status,
+          pickupOtp: order.pickupOtp,
+          pickupOtpExpiry: order.pickupOtpExpiresAt,
           store: {
             _id: order.restaurant?._id,
             name: storeName,
             address: storeAddress,
+            location: order.restaurant?.location,
             phone: order.restaurant?.contactNumber || order.restaurant?.phone || ''
           },
           restaurant: {
