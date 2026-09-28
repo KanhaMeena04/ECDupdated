@@ -11,7 +11,11 @@ const BATCH_SIZE = 5;              // How many riders to notify at once
 const BATCH_TIMEOUT_MS = 45000;   // 45 seconds for a batch to respond before sending next batch
 exports.findAndNotifyRider = async (orderId) => {
     try {
-        const order = await Order.findById(orderId);
+        const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+        const orderFilter = isObjectId
+          ? { $or: [{ _id: orderId }, { orderId: orderId }] }
+          : { orderId: orderId };
+        const order = await Order.findOne(orderFilter);
         if (!order) return console.error('Order not found for dispatch:', orderId);
         if (order.rider || ['cancelled', 'delivered', 'picked_up'].includes(order.status)) return;
         if (!['placed', 'accepted', 'preparing', 'ready'].includes(order.status)) return;
@@ -19,7 +23,7 @@ exports.findAndNotifyRider = async (orderId) => {
         if (!restaurant?.location?.coordinates) {
             return console.error('Restaurant location missing for dispatch');
         }
-        const previousRequests = await RideRequest.find({ order: orderId }).select('rider');
+        const previousRequests = await RideRequest.find({ order: order._id }).select('rider');
         const alreadyNotifiedRiderIds = previousRequests.map(r => r.rider);
         let nearbyRiders = [];
         try {
@@ -134,7 +138,11 @@ async function checkBatchTimeout(orderId, requestIds) {
             { _id: { $in: requestIds }, status: 'pending' },
             { $set: { status: 'timeout' } }
         );
-        const order = await Order.findById(orderId).select('rider status');
+        const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+        const orderFilter = isObjectId
+          ? { $or: [{ _id: orderId }, { orderId: orderId }] }
+          : { orderId: orderId };
+        const order = await Order.findOne(orderFilter).select('rider status');
         if (!order) return;
         if (order.rider || ['cancelled', 'delivered'].includes(order.status)) {
             console.log(`[Dispatch] Batch timed out but order ${orderId} is already handled`);

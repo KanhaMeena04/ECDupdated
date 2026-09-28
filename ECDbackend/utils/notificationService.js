@@ -15,7 +15,11 @@ exports.sendNotification = async (userId, title, message, data = {}) => {
     // 1. Persist notification to MongoDB Database
     let savedDoc = null;
     try {
-      const type = data?.type || (title.toLowerCase().includes('offer') || title.toLowerCase().includes('discount') ? 'promo_offer' : 'order_status');
+      const allowedTypes = ['order_status', 'promo_offer', 'system', 'general', 'dispatch_request', 'order_available'];
+      let type = data?.type || (title.toLowerCase().includes('offer') || title.toLowerCase().includes('discount') ? 'promo_offer' : 'order_status');
+      if (!allowedTypes.includes(type)) {
+        type = 'order_status';
+      }
       savedDoc = await Notification.create({
         user: userIdStr,
         title,

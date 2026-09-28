@@ -2082,7 +2082,13 @@ exports.markOrderReady = async (req, res) => {
 };
 exports.searchRidersForOrder = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
+    const targetId = req.params.id || req.params.orderId;
+    const isObjectId = mongoose.Types.ObjectId.isValid(targetId) && String(targetId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: targetId }, { orderId: targetId }] }
+      : { orderId: targetId };
+
+    const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ message: "Order not found" });
     if (order.rider) {
       return res.status(400).json({ message: "Order already assigned to a rider" });
