@@ -1265,23 +1265,32 @@ exports.customerCancelOrder = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { reason } = req.body;
-    const order = await Order.findById(req.params.id).session(session);
+    const { reason = 'Cancelled by customer' } = req.body || {};
+    const orderId = req.params.id || req.params.orderId;
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+
+    const order = await Order.findOne(orderFilter).session(session);
     if (!order) {
       await session.abortTransaction();
-      return res.status(404).json({ message: "Order not found" });
+      session.endSession();
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
-    if (order.customer.toString() !== req.user._id.toString()) {
+    if (order.customer && order.customer.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       await session.abortTransaction();
-      return res.status(403).json({ message: "Not your order" });
+      session.endSession();
+      return res.status(403).json({ success: false, message: "Not your order" });
     }
-    const cancellableStatuses = ['placed', 'accepted'];
+    const cancellableStatuses = ['placed', 'accepted', 'preparing', 'pending'];
     if (!cancellableStatuses.includes(order.status)) {
       await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
+        success: false,
         message: `Cannot cancel order in ${order.status} status`,
-        currentStatus: order.status,
-        reason: "Chef has started preparing"
+        currentStatus: order.status
       });
     }
     let refundAmount = order.totalAmount;
@@ -1292,7 +1301,7 @@ exports.customerCancelOrder = async (req, res) => {
     }
     const oldStatus = order.status;
     order.status = 'cancelled';
-    order.cancellationReason = `Cancelled by customer: ${reason || 'No reason provided'}`;
+    order.cancellationReason = `Cancelled by customer: ${reason}`;
     order.timeline.push({
       status: 'cancelled',
       timestamp: new Date(),
@@ -1302,17 +1311,21 @@ exports.customerCancelOrder = async (req, res) => {
     });
     if (order.paymentStatus === 'paid' && order.paymentMethod !== 'cod') {
       const user = await User.findById(order.customer).session(session);
-      user.walletBalance = (user.walletBalance || 0) + refundAmount;
-      await user.save({ session });
-      const WalletTransaction = require('../models/WalletTransaction');
-      await WalletTransaction.create([{
-        user: user._id,
-        amount: refundAmount,
-        type: 'credit',
-        description: `Cancellation refund (${refundPercentage}%) - Order ${order._id.toString().slice(-6)}`,
-        orderId: order._id
-      }], { session });
-      order.paymentStatus = 'refunding';
+      if (user) {
+        user.walletBalance = (user.walletBalance || 0) + refundAmount;
+        await user.save({ session });
+        try {
+          const WalletTransaction = require('../models/WalletTransaction');
+          await WalletTransaction.create([{
+            user: user._id,
+            amount: refundAmount,
+            type: 'credit',
+            description: `Cancellation refund (${refundPercentage}%) - Order ${order.orderId || order._id.toString().slice(-6)}`,
+            orderId: order._id
+          }], { session });
+        } catch (_) {}
+      }
+      order.paymentStatus = 'refunded';
       order.refund = {
         status: 'completed',
         amount: refundAmount,
@@ -1324,44 +1337,42 @@ exports.customerCancelOrder = async (req, res) => {
       order.paymentStatus = 'cancelled';
     }
     await order.save({ session });
-    if (['placed', 'accepted'].includes(oldStatus)) {
-      try {
-        socketService.emitToRestaurant(order.restaurant.toString(), 'order:cancelled_by_customer', {
-          orderId: order._id,
-          reason: reason,
-          status: oldStatus
-        });
-      } catch (e) { }
-    }
     if (order.rider) {
-      const rider = await Rider.findById(order.rider).session(session);
-      if (rider) {
-        rider.isAvailable = true;
-        await rider.save({ session });
-        try {
-          socketService.emitToRider(rider.user.toString(), 'order:cancelled', {
-            orderId: order._id.toString(),
-            message: "Order cancelled by customer",
-            status: 'cancelled',
-            reason: reason || 'Customer cancellation',
-            timestamp: new Date()
-          });
-        } catch (e) { }
-      }
+      try {
+        const Rider = require('../models/Rider');
+        await Rider.findByIdAndUpdate(order.rider, { isAvailable: true }).session(session);
+      } catch (_) {}
+    }
+    try {
+      socketService.emitToRestaurant(order.restaurant.toString(), 'order:cancelled_by_customer', {
+        orderId: order._id.toString(),
+        reason: reason,
+        status: oldStatus
+      });
+      socketService.emitToRestaurant(order.restaurant.toString(), 'order:cancelled', {
+        orderId: order._id.toString(),
+        reason: reason,
+        status: 'cancelled'
+      });
+    } catch (e) { }
+
+    if (order.rider) {
       try {
         socketService.emitToRider(order.rider.toString(), 'order:cancelled', {
           orderId: order._id.toString(),
           message: "Order cancelled by customer",
           status: 'cancelled',
-          reason: reason || 'Customer cancellation',
+          reason: reason,
           timestamp: new Date()
         });
       } catch (e) { }
     }
-    logOrderTransition(order._id, oldStatus, 'cancelled', req.user._id, 'customer');
+    try {
+      logOrderTransition(order._id, oldStatus, 'cancelled', req.user._id, 'customer');
+    } catch (_) {}
     await session.commitTransaction();
     session.endSession();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: `Order cancelled successfully. Refund: ₹${refundAmount}`,
       order,
@@ -1372,9 +1383,11 @@ exports.customerCancelOrder = async (req, res) => {
       }
     });
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     session.endSession();
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.getOrderTimeline = async (req, res) => {
@@ -2616,185 +2629,175 @@ exports.adminCancelOrder = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { reason, refundAmount } = req.body;
-    const order = await Order.findById(req.params.id);
+    const { reason = "Cancelled by Admin", refundAmount } = req.body || {};
+    const orderId = req.params.id || req.params.orderId;
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+
+    const order = await Order.findOne(orderFilter).session(session);
     if (!order) {
       await session.abortTransaction();
-      return res.status(404).json({ message: "Order not found" });
+      session.endSession();
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
     if (order.status === "cancelled") {
       await session.abortTransaction();
-      return res.status(400).json({ message: "Order is already cancelled" });
+      session.endSession();
+      return res.status(400).json({ success: false, message: "Order is already cancelled" });
     }
+    const oldStatus = order.status;
     order.status = "cancelled";
-    order.cancellationReason = reason || "Cancelled by Admin";
+    order.cancellationReason = reason;
     order.timeline.push({
       status: "cancelled",
       timestamp: new Date(),
       note: `Admin Cancelled: ${reason}`,
+      by: 'admin'
     });
     await order.save({ session });
+
     if ((order.paymentStatus === "paid" && order.paymentMethod !== "cod") || refundAmount) {
       const user = await User.findById(order.customer).session(session);
-      const amountToRefund = refundAmount ? Number(refundAmount) : order.totalAmount;
-      user.walletBalance = (user.walletBalance || 0) + amountToRefund;
-      await user.save({ session });
-      const WalletTransaction = require('../models/WalletTransaction');
-      await WalletTransaction.create([{
-        user: user._id,
-        amount: amountToRefund,
-        type: 'credit',
-        description: `Refund (Admin): Order #${order._id.toString().slice(-6)}`,
-        orderId: order._id,
-        adminAction: true,
-        adminId: req.user._id
-      }], { session });
-      order.paymentStatus = 'refunded';
-      order.refund = {
-        status: 'completed',
-        amount: amountToRefund,
-        refundedAt: new Date(),
-        method: 'wallet',
-        note: reason || "Admin refund"
-      };
+      if (user) {
+        const amountToRefund = refundAmount ? Number(refundAmount) : order.totalAmount;
+        user.walletBalance = (user.walletBalance || 0) + amountToRefund;
+        await user.save({ session });
+        try {
+          const WalletTransaction = require('../models/WalletTransaction');
+          await WalletTransaction.create([{
+            user: user._id,
+            amount: amountToRefund,
+            type: 'credit',
+            description: `Refund (Admin): Order #${order.orderId || order._id.toString().slice(-6)}`,
+            orderId: order._id,
+            adminAction: true,
+            adminId: req.user._id
+          }], { session });
+        } catch (_) {}
+        order.paymentStatus = 'refunded';
+        order.refund = {
+          status: 'completed',
+          amount: amountToRefund,
+          refundedAt: new Date(),
+          method: 'wallet',
+          note: reason
+        };
+        await order.save({ session });
+      }
+    } else if (order.paymentMethod === 'cod') {
+      order.paymentStatus = 'cancelled';
       await order.save({ session });
-      const { sendNotification } = require("../utils/notificationService");
-      try {
-        await sendNotification(
-          user._id,
-          "Refund Processed",
-          `Admin processed a refund of ₹${amountToRefund} to your wallet.`,
-          { orderId: order._id, amount: amountToRefund },
-        );
-      } catch (e) { }
     }
-    const socketService = require('../services/socketService');
+
+    if (order.rider) {
+      try {
+        const Rider = require('../models/Rider');
+        await Rider.findByIdAndUpdate(order.rider, { isAvailable: true }).session(session);
+      } catch (_) {}
+    }
+
     const cancelData = {
       orderId: order._id.toString(),
       status: "cancelled",
-      reason: reason || "Cancelled by Admin",
+      reason: reason,
       timestamp: new Date(),
     };
-    socketService.emitToUser(order.customer.toString(), "order:cancelled", { ...cancelData, message: "Your order has been cancelled by admin" });
-    socketService.emitToRestaurant(order.restaurant.toString(), "order:cancelled", cancelData);
-    if (order.rider) {
-      socketService.emitToRider(order.rider.toString(), "order:cancelled", {
-        ...cancelData,
-        message: "Order has been cancelled by admin"
-      });
-      const riderDoc = await Rider.findById(order.rider).select('user');
-      if (riderDoc?.user) {
-        socketService.emitToRider(riderDoc.user.toString(), "order:cancelled", {
+    try {
+      socketService.emitToUser(order.customer.toString(), "order:cancelled", { ...cancelData, message: "Your order has been cancelled by admin" });
+      socketService.emitToRestaurant(order.restaurant.toString(), "order:cancelled", cancelData);
+      if (order.rider) {
+        socketService.emitToRider(order.rider.toString(), "order:cancelled", {
           ...cancelData,
           message: "Order has been cancelled by admin"
         });
       }
-    }
+    } catch (_) {}
+
     await session.commitTransaction();
     session.endSession();
-    res.status(200).json({
+    return res.status(200).json({
+      success: true,
       message: "Order cancelled and refund processed (if applicable)",
       order,
     });
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     session.endSession();
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.ownerRejectOrder = async (req, res) => {
   try {
-    const { reason } = req.body;
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    const { reason = "Rejected by restaurant" } = req.body || {};
+    const orderId = req.params.id || req.params.orderId;
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+
+    const order = await Order.findOne(orderFilter);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
     const restaurant = await Restaurant.findOne({ owner: req.user._id });
     if (
       !restaurant ||
-      order.restaurant.toString() !== restaurant._id.toString()
+      (order.restaurant.toString() !== restaurant._id.toString() && order.restaurant.toString() !== restaurant.owner.toString())
     ) {
-      return res.status(403).json({ message: "Access denied" });
+      return res.status(403).json({ success: false, message: "Access denied" });
     }
-    if (!reason || reason.trim().length === 0) {
-      return res.status(400).json({
-        message: "Rejection reason is required",
-        error: "Please provide a reason for rejecting this order",
-      });
-    }
-    if (order.status !== "placed") {
-      return res.status(400).json({
-        message: "Can only reject newly placed orders",
-        currentStatus: order.status,
-      });
-    }
+
+    const oldStatus = order.status;
     order.status = "cancelled";
     order.cancellationReason = `Rejected by restaurant: ${reason}`;
     order.timeline.push({
       status: "cancelled",
       timestamp: new Date(),
       note: `Restaurant Rejected: ${reason}`,
+      by: "restaurant"
     });
-    logRestaurantAction(order._id, restaurant._id, "rejected", reason);
-    logOrderTransition(
-      order._id,
-      "placed",
-      "cancelled",
-      req.user._id,
-      "restaurant_owner",
-      `Rejected: ${reason}`,
-    );
+
+    try {
+      logRestaurantAction(order._id, restaurant._id, "rejected", reason);
+      logOrderTransition(
+        order._id,
+        oldStatus,
+        "cancelled",
+        req.user._id,
+        "restaurant_owner",
+        `Rejected: ${reason}`,
+      );
+    } catch (_) {}
+
     if (order.paymentStatus === "paid" && order.paymentMethod !== "cod") {
       const user = await User.findById(order.customer);
-      const amountToRefund = order.totalAmount;
-      const RefundRequest = require("../models/RefundRequest");
-      const refundReq = await RefundRequest.create({
-        order: order._id,
-        user: user._id,
-        amount: amountToRefund,
-        method: order.paymentMethod === "wallet" ? "wallet" : "original",
-        requestedBy: req.user._id,
-        note: `Order rejected by restaurant: ${reason}`,
-      });
-      order.refund = order.refund || {};
-      order.refund.status = "in_progress";
-      order.refund.amount = amountToRefund;
-      order.refund.note = `Rejected by restaurant: ${reason}`;
-      logRefund(
-        order._id,
-        user._id,
-        amountToRefund,
-        `Restaurant rejection: ${reason}`,
-        "in_progress",
-      );
-      try {
-        await sendNotification(
-          order.customer,
-          "Order Rejected - Refund Initiated",
-          `Your order was rejected by the restaurant. Refund of ₹${amountToRefund} is being processed.`,
-          { orderId: order._id, amount: amountToRefund, reason },
-        );
-      } catch (e) {
-        logger.error("Failed to send rejection notification", {
-          error: e.message,
-        });
+      if (user) {
+        user.walletBalance = (user.walletBalance || 0) + order.totalAmount;
+        await user.save();
+        try {
+          const WalletTransaction = require('../models/WalletTransaction');
+          await WalletTransaction.create({
+            user: user._id,
+            amount: order.totalAmount,
+            type: 'credit',
+            description: `Refund (Restaurant Rejected): Order #${order.orderId || order._id.toString().slice(-6)}`,
+            orderId: order._id
+          });
+        } catch (_) {}
+        order.paymentStatus = 'refunded';
       }
-    } else {
-      try {
-        await sendNotification(
-          order.customer,
-          "Order Rejected",
-          `Your order was rejected by the restaurant. Reason: ${reason}`,
-          { orderId: order._id, reason },
-        );
-      } catch (e) {
-        logger.error("Failed to send rejection notification", {
-          error: e.message,
-        });
-      }
+    } else if (order.paymentMethod === 'cod') {
+      order.paymentStatus = 'cancelled';
     }
+
     await order.save();
+
     try {
       const rejectData = {
-        orderId: order._id,
+        orderId: order._id.toString(),
         status: "cancelled",
         reason: reason,
         rejectedBy: "restaurant",
@@ -2804,132 +2807,146 @@ exports.ownerRejectOrder = async (req, res) => {
         ...rejectData,
         cancellationReason: reason,
         message: `Restaurant rejected your order: ${reason}`,
-        refundInitiated:
-          order.paymentStatus === "paid" && order.paymentMethod !== "cod",
       });
       socketService.emitToAdmin("order:cancelled", {
         ...rejectData,
         restaurantName: restaurant.name,
         restaurantId: restaurant._id,
         cancellationReason: reason,
-        customerName: order.customer?.name,
       });
     } catch (socketError) {
       console.error("Socket emission error:", socketError);
     }
-    res.status(200).json({
+
+    return res.status(200).json({
+      success: true,
       message: "Order rejected successfully",
-      order,
-      refundInitiated:
-        order.paymentStatus === "paid" && order.paymentMethod !== "cod",
+      order
     });
   } catch (error) {
     logger.error("Failed to reject order", { error: error.message });
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.ownerCancelOrder = async (req, res) => {
   try {
-    const { reason, refundAmount } = req.body;
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    const { reason = "Cancelled by restaurant", refundAmount } = req.body || {};
+    const orderId = req.params.id || req.params.orderId;
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+
+    const order = await Order.findOne(orderFilter);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
     const restaurant = await Restaurant.findOne({ owner: req.user._id });
     if (
       !restaurant ||
-      order.restaurant.toString() !== restaurant._id.toString()
-    )
-      return res.status(403).json({ message: "Access denied" });
-    if (order.status === "cancelled")
-      return res.status(400).json({ message: "Order already cancelled" });
-    if (!canBeCancelled(order.status)) {
-      return res.status(400).json({
-        message: "Cannot cancel order in current state",
-        currentStatus: order.status,
-      });
+      (order.restaurant.toString() !== restaurant._id.toString() && order.restaurant.toString() !== restaurant.owner.toString())
+    ) {
+      return res.status(403).json({ success: false, message: "Access denied" });
     }
+
+    if (order.status === "cancelled") {
+      return res.status(400).json({ success: false, message: "Order already cancelled" });
+    }
+
+    const oldStatus = order.status;
     order.status = "cancelled";
-    order.cancellationReason = reason || "Cancelled by restaurant";
+    order.cancellationReason = reason;
     order.timeline.push({
       status: "cancelled",
       timestamp: new Date(),
       note: `Restaurant Cancelled: ${reason}`,
+      by: "restaurant"
     });
-    logOrderTransition(
-      order._id,
-      oldStatus,
-      "cancelled",
-      req.user._id,
-      "restaurant_owner",
-      reason,
-    );
+
+    try {
+      logOrderTransition(
+        order._id,
+        oldStatus,
+        "cancelled",
+        req.user._id,
+        "restaurant_owner",
+        reason,
+      );
+    } catch (_) {}
+
     if (order.paymentStatus === "paid" && order.paymentMethod !== "cod") {
       const user = await User.findById(order.customer);
-      const amountToRefund = refundAmount
-        ? Number(refundAmount)
-        : order.totalAmount;
-      const RefundRequest = require("../models/RefundRequest");
-      const refundReq = await RefundRequest.create({
-        order: order._id,
-        user: user._id,
-        amount: amountToRefund,
-        method: "wallet",
-        requestedBy: req.user._id,
-        note: reason || "Refund requested by restaurant",
-      });
-      order.refund = order.refund || {};
-      order.refund.status = "in_progress";
-      order.refund.amount = amountToRefund;
-      order.refund.note = reason || "Refund requested by restaurant";
-      logRefund(
-        order._id,
-        user._id,
-        amountToRefund,
-        reason || "Restaurant cancellation",
-        "in_progress",
-      );
-      try {
-        await sendNotification(
-          order.customer,
-          "Refund Requested",
-          `A refund of ${amountToRefund} for order ${order._id} has been initiated and is pending admin approval.`,
-          { orderId: order._id, amount: amountToRefund },
-        );
-      } catch (e) { }
+      if (user) {
+        const amountToRefund = refundAmount ? Number(refundAmount) : order.totalAmount;
+        user.walletBalance = (user.walletBalance || 0) + amountToRefund;
+        await user.save();
+        try {
+          const WalletTransaction = require('../models/WalletTransaction');
+          await WalletTransaction.create({
+            user: user._id,
+            amount: amountToRefund,
+            type: 'credit',
+            description: `Refund (Restaurant Cancelled): Order #${order.orderId || order._id.toString().slice(-6)}`,
+            orderId: order._id
+          });
+        } catch (_) {}
+        order.paymentStatus = 'refunded';
+      }
+    } else if (order.paymentMethod === 'cod') {
+      order.paymentStatus = 'cancelled';
     }
+
+    if (order.rider) {
+      try {
+        const Rider = require('../models/Rider');
+        await Rider.findByIdAndUpdate(order.rider, { isAvailable: true });
+      } catch (_) {}
+    }
+
     await order.save();
-    await sendNotification(
-      order.customer,
-      "Order Cancelled",
-      `Your order ${order._id} was cancelled by the restaurant.`,
-      { orderId: order._id },
-    );
+
+    try {
+      sendNotification(
+        order.customer,
+        "Order Cancelled",
+        `Your order #${order.orderId || order._id.toString().slice(-6)} was cancelled by the restaurant. Reason: ${reason}`,
+        { orderId: order._id.toString() }
+      ).catch(() => {});
+    } catch (_) {}
+
     try {
       const cancelData = {
-        orderId: order._id,
+        orderId: order._id.toString(),
         status: "cancelled",
-        reason: reason || "Cancelled by restaurant",
+        reason: reason,
         rejectedBy: "restaurant",
         timestamp: new Date(),
       };
       socketService.emitToUser(order.customer.toString(), "order:cancelled", {
         ...cancelData,
-        cancellationReason: reason || "Cancelled by restaurant",
-        message: `Restaurant cancelled your order: ${reason || 'No reason provided'}`,
+        cancellationReason: reason,
+        message: `Restaurant cancelled your order: ${reason}`,
       });
       socketService.emitToAdmin("order:cancelled", {
         ...cancelData,
         restaurantName: restaurant.name,
         restaurantId: restaurant._id,
-        cancellationReason: reason || "Cancelled by restaurant",
-        customerName: order.customer?.name,
+        cancellationReason: reason,
       });
+      if (order.rider) {
+        socketService.emitToRider(order.rider.toString(), "order:cancelled", cancelData);
+      }
     } catch (socketError) {
       console.error("Socket emission error:", socketError);
     }
-    res.status(200).json({ message: "Order cancelled by restaurant", order });
+
+    return res.status(200).json({
+      success: true,
+      message: "Order cancelled by restaurant",
+      order
+    });
   } catch (error) {
     logger.error("Failed to cancel order", { error: error.message });
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.ownerDelayOrder = async (req, res) => {
@@ -3504,7 +3521,11 @@ exports.cancelOrderVendor = async (req, res) => {
 exports.sendPickupOtpVendor = async (req, res) => {
   try {
     const orderId = req.params.orderId || req.params.id;
-    const order = await Order.findById(orderId);
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+    const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ message: "Order not found" });
     const otp = "1234";
     order.pickupOTP = otp;
@@ -3560,6 +3581,7 @@ exports.getOrdersForRestaurantById = async (req, res) => {
 
 exports.customerCancelOrder = async (req, res) => {
   try {
+    const { reason = "Cancelled by customer" } = req.body || {};
     const orderId = req.params.id || req.params.orderId;
     const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
     const orderFilter = isObjectId
@@ -3572,7 +3594,7 @@ exports.customerCancelOrder = async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied" });
     }
 
-    if (!canBeCancelled(order.status)) {
+    if (['delivered', 'cancelled', 'failed'].includes(order.status)) {
       return res.status(400).json({
         success: false,
         message: `Order cannot be cancelled in status: ${order.status}`
@@ -3593,15 +3615,27 @@ exports.customerCancelOrder = async (req, res) => {
       if (user) {
         user.walletBalance = (user.walletBalance || 0) + order.totalAmount;
         await user.save();
-        await WalletTransaction.create({
-          user: user._id,
-          amount: order.totalAmount,
-          type: 'credit',
-          description: `Refund: Order #${order._id.toString().slice(-6)}`,
-          orderId: order._id
-        });
+        try {
+          const WalletTransaction = require('../models/WalletTransaction');
+          await WalletTransaction.create({
+            user: user._id,
+            amount: order.totalAmount,
+            type: 'credit',
+            description: `Refund: Order #${order.orderId || order._id.toString().slice(-6)}`,
+            orderId: order._id
+          });
+        } catch (_) {}
       }
       order.paymentStatus = 'refunded';
+    } else if (order.paymentMethod === 'cod') {
+      order.paymentStatus = 'cancelled';
+    }
+
+    if (order.rider) {
+      try {
+        const Rider = require('../models/Rider');
+        await Rider.findByIdAndUpdate(order.rider, { isAvailable: true });
+      } catch (_) {}
     }
 
     await order.save();
@@ -3612,11 +3646,13 @@ exports.customerCancelOrder = async (req, res) => {
       reason,
       timestamp: new Date()
     };
-    socketService.emitToRestaurant(order.restaurant.toString(), 'order:cancelled', cancelData);
-    socketService.emitToAdmin('order:cancelled', { ...cancelData, customerName: req.user.name });
-    if (order.rider) {
-      socketService.emitToRider(order.rider.toString(), 'order:cancelled', cancelData);
-    }
+    try {
+      socketService.emitToRestaurant(order.restaurant.toString(), 'order:cancelled', cancelData);
+      socketService.emitToAdmin('order:cancelled', { ...cancelData, customerName: req.user?.name });
+      if (order.rider) {
+        socketService.emitToRider(order.rider.toString(), 'order:cancelled', cancelData);
+      }
+    } catch (_) {}
 
     return res.status(200).json({ success: true, message: "Order cancelled successfully", order });
   } catch (error) {
@@ -3626,9 +3662,13 @@ exports.customerCancelOrder = async (req, res) => {
 
 exports.failOrderCustomer = async (req, res) => {
   try {
-    const orderId = req.params.id;
-    const { reason = "Payment or order failure" } = req.body;
-    const order = await Order.findById(orderId);
+    const orderId = req.params.id || req.params.orderId;
+    const { reason = "Payment or order failure" } = req.body || {};
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+    const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
 
     order.status = 'failed';
