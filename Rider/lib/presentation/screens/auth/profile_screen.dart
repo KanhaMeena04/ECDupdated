@@ -250,7 +250,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextField(
                 controller: upiController,
                 decoration: InputDecoration(
-                  hintText: 'e.g. rohit@upi or 9876543210@ybl',
+                  hintText: 'e.g. user@upi or 9876543210@ybl',
                   hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[400]),
                   filled: true,
                   fillColor: Colors.grey[50],
@@ -352,7 +352,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final rawName = user.name?.trim();
           final displayName = (rawName != null && rawName.isNotEmpty && rawName != 'Rider Partner' && rawName != 'Driver')
               ? rawName
-              : 'Rohit';
+              : (user.phone.isNotEmpty ? user.phone : 'Rider Partner');
           final riderId = (user.riderId != null && user.riderId!.isNotEmpty) ? user.riderId! : (user.id.isNotEmpty ? user.id : 'RIDER_001');
           final upiId = (user.upi != null && user.upi!.trim().isNotEmpty) ? user.upi! : 'Not Linked';
 

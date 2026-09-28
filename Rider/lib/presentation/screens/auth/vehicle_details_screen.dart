@@ -26,10 +26,10 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
 
   String _selectedVehicleType = 'Scooter / Motorcycle';
-  final _brandController = TextEditingController(text: 'Honda');
-  final _modelController = TextEditingController(text: 'Activa 6G');
-  final _yearController = TextEditingController(text: '2023');
-  final _regNumberController = TextEditingController(text: 'MH 12 AB 4567');
+  final _brandController = TextEditingController();
+  final _modelController = TextEditingController();
+  final _yearController = TextEditingController();
+  final _regNumberController = TextEditingController();
 
   static const Color primaryGreen = Color(0xFF248C70);
 

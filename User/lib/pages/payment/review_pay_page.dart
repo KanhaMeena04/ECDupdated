@@ -209,31 +209,20 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
   // ── Screenshot 1 Modal Sheet: Pick-up Slot Scheduling Screen Flow ─────────
   void _showPickupSchedulingModal(BuildContext context, double grandTotal) {
     final cart = context.read<CartProvider>();
-    String selectedDate = cart.pickupDate.isNotEmpty ? cart.pickupDate : 'Today, Sep 14';
-    String selectedTimeSlot = cart.pickupTimeSlot.isNotEmpty ? cart.pickupTimeSlot : '9:30 AM - 9:45 AM';
 
-    final dateOptions = [
-      'Today, Sep 14',
-      'Tomorrow, Sep 15',
-      'Wed, Sep 16',
-      'Thu, Sep 17',
-    ];
+    List<String> dateOptions = PickupSlotHelper.getDynamicDates();
+    String selectedDate = cart.pickupDate.isNotEmpty && dateOptions.contains(cart.pickupDate)
+        ? cart.pickupDate
+        : dateOptions.first;
+    if (cart.pickupDate.isNotEmpty && !dateOptions.contains(cart.pickupDate)) {
+      dateOptions.insert(0, cart.pickupDate);
+      selectedDate = cart.pickupDate;
+    }
 
-    final timeSlotOptions = [
-      'ASAP (~15-20 mins prep time)',
-      '9:30 AM - 9:45 AM',
-      '9:45 AM - 10:00 AM',
-      '10:00 AM - 10:15 AM',
-      '10:15 AM - 10:30 AM',
-      '10:30 AM - 10:45 AM',
-      '10:45 AM - 11:00 AM',
-      '11:00 AM - 11:15 AM',
-      '11:15 AM - 11:30 AM',
-      '11:30 AM - 11:45 AM',
-      '11:45 AM - 12:00 PM',
-      '12:00 PM - 12:15 PM',
-      '12:15 PM - 12:30 PM',
-    ];
+    List<String> timeSlotOptions = PickupSlotHelper.get30MinTimeSlots(selectedDate);
+    String selectedTimeSlot = cart.pickupTimeSlot.isNotEmpty && timeSlotOptions.contains(cart.pickupTimeSlot)
+        ? cart.pickupTimeSlot
+        : timeSlotOptions.first;
 
     showModalBottomSheet(
       context: context,
@@ -242,6 +231,11 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            timeSlotOptions = PickupSlotHelper.get30MinTimeSlots(selectedDate);
+            if (!timeSlotOptions.contains(selectedTimeSlot)) {
+              selectedTimeSlot = timeSlotOptions.first;
+            }
+
             return Container(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               decoration: const BoxDecoration(
@@ -297,14 +291,56 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Pick-up Date Header & Dropdown (Matching Screenshot 1)
-                  const Text(
-                    'Pick-up Date',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1F2937),
-                    ),
+                  // Pick-up Date Header & Calendar button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Pick-up Date',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () async {
+                          final now = DateTime.now();
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: now,
+                            firstDate: now,
+                            lastDate: now.add(const Duration(days: 90)),
+                          );
+                          if (picked != null) {
+                            final formatted = PickupSlotHelper.formatDate(picked);
+                            setSheetState(() {
+                              if (!dateOptions.contains(formatted)) {
+                                dateOptions.add(formatted);
+                              }
+                              selectedDate = formatted;
+                            });
+                          }
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                          child: Row(
+                            children: [
+                              Icon(Icons.calendar_month, size: 18, color: Color(0xFF248C70)),
+                              SizedBox(width: 4),
+                              Text(
+                                'Calendar',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF248C70),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Container(
@@ -333,7 +369,9 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                         }).toList(),
                         onChanged: (val) {
                           if (val != null) {
-                            setSheetState(() => selectedDate = val);
+                            setSheetState(() {
+                              selectedDate = val;
+                            });
                           }
                         },
                       ),
@@ -341,7 +379,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Pick-up Time Header & Dropdown (Matching Screenshot 1)
+                  // Pick-up Time Header & Dropdown
                   const Text(
                     'Pick-up Time',
                     style: TextStyle(

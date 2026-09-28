@@ -56,17 +56,17 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _accountHolderNameController;
-  final _bankNameController = TextEditingController(text: 'HDFC Bank');
-  final _accountNumberController = TextEditingController(text: '50100234567890');
-  final _ifscCodeController = TextEditingController(text: 'HDFC0001234');
-  final _upiIdController = TextEditingController(text: 'rider@okhdfcbank');
+  final _bankNameController = TextEditingController();
+  final _accountNumberController = TextEditingController();
+  final _ifscCodeController = TextEditingController();
+  final _upiIdController = TextEditingController();
 
   static const Color primaryGreen = Color(0xFF248C70);
 
   @override
   void initState() {
     super.initState();
-    _accountHolderNameController = TextEditingController(text: widget.name ?? 'Driver Partner');
+    _accountHolderNameController = TextEditingController(text: widget.name ?? '');
   }
 
   Future<void> _onSubmit() async {
@@ -84,30 +84,30 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
         'profilePic': widget.profileImageBase64 != null ? 'data:image/jpeg;base64,${widget.profileImageBase64}' : null,
         'vehicle': {
           'type': widget.vehicleType ?? 'Scooter / Motorcycle',
-          'brand': widget.vehicleBrand ?? 'Honda',
-          'model': widget.vehicleModel ?? 'Activa 6G',
-          'year': widget.vehicleYear ?? '2023',
-          'number': widget.regNumber ?? 'MH 12 AB 4567',
-          'regNumber': widget.regNumber ?? 'MH 12 AB 4567',
+          'brand': widget.vehicleBrand ?? '',
+          'model': widget.vehicleModel ?? '',
+          'year': widget.vehicleYear ?? '',
+          'number': widget.regNumber ?? '',
+          'regNumber': widget.regNumber ?? '',
         },
         'documents': {
           'license': {
-            'number': widget.licenseNumber ?? 'DL-1420110012345',
-            'expiryDate': widget.licenseExpiry ?? '31/12/2030',
+            'number': widget.licenseNumber ?? '',
+            'expiryDate': widget.licenseExpiry ?? '',
             'image': widget.licenseImageBase64 != null ? 'data:image/jpeg;base64,${widget.licenseImageBase64}' : null,
             'frontImage': widget.licenseImageBase64 != null ? 'data:image/jpeg;base64,${widget.licenseImageBase64}' : null,
           },
           'panCard': {
-            'number': widget.panNumber ?? 'ABCDE1234F',
+            'number': widget.panNumber ?? '',
             'image': widget.panImageBase64 != null ? 'data:image/jpeg;base64,${widget.panImageBase64}' : null,
           },
           'aadharCard': {
-            'number': widget.aadhaarNumber ?? '5489 1234 5678',
+            'number': widget.aadhaarNumber ?? '',
             'image': widget.aadhaarImageBase64 != null ? 'data:image/jpeg;base64,${widget.aadhaarImageBase64}' : null,
             'frontImage': widget.aadhaarImageBase64 != null ? 'data:image/jpeg;base64,${widget.aadhaarImageBase64}' : null,
           },
           'rc': {
-            'number': widget.regNumber ?? 'MH 12 AB 4567',
+            'number': widget.regNumber ?? '',
           }
         },
         'bankDetails': {

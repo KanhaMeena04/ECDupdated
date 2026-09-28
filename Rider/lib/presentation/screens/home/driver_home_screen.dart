@@ -861,7 +861,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                             mainAxisSize: MainAxisSize.min,
                             children: [
                                 Text(
-                                  'Hello, ${(user.name != null && user.name.toString().trim().isNotEmpty && user.name.toString().trim() != 'Rider Partner') ? user.name : 'Rohit'} 👋',
+                                  'Hello, ${(user.name != null && user.name.toString().trim().isNotEmpty && user.name.toString().trim() != 'Rider Partner') ? user.name : (user.phone.isNotEmpty ? user.phone : 'Rider Partner')} 👋',
                                 style: GoogleFonts.poppins(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
@@ -1322,7 +1322,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    (user.name != null && user.name.toString().trim().isNotEmpty && user.name.toString().trim() != 'Rider Partner') ? user.name : 'Rohit',
+                    (user.name != null && user.name.toString().trim().isNotEmpty && user.name.toString().trim() != 'Rider Partner') ? user.name! : (user.phone.isNotEmpty ? user.phone : 'Rider Partner'),
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

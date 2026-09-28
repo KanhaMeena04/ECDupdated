@@ -156,8 +156,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             final riderMap = riderData is Map ? Map<String, dynamic>.from(riderData) : <String, dynamic>{};
 
             final vStatus = (riderMap['verificationStatus'] ?? userMap['verificationStatus'] ?? 'pending').toString().toLowerCase();
-            final isVerified = (vStatus == 'approved' || riderMap['riderVerified'] == true) &&
-                vStatus != 'pending' &&
+            final isVerified = (vStatus == 'approved' ||
+                vStatus == 'verified' ||
+                userMap['isVerified'] == true ||
+                riderMap['riderVerified'] == true) &&
                 vStatus != 'rejected';
             final isOnline = isVerified && (riderMap['isOnline'] == true || userMap['isOnline'] == true);
 

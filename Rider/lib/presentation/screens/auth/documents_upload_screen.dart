@@ -39,16 +39,16 @@ class _DocumentsUploadScreenState extends State<DocumentsUploadScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // Driver License
-  final _licenseNumberController = TextEditingController(text: 'DL-1420110012345');
-  final _expiryDateController = TextEditingController(text: '31/12/2030');
+  final _licenseNumberController = TextEditingController();
+  final _expiryDateController = TextEditingController();
   Uint8List? _licenseBytes;
 
   // PAN Card
-  final _panNumberController = TextEditingController(text: 'ABCDE1234F');
+  final _panNumberController = TextEditingController();
   Uint8List? _panBytes;
 
   // Aadhaar Card
-  final _aadhaarNumberController = TextEditingController(text: '5489 1234 5678');
+  final _aadhaarNumberController = TextEditingController();
   Uint8List? _aadhaarBytes;
 
   final ImagePicker _picker = ImagePicker();

@@ -612,9 +612,11 @@ exports.getRiderProfile = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
-        mobile: user.mobile,
+        mobile: user.mobile || user.phone || "",
         profilePic: user.profilePic,
         role: user.role,
+        isVerified: isApproved || user.isVerified === true,
+        verificationStatus: riderProfile.verificationStatus || (isApproved ? 'approved' : 'pending'),
         walletBalance: user.walletBalance || 0,
         upi: riderProfile.bankDetails?.upiId || riderProfile.bankDetails?.upi || ""
       },
@@ -2595,15 +2597,11 @@ exports.verifyRider = async (req, res) => {
     const newStatus = status || 'approved';
     if (newStatus === 'approved') {
       rider.riderVerified = true;
-      const isVehicleVerified = Boolean(
-        rider.vehicle && 
-        (rider.vehicle.vehicleVerified === true || rider.vehicle.vehicleApproval?.status === 'approved') &&
-        (rider.vehicle.number || rider.vehicle.model || rider.vehicle.type)
-      );
-      if (isVehicleVerified) {
-        rider.verificationStatus = 'approved';
-      } else {
-        rider.verificationStatus = 'pending';
+      rider.verificationStatus = 'approved';
+      if (rider.vehicle) {
+        rider.vehicle.vehicleVerified = true;
+        if (!rider.vehicle.vehicleApproval) rider.vehicle.vehicleApproval = {};
+        rider.vehicle.vehicleApproval.status = 'approved';
       }
       if (rider.bankDetails) {
         rider.bankDetails.verified = true;

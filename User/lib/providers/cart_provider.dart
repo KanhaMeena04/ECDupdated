@@ -18,13 +18,13 @@ class CartProvider with ChangeNotifier {
 
   // ── Order Type (Delivery / Pickup) & Slot Selection ────────────────────────
   String _orderType = 'delivery';
-  String _pickupDate = 'Today, Sep 14';
-  String _pickupTimeSlot = '9:30 AM - 9:45 AM';
+  String _pickupDate = '';
+  String _pickupTimeSlot = 'ASAP (~15-20 mins prep time)';
   String? _pickupTime;
   String _paymentMethod = 'Cash on Delivery';
 
   String get orderType => _orderType;
-  String get pickupDate => _pickupDate;
+  String get pickupDate => _pickupDate.isNotEmpty ? _pickupDate : PickupSlotHelper.getDynamicDates().first;
   String get pickupTimeSlot => _pickupTimeSlot;
   String? get pickupTime => _pickupTime ?? _pickupTimeSlot;
   String get paymentMethod => _paymentMethod;
@@ -332,8 +332,8 @@ class CartProvider with ChangeNotifier {
 
   void resetSchedule() {
     _orderType = 'delivery';
-    _pickupDate = 'Today, Sep 14';
-    _pickupTimeSlot = '9:30 AM - 9:45 AM';
+    _pickupDate = PickupSlotHelper.getDynamicDates().first;
+    _pickupTimeSlot = 'ASAP (~15-20 mins prep time)';
     _pickupTime = null;
     notifyListeners();
   }
@@ -344,11 +344,88 @@ class CartProvider with ChangeNotifier {
     _restaurantImageUrl = null;
     _restaurantDeliveryTimeMin = 25;
     _orderType = 'delivery';
-    _pickupDate = 'Today, Sep 14';
-    _pickupTimeSlot = '9:30 AM - 9:45 AM';
+    _pickupDate = PickupSlotHelper.getDynamicDates().first;
+    _pickupTimeSlot = 'ASAP (~15-20 mins prep time)';
     _pickupTime = null;
     removeCoupon();
   }
+
+class PickupSlotHelper {
+  static const List<String> months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+  static const List<String> days = [
+    'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
+  ];
+
+  static String formatDate(DateTime dt) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(dt.year, dt.month, dt.day);
+    final diffDays = target.difference(today).inDays;
+
+    final monthStr = months[dt.month - 1];
+    final dayName = days[dt.weekday % 7];
+
+    if (diffDays == 0) {
+      return 'Today, $monthStr ${dt.day}';
+    } else if (diffDays == 1) {
+      return 'Tomorrow, $monthStr ${dt.day}';
+    } else {
+      return '$dayName, $monthStr ${dt.day}';
+    }
+  }
+
+  static List<String> getDynamicDates() {
+    final List<String> dates = [];
+    final now = DateTime.now();
+
+    for (int i = 0; i < 7; i++) {
+      final d = now.add(Duration(days: i));
+      dates.add(formatDate(d));
+    }
+    return dates;
+  }
+
+  static List<String> get30MinTimeSlots(String selectedDate) {
+    final List<String> slots = ['ASAP (~15-20 mins prep time)'];
+    final now = DateTime.now();
+    final isToday = selectedDate.startsWith('Today');
+
+    // 8:00 AM (480 mins) to 12:30 AM (1470 mins)
+    for (int minutes = 8 * 60; minutes < 24.5 * 60; minutes += 30) {
+      int startHour = (minutes ~/ 60) % 24;
+      int startMin = minutes % 60;
+
+      int endMinutes = minutes + 30;
+      int endHour = (endMinutes ~/ 60) % 24;
+      int endMin = endMinutes % 60;
+
+      // Filter past time slots if date is Today
+      if (isToday) {
+        int currentMinutes = now.hour * 60 + now.minute + 15; // 15 mins prep buffer
+        if (endMinutes <= currentMinutes) {
+          continue;
+        }
+      }
+
+      String formatTime(int hour, int min) {
+        String period = (hour >= 12 && hour < 24) ? 'PM' : 'AM';
+        int displayHour = hour % 12;
+        if (displayHour == 0) displayHour = 12;
+        String minStr = min.toString().padLeft(2, '0');
+        return '$displayHour:$minStr $period';
+      }
+
+      String startStr = formatTime(startHour, startMin);
+      String endStr = formatTime(endHour, endMin);
+      slots.add('$startStr - $endStr');
+    }
+
+    return slots;
+  }
+}
 
   // ── Coupon Methods ─────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> applyCoupon(String code) async {

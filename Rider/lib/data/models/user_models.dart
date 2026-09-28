@@ -204,9 +204,11 @@ class UserModel extends Equatable {
         .toLowerCase();
 
     final bool isVerified = (vStatus == 'approved' ||
+            vStatus == 'verified' ||
+            json['isVerified'] == true ||
+            rawUser?['isVerified'] == true ||
             json['riderVerified'] == true ||
             rawRider?['riderVerified'] == true) &&
-        vStatus != 'pending' &&
         vStatus != 'rejected';
 
     final avatar = json['avatar']?.toString() ??
