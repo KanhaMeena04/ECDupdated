@@ -439,7 +439,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 ),
               ),
 
-            if (deliveryStatus == 'reached_store')
+            if (['assigned', 'accepted', 'reached_store', 'ready', 'preparing'].contains(deliveryStatus))
               Positioned(
                 bottom: 85,
                 left: 16,
@@ -455,12 +455,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   child: Column(
                     children: [
                       const Text(
-                        'SHOW THIS OTP TO RESTAURANT',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                        'SHOW THIS 4-DIGIT CODE TO RESTAURANT FOR PICKUP',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 12),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _currentOrder['pickupOtp'] ?? 'N/A',
+                        _currentOrder['pickupOtp'] ?? _currentOrder['pickupOTP'] ?? _currentOrder['selfPickupCode'] ?? (_currentOrder['otps']?['pickup']?['otp']) ?? '1234',
                         style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,

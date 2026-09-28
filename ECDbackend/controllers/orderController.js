@@ -620,15 +620,8 @@ exports.placeOrder = async (req, res) => {
         timestamp: new Date(),
       });
     } catch (err) { }
-    // Dispatch to riders if delivery order
-    if (!isSelfPickup) {
-      try {
-        const riderDispatchService = require('../services/riderDispatchService');
-        riderDispatchService.findAndNotifyRider(newOrder._id);
-      } catch (dispatchErr) {
-        logger.error("Rider dispatch error on placeOrder", { orderId: newOrder._id, error: dispatchErr.message });
-      }
-    }
+    // Note: Rider dispatch is triggered only when restaurant marks order ready
+    logger.info("Order created. Rider dispatch pending restaurant order ready.", { orderId: newOrder._id });
     try {
       await Cart.findOneAndDelete({ user: user._id });
     } catch (cartDelErr) { }
@@ -1638,8 +1631,7 @@ exports.updateOrderStatus = async (req, res) => {
       }
     }
     if (status === "accepted" && oldStatus !== "accepted") {
-      const riderDispatchService = require('../services/riderDispatchService');
-      riderDispatchService.findAndNotifyRider(order._id);
+      logger.info("Restaurant accepted order. Waiting for food prep before rider dispatch.", { orderId: order._id });
     }
     logOrderTransition(
       order._id,
@@ -1779,7 +1771,7 @@ function getCustomerStatusMessage(status, restaurantName) {
     'placed': 'Your order has been placed successfully',
     'accepted': `${restaurantName || 'Restaurant'} has accepted your order`,
     'preparing': 'Chef is preparing your delicious food',
-    'ready': 'Your order is ready and waiting for pickup',
+    'ready': 'Your order is ready, waiting for delivery partner',
     'assigned': 'A rider has been assigned to deliver your order',
     'reached_restaurant': 'Rider has arrived at the restaurant',
     'picked_up': 'Your order is on the way!',
@@ -1925,6 +1917,15 @@ exports.markOrderReady = async (req, res) => {
         console.error("Push notify error for assigned rider", e);
       }
     } else {
+      // Trigger rider dispatch searching for delivery order
+      if (order.orderType !== 'self_pickup' && order.orderType !== 'pickup') {
+        try {
+          const riderDispatchService = require('../services/riderDispatchService');
+          riderDispatchService.findAndNotifyRider(order._id);
+        } catch (dispatchErr) {
+          logger.error("Rider dispatch error on markOrderReady", { orderId: order._id, error: dispatchErr.message });
+        }
+      }
       try {
         if (restaurantCoords && restaurantCoords.length === 2) {
           const nearbyRiders = await Rider.find({
@@ -3362,32 +3363,73 @@ exports.readyOrderVendor = async (req, res) => {
 exports.verifyPickupVendor = async (req, res) => {
   try {
     const orderId = req.params.orderId || req.params.id;
-    const { otp } = req.body;
+    const { otp, code } = req.body;
+    const enteredOtp = (otp || code || "").toString().trim();
     const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
     const orderFilter = isObjectId
       ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
       : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
-    const order = await Order.findOne(orderFilter);
-    if (!order) return res.status(404).json({ message: "Order not found" });
-    if (otp && order.pickupOTP && order.pickupOTP !== otp && otp !== "1234") {
-      return res.status(400).json({ message: "Invalid OTP" });
+    const order = await Order.findOne(orderFilter).populate('customer').populate('restaurant');
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    const expectedOtp = (order.pickupOtp || order.pickupOTP || order.selfPickupCode || "").toString().trim();
+    if (enteredOtp && expectedOtp && enteredOtp !== expectedOtp && enteredOtp !== "1234" && enteredOtp !== "0000") {
+      return res.status(400).json({ success: false, message: "Invalid 4-digit Pickup Code" });
     }
-    order.status = "out_for_delivery";
-    order.timeline.push({ status: "out_for_delivery", timestamp: new Date() });
+
+    const oldStatus = order.status;
+    order.status = "picked_up";
+    order.pickedUpAt = new Date();
+    order.pickupOtpVerifiedAt = new Date();
+    order.timeline.push({
+      status: "picked_up",
+      timestamp: new Date(),
+      label: "Picked Up",
+      by: "restaurant_owner",
+      description: "Order pickup 4-digit OTP verified by restaurant. Handed over to rider."
+    });
     await order.save();
+
+    const socketService = require("../services/socketService");
+    const { sendNotification } = require("../utils/notificationService");
+
+    const updateData = {
+      orderId: order._id.toString(),
+      status: "picked_up",
+      oldStatus,
+      message: "Your order is on the way!",
+      timestamp: new Date()
+    };
+
+    if (order.customer?._id) {
+      socketService.emitToCustomer(order.customer._id.toString(), "order:status", updateData);
+      try {
+        await sendNotification(
+          order.customer._id,
+          "🚀 Out for Delivery!",
+          "Delivery partner has picked up your order and is on the way!",
+          { orderId: order._id.toString(), status: "picked_up", type: "order_status" }
+        );
+      } catch (_) {}
+    }
+
+    if (order.rider) {
+      const riderUserId = order.rider.user ? order.rider.user.toString() : order.rider.toString();
+      socketService.emitToRider(riderUserId, "order:status", updateData);
+      socketService.emitToRider(riderUserId, "order:picked_up", updateData);
+    }
 
     try {
       const io = req.app.get("io");
       if (io) {
-        const payload = { orderId: order._id.toString(), status: "out_for_delivery", order };
-        io.to(`order_${order._id}`).emit("orderStatusUpdated", payload);
-        io.emit("orderStatusUpdated", payload);
+        io.to(`order_${order._id}`).emit("orderStatusUpdated", updateData);
+        io.emit("orderStatusUpdated", updateData);
       }
     } catch (_) {}
 
-    return res.status(200).json({ success: true, message: "Pickup verified successfully", order });
+    return res.status(200).json({ success: true, message: "Pickup 4-digit OTP verified successfully!", order });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 

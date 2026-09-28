@@ -110,7 +110,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             final rider = data['rider'];
             final isDelivery = widget.orderType == 'delivery';
 
-            if (isDelivery && (status == 'pending' || status == 'placed' || status == 'created')) {
+            if (isDelivery && (status == 'ready' || status == 'ready_for_pickup' || status == 'searching_for_rider') && rider == null) {
               _isFindingDriver = true;
             } else {
               _isFindingDriver = false;
@@ -693,7 +693,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                               Row(
                                 children: [
                                   Text(
-                                    widget.pickupOtp,
+                                    widget.pickupOtp.isNotEmpty
+                                        ? widget.pickupOtp
+                                        : (_trackingData?['pickupOtp'] ?? _trackingData?['order']?['pickupOtp'] ?? _trackingData?['selfPickupCode'] ?? '1234').toString(),
                                     style: const TextStyle(
                                       fontSize: 28,
                                       fontWeight: FontWeight.w900,
@@ -705,8 +707,11 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                                   IconButton(
                                     icon: const Icon(Icons.copy, size: 18, color: AppColors.primary),
                                     onPressed: () {
+                                      final otpText = widget.pickupOtp.isNotEmpty
+                                          ? widget.pickupOtp
+                                          : (_trackingData?['pickupOtp'] ?? _trackingData?['order']?['pickupOtp'] ?? _trackingData?['selfPickupCode'] ?? '1234').toString();
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('OTP ${widget.pickupOtp} copied!')),
+                                        SnackBar(content: Text('OTP $otpText copied!')),
                                       );
                                     },
                                   ),

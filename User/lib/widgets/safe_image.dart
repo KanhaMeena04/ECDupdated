@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/constants/app_constants.dart';
 
 class SafeImage extends StatelessWidget {
   final String url;
@@ -52,6 +53,11 @@ class SafeImage extends StatelessWidget {
       );
     }
 
+    if (cleanUrl.startsWith('/uploads/') || cleanUrl.startsWith('uploads/')) {
+      final host = AppConstants.baseUrl.replaceAll(RegExp(r'/api(/v1)?/?$'), '');
+      cleanUrl = cleanUrl.startsWith('/') ? '$host$cleanUrl' : '$host/$cleanUrl';
+    }
+
     if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
       if (cleanUrl.contains('assets/')) {
         final assetIndex = cleanUrl.indexOf('assets/');
@@ -96,7 +102,7 @@ class SafeImage extends StatelessWidget {
 
 ImageProvider safeImageProvider(String url) {
   if (url.isEmpty) {
-    return const AssetImage('assets/images/placeholder.png');
+    return const AssetImage('assets/food.png');
   }
   String cleanUrl = url.trim();
   if (cleanUrl.startsWith('file:///')) {
@@ -112,9 +118,13 @@ ImageProvider safeImageProvider(String url) {
     final assetPath = cleanUrl.substring(assetIndex);
     return AssetImage(assetPath);
   }
+  if (cleanUrl.startsWith('/uploads/') || cleanUrl.startsWith('uploads/')) {
+    final host = AppConstants.baseUrl.replaceAll(RegExp(r'/api(/v1)?/?$'), '');
+    cleanUrl = cleanUrl.startsWith('/') ? '$host$cleanUrl' : '$host/$cleanUrl';
+  }
   if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
     return NetworkImage(cleanUrl);
   }
-  return const AssetImage('assets/images/placeholder.png');
+  return const AssetImage('assets/food.png');
 }
 

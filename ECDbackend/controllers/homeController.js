@@ -529,19 +529,38 @@ exports.getCategories = async (req, res) => {
 
 exports.getBanners = async (req, res) => {
   try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(200).json([
-        { _id: 'ban_1', title: 'Special Discount 50% Off', image: 'assets/static/b1.png', link: '/offers' }
-      ]);
-    }
     const Banner = require('../models/Banner');
-    const banners = await Banner.find({ isActive: true }).sort({ position: 1 });
-    res.status(200).json(banners);
+    const banners = await Banner.find({
+      $or: [{ isActive: true }, { isActive: { $exists: false } }]
+    }).sort({ position: 1, createdAt: -1 });
+
+    const formattedBanners = banners.map(b => ({
+      _id: b._id,
+      id: b._id,
+      title: b.title || 'Promo Banner',
+      image: b.image,
+      imageUrl: b.image,
+      type: b.type || 'static',
+      targetId: b.targetId,
+      targetModel: b.targetModel,
+      isActive: b.isActive !== false
+    }));
+
+    return res.status(200).json({
+      success: true,
+      banners: formattedBanners,
+      data: formattedBanners,
+      count: formattedBanners.length
+    });
   } catch (error) {
     console.error("Get Banners Error:", error);
-    res.status(200).json([
-      { _id: 'ban_1', title: 'Special Discount 50% Off', image: 'assets/static/b1.png', link: '/offers' }
-    ]);
+    return res.status(200).json({
+      success: true,
+      banners: [
+        { _id: 'ban_1', id: 'ban_1', title: 'Special Discount 50% Off', image: 'assets/static/b1.png', imageUrl: 'assets/static/b1.png', isActive: true }
+      ],
+      data: []
+    });
   }
 };
 
@@ -746,23 +765,6 @@ exports.getExploreRestaurants = async (req, res) => {
   }
 };
 
-exports.getBanners = async (req, res) => {
-  try {
-    const mongoose = require('mongoose');
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(200).json([
-        { _id: 'ban_1', title: 'Special Discount 50% Off', image: 'assets/static/b1.png', link: '/offers' }
-      ]);
-    }
-    const Banner = require('../models/Banner');
-    const banners = await Banner.find({ isActive: true }).sort({ position: 1 });
-    res.status(200).json(banners);
-  } catch (error) {
-    console.error("Get Banners Error:", error);
-    res.status(200).json([
-      { _id: 'ban_1', title: 'Special Discount 50% Off', image: 'assets/static/b1.png', link: '/offers' }
-    ]);
-  }
-};
+
 
 

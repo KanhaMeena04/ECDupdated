@@ -104,26 +104,53 @@ class RestaurantApiService {
     try {
       final response = await http.get(Uri.parse(bannersUrl)).timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        final List<dynamic> data = jsonResponse['banners'] ?? [];
-        return data.map((json) => BannerModel.fromJson(json)).toList();
+        final decoded = jsonDecode(response.body);
+        List<dynamic> data = [];
+        if (decoded is List) {
+          data = decoded;
+        } else if (decoded is Map) {
+          if (decoded['banners'] is List) {
+            data = decoded['banners'];
+          } else if (decoded['data'] is List) {
+            data = decoded['data'];
+          } else if (decoded['items'] is List) {
+            data = decoded['items'];
+          }
+        }
+
+        final list = data
+            .map((json) {
+              if (json is Map<String, dynamic>) {
+                return BannerModel.fromJson(json);
+              } else if (json is Map) {
+                return BannerModel.fromJson(Map<String, dynamic>.from(json));
+              }
+              return null;
+            })
+            .whereType<BannerModel>()
+            .where((b) => b.imageUrl.isNotEmpty && b.isActive)
+            .toList();
+
+        if (list.isNotEmpty) {
+          return list;
+        }
       }
     } catch (e) {
       debugPrint('Error fetching banners: $e');
     }
-    return [];
+    return _getMockBanners();
   }
 
   static List<BannerModel> _getMockBanners() {
     return [
       BannerModel(
         id: 'b1',
-        imageUrl: 'assets/static/bb.png',
+        imageUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800',
         isActive: true,
       ),
       BannerModel(
         id: 'b2',
-        imageUrl: 'assets/static/grocery.jpg',
+        imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800',
         isActive: true,
       ),
     ];

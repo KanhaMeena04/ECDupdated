@@ -310,10 +310,13 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   bool _isSectionActive(String key) {
-    if (!_hasFetchedCms) return true; // Default visible while loading
-    final sec = _cmsSections.firstWhere((s) => s['sectionKey'] == key, orElse: () => {});
-    if (sec.isEmpty) return false; // Not in active CMS sections list -> inactive
-    return sec['isActive'] == true || sec['isActive'] == null;
+    if (!_hasFetchedCms || _cmsSections.isEmpty) return true; // Default visible
+    final sec = _cmsSections.firstWhere(
+      (s) => s['sectionKey'] == key || s['key'] == key,
+      orElse: () => {},
+    );
+    if (sec.isEmpty) return true; // Show by default if not specified in CMS
+    return sec['isActive'] != false && sec['status'] != 'inactive';
   }
 
   String _getSectionTitle(String key, String defaultTitle) {
@@ -908,7 +911,7 @@ class _HomeTabState extends State<_HomeTab> {
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _SliverCategoryHeaderDelegate(
-                height: 142.0,
+                height: 154.0,
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                   decoration: BoxDecoration(
@@ -927,7 +930,7 @@ class _HomeTabState extends State<_HomeTab> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 12, 18, 6),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -3057,7 +3060,7 @@ class _SliverCategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;
 
-  _SliverCategoryHeaderDelegate({required this.child, this.height = 142.0});
+  _SliverCategoryHeaderDelegate({required this.child, this.height = 154.0});
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {

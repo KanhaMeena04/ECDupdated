@@ -27,9 +27,11 @@ class CartApiService {
         Uri.parse(baseUrl),
         headers: await _getHeaders(),
       );
-      debugPrint('API Response [getCart]: ${response.statusCode}');
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
+      }
+      if (response.statusCode == 401) {
+        return {'items': []};
       }
       return null;
     } catch (e) {
