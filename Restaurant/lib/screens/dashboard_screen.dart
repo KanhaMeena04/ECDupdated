@@ -148,9 +148,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               } else if (_restaurantName == 'Loading...') {
                 _restaurantName = storedName.isNotEmpty ? storedName : 'My Restaurant';
               }
-              _isOnline = data['isActive'] ?? true;
-              if (data['restaurantId'] != null) {
-                _restaurantId = data['restaurantId'].toString();
+              _isOnline = data['isActive'] ?? data['restaurant']?['isActive'] ?? true;
+              final extractedRestId = data['restaurantId'] ?? data['_id'] ?? data['restaurant']?['_id'] ?? data['restaurant']?['id'] ?? data['id'];
+              if (extractedRestId != null && extractedRestId.toString().isNotEmpty && extractedRestId.toString() != 'null') {
+                _restaurantId = extractedRestId.toString();
                 prefs.setString('restaurantId', _restaurantId);
               }
             });
@@ -177,24 +178,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     final prefs = await SharedPreferences.getInstance();
     var restId = _restaurantId.isNotEmpty ? _restaurantId : (prefs.getString('restaurantId') ?? '');
-    final savedPhone = prefs.getString('userPhone') ?? '8305370330';
-    if (restId.isEmpty) restId = savedPhone;
+    final savedPhone = prefs.getString('userPhone') ?? '';
+    if (restId.isEmpty && savedPhone.isNotEmpty) restId = savedPhone;
     final token = prefs.getString('token') ?? '';
 
-    if (restId.isEmpty) {
+    if (restId.isEmpty && token.isEmpty) {
       if (mounted) setState(() => _isLoadingOrders = false);
       return;
     }
 
     try {
-      final ordersUrl = '${ApiConstants.baseUrl}/orders/restaurant/$restId';
-      final res = await http.get(
+      String ordersUrl = restId.isNotEmpty
+          ? '${ApiConstants.baseUrl}/orders/restaurant/$restId'
+          : '${ApiConstants.baseUrl}/orders/restaurant';
+
+      http.Response res = await http.get(
         Uri.parse(ordersUrl),
         headers: {
           'Content-Type': 'application/json',
           if (token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
       ).timeout(const Duration(seconds: 8));
+
+      if (res.statusCode != 200 && token.isNotEmpty && ordersUrl.contains('/restaurant/')) {
+        try {
+          ordersUrl = '${ApiConstants.baseUrl}/orders/restaurant';
+          res = await http.get(
+            Uri.parse(ordersUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          ).timeout(const Duration(seconds: 8));
+        } catch (_) {}
+      }
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
