@@ -110,7 +110,6 @@ flutter:
     - bank_header.jpg
     - welcome_header.jpg
     - welcome_back.png
-    - ordertone.mpeg
     - assets/ordertone.mpeg
     - assets/onboarding_illustration.jpg
     - assets/rider_login_header.jpg
