@@ -2170,6 +2170,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     fontSize: 9.5,
                     fontWeight: FontWeight.bold,
                     color: ((order['paymentTransaction'] != null && (order['paymentTransaction']['provider'] == 'cod' || order['paymentTransaction']['provider'] == 'Cash on Delivery')) || order['paymentMethod'] == 'Cash on Delivery' || order['paymentMethod'] == 'COD') ? Colors.green[800] : Colors.blue[800],
+                  ),
                 ),
               ),
             ],
