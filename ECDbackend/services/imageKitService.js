@@ -26,7 +26,7 @@ function getImageKitInstance() {
  * @param {string} folder - Destination folder on ImageKit (default: /ecdkart/riders)
  * @returns {Promise<string|null>} - Returns the secure ImageKit CDN URL or null
  */
-async function uploadToImageKit(fileInput, fileName = 'image.jpg', folder = '/ecdkart/riders') {
+async function uploadToImageKit(fileInput, fileName = 'image.jpg', folder = '/ecdkart/banners') {
   if (!fileInput) return null;
 
   // If already an HTTP/HTTPS URL and not a data URI, return as-is
@@ -41,11 +41,25 @@ async function uploadToImageKit(fileInput, fileName = 'image.jpg', folder = '/ec
   }
 
   try {
-    let cleanFile = fileInput;
+    let uploadFile = fileInput;
+
+    // If it's a file path (string but not URL/base64), read it as Buffer
+    if (typeof fileInput === 'string' && !fileInput.startsWith('data:') && fileInput.length < 500) {
+      const fs = require('fs');
+      if (fs.existsSync(fileInput)) {
+        uploadFile = fs.readFileSync(fileInput);
+      }
+    }
+
+    // If it's a Buffer, convert to base64 for ImageKit SDK
+    if (Buffer.isBuffer(uploadFile)) {
+      uploadFile = uploadFile.toString('base64');
+    }
+
     const safeName = `${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
 
     const response = await ik.upload({
-      file: cleanFile,
+      file: uploadFile,
       fileName: safeName,
       folder: folder,
       useUniqueFileName: true,
@@ -61,6 +75,7 @@ async function uploadToImageKit(fileInput, fileName = 'image.jpg', folder = '/ec
 
   return null;
 }
+
 
 module.exports = {
   getImageKitInstance,

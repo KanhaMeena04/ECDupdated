@@ -134,11 +134,14 @@ class RestaurantApiService {
         if (list.isNotEmpty) {
           return list;
         }
+        // No banners from API - return empty (don't show mock banners)
+        return [];
       }
     } catch (e) {
       debugPrint('Error fetching banners: $e');
     }
-    return _getMockBanners();
+    // Network error fallback - return empty list
+    return [];
   }
 
   static List<BannerModel> _getMockBanners() {

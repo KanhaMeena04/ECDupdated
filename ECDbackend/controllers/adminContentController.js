@@ -632,7 +632,7 @@ exports.addBanner = async (req, res) => {
             position: position || 1,
             restaurant: restaurant || undefined,
             city: city || undefined,
-            isActive: isActive !== false && isActive !== 'false',
+            isActive: isActive === true || isActive === 'true' || isActive === 1 || isActive === '1' || (isActive !== false && isActive !== 'false' && isActive !== 0 && isActive !== '0'),
         });
         res.status(201).json({ message: "Banner created", data: banner });
     } catch (error) {

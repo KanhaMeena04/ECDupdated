@@ -224,9 +224,13 @@ exports.getHomeData = async (req, res) => {
     const { getPriceRangeQuery } = require('../utils/priceRangeUtils');
     const priceQuery = getPriceRangeQuery(minPrice, maxPrice);
     Object.assign(restaurantQuery, priceQuery);
-    const bannersPromise = Banner.find({ isActive: true })
-      .sort({ position: 1 })
-      .lean();
+    const bannersPromise = Banner.find({
+      $or: [
+        { isActive: true },
+        { isActive: 'true' },
+        { isActive: { $exists: false } }
+      ]
+    }).sort({ position: 1 }).lean();
     const cuisinesPromise = Cuisine.find({ isActive: true })
       .select("name image")
       .limit(8)
@@ -531,20 +535,40 @@ exports.getBanners = async (req, res) => {
   try {
     const Banner = require('../models/Banner');
     const banners = await Banner.find({
-      $or: [{ isActive: true }, { isActive: { $exists: false } }]
+      $or: [
+        { isActive: true },
+        { isActive: 'true' },
+        { isActive: { $exists: false } }
+      ]
     }).sort({ position: 1, createdAt: -1 });
 
-    const formattedBanners = banners.map(b => ({
-      _id: b._id,
-      id: b._id,
-      title: b.title || 'Promo Banner',
-      image: b.image,
-      imageUrl: b.image,
-      type: b.type || 'static',
-      targetId: b.targetId,
-      targetModel: b.targetModel,
-      isActive: b.isActive !== false
-    }));
+    // Helper: resolve relative /uploads/ paths to full URL
+    const baseOrigin = process.env.BACKEND_URL ||
+      `http://localhost:${process.env.PORT || 5000}`;
+
+    const resolveImageUrl = (img) => {
+      if (!img) return '';
+      if (/^https?:\/\//.test(img)) return img; // already absolute
+      if (img.startsWith('/uploads/') || img.startsWith('uploads/')) {
+        return img.startsWith('/') ? `${baseOrigin}${img}` : `${baseOrigin}/${img}`;
+      }
+      return img;
+    };
+
+    const formattedBanners = banners.map(b => {
+      const resolvedImage = resolveImageUrl(b.image);
+      return {
+        _id: b._id,
+        id: b._id,
+        title: b.title || 'Promo Banner',
+        image: resolvedImage,
+        imageUrl: resolvedImage,
+        type: b.type || 'static',
+        targetId: b.targetId,
+        targetModel: b.targetModel,
+        isActive: b.isActive !== false && b.isActive !== 'false'
+      };
+    });
 
     return res.status(200).json({
       success: true,
