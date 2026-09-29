@@ -118,7 +118,7 @@ class _CancelledOrdersScreenState extends State<CancelledOrdersScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFFFEF2F2),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3), width: 1.2),
+              border: Border.all(color: Colors.redAccent.withOpacity(0.3), width: 1.2),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -233,10 +233,10 @@ class _CancelledOrdersScreenState extends State<CancelledOrdersScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.2)),
+        border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -266,7 +266,7 @@ class _CancelledOrdersScreenState extends State<CancelledOrdersScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: order.isSelfPickup ? Colors.orange.withValues(alpha: 0.15) : AppColors.primaryGreen.withValues(alpha: 0.15),
+                          color: order.isSelfPickup ? Colors.orange.withOpacity(0.15) : AppColors.primaryGreen.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -285,7 +285,7 @@ class _CancelledOrdersScreenState extends State<CancelledOrdersScreen> {
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                      border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
                     ),
                     child: Text(
                       'CANCELLED',
@@ -307,7 +307,7 @@ class _CancelledOrdersScreenState extends State<CancelledOrdersScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF7ED),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
