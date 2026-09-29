@@ -964,11 +964,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   ),
 
                   // Progress Step Tracker
-                  Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    child: _buildProgressStepTracker(),
-                  ),
+                  if (!_isHandedOverOrCompleted())
+                    Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      child: _buildProgressStepTracker(),
+                    ),
 
                   // Customer Arrived Pulsing Notification Banner
                   if (widget.order.isSelfPickup && _customerArrived) ...[
@@ -1607,6 +1608,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     );
   }
 
+  bool _isHandedOverOrCompleted() {
+    final s = _currentStatus.replaceAll('_', ' ').toLowerCase().trim();
+    return s == 'picked up' || s == 'out for delivery' || s == 'delivered' || s == 'handed over' || s == 'completed';
+  }
+
   Widget _buildRiderDetailsCard() {
     final hasRider = (widget.order.riderName != null && widget.order.riderName!.isNotEmpty) || (widget.order.riderId != null && widget.order.riderId!.isNotEmpty);
 
@@ -1659,38 +1665,33 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     ],
                   ),
                 ),
-                if (widget.order.riderPhone != null && widget.order.riderPhone!.isNotEmpty) ...[
-                  IconButton(
-                    onPressed: () async {
-                      final uri = Uri.parse('tel:${widget.order.riderPhone}');
-                      if (await canLaunchUrl(uri)) await launchUrl(uri);
-                    },
-                    icon: const Icon(Icons.call),
-                    color: AppColors.primaryGreen,
-                    tooltip: 'Call Rider',
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-                      padding: const EdgeInsets.all(8),
-                    ),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final phone = widget.order.riderPhone ?? '';
+                    if (phone.isNotEmpty) {
+                      final uri = Uri.parse('tel:$phone');
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Rider phone number unavailable')),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
-                  const SizedBox(width: 6),
-                  IconButton(
-                    onPressed: () async {
-                      final uri = Uri.parse('sms:${widget.order.riderPhone}');
-                      if (await canLaunchUrl(uri)) await launchUrl(uri);
-                    },
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    color: Colors.blue[700],
-                    tooltip: 'Chat / SMS Rider',
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.blue.withValues(alpha: 0.1),
-                      padding: const EdgeInsets.all(8),
-                    ),
-                  ),
-                ],
+                  icon: const Icon(Icons.call, size: 16, color: Colors.white),
+                  label: Text('Call Now', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
               ],
             ),
-            if (_currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && _currentStatus != 'Handed Over') ...[
+            if (!_isHandedOverOrCompleted()) ...[
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
@@ -1713,8 +1714,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildBottomActionBar() {
-    final s = _currentStatus.toLowerCase().trim();
-    if (s == 'picked_up' || s == 'out_for_delivery' || s == 'delivered' || s == 'handed over' || s == 'completed') {
+    if (_isHandedOverOrCompleted()) {
       return const SizedBox.shrink();
     }
     String text = '';

@@ -2173,12 +2173,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                   ),
                 ),
               ),
-            ],
-          ),
-          
-          if (!isHistorical && (order['deliveryStatus'] == 'picked_up' || order['deliveryStatus'] == 'out_for_delivery')) ...[
-            const SizedBox(height: 14),
-            InlineDeliveryOtpForm(order: order),
           ],
         ],
       ),
