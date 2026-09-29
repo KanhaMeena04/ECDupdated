@@ -526,6 +526,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     }
 
     final isCod = _selectedPaymentMethod == 'Cash on Delivery';
+    final isSelf = cart.orderType == 'pickup' || cart.orderType == 'self_pickup';
 
     final orderData = {
       'restaurantId': cart.restaurantId ?? '',
@@ -540,11 +541,16 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                 'quantity': item.quantity,
               }))
           .toList(),
-      'totalPrice': cart.finalAmount + _dynamicDeliveryFee + _selectedTip,
-      'tipAmount': _selectedTip,
-      'leaveAtDoor': _leaveAtDoor,
+      'totalPrice': isSelf ? cart.finalAmount : (cart.finalAmount + _dynamicDeliveryFee + _selectedTip),
+      'tipAmount': isSelf ? 0 : _selectedTip,
+      'leaveAtDoor': isSelf ? false : _leaveAtDoor,
       'selectedPaymentMethodName': _selectedPaymentMethod,
-      if (cart.orderType == 'pickup') 'orderType': 'pickup',
+      if (isSelf) ...[
+        'orderType': 'self_pickup',
+        'isSelfPickup': true,
+        'scheduledAt': cart.pickupDate,
+        'pickupTimeSlot': cart.pickupTimeSlot,
+      ],
     };
 
     if (selectedAddress != null) {
@@ -1152,7 +1158,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                                     restaurantName: restaurantName,
                                     deliveryAddress: deliveryAddress,
                                     items: items,
-                                    orderType: cart.orderType,
+                                    orderType: (cart.orderType == 'pickup' || cart.orderType == 'self_pickup') ? 'self_pickup' : 'delivery',
                                     pickupDate: cart.pickupDate,
                                     pickupTimeSlot: cart.pickupTimeSlot,
                                   ),

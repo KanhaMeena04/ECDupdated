@@ -120,6 +120,14 @@ const AdminSettingSchema = new mongoose.Schema(
       isNightBonusActive: { type: Boolean, default: false }
     },
 
+    // Order Timing & Cancellation Configuration (Platform-wide)
+    orderTimingConfig: {
+      cancellationWindowMins: { type: Number, default: 5 },
+      riderPickupGracePeriodMins: { type: Number, default: 15 },
+      selfPickupGracePeriodMins: { type: Number, default: 15 },
+      preparationBufferMins: { type: Number, default: 10 }
+    },
+
     // Settlement Cycle Configuration (Requirement 11)
     settlementConfig: {
       defaultCycle: { type: String, enum: ['T+1', 'T+2', 'T+3', 'Weekly', 'Custom'], default: 'T+2' },

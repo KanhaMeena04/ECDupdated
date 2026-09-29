@@ -43,19 +43,16 @@ async function uploadToImageKit(fileInput, fileName = 'image.jpg', folder = '/ec
   try {
     let uploadFile = fileInput;
 
-    // If it's a file path (string but not URL/base64), read it as Buffer
+    // If it's a file path string (not URL, not base64), read it as Buffer
     if (typeof fileInput === 'string' && !fileInput.startsWith('data:') && fileInput.length < 500) {
       const fs = require('fs');
       if (fs.existsSync(fileInput)) {
-        uploadFile = fs.readFileSync(fileInput);
+        uploadFile = fs.readFileSync(fileInput); // Read as Buffer
       }
     }
 
-    // If it's a Buffer, convert to base64 for ImageKit SDK
-    if (Buffer.isBuffer(uploadFile)) {
-      uploadFile = uploadFile.toString('base64');
-    }
-
+    // ImageKit SDK accepts Buffer directly — DO NOT convert to base64 string
+    // Passing Buffer directly is the correct and safe way
     const safeName = `${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
 
     const response = await ik.upload({

@@ -53,6 +53,10 @@ class RestaurantSocketService {
       _socket?.on('newOrder', (data) => _notifyListeners(data));
       _socket?.on('order:new', (data) => _notifyListeners(data));
       _socket?.on('restaurant:new_order', (data) => _notifyListeners(data));
+      _socket?.on('order:rider_assigned', (data) => _notifyListeners(data));
+      _socket?.on('order:status', (data) => _notifyListeners(data));
+      _socket?.on('order:picked_up', (data) => _notifyListeners(data));
+      _socket?.on('orderStatusUpdated', (data) => _notifyListeners(data));
 
       _socket?.connect();
       _isInitialized = true;

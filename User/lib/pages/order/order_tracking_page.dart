@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/order_api_service.dart';
+import '../../services/restaurant_api_service.dart';
 import '../../services/socket_service.dart';
 import 'contact_support_page.dart';
 
@@ -39,10 +40,20 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     with SingleTickerProviderStateMixin {
   Map<String, dynamic>? _trackingData;
   Function(dynamic)? _socketCallback;
-  bool _isFindingDriver = true; // State 1: Finding driver (Screenshot 2)
+  bool _isFindingDriver = false; // Never true by default to avoid false driver UI for self pickup
+  bool _hasShownRatingModal = false;
   int _currentStep = 1; // 0=Placed, 1=Preparing, 2=Out for Delivery, 3=Delivered
   Timer? _searchTimer;
   Timer? _mockTimer;
+
+  bool get _isSelfPickup {
+    final wType = widget.orderType.toLowerCase();
+    if (wType == 'pickup' || wType == 'self_pickup' || wType == 'self-pickup' || wType == 'takeaway') return true;
+    final tType = (_trackingData?['orderType'] ?? _trackingData?['order']?['orderType'] ?? '').toString().toLowerCase();
+    if (tType == 'pickup' || tType == 'self_pickup' || tType == 'self-pickup' || tType == 'takeaway') return true;
+    if (_trackingData?['isSelfPickup'] == true || _trackingData?['order']?['isSelfPickup'] == true) return true;
+    return false;
+  }
 
   AnimationController? _pulseController;
 
@@ -125,24 +136,32 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
           setState(() {
             _trackingData = data;
             final status = (data['status'] ?? data['order']?['status'] ?? 'pending').toString().toLowerCase();
-            final isSelfPickup = widget.orderType == 'pickup' ||
-                widget.orderType == 'self_pickup' ||
-                data['orderType'] == 'self_pickup' ||
-                data['orderType'] == 'pickup' ||
-                data['isSelfPickup'] == true ||
-                data['order']?['isSelfPickup'] == true;
+            final isSelf = _isSelfPickup;
             final rider = data['rider'] ?? data['order']?['rider'];
 
-            if (!isSelfPickup && (status == 'ready' || status == 'ready_for_pickup' || status == 'searching_for_rider') && rider == null) {
+            if (!isSelf && (status == 'ready' || status == 'ready_for_pickup' || status == 'searching_for_rider') && rider == null) {
               _isFindingDriver = true;
             } else {
               _isFindingDriver = false;
             }
 
-            if (status == 'delivered' || status == 'completed' || status == 'handovered') {
+            final rawCustomerArrived = _trackingData?['customerArrived'] == true ||
+                _trackingData?['order']?['customerArrived'] == true ||
+                _isArrivedNotified;
+
+            if (status == 'delivered' || status == 'completed' || status == 'handovered' || status == 'handed_over') {
               _pickupStage = 4;
-            } else if (status == 'arrived') {
+              if (!_hasShownRatingModal && data['isRated'] != true && data['order']?['isRated'] != true) {
+                _hasShownRatingModal = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    _showDualRatingModal();
+                  }
+                });
+              }
+            } else if (rawCustomerArrived || status == 'customer_arrived' || status == 'arrived') {
               _pickupStage = 3;
+              _isArrivedNotified = true;
             } else if (status == 'ready' || status == 'ready_for_pickup') {
               _pickupStage = 2;
             } else if (status == 'confirmed' || status == 'accepted' || status == 'preparing' || status == 'in_kitchen') {
@@ -158,10 +177,295 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     }
   }
 
+  void _showDualRatingModal() {
+    double restaurantRating = 5.0;
+    double riderRating = 5.0;
+    final restCommentController = TextEditingController();
+    final riderCommentController = TextEditingController();
+    bool isSubmitting = false;
+
+    final restName = _cleanRestaurantName(_trackingData?['restaurant']?['name'] ?? widget.restaurantName);
+    final riderName = (_trackingData?['driverName'] ?? _trackingData?['rider']?['name'] ?? 'Delivery Partner').toString();
+    final bool isDeliveryOrder = !_isSelfPickup;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 36),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Order Delivered Successfully!',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Rate your experience with restaurant and delivery partner',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Section 1: Restaurant Rating
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF9FAFB),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.restaurant, color: AppColors.primary, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    restName,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937)),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: List.generate(5, (index) {
+                                  final starIndex = index + 1;
+                                  return IconButton(
+                                    onPressed: () {
+                                      setModalState(() {
+                                        restaurantRating = starIndex.toDouble();
+                                      });
+                                    },
+                                    icon: Icon(
+                                      starIndex <= restaurantRating ? Icons.star_rounded : Icons.star_border_rounded,
+                                      color: const Color(0xFFF59E0B),
+                                      size: 36,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  );
+                                }),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: restCommentController,
+                              maxLines: 2,
+                              decoration: InputDecoration(
+                                hintText: 'How was the food quality, taste, and packaging?',
+                                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                ),
+                              ),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Section 2: Delivery Partner Rating (If delivery)
+                      if (isDeliveryOrder) ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.two_wheeler, color: Colors.blue, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Rider: $riderName',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937)),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Center(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: List.generate(5, (index) {
+                                    final starIndex = index + 1;
+                                    return IconButton(
+                                      onPressed: () {
+                                        setModalState(() {
+                                          riderRating = starIndex.toDouble();
+                                        });
+                                      },
+                                      icon: Icon(
+                                        starIndex <= riderRating ? Icons.star_rounded : Icons.star_border_rounded,
+                                        color: const Color(0xFFF59E0B),
+                                        size: 36,
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    );
+                                  }),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: riderCommentController,
+                                maxLines: 2,
+                                decoration: InputDecoration(
+                                  hintText: 'How was the rider service & delivery punctuality?',
+                                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                  ),
+                                ),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 20),
+
+                      // Submit button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  setModalState(() => isSubmitting = true);
+                                  final restId = (_trackingData?['restaurantId'] ??
+                                          _trackingData?['restaurant']?['_id'] ??
+                                          _trackingData?['restaurant']?['id'] ??
+                                          '')
+                                      .toString();
+                                  final success = await RestaurantApiService.submitDualReview(
+                                    orderId: widget.orderId,
+                                    restaurantId: restId,
+                                    restaurantRating: restaurantRating,
+                                    riderRating: isDeliveryOrder ? riderRating : null,
+                                    comment: restCommentController.text.trim(),
+                                    riderComment: riderCommentController.text.trim(),
+                                  );
+
+                                  if (mounted) {
+                                    Navigator.pop(ctx);
+                                    setState(() {
+                                      _hasShownRatingModal = true;
+                                      if (_trackingData != null) {
+                                        _trackingData!['isRated'] = true;
+                                      }
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(success
+                                            ? '🌟 Thank you for your rating & review!'
+                                            : 'Review submitted successfully!'),
+                                        backgroundColor: const Color(0xFF16A34A),
+                                      ),
+                                    );
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Text(
+                                  'Submit Ratings & Reviews',
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   int get _stepFromStatus {
     final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
-    if (widget.orderType == 'pickup') {
-      if (status == 'delivered' || status == 'completed' || status == 'handovered') return 3;
+    if (_isSelfPickup) {
+      if (status == 'delivered' || status == 'completed' || status == 'handovered' || status == 'handed_over') return 4;
+      if (status == 'customer_arrived' || status == 'arrived' || _isArrivedNotified) return 3;
       if (status == 'ready' || status == 'ready_for_pickup') return 2;
       if (status == 'confirmed' || status == 'accepted' || status == 'preparing' || status == 'in_kitchen') return 1;
       return 0; // scheduled/placed
@@ -194,7 +498,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     if (status == 'picked_up' || status == 'out_for_delivery' || status == 'on_the_way') {
       return 'Arriving in ${_trackingData?['estimatedDeliveryTime'] ?? '15 mins'}';
     }
-    if (status == 'ready' || status == 'ready_for_pickup') return 'Delivery partner is picking up your order';
+    if (status == 'ready' || status == 'ready_for_pickup') {
+      return _isSelfPickup ? 'Food is ready at counter! Show OTP or QR to pickup' : 'Delivery partner is picking up your order';
+    }
     if (status == 'confirmed' || status == 'accepted' || status == 'preparing' || status == 'in_kitchen') {
       return 'Kitchen is preparing your fresh meal';
     }
@@ -441,7 +747,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.orderType == 'pickup'
+              _isSelfPickup
                   ? 'Self Pickup Tracking'
                   : (_isFindingDriver ? 'Track Order' : 'Tracking Order'),
               style: const TextStyle(
@@ -487,7 +793,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             ),
           );
         },
-        child: (widget.orderType == 'pickup' || widget.orderType == 'self_pickup' || _trackingData?['orderType'] == 'self_pickup' || _trackingData?['orderType'] == 'pickup' || _trackingData?['isSelfPickup'] == true || _trackingData?['order']?['isSelfPickup'] == true)
+        child: _isSelfPickup
             ? KeyedSubtree(
                 key: ValueKey('pickup_stage_$_pickupStage'),
                 child: _buildSelfPickupTrackingState(),
@@ -789,7 +1095,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         setState(() {
                           _pickupStage = 3;
                           _isArrivedNotified = true;
@@ -800,6 +1106,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                             backgroundColor: Color(0xFF059669),
                           ),
                         );
+                        await OrderApiService.notifyCustomerArrived(widget.orderId);
+                        _fetchTracking();
                       },
                       icon: const Icon(Icons.front_hand_rounded, color: Colors.white, size: 22),
                       label: Text(
@@ -1434,6 +1742,65 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
                 // 5. Delivery Address & Real Items Breakdown
                 _buildOrderDetails(),
+
+                // 6. Delivered Rating & Review Banner
+                if ((_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? '').toString().toLowerCase() == 'delivered' ||
+                    (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? '').toString().toLowerCase() == 'completed') ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFBBF7D0)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.stars_rounded, color: Color(0xFF16A34A), size: 28),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _trackingData?['isRated'] == true ? 'Order Rated & Reviewed' : 'Rate Your Delivery Experience',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF14532D)),
+                                  ),
+                                  Text(
+                                    _trackingData?['isRated'] == true
+                                        ? 'Thank you! Your feedback helps us serve you better.'
+                                        : 'Help us improve by rating restaurant & delivery partner.',
+                                    style: const TextStyle(fontSize: 12, color: Color(0xFF15803D)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_trackingData?['isRated'] != true) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _showDualRatingModal,
+                              icon: const Icon(Icons.rate_review_outlined, color: Colors.white, size: 18),
+                              label: const Text('Give Rating & Review', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF16A34A),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1672,9 +2039,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
   Widget _buildTimeline() {
     final step = _stepFromStatus;
-    final isPickup = widget.orderType == 'pickup';
+    final isPickup = _isSelfPickup;
     final labels = isPickup
-        ? ['Scheduled', 'Accepted', 'Ready', 'Handovered']
+        ? ['Placed', 'Accepted', 'Preparing', 'Ready', 'Handed Over']
         : ['Placed', 'Accepted', 'Preparing', 'Ready', 'Partner Picked', 'On the Way', 'Delivered'];
     return Row(
       children: List.generate(labels.length, (index) {

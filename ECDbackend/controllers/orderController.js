@@ -476,10 +476,22 @@ exports.placeOrder = async (req, res) => {
       })
     );
 
+    const AdminSetting = require("../models/AdminSetting");
+    const systemSettings = await AdminSetting.findOne().lean();
+    const dynamicCancellationMins = Number(systemSettings?.orderTimingConfig?.cancellationWindowMins || 
+                                           systemSettings?.selfPickupConfig?.cancellationWindowMins || 
+                                           restaurant?.cancellationWindowMinutes || 5);
+    const dynamicGracePeriodMins = Number(systemSettings?.orderTimingConfig?.riderPickupGracePeriodMins || 
+                                          systemSettings?.selfPickupConfig?.gracePeriodMins || 15);
+    const cancellationWindowExpiresAt = new Date(Date.now() + dynamicCancellationMins * 60 * 1000);
+
     const newOrder = await Order.create({
       customer: user._id,
       orderNumber,
       restaurant: restaurantId,
+      cancellationWindowMinutes: dynamicCancellationMins,
+      cancellationWindowExpiresAt,
+      gracePeriodMinutes: dynamicGracePeriodMins,
       idempotencyKey: req.body.idempotencyKey || `${cart._id || user._id}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
       pickupOtp,
       pickupOtpExpiresAt: new Date(Date.now() + otpExpiry),
@@ -619,8 +631,6 @@ exports.placeOrder = async (req, res) => {
           io.to(`restaurant:${restaurantId}`).emit("newOrder", restaurantOrderPayload);
           io.to(`restaurant:${restaurantId}`).emit("order:new", restaurantOrderPayload);
           io.to("restaurants").emit("newOrder", restaurantOrderPayload);
-          io.emit("newOrder", restaurantOrderPayload);
-          io.emit("order:new", restaurantOrderPayload);
         }
       } catch (_) {}
     } catch (e) {
@@ -1181,6 +1191,31 @@ exports.getRestaurantOrderDetails = async (req, res) => {
       orderObj.rider.rating = getAverageRating(ratingValue);
       orderObj.rider.ratingCount = getRatingCount(ratingValue);
     }
+
+    const now = Date.now();
+    const createdTime = order.createdAt ? new Date(order.createdAt).getTime() : now;
+    const cancelMins = Number(order.cancellationWindowMinutes || 5);
+    const graceMins = Number(order.gracePeriodMinutes || 15);
+    const cancelExpiresAt = order.cancellationWindowExpiresAt || new Date(createdTime + cancelMins * 60 * 1000);
+    const remCancelSec = Math.max(0, Math.floor((new Date(cancelExpiresAt).getTime() - now) / 1000));
+
+    let graceExpiresAt = order.riderGracePeriodExpiresAt;
+    if (!graceExpiresAt) {
+      const graceStartTime = order.riderAssignedAt ? new Date(order.riderAssignedAt).getTime() : (order.readyAt ? new Date(order.readyAt).getTime() : createdTime);
+      graceExpiresAt = new Date(graceStartTime + graceMins * 60 * 1000);
+    }
+    const remGraceSec = Math.max(0, Math.floor((new Date(graceExpiresAt).getTime() - now) / 1000));
+
+    orderObj.cancellationWindowMinutes = cancelMins;
+    orderObj.cancellationWindowExpiresAt = cancelExpiresAt;
+    orderObj.remainingCancellationSeconds = remCancelSec;
+    orderObj.isWithinCancellationWindow = remCancelSec > 0;
+
+    orderObj.gracePeriodMinutes = graceMins;
+    orderObj.riderGracePeriodExpiresAt = graceExpiresAt;
+    orderObj.remainingGraceSeconds = remGraceSec;
+    orderObj.isWithinGracePeriod = remGraceSec > 0;
+
     return res.status(200).json({
       success: true,
       order: orderObj,
@@ -1479,6 +1514,7 @@ exports.rateRider = async (req, res) => {
             breakdown: { five: s.five, four: s.four, three: s.three, two: s.two, one: s.one },
             lastRatedAt: new Date(),
           };
+          riderDoc.averageRating = riderDoc.rating.average;
           await riderDoc.save();
           riderNewRating = riderDoc.rating.average;
         }
@@ -1492,7 +1528,9 @@ exports.rateRider = async (req, res) => {
           { $group: { _id: null, average: { $avg: '$restaurantRating' }, count: { $sum: 1 } } },
         ]);
         if (rStats.length > 0) {
-          restaurantDoc.rating = { average: Math.round(rStats[0].average * 10) / 10, count: rStats[0].count, lastRatedAt: new Date() };
+          const avg = Math.round(rStats[0].average * 10) / 10;
+          restaurantDoc.rating = { average: avg, count: rStats[0].count, lastRatedAt: new Date() };
+          restaurantDoc.avgRating = avg;
           await restaurantDoc.save();
         }
       }
@@ -1506,6 +1544,64 @@ exports.rateRider = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+exports.rateCustomer = async (req, res) => {
+  try {
+    const orderId = req.params.id || req.body.orderId;
+    const { rating, note, comment } = req.body;
+    const customerRatingVal = Math.min(5, Math.max(1, Number(rating || 5)));
+    const customerNoteVal = (note || comment || "").trim();
+
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+
+    const order = await Order.findOne(orderFilter).populate('customer');
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    const customer = await User.findById(order.customer?._id || order.customer);
+    if (!customer) return res.status(404).json({ success: false, message: "Customer not found" });
+
+    if (!customer.ratingsReceived) customer.ratingsReceived = [];
+    customer.ratingsReceived.push({
+      rider: req.user?._id,
+      order: order._id,
+      rating: customerRatingVal,
+      note: customerNoteVal,
+      createdAt: new Date()
+    });
+
+    const totalRatings = customer.ratingsReceived.length;
+    const sumRatings = customer.ratingsReceived.reduce((acc, curr) => acc + (curr.rating || 5), 0);
+    const avg = Math.round((sumRatings / totalRatings) * 10) / 10;
+
+    customer.rating = {
+      average: avg,
+      count: totalRatings
+    };
+    await customer.save();
+
+    order.riderCustomerRated = true;
+    order.customerRatingByRider = {
+      rating: customerRatingVal,
+      note: customerNoteVal,
+      ratedAt: new Date()
+    };
+    await order.save();
+
+    logger.info(`[RateCustomer] Rider rated customer ${customer.name || customer._id}: ${customerRatingVal} stars (${customerNoteVal})`);
+
+    return res.status(200).json({
+      success: true,
+      message: "Customer rated successfully",
+      customerRating: customer.rating
+    });
+  } catch (error) {
+    logger.error("Rate customer error:", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 function getStatusLabel(status) {
@@ -1624,7 +1720,8 @@ exports.updateOrderStatus = async (req, res) => {
       by: req.user?.role || 'system',
       description: timeline.description
     });
-    if (status === "accepted" && oldStatus === "placed") {
+    const isSelfPickup = order.orderType === 'self_pickup' || order.orderType === 'pickup' || order.isSelfPickup === true;
+    if (status === "accepted" && oldStatus === "placed" && !isSelfPickup) {
       order.riderNotificationStatus.notified = true;
       order.riderNotificationStatus.notifiedAt = new Date();
     }
@@ -1727,7 +1824,7 @@ exports.updateOrderStatus = async (req, res) => {
           logger.error("Failed to send restaurant push notification", { error: e.message, orderId: order._id });
         }
       }
-      if (populatedOrder.rider?.user) {
+      if (!isSelfPickup && populatedOrder.rider?.user) {
         const riderUserId = populatedOrder.rider.user._id.toString();
         socketService.emitToRider(riderUserId, 'order:status', updateData);
         if (status === 'accepted' && oldStatus === 'placed') {
@@ -1954,6 +2051,17 @@ exports.markOrderReady = async (req, res) => {
       } catch (e) {
         console.error("Push notify error for assigned rider", e);
       }
+    } else {
+      const isSelfPickupOrder = order.orderType === 'self_pickup' || order.orderType === 'pickup' || order.orderType === 'takeaway' || order.isSelfPickup;
+      if (!isSelfPickupOrder) {
+        try {
+          const riderDispatchService = require('../services/riderDispatchService');
+          logger.info(`[Dispatch] Order ${order._id} marked ready. Automatically initiating rider search.`, { orderId: order._id });
+          riderDispatchService.findAndNotifyRider(order._id);
+        } catch (dispatchErr) {
+          logger.error(`[Dispatch] Error starting rider search on mark ready: ${dispatchErr.message}`, { orderId: order._id });
+        }
+      }
     }
     try {
       const updateData = {
@@ -2027,6 +2135,14 @@ exports.searchRidersForOrder = async (req, res) => {
 
     const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ message: "Order not found" });
+    if (order.orderType === 'self_pickup' || order.orderType === 'pickup') {
+      return res.status(200).json({
+        success: true,
+        message: "Self pickup order - no delivery partner required",
+        isSelfPickup: true,
+        count: 0
+      });
+    }
     if (order.rider) {
       return res.status(400).json({ message: "Order already assigned to a rider" });
     }
@@ -2239,15 +2355,28 @@ exports.trackOrder = async (req, res) => {
       lng: driverLng,
     } : null;
 
+    const isSelfPickup = order.orderType === 'self_pickup' || order.orderType === 'pickup' || order.isSelfPickup === true;
+    const effectiveRiderDetails = isSelfPickup ? null : riderDetails;
+
     res.status(200).json({
       success: true,
       orderId: order._id.toString(),
       status: order.status,
+      isRated: Boolean(order.isRated),
+      restaurantId: order.restaurant?._id?.toString() || (typeof order.restaurant === 'string' ? order.restaurant : '') || '',
+      riderId: order.rider?._id?.toString() || (typeof order.rider === 'string' ? order.rider : '') || '',
       items: order.items || [],
       totalAmount: order.totalAmount || 0,
-      orderType: order.orderType || 'delivery',
-      driverName: riderDetails ? riderDetails.name : null,
-      driverPhone: riderDetails ? riderDetails.phone : null,
+      orderType: isSelfPickup ? 'self_pickup' : (order.orderType || 'delivery'),
+      isSelfPickup,
+      pickupOtp: order.pickupOtp || order.selfPickupCode || '',
+      selfPickupCode: order.selfPickupCode || order.pickupOtp || '',
+      customerArrived: Boolean(order.customerArrived),
+      customerArrivedAt: order.customerArrivedAt || null,
+      prepTimeMinutes: order.prepTimeMinutes || 15,
+      readyAt: order.readyAt || null,
+      driverName: effectiveRiderDetails ? effectiveRiderDetails.name : null,
+      driverPhone: effectiveRiderDetails ? effectiveRiderDetails.phone : null,
       estimatedDeliveryTime: order.estimatedDeliveryTime || distanceInfo?.etaDisplay || "15-20 mins",
       restaurant: {
         name: rName,
@@ -2262,17 +2391,17 @@ exports.trackOrder = async (req, res) => {
         lng: userLng,
         address: order.deliveryAddress?.address || order.deliveryAddress?.formattedAddress || ""
       },
-      driver: riderDetails ? {
+      driver: effectiveRiderDetails ? {
         lat: driverLat || restLat,
         lng: driverLng || restLng
       } : null,
       timeline: order.timeline || [],
       eta: order.estimatedDeliveryTime,
-      rider: riderDetails,
+      rider: effectiveRiderDetails,
       deliveryLocation: order.deliveryAddress,
       order: order,
       supportPhone: "+91-9876543210",
-      ...(distanceInfo && { distances: distanceInfo })
+      ...(!isSelfPickup && distanceInfo && { distances: distanceInfo })
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -3432,6 +3561,21 @@ exports.verifyPickupVendor = async (req, res) => {
       const riderUserId = order.rider.user ? order.rider.user.toString() : order.rider._id.toString();
       socketService.emitToRider(riderUserId, "order:status", updateData);
       socketService.emitToRider(riderUserId, "order:picked_up", updateData);
+    }
+
+    if (order.restaurant) {
+      const restId = (order.restaurant._id || order.restaurant).toString();
+      socketService.emitToRestaurant(restId, "order:status", updateData);
+      socketService.emitToRestaurant(restId, "order:picked_up", updateData);
+      try {
+        const io = req.app.get("io") || socketService.getIO();
+        if (io) {
+          io.to(`restaurant_${restId}`).emit("order:status", updateData);
+          io.to(`restaurant_${restId}`).emit("order:picked_up", updateData);
+          io.to(`restaurant:${restId}`).emit("order:status", updateData);
+          io.to(`restaurant:${restId}`).emit("order:picked_up", updateData);
+        }
+      } catch (_) {}
     }
 
     try {

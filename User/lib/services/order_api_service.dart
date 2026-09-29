@@ -132,6 +132,25 @@ class OrderApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> notifyCustomerArrived(String orderId) async {
+    if (kFrontendPreviewMode) {
+      return {'success': true, 'message': 'Restaurant notified (Preview)'};
+    }
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/$orderId/customer-arrived'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return {'success': false, 'message': 'Failed to notify restaurant'};
+    } catch (e) {
+      debugPrint('Error notifying customer arrived: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   static Future<Map<String, dynamic>> cancelOrder(String orderId, String reason) async {
     if (kFrontendPreviewMode) {
       return {'success': true, 'message': 'Order cancelled (Preview)'};

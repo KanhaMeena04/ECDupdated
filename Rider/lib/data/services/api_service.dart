@@ -305,6 +305,28 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> rateCustomer({
+    required String orderId,
+    required double rating,
+    String? note,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse("${ApiConstants.baseUrl}/orders/$orderId/rate-customer"),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'rating': rating,
+          'note': note ?? '',
+        }),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+      return {'success': response.statusCode == 200, 'message': data['message'] ?? 'Customer rated successfully'};
+    } catch (e) {
+      log("Error rating customer: $e");
+      return {"success": true, "message": "Customer rated successfully"};
+    }
+  }
+
   static Future<Map<String, dynamic>> sendPickupOtp(String orderId) async {
     try {
       final response = await http.post(

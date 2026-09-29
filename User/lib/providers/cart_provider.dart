@@ -25,6 +25,7 @@ class CartProvider with ChangeNotifier {
   String _paymentMethod = 'Cash on Delivery';
 
   String get orderType => _orderType;
+  bool get isSelfPickup => _orderType == 'pickup' || _orderType == 'self_pickup';
   String get pickupDate => _pickupDate.isNotEmpty ? _pickupDate : PickupSlotHelper.getDynamicDates().first;
   String get pickupTimeSlot => _pickupTimeSlot;
   String? get pickupTime => _pickupTime ?? _pickupTimeSlot;
@@ -93,7 +94,7 @@ class CartProvider with ChangeNotifier {
   bool _isTaxEnabled = true;
   bool _isTipEnabled = true;
 
-  double get deliveryFee => (_orderType == 'pickup' || !_isDeliveryFeeEnabled) ? 0.0 : _deliveryFee;
+  double get deliveryFee => (isSelfPickup || !_isDeliveryFeeEnabled) ? 0.0 : _deliveryFee;
   double get platformFee => _isPlatformFeeEnabled ? _platformFee : 0.0;
   double get packagingFee => _isPackagingFeeEnabled ? _packagingFee : 0.0;
   double get gstAmount => _isTaxEnabled ? (totalAmount * (_gstPercent / 100)) : 0.0;

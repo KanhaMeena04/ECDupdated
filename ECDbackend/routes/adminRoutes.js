@@ -484,12 +484,16 @@ const {
   getRiderEarningConfig,
   updateRiderEarningConfig,
   getSelfPickupConfig,
-  updateSelfPickupConfig
+  updateSelfPickupConfig,
+  getOrderTimingConfig,
+  updateOrderTimingConfig
 } = require("../controllers/adminSettingsController");
 router.get('/rider-earning-config', protect, admin, getRiderEarningConfig);
 router.put('/rider-earning-config', protect, admin, updateRiderEarningConfig);
 router.get('/self-pickup-config', protect, admin, getSelfPickupConfig);
 router.put('/self-pickup-config', protect, admin, updateSelfPickupConfig);
+router.get('/order-timing-config', protect, admin, getOrderTimingConfig);
+router.put('/order-timing-config', protect, admin, updateOrderTimingConfig);
 
 module.exports = router;
 

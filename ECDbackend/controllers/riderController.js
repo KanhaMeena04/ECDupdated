@@ -4006,6 +4006,8 @@ exports.acceptOrder = async (req, res) => {
           riderPhone: riderPhoneVal,
           status: "assigned",
           pickupOtp: pickupOtp,
+          riderAssignedAt: new Date(),
+          riderGracePeriodExpiresAt: new Date(Date.now() + (orderToValidate.gracePeriodMinutes || 15) * 60 * 1000),
           "riderNotificationStatus.acceptedBy": riderId
         },
         $push: {
@@ -4107,6 +4109,25 @@ exports.acceptOrder = async (req, res) => {
           message: "Rider assigned - prepare for pickup"
         },
       );
+      socketService.emitToRestaurant(
+        order.restaurant.toString(),
+        "order:status",
+        {
+          ...assignmentData,
+          status: "assigned",
+          message: "Rider assigned - prepare for pickup"
+        },
+      );
+      try {
+        const io = socketService.getIO();
+        if (io) {
+          const restId = order.restaurant.toString();
+          io.to(`restaurant_${restId}`).emit("order:rider_assigned", assignmentData);
+          io.to(`restaurant_${restId}`).emit("order:status", { ...assignmentData, status: "assigned" });
+          io.to(`restaurant:${restId}`).emit("order:rider_assigned", assignmentData);
+          io.to(`restaurant:${restId}`).emit("order:status", { ...assignmentData, status: "assigned" });
+        }
+      } catch (_) {}
       socketService.emitToAdmin("order:rider_assigned", {
         ...assignmentData,
         customerName: populatedOrder.customer.name,
@@ -4511,7 +4532,7 @@ exports.getMyActiveOrder = async (req, res) => {
     if (pendingRequests.length > 0) {
       unassignedOrders = pendingRequests
         .map(r => r.order)
-        .filter(o => o && !o.rider && ['placed', 'accepted', 'preparing', 'ready'].includes(o.status));
+        .filter(o => o && !o.rider && o.status === 'ready');
     }
 
     if (unassignedOrders.length === 0) {
@@ -4525,7 +4546,7 @@ exports.getMyActiveOrder = async (req, res) => {
         _id: { $nin: rejectedOrderIds },
         orderType: { $ne: 'self_pickup' },
         rider: null,
-        status: { $in: ['placed', 'accepted', 'preparing', 'ready'] },
+        status: 'ready',
         createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
       })
         .populate('customer', 'name phone mobile')

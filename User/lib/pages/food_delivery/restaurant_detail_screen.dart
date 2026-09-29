@@ -351,6 +351,103 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
             ),
           ),
 
+          // ── Delivery / Self Pickup Switcher ────────────────────────────────
+          SliverToBoxAdapter(
+            child: Container(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey[850] : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? Colors.grey[700]! : Colors.grey.shade300,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          cartProvider.setOrderType('delivery');
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: !cartProvider.isSelfPickup ? AppColors.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: !cartProvider.isSelfPickup
+                                ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.delivery_dining,
+                                size: 18,
+                                color: !cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Delivery',
+                                style: TextStyle(
+                                  color: !cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          cartProvider.setOrderType('pickup');
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: cartProvider.isSelfPickup ? AppColors.primary : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: cartProvider.isSelfPickup
+                                ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.shopping_bag_outlined,
+                                size: 18,
+                                color: cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Self Pickup 🛍️',
+                                style: TextStyle(
+                                  color: cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
           // ── Pinned Item Search Bar ───────────────────────────────────────
           SliverPersistentHeader(
             pinned: true,

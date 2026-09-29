@@ -870,13 +870,11 @@ class _HomeTabState extends State<_HomeTab> {
                                       child: CarouselSlider.builder(
                                         itemCount: _banners.length,
                                         itemBuilder: (context, index, realIndex) {
+                                          final banner = _banners[index];
                                           return Container(
                                             margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
                                             decoration: BoxDecoration(
-                                              image: DecorationImage(
-                                                image: safeImageProvider(_banners[index].imageUrl),
-                                                fit: BoxFit.cover,
-                                              ),
+                                              color: Colors.grey[200],
                                               borderRadius: BorderRadius.circular(18),
                                               boxShadow: [
                                                 BoxShadow(
@@ -886,12 +884,42 @@ class _HomeTabState extends State<_HomeTab> {
                                                 ),
                                               ],
                                             ),
+                                            clipBehavior: Clip.antiAlias,
+                                            child: Image.network(
+                                              banner.imageUrl,
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              height: double.infinity,
+                                              errorBuilder: (context, error, stack) {
+                                                debugPrint('\u274c Banner image load error: $error | URL: ${banner.imageUrl}');
+                                                return Container(
+                                                  color: const Color(0xFF248C70).withValues(alpha: 0.2),
+                                                  child: const Center(
+                                                    child: Icon(Icons.local_offer, color: Color(0xFF248C70), size: 48),
+                                                  ),
+                                                );
+                                              },
+                                              loadingBuilder: (context, child, progress) {
+                                                if (progress == null) return child;
+                                                return Container(
+                                                  color: Colors.grey[100],
+                                                  child: const Center(
+                                                    child: CircularProgressIndicator(
+                                                      color: Color(0xFF248C70),
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
                                           );
                                         },
                                         options: CarouselOptions(
                                           height: 180,
                                           viewportFraction: 0.93,
-                                          autoPlay: true,
+                                          autoPlay: _banners.length > 1,
+                                          autoPlayInterval: const Duration(seconds: 3),
+                                          enlargeCenterPage: true,
                                         ),
                                       ),
                                     ),

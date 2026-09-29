@@ -20,7 +20,13 @@ const toPublicPayload = (settings) => ({
   tipConfig: settings.tipConfig || { enabled: true, options: [5, 10, 20] },
   taxConfig: settings.taxConfig || { enabled: true, gstPercent: 5 },
   selfPickupConfig: settings.selfPickupConfig || { enabled: true, pickupCapacityPerHour: 20, preparationBufferMins: 10, gracePeriodMins: 15 },
-  riderEarningConfig: settings.riderEarningConfig || { baseEarning: 20, baseDistanceKm: 2, perKmEarning: 8 }
+  riderEarningConfig: settings.riderEarningConfig || { baseEarning: 20, baseDistanceKm: 2, perKmEarning: 8 },
+  orderTimingConfig: settings.orderTimingConfig || {
+    cancellationWindowMins: settings.selfPickupConfig?.cancellationWindowMins || 5,
+    riderPickupGracePeriodMins: settings.selfPickupConfig?.gracePeriodMins || 15,
+    selfPickupGracePeriodMins: settings.selfPickupConfig?.gracePeriodMins || 15,
+    preparationBufferMins: 10
+  }
 });
 
 exports.getPublicSettings = async (req, res) => {
@@ -131,6 +137,55 @@ exports.updateSelfPickupConfig = async (req, res) => {
       success: true,
       message: 'Self pickup config updated successfully',
       config: settings.selfPickupConfig
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getOrderTimingConfig = async (req, res) => {
+  try {
+    const settings = await ensureSettings();
+    return res.status(200).json({
+      success: true,
+      config: settings.orderTimingConfig || {
+        cancellationWindowMins: settings.selfPickupConfig?.cancellationWindowMins || 5,
+        riderPickupGracePeriodMins: settings.selfPickupConfig?.gracePeriodMins || 15,
+        selfPickupGracePeriodMins: settings.selfPickupConfig?.gracePeriodMins || 15,
+        preparationBufferMins: 10
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.updateOrderTimingConfig = async (req, res) => {
+  try {
+    const settings = await ensureSettings();
+    const cancellationWindowMins = Number(req.body.cancellationWindowMins) || 5;
+    const riderPickupGracePeriodMins = Number(req.body.riderPickupGracePeriodMins) || 15;
+    const selfPickupGracePeriodMins = Number(req.body.selfPickupGracePeriodMins) || riderPickupGracePeriodMins;
+    const preparationBufferMins = Number(req.body.preparationBufferMins) || 10;
+
+    settings.orderTimingConfig = {
+      cancellationWindowMins,
+      riderPickupGracePeriodMins,
+      selfPickupGracePeriodMins,
+      preparationBufferMins
+    };
+
+    if (settings.selfPickupConfig) {
+      settings.selfPickupConfig.cancellationWindowMins = cancellationWindowMins;
+      settings.selfPickupConfig.gracePeriodMins = selfPickupGracePeriodMins;
+      settings.selfPickupConfig.preparationBufferMins = preparationBufferMins;
+    }
+
+    await settings.save();
+    return res.status(200).json({
+      success: true,
+      message: 'Order timing and cancellation parameters saved successfully',
+      config: settings.orderTimingConfig
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

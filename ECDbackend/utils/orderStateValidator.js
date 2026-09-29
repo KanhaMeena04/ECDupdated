@@ -5,12 +5,14 @@ const validTransitions = {
   "placed": ["accepted", "cancelled"],
   "accepted": ["preparing", "cancelled"],
   "preparing": ["ready", "cancelled"],
-  "ready": ["assigned"],
+  "ready": ["assigned", "customer_arrived", "delivered", "completed", "cancelled"],
+  "customer_arrived": ["delivered", "completed", "cancelled"],
   "assigned": ["reached_restaurant", "picked_up", "cancelled"],
   "reached_restaurant": ["picked_up"],
   "picked_up": ["delivery_arrived"],
-  "delivery_arrived": ["delivered"],
+  "delivery_arrived": ["delivered", "completed"],
   "delivered": [],
+  "completed": [],
   "failed": [],
   "cancelled": [],
 };
@@ -20,11 +22,13 @@ const ORDER_STATES = {
   ACCEPTED: 'accepted',
   PREPARING: 'preparing',
   READY: 'ready',
+  CUSTOMER_ARRIVED: 'customer_arrived',
   ASSIGNED: 'assigned',
   REACHED_RESTAURANT: 'reached_restaurant',
   PICKED_UP: 'picked_up',
   DELIVERY_ARRIVED: 'delivery_arrived',
   DELIVERED: 'delivered',
+  COMPLETED: 'completed',
   CANCELLED: 'cancelled'
 };
 const DELIVERY_STATES = {

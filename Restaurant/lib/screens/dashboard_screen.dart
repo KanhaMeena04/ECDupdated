@@ -1617,7 +1617,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               await RestaurantApiService.markOrderReady(order.id);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('✅ Food Marked Ready! Click "Search Rider" to notify nearby riders.'), backgroundColor: AppColors.primaryGreen),
+                  SnackBar(
+                    content: Text(isSelfPickup
+                      ? '✅ Food Marked Ready! Customer notified for self pickup.'
+                      : '✅ Food Marked Ready! Click "Search Rider" to notify nearby riders.'),
+                    backgroundColor: AppColors.primaryGreen,
+                  ),
                 );
               }
             },

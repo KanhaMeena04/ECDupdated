@@ -361,11 +361,11 @@ class _OrderCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(order['orderType'] == 'pickup' ? Icons.storefront : Icons.location_on_outlined, size: 12, color: const Color(0xFF9CA3AF)),
+                          Icon((order['orderType'] == 'pickup' || order['orderType'] == 'self_pickup' || order['isSelfPickup'] == true) ? Icons.storefront : Icons.location_on_outlined, size: 12, color: const Color(0xFF9CA3AF)),
                           const SizedBox(width: 3),
                           Expanded(
                             child: Text(
-                              order['orderType'] == 'pickup' ? 'Self-Pickup' : address,
+                              (order['orderType'] == 'pickup' || order['orderType'] == 'self_pickup' || order['isSelfPickup'] == true) ? 'Self-Pickup' : address,
                               style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -450,7 +450,7 @@ class _OrderCard extends StatelessWidget {
               child: _OrderTracker(status: status, deliveryStatus: order['deliveryStatus']?.toString() ?? '', orderType: order['orderType']?.toString() ?? ''),
             ),
           
-          if (order['assignedDriver'] != null && order['assignedDriver'] is Map && order['orderType'] != 'pickup')
+          if (order['assignedDriver'] != null && order['assignedDriver'] is Map && order['orderType'] != 'pickup' && order['orderType'] != 'self_pickup' && order['isSelfPickup'] != true)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
               child: Container(
@@ -1066,7 +1066,8 @@ class _CancelOrTrackButtonState extends State<_CancelOrTrackButton> {
                               restaurantName: widget.restaurantName,
                               deliveryAddress: widget.address,
                               items: itemsList,
-                              orderType: widget.order['orderType']?.toString() ?? 'delivery',
+                              orderType: widget.order['orderType']?.toString() ?? (widget.order['isSelfPickup'] == true ? 'self_pickup' : 'delivery'),
+                              pickupOtp: (widget.order['pickupOtp'] ?? widget.order['selfPickupCode'] ?? '').toString(),
                             ),
                           ),
                         );
@@ -1148,7 +1149,8 @@ class _OrderTracker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final steps = orderType == 'pickup' 
+    final isPickup = orderType == 'pickup' || orderType == 'self_pickup';
+    final steps = isPickup 
         ? ['Placed', 'Preparing', 'Ready', 'Collected']
         : ['Placed', 'Preparing', 'Picked Up', 'Delivered'];
         
@@ -1158,10 +1160,10 @@ class _OrderTracker extends StatelessWidget {
     int activeStep = 0; // Placed
     if (s == 'preparing' || ds == 'accepted' || ds == 'reached_store') activeStep = 1; // Preparing
     if (s == 'ready' || s == 'picked_up' || s == 'picked up' || ds == 'picked_up' || ds == 'out_for_delivery' || s == 'on the way' || s == 'on_the_way') activeStep = 2; // Picked Up / Ready
-    if (s == 'delivered' || ds == 'delivered') activeStep = 3; // Delivered
+    if (s == 'delivered' || ds == 'delivered' || s == 'completed') activeStep = 3; // Delivered
     
-    if (orderType == 'pickup' && s == 'ready') activeStep = 2;
-    if (orderType == 'pickup' && s == 'delivered') activeStep = 3;
+    if (isPickup && s == 'ready') activeStep = 2;
+    if (isPickup && (s == 'delivered' || s == 'completed')) activeStep = 3;
 
     return Container(
       padding: const EdgeInsets.all(12),

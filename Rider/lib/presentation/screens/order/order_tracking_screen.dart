@@ -34,6 +34,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   StreamSubscription<Position>? _positionSubscription;
   bool _isLoading = false;
   late String _currentDeliveryStatus;
+  late bool _isToRestaurant;
+  Timer? _statusPollTimer;
 
   final Set<Polyline> _polylines = {};
   static const String googleApiKey = 'AIzaSyCN7XqyxOj5lgr2uaMNrTOg6PzHTOGa0xU';
@@ -43,12 +45,56 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   void initState() {
     super.initState();
     _currentDeliveryStatus = (widget.order['deliveryStatus'] ?? widget.order['status'] ?? 'accepted').toString();
+    final isDelivering = ['picked_up', 'out_for_delivery', 'reached_customer_location', 'delivered'].contains(_currentDeliveryStatus.toLowerCase());
+    _isToRestaurant = widget.isToRestaurant && !isDelivering;
     _determineInitialPosition();
     _startLocationSubscription();
+    _startStatusPolling();
+  }
+
+  void _startStatusPolling() {
+    _statusPollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      final orderId = (widget.order['_id'] ?? widget.order['orderId'] ?? '').toString();
+      if (orderId.isEmpty || !mounted) return;
+      try {
+        final res = await ApiService.getOrderDetails(orderId);
+        if (res['success'] == true && res['data'] != null && mounted) {
+          final data = res['data'];
+          final status = (data['deliveryStatus'] ?? data['status'] ?? '').toString().toLowerCase();
+          final isDelivering = ['picked_up', 'out_for_delivery', 'reached_customer_location', 'delivered'].contains(status);
+
+          if (isDelivering && _isToRestaurant) {
+            setState(() {
+              _isToRestaurant = false;
+              _currentDeliveryStatus = (status == 'assigned' || status == 'accepted') ? 'picked_up' : status;
+              if (data['customer'] != null) widget.order['customer'] = data['customer'];
+              if (data['deliveryAddress'] != null) widget.order['deliveryAddress'] = data['deliveryAddress'];
+              if (data['address'] != null) widget.order['address'] = data['address'];
+            });
+            _getPolyline();
+            if (_driverLatLng != null) {
+              _mapController?.animateCamera(CameraUpdate.newLatLngZoom(_driverLatLng!, 15.0));
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('🎉 OTP Verified by Restaurant! Order Handed Over. Deliver to Customer!'),
+                backgroundColor: primaryGreen,
+                duration: Duration(seconds: 4),
+              ),
+            );
+          } else if (status.isNotEmpty && status != _currentDeliveryStatus.toLowerCase()) {
+            setState(() {
+              _currentDeliveryStatus = status;
+            });
+          }
+        }
+      } catch (_) {}
+    });
   }
 
   @override
   void dispose() {
+    _statusPollTimer?.cancel();
     _positionSubscription?.cancel();
     _mapController?.dispose();
     super.dispose();
@@ -112,7 +158,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   Future<void> _getPolyline() async {
     if (_driverLatLng == null) return;
     
-    final targetLatLng = widget.isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
+    final targetLatLng = _isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
     
     // ignore: deprecated_member_use
     PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
@@ -132,10 +178,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
       if (mounted) {
         setState(() {
+          _polylines.clear();
           _polylines.add(
             Polyline(
               polylineId: const PolylineId('route'),
-              color: Colors.blue,
+              color: _isToRestaurant ? Colors.orange : primaryGreen,
               points: polylineCoordinates,
               width: 5,
             ),
@@ -210,7 +257,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   String _getLiveDistance() {
     if (_driverLatLng != null) {
-      final targetLatLng = widget.isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
+      final targetLatLng = _isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
       try {
         final distanceInMeters = Geolocator.distanceBetween(
           _driverLatLng!.latitude,
@@ -224,7 +271,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
     
     try {
-      if (widget.isToRestaurant) {
+      if (_isToRestaurant) {
         final rDist = widget.order['restaurant']?['distance_km'] ?? widget.order['store']?['distance_km'];
         if (rDist != null) return rDist.toString();
       } else {
@@ -239,7 +286,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   Future<void> _openExternalMap() async {
-    final dest = widget.isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
+    final dest = _isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
     final url = 'https://www.google.com/maps/dir/?api=1&destination=${dest.latitude},${dest.longitude}&travelmode=driving';
     final uri = Uri.parse(url);
     if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -253,9 +300,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   void _handleStatusTransition(BuildContext context) async {
-    final orderId = widget.order['_id'] ?? widget.order['orderId'] ?? '';
+    final orderId = (widget.order['_id'] ?? widget.order['orderId'] ?? '').toString();
     
-    if (widget.isToRestaurant) {
+    if (_isToRestaurant) {
       if (_currentDeliveryStatus == 'accepted' || _currentDeliveryStatus == 'assigned') {
         setState(() => _isLoading = true);
         context.read<DriverBloc>().add(
@@ -267,7 +314,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         });
       } else if (_currentDeliveryStatus == 'reached_store') {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please show your OTP to the restaurant so they can verify the pickup.')),
+          const SnackBar(
+            content: Text('🔑 Please tell the 4-digit OTP to the restaurant owner so they can verify and hand over the order.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
         );
       }
       return;
@@ -282,9 +333,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           _currentDeliveryStatus = 'out_for_delivery';
           _isLoading = false;
         });
+        _getPolyline();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('🚀 Order is Out for Delivery! Live tracking updated for customer.'),
+            content: Text('🚀 Order is Out for Delivery! Navigation started to Customer location.'),
             backgroundColor: primaryGreen,
           ),
         );
@@ -295,7 +347,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('📍 Reached customer location! Click "Complete Order Delivery" to finish.'),
+          content: Text('📍 Reached Customer location! Click "Order Delivered" to complete delivery.'),
           backgroundColor: Colors.blue,
         ),
       );
@@ -313,55 +365,127 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   void _showOrderDeliveredDialog() {
     final orderNum = widget.order['orderNumber'] ?? widget.order['orderId'] ?? widget.order['_id'] ?? '';
     final custName = widget.order['customer']?['name'] ?? 'Customer';
+    final orderId = (widget.order['_id'] ?? widget.order['orderId'] ?? '').toString();
+    final noteController = TextEditingController();
+    double selectedRating = 5.0;
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: lightGreen,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check_circle_rounded, color: primaryGreen, size: 60),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '🎉 Order Delivered Successfully!',
-              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Order #$orderNum has been delivered to $custName. Earnings credited to your account.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pop(context, true);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryGreen,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(20),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: lightGreen,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_circle_rounded, color: primaryGreen, size: 54),
                 ),
-                child: Text(
-                  'Done & Go to Orders',
-                  style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                const SizedBox(height: 14),
+                Text(
+                  '🎉 Order Delivered Successfully!',
+                  style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
+                  textAlign: TextAlign.center,
                 ),
-              ),
+                const SizedBox(height: 6),
+                Text(
+                  'Order #$orderNum delivered to $custName. Please rate your delivery experience with customer.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                Text(
+                  'Rate Customer',
+                  style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    final star = index + 1;
+                    return IconButton(
+                      onPressed: () {
+                        setDialogState(() {
+                          selectedRating = star.toDouble();
+                        });
+                      },
+                      icon: Icon(
+                        star <= selectedRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                        color: Colors.amber[700],
+                        size: 32,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    );
+                  }),
+                ),
+                Text(
+                  '${selectedRating.toInt()} / 5 Stars',
+                  style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber[800]),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'Add note about customer / delivery (optional)...',
+                    hintStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[400]),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  style: GoogleFonts.poppins(fontSize: 12),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            setDialogState(() => isSubmitting = true);
+                            await ApiService.rateCustomer(
+                              orderId: orderId,
+                              rating: selectedRating,
+                              note: noteController.text.trim(),
+                            );
+                            if (mounted) {
+                              Navigator.pop(ctx);
+                              Navigator.pop(context, true);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('✅ Rating submitted! Order completed.'),
+                                  backgroundColor: primaryGreen,
+                                ),
+                              );
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryGreen,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    child: isSubmitting
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text(
+                            'Submit & Finish',
+                            style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -373,14 +497,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final address = widget.order['address'] ?? widget.order['deliveryAddress'] ?? {};
     final restaurant = widget.order['restaurant'] ?? {'name': 'Restaurant Store', 'address': 'Indore, MP'};
 
-    final targetLatLng = widget.isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
+    final targetLatLng = _isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
 
     final markers = <Marker>{
       Marker(
         markerId: const MarkerId('target'),
         position: targetLatLng,
         icon: BitmapDescriptor.defaultMarkerWithHue(
-          widget.isToRestaurant ? BitmapDescriptor.hueOrange : BitmapDescriptor.hueGreen,
+          _isToRestaurant ? BitmapDescriptor.hueOrange : BitmapDescriptor.hueGreen,
         ),
       ),
     };
@@ -399,7 +523,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     Color actionBtnColor = primaryGreen;
     bool showActionButton = true;
 
-    if (widget.isToRestaurant) {
+    if (_isToRestaurant) {
       if (_currentDeliveryStatus == 'accepted' || _currentDeliveryStatus == 'assigned') {
         actionBtnText = 'I have Reached the Store';
         actionBtnColor = Colors.orange[700]!;
@@ -411,13 +535,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       }
     } else {
       if (_currentDeliveryStatus == 'picked_up' || _currentDeliveryStatus == 'accepted' || _currentDeliveryStatus == 'assigned') {
-        actionBtnText = 'Mark as Out for Delivery';
+        actionBtnText = 'Order On The Way';
         actionBtnColor = primaryGreen;
       } else if (_currentDeliveryStatus == 'out_for_delivery') {
         actionBtnText = 'Reached Customer Location';
         actionBtnColor = Colors.blue[700]!;
       } else if (_currentDeliveryStatus == 'reached_customer_location') {
-        actionBtnText = 'Complete Order Delivery';
+        actionBtnText = 'Order Delivered';
         actionBtnColor = primaryGreen;
       } else {
         showActionButton = false;
@@ -451,7 +575,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.isToRestaurant ? 'Track Pick-up' : 'Track Delivery'),
+          title: Text(_isToRestaurant ? 'Track Pick-up' : 'Track Delivery'),
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
           elevation: 0.5,
@@ -526,7 +650,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: widget.isToRestaurant ? Colors.orange[700] : primaryGreen,
+                                  color: _isToRestaurant ? Colors.orange[700] : primaryGreen,
                                 ),
                               ),
                             ],
@@ -534,13 +658,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
-                              color: (widget.isToRestaurant ? Colors.orange[700] : primaryGreen)!.withValues(alpha: 0.1),
+                              color: (_isToRestaurant ? Colors.orange[700] : primaryGreen)!.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
                               '${_getLiveDistance()} KM',
                               style: TextStyle(
-                                color: widget.isToRestaurant ? Colors.orange[700] : primaryGreen,
+                                color: _isToRestaurant ? Colors.orange[700] : primaryGreen,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                               ),
@@ -555,10 +679,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         children: [
                           CircleAvatar(
                             radius: 20,
-                            backgroundColor: (widget.isToRestaurant ? Colors.orange[50] : lightGreen),
+                            backgroundColor: (_isToRestaurant ? Colors.orange[50] : lightGreen),
                             child: Icon(
-                              widget.isToRestaurant ? Icons.storefront : Icons.person,
-                              color: widget.isToRestaurant ? Colors.orange[700] : primaryGreen,
+                              _isToRestaurant ? Icons.storefront : Icons.person,
+                              color: _isToRestaurant ? Colors.orange[700] : primaryGreen,
                             ),
                           ),
                           const SizedBox(width: 14),
@@ -567,7 +691,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  widget.isToRestaurant ? (restaurant['name'] ?? 'Restaurant') : (customer['name'] ?? 'Customer'),
+                                  _isToRestaurant ? (restaurant['name'] ?? 'Restaurant') : (customer['name'] ?? 'Customer'),
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -575,7 +699,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  widget.isToRestaurant
+                                  _isToRestaurant
                                       ? (_parseAddressToString(restaurant['address']).isNotEmpty ? _parseAddressToString(restaurant['address']) : 'Store Location')
                                       : (_parseAddressToString(address).isNotEmpty ? _parseAddressToString(address) : (_parseAddressToString(customer['address']).isNotEmpty ? _parseAddressToString(customer['address']) : 'Customer Location')),
                                   style: TextStyle(color: Colors.grey[600], fontSize: 13),
@@ -584,7 +708,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  widget.isToRestaurant ? (restaurant['phone'] ?? 'No Number') : (widget.order['deliveryPhone'] ?? customer['phone'] ?? 'No Number'),
+                                  _isToRestaurant ? (restaurant['phone'] ?? 'No Number') : (widget.order['deliveryPhone'] ?? customer['phone'] ?? 'No Number'),
                                   style: const TextStyle(color: Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.bold),
                                 ),
                               ],
@@ -593,23 +717,23 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           const SizedBox(width: 8),
                           IconButton(
                             onPressed: () async {
-                              final phone = widget.isToRestaurant ? restaurant['phone'] : (widget.order['deliveryPhone'] ?? customer['phone']);
+                              final phone = _isToRestaurant ? restaurant['phone'] : (widget.order['deliveryPhone'] ?? customer['phone']);
                               if (phone != null && phone.toString().isNotEmpty) {
                                 final uri = Uri.parse('tel:$phone');
                                 if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
                               }
                             },
                             icon: const Icon(Icons.phone),
-                            color: widget.isToRestaurant ? Colors.orange[700] : primaryGreen,
+                            color: _isToRestaurant ? Colors.orange[700] : primaryGreen,
                             style: IconButton.styleFrom(
-                              backgroundColor: (widget.isToRestaurant ? Colors.orange[700] : primaryGreen)!.withValues(alpha: 0.1),
+                              backgroundColor: (_isToRestaurant ? Colors.orange[700] : primaryGreen)!.withValues(alpha: 0.1),
                               padding: const EdgeInsets.all(8),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 20),
-                      if (widget.isToRestaurant) ...[
+                      if (_isToRestaurant) ...[
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(16),

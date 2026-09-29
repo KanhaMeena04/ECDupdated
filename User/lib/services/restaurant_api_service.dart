@@ -61,9 +61,42 @@ class RestaurantApiService {
           'comment': comment,
         }),
       );
-      return response.statusCode == 201;
+      return response.statusCode == 201 || response.statusCode == 200;
     } catch (e) {
       debugPrint('Error submitting review: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> submitDualReview({
+    required String orderId,
+    required String restaurantId,
+    required double restaurantRating,
+    double? riderRating,
+    String? comment,
+    String? riderComment,
+  }) async {
+    if (kFrontendPreviewMode) return true;
+    try {
+      final combinedComment = [
+        if (comment != null && comment.trim().isNotEmpty) 'Restaurant: ${comment.trim()}',
+        if (riderComment != null && riderComment.trim().isNotEmpty) 'Rider: ${riderComment.trim()}'
+      ].join(' | ');
+
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/reviews'),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'orderId': orderId,
+          'restaurantId': restaurantId,
+          'restaurantRating': restaurantRating,
+          if (riderRating != null) 'riderRating': riderRating,
+          'comment': combinedComment.isNotEmpty ? combinedComment : (comment ?? ''),
+        }),
+      );
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error submitting dual review: $e');
       return false;
     }
   }
@@ -102,7 +135,11 @@ class RestaurantApiService {
       return _getMockBanners();
     }
     try {
+      debugPrint('🎯 Fetching banners from: $bannersUrl');
       final response = await http.get(Uri.parse(bannersUrl)).timeout(const Duration(seconds: 15));
+      debugPrint('🎯 Banners response status: ${response.statusCode}');
+      debugPrint('🎯 Banners response body: ${response.body.substring(0, response.body.length > 300 ? 300 : response.body.length)}');
+      
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         List<dynamic> data = [];
@@ -118,6 +155,8 @@ class RestaurantApiService {
           }
         }
 
+        debugPrint('🎯 Raw banner data count: ${data.length}');
+
         final list = data
             .map((json) {
               if (json is Map<String, dynamic>) {
@@ -131,18 +170,20 @@ class RestaurantApiService {
             .where((b) => b.imageUrl.isNotEmpty && b.isActive)
             .toList();
 
+        debugPrint('🎯 Parsed banners: ${list.length}, URLs: ${list.map((b) => b.imageUrl).toList()}');
+
         if (list.isNotEmpty) {
           return list;
         }
-        // No banners from API - return empty (don't show mock banners)
+        debugPrint('🎯 Banner list empty after filter!');
         return [];
       }
     } catch (e) {
-      debugPrint('Error fetching banners: $e');
+      debugPrint('❌ Error fetching banners: $e');
     }
-    // Network error fallback - return empty list
     return [];
   }
+
 
   static List<BannerModel> _getMockBanners() {
     return [

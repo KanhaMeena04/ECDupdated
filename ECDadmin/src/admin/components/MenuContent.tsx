@@ -125,6 +125,7 @@ export const menuItems = [
 
   { text: 'Service Areas', icon: <LocationCity />, path: '/service-areas' },
   { text: 'Self Pickup', icon: <Storefront />, path: '/self-pickup-control' },
+  { text: 'Order Timings & Cancellation', icon: <Schedule />, path: '/order-timing-control' },
   { text: 'CMS', icon: <Article />, path: '/user-app-cms' },
   { text: 'Analytics', icon: <BarChart />, path: '/profit-loss-report' },
   { text: 'Reports', icon: <BarChart />, path: '/order-report' },
@@ -137,12 +138,12 @@ export const menuItems = [
     text: 'Master Settings',
     icon: <SettingsApplications />,
     children: [
-      { text: 'Order Rules', path: '/setting' },
+      { text: 'Order & Cancellation Rules', path: '/order-timing-control' },
       { text: 'Delivery Rules', path: '/pricing-control' },
-      { text: 'Rider Rules', path: '/setting' },
-      { text: 'Restaurant Rules', path: '/setting' },
-      { text: 'Cancellation Rules', path: '/cancellation-reason' },
-      { text: 'Refund Rules', path: '/setting' },
+      { text: 'Rider Rules', path: '/rider-earnings-control' },
+      { text: 'Restaurant Rules', path: '/self-pickup-control' },
+      { text: 'Cancellation Rules', path: '/order-timing-control' },
+      { text: 'Refund Rules', path: '/payment-reconciliation' },
     ]
   },
 

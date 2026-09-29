@@ -85,7 +85,7 @@ const rider = (req, res, next) => {
   }
 };
 const customer = (req, res, next) => {
-    if (req.user && req.user.role === 'customer') {
+    if (req.user && (req.user.role === 'customer' || req.user.role === 'user' || req.user.role === 'admin')) {
       next();
     } else {
       res.status(403).json({ message: 'Access Denied: Customers only' });

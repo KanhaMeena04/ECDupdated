@@ -3,14 +3,19 @@ import {
   MenuItem,
   Select,
   Button,
-  Paper
+  Paper,
+  CircularProgress
 } from '@mui/material';
 import { PhotoSizeSelectActual } from '@mui/icons-material';
 
 import { useRestaurantBanner } from '../../api/restaurantbanner.js'
-import { useRestaurantNameList } from '../../api/restaurant.js'; // use same hook as edit form
+import { useRestaurantNameList } from '../../api/restaurant.js';
 import { useCities } from '../../api/city.js';
 import { useNavigate } from 'react-router-dom';
+
+const IMAGEKIT_UPLOAD_URL = 'https://upload.imagekit.io/api/v1/files/upload';
+const IMAGEKIT_PUBLIC_KEY = 'public_bndzwvE17qu6mX6x96Ak/PhnGY0=';
+const IMAGEKIT_URL_ENDPOINT = 'https://ik.imagekit.io/ECDKART';
 
 const AddRestaurantBannerForm = () => {
   const { addBanner, loading } = useRestaurantBanner();
@@ -19,6 +24,40 @@ const AddRestaurantBannerForm = () => {
   const navigate=useNavigate()
 
   const [preview, setPreview] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState('');
+
+  // Upload image directly to ImageKit from browser (bypasses server file path issues)
+  const uploadToImageKitDirect = async (file) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fileName', `banner_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
+      formData.append('publicKey', IMAGEKIT_PUBLIC_KEY);
+      formData.append('folder', '/ecdkart/banners');
+
+      const res = await fetch(IMAGEKIT_UPLOAD_URL, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error(`ImageKit upload failed: ${res.status}`);
+      const data = await res.json();
+      if (!data.url) throw new Error('No URL in ImageKit response');
+
+      setUploadedImageUrl(data.url);
+      setPreview(data.url);
+      console.log('✅ ImageKit direct upload success:', data.url);
+      return data.url;
+    } catch (err) {
+      console.error('❌ ImageKit direct upload failed:', err);
+      // Fallback: use local preview and send file to server
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     title: "",
@@ -33,18 +72,29 @@ const AddRestaurantBannerForm = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    setFormData(prev => ({ ...prev, bannerImage: file }));
+    // Show local preview immediately
     setPreview(URL.createObjectURL(file));
+    // Upload directly to ImageKit from browser
+    const ikUrl = await uploadToImageKitDirect(file);
+    if (ikUrl) {
+      // Uploaded to ImageKit — don't need to send file to server
+      setFormData(prev => ({ ...prev, bannerImage: null, imageUrl: ikUrl }));
+    } else {
+      // Fallback: send file to server
+      setFormData(prev => ({ ...prev, bannerImage: file, imageUrl: '' }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.bannerImage && !formData.title) {
+    const imageUrl = formData.imageUrl || uploadedImageUrl;
+
+    if (!imageUrl && !formData.bannerImage && !formData.title) {
       alert('Please upload a banner image or enter a title');
       return;
     }
@@ -61,7 +111,10 @@ const AddRestaurantBannerForm = () => {
     payload.append('type', (formData.restaurant && formData.restaurant !== 'all') ? 'restaurant' : 'static');
     payload.append('position', 1);
 
-    if (formData.bannerImage) {
+    if (imageUrl) {
+      // Direct ImageKit URL — send as text, no file upload needed
+      payload.append('image', imageUrl);
+    } else if (formData.bannerImage) {
       payload.append('image', formData.bannerImage);
     }
 
@@ -188,13 +241,22 @@ const AddRestaurantBannerForm = () => {
                   variant="contained"
                   component="label"
                   sx={{backgroundColor:"#248C70"}}
-                  className="bg-[#248C70] hover:bg-[#1c6d57] capitalize w-32 shadow-none py-2"
+                  className="bg-[#248C70] hover:bg-[#1c6d57] capitalize w-40 shadow-none py-2"
+                  disabled={uploading}
                 >
-                  Choose a file
-                  <input type="file" hidden onChange={handleImageChange} />
+                  {uploading ? (
+                    <><CircularProgress size={16} sx={{color:'white', mr: 1}} /> Uploading...</>
+                  ) : 'Choose a file'}
+                  <input type="file" hidden accept="image/*" onChange={handleImageChange} />
                 </Button>
 
-                <div className="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-300 overflow-hidden">
+                {uploadedImageUrl && (
+                  <p className="text-xs text-green-600 font-medium">
+                    ✅ Uploaded to ImageKit successfully
+                  </p>
+                )}
+
+                <div className="w-48 h-32 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-300 overflow-hidden">
                   {preview ? (
                     <img src={preview} alt="preview" className="w-full h-full object-cover" />
                   ) : (

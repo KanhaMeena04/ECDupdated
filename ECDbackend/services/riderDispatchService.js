@@ -19,7 +19,10 @@ exports.findAndNotifyRider = async (orderId) => {
         const order = await Order.findOne(orderFilter);
         if (!order) return console.error('Order not found for dispatch:', orderId);
         if (order.rider || ['cancelled', 'delivered', 'picked_up'].includes(order.status)) return;
-        if (!['placed', 'accepted', 'preparing', 'ready'].includes(order.status)) return;
+        if (order.status !== 'ready') {
+            console.log(`[Dispatch] Rider search deferred for Order ${orderId}: Food is currently ${order.status}. Rider search begins when marked ready.`);
+            return;
+        }
         const restaurant = await Restaurant.findById(order.restaurant);
         if (!restaurant?.location?.coordinates) {
             return console.error('Restaurant location missing for dispatch');

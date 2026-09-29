@@ -28,6 +28,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   final TextEditingController _bufferReasonController = TextEditingController();
   bool _otpError = false;
   Timer? _refreshTimer;
+  Timer? _countdownTimer;
 
   @override
   void initState() {
@@ -42,11 +43,15 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) _fetchFreshOrderDetails(isSilent: true);
     });
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _countdownTimer?.cancel();
     _otpController.dispose();
     _prepNoteController.dispose();
     _bufferReasonController.dispose();
@@ -87,6 +92,23 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               }
               widget.order.customerArrived = updatedOrder.customerArrived;
               _customerArrived = updatedOrder.customerArrived;
+              widget.order.cancellationWindowMinutes = updatedOrder.cancellationWindowMinutes;
+              if (updatedOrder.cancellationWindowExpiresAt != null) {
+                widget.order.cancellationWindowExpiresAt = updatedOrder.cancellationWindowExpiresAt;
+              }
+              widget.order.gracePeriodMinutes = updatedOrder.gracePeriodMinutes;
+              if (updatedOrder.riderAssignedAt != null) {
+                widget.order.riderAssignedAt = updatedOrder.riderAssignedAt;
+              }
+              if (updatedOrder.riderGracePeriodExpiresAt != null) {
+                widget.order.riderGracePeriodExpiresAt = updatedOrder.riderGracePeriodExpiresAt;
+              }
+              if (updatedOrder.readyAt != null) {
+                widget.order.readyAt = updatedOrder.readyAt;
+              }
+              if (updatedOrder.createdAt != null) {
+                widget.order.createdAt = updatedOrder.createdAt;
+              }
             });
           }
         }
@@ -189,33 +211,24 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           ),
         );
       }
-    } else if (_currentStatus == 'Assigned' || _currentStatus == 'assigned' || _currentStatus == 'rider_assigned' || (_currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && ((widget.order.riderName != null && widget.order.riderName!.isNotEmpty) || (widget.order.riderId != null && widget.order.riderId!.isNotEmpty)))) {
-      _showOtpVerificationModal();
-    } else if (_currentStatus == 'Ready' || _currentStatus == 'Ready for Pickup') {
-      _showSearchingRiderModal();
-    } else if (_currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery') {
-      setState(() {
-        _currentStatus = 'Delivered';
-        widget.order.status = 'Delivered';
-      });
-      try {
-        final token = ApiConstants.authToken;
-        await http.put(
-          Uri.parse('${ApiConstants.baseUrl}/orders/$orderId/status'),
-          headers: {
-            'Content-Type': 'application/json',
-            if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({'status': 'delivered'}),
-        );
-      } catch (_) {}
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🎉 Order Marked as Delivered! Completed.'),
-            backgroundColor: AppColors.primaryGreen,
-          ),
-        );
+    } else {
+      final hasRider = (widget.order.riderName != null && widget.order.riderName!.isNotEmpty) ||
+          (widget.order.riderId != null && widget.order.riderId!.isNotEmpty) ||
+          ['assigned', 'rider assigned', 'rider_assigned', 'rider_accepted', 'reached_store', 'reached_restaurant'].contains(_currentStatus.toLowerCase());
+
+      if (hasRider && _currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && _currentStatus != 'Handed Over') {
+        _showOtpVerificationModal();
+      } else if (_currentStatus == 'Ready' || _currentStatus == 'Ready for Pickup') {
+        _showSearchingRiderModal();
+      } else if (_currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery' || _currentStatus == 'Handed Over') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🚀 Food handed over to rider! Rider is on the way to customer.'),
+              backgroundColor: AppColors.primaryGreen,
+            ),
+          );
+        }
       }
     }
   }
@@ -845,6 +858,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                 : selectedReason;
 
                             Navigator.pop(context);
+                            final targetId = widget.order.backendId.isNotEmpty ? widget.order.backendId : widget.order.id;
+                            RestaurantApiService.cancelOrder(targetId, finalReason);
                             setState(() {
                               _currentStatus = 'Cancelled';
                               widget.order.status = 'Cancelled';
@@ -876,6 +891,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         );
       },
     );
+  }
+
+  bool _isHandedOverOrCompleted() {
+    final s = _currentStatus.toLowerCase().trim();
+    return s == 'picked up' || s == 'picked_up' || s == 'out for delivery' || s == 'out_for_delivery' || s == 'on_the_way' || s == 'delivered' || s == 'handed over' || s == 'handed_over' || s == 'completed' || s == 'cancelled';
   }
 
   @override
@@ -1338,7 +1358,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('🔒 Cancellation Window Expired', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[800])),
-                  Text('The ${widget.order.cancellationWindowMinutes}-minute pickup cancellation window has ended. Order is locked.', style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey[600])),
+                  Text('The ${widget.order.cancellationWindowMinutes}-minute ${widget.order.isSelfPickup ? "pickup" : "order"} cancellation window has ended. Order is locked.', style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey[600])),
                 ],
               ),
             ),
@@ -1735,20 +1755,24 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         buttonText = 'Completed';
       }
     } else {
+      final hasRider = (widget.order.riderName != null && widget.order.riderName!.isNotEmpty) ||
+          (widget.order.riderId != null && widget.order.riderId!.isNotEmpty) ||
+          ['assigned', 'rider assigned', 'rider_assigned', 'rider_accepted', 'reached_store', 'reached_restaurant'].contains(_currentStatus.toLowerCase());
+
       if (_currentStatus == 'Placed' || _currentStatus == 'Pending') {
         text = 'Accept order and start food preparation in kitchen?';
         buttonText = 'Start Preparing';
       } else if (_currentStatus == 'Preparing') {
         text = 'Is food preparation complete and ready for pickup?';
         buttonText = 'Mark Ready';
-      } else if (_currentStatus == 'Assigned' || _currentStatus == 'assigned' || _currentStatus == 'rider_assigned' || (_currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && ((widget.order.riderName != null && widget.order.riderName!.isNotEmpty) || (widget.order.riderId != null && widget.order.riderId!.isNotEmpty)))) {
-        text = 'Delivery partner assigned! Ask rider for 4-digit OTP to handover food.';
+      } else if (hasRider && _currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && _currentStatus != 'Handed Over') {
+        text = '🚴 Rider ${widget.order.riderName ?? "Assigned"}! Ask 4-digit OTP to handover food.';
         buttonText = 'Verify Rider OTP';
       } else if (_currentStatus == 'Ready' || _currentStatus == 'Ready for Pickup') {
         text = 'Food is Ready! Click Search Rider to notify nearby delivery riders.';
         buttonText = 'Search Rider';
-      } else if (_currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery') {
-        text = 'Order handed over to rider. Rider is delivering to customer.';
+      } else if (_currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery' || _currentStatus == 'Handed Over') {
+        text = '🚀 Order Handed Over to Rider. Role completed for restaurant.';
         buttonText = 'Handed Over to Rider';
       } else {
         text = 'Order completed successfully.';
@@ -1756,7 +1780,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       }
     }
 
-    final isDelivered = _currentStatus == 'Delivered' || _currentStatus == 'Handed Over' || _currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery';
+    final isDelivered = _currentStatus == 'Delivered' || _currentStatus == 'Handed Over' || _currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery' || _currentStatus == 'Completed';
 
     return Container(
       padding: const EdgeInsets.all(16),

@@ -59,7 +59,11 @@ const orderSchema = new mongoose.Schema(
     prepNote: { type: String },
     readyAt: { type: Date },
     scheduledAt: { type: Date },
+    cancellationWindowMinutes: { type: Number, default: 5 },
+    cancellationWindowExpiresAt: { type: Date },
     gracePeriodMinutes: { type: Number, default: 15 },
+    riderAssignedAt: { type: Date },
+    riderGracePeriodExpiresAt: { type: Date },
     selfPickupCode: { type: String },
     selfPickupVerifiedAt: { type: Date },
     customerArrived: { type: Boolean, default: false },
@@ -84,12 +88,14 @@ const orderSchema = new mongoose.Schema(
         "placed",              // 1. Customer placed order
         "accepted",            // 2. Restaurant accepted (started preparing)
         "preparing",           // 3. Kitchen is cooking
-        "ready",               // 4. Food is ready, waiting for rider
+        "ready",               // 4. Food is ready, waiting for pickup/rider
+        "customer_arrived",    // Self pickup: Customer arrived at restaurant counter
         "assigned",            // 5. Rider assigned and heading to restaurant
         "reached_restaurant",  // 6. Rider physically at restaurant, awaiting pickup OTP
         "picked_up",           // 7. Rider picked up food (OUT FOR DELIVERY)
         "delivery_arrived",    // 8. Rider at customer location
-        "delivered",           // 9. Order completed
+        "delivered",           // 9. Order completed / delivered
+        "completed",           // Order completed
         "cancelled",           // Order cancelled
         "failed",              // Payment failed
       ],

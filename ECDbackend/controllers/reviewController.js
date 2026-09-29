@@ -428,6 +428,7 @@ exports.createReview = async (req, res) => {
             if (restaurant) {
                 const stats = await buildRatingStatsOptimized('restaurant', targetRestaurantId, 'restaurantRating');
                 restaurant.rating = stats;
+                restaurant.avgRating = stats.average;
                 await restaurant.save();
             }
         }
@@ -437,6 +438,7 @@ exports.createReview = async (req, res) => {
             if (rider) {
                 const stats = await buildRatingStatsOptimized('rider', targetRiderId, 'riderRating');
                 rider.rating = stats;
+                rider.averageRating = stats.average;
                 await rider.save();
             }
         }
@@ -484,6 +486,7 @@ exports.updateReview = async (req, res) => {
             if (restaurant) {
                 const stats = await buildRatingStatsOptimized('restaurant', review.restaurant, 'restaurantRating');
                 restaurant.rating = stats;
+                restaurant.avgRating = stats.average;
                 await restaurant.save();
             }
         }
@@ -492,6 +495,7 @@ exports.updateReview = async (req, res) => {
             if (rider) {
                 const stats = await buildRatingStatsOptimized('rider', review.rider, 'riderRating');
                 rider.rating = stats;
+                rider.averageRating = stats.average;
                 await rider.save();
             }
         }

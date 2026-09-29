@@ -157,6 +157,7 @@ const ScheduledChangesPage=lazy(()=>import("../pages/ScheduledChangesPage"))
 const EmergencyControlsPage=lazy(()=>import("../pages/EmergencyControlsPage"))
 const ServiceAreasPage=lazy(()=>import("../pages/ServiceAreasPage"))
 const SelfPickupControlPage=lazy(()=>import("../pages/SelfPickupControlPage"))
+const OrderTimingControlPage=lazy(()=>import("../pages/OrderTimingControlPage"))
 const PaymentReconciliationPage=lazy(()=>import("../pages/PaymentReconciliationPage"))
 const RiderEarningsControlPage=lazy(()=>import("../pages/RiderEarningsControlPage"))
 const AuditLogsPage=lazy(()=>import("../pages/AuditLogsPage"))
@@ -340,6 +341,8 @@ const AdminRoutes = () => {
 				 <Route path="/emergency-controls" element={<EmergencyControlsPage/>} />
 				 <Route path="/service-areas" element={<ServiceAreasPage/>} />
 				 <Route path="/self-pickup-control" element={<SelfPickupControlPage/>} />
+				 <Route path="/order-timing-control" element={<OrderTimingControlPage/>} />
+				 <Route path="/setting" element={<OrderTimingControlPage/>} />
 				 <Route path="/payment-reconciliation" element={<PaymentReconciliationPage/>} />
 				 <Route path="/rider-earnings-control" element={<RiderEarningsControlPage/>} />
 				 <Route path="/audit-logs" element={<AuditLogsPage/>} />

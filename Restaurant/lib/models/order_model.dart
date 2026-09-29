@@ -25,7 +25,10 @@ class Order {
   String? pickupSlot;
   String? prepNote;
   int cancellationWindowMinutes;
+  DateTime? cancellationWindowExpiresAt;
   int gracePeriodMinutes;
+  DateTime? riderAssignedAt;
+  DateTime? riderGracePeriodExpiresAt;
   DateTime? readyAt;
   DateTime? cancelledAt;
   String? cancellationReason;
@@ -59,7 +62,10 @@ class Order {
     this.pickupSlot,
     this.prepNote,
     this.cancellationWindowMinutes = 5,
+    this.cancellationWindowExpiresAt,
     this.gracePeriodMinutes = 15,
+    this.riderAssignedAt,
+    this.riderGracePeriodExpiresAt,
     this.readyAt,
     this.cancelledAt,
     this.cancellationReason,
@@ -69,34 +75,39 @@ class Order {
 
   bool get isSelfPickup => orderType.toLowerCase() == 'pickup' || orderType.toLowerCase() == 'self_pickup';
 
-  bool get isWithinCancellationWindow {
-    if (createdAt == null) return true;
-    final diff = DateTime.now().difference(createdAt!).inMinutes;
-    return diff < cancellationWindowMinutes;
-  }
+  bool get isWithinCancellationWindow => remainingCancellationSeconds > 0;
 
   int get remainingCancellationSeconds {
-    if (createdAt == null) return cancellationWindowMinutes * 60;
-    final diff = DateTime.now().difference(createdAt!).inSeconds;
-    final totalSec = cancellationWindowMinutes * 60;
-    final rem = totalSec - diff;
-    return rem > 0 ? rem : 0;
+    final now = DateTime.now();
+    if (cancellationWindowExpiresAt != null) {
+      final rem = cancellationWindowExpiresAt!.difference(now).inSeconds;
+      return rem > 0 ? rem : 0;
+    }
+    if (createdAt != null) {
+      final totalSec = cancellationWindowMinutes * 60;
+      final elapsed = now.difference(createdAt!).inSeconds;
+      final rem = totalSec - elapsed;
+      return rem > 0 ? rem : 0;
+    }
+    return cancellationWindowMinutes * 60;
   }
 
-  bool get isWithinGracePeriod {
-    final start = readyAt ?? createdAt;
-    if (start == null) return true;
-    final diff = DateTime.now().difference(start).inMinutes;
-    return diff < gracePeriodMinutes;
-  }
+  bool get isWithinGracePeriod => remainingGraceSeconds > 0;
 
   int get remainingGraceSeconds {
-    final start = readyAt ?? createdAt;
-    if (start == null) return gracePeriodMinutes * 60;
-    final diff = DateTime.now().difference(start).inSeconds;
-    final totalSec = gracePeriodMinutes * 60;
-    final rem = totalSec - diff;
-    return rem > 0 ? rem : 0;
+    final now = DateTime.now();
+    if (riderGracePeriodExpiresAt != null) {
+      final rem = riderGracePeriodExpiresAt!.difference(now).inSeconds;
+      return rem > 0 ? rem : 0;
+    }
+    final start = riderAssignedAt ?? readyAt ?? createdAt;
+    if (start != null) {
+      final totalSec = gracePeriodMinutes * 60;
+      final elapsed = now.difference(start).inSeconds;
+      final rem = totalSec - elapsed;
+      return rem > 0 ? rem : 0;
+    }
+    return gracePeriodMinutes * 60;
   }
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -265,6 +276,16 @@ class Order {
       paymentMethod: parsedPaymentMethod,
       pickupTime: json['pickupTime']?.toString() ?? json['scheduledAt']?.toString() ?? json['scheduledTime']?.toString(),
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
+      cancellationWindowMinutes: int.tryParse(json['cancellationWindowMinutes']?.toString() ?? '') ?? 5,
+      cancellationWindowExpiresAt: json['cancellationWindowExpiresAt'] != null ? DateTime.tryParse(json['cancellationWindowExpiresAt'].toString()) : null,
+      gracePeriodMinutes: int.tryParse(json['gracePeriodMinutes']?.toString() ?? '') ?? 15,
+      riderAssignedAt: json['riderAssignedAt'] != null ? DateTime.tryParse(json['riderAssignedAt'].toString()) : null,
+      riderGracePeriodExpiresAt: json['riderGracePeriodExpiresAt'] != null ? DateTime.tryParse(json['riderGracePeriodExpiresAt'].toString()) : null,
+      readyAt: json['readyAt'] != null ? DateTime.tryParse(json['readyAt'].toString()) : null,
+      prepTimeMinutes: int.tryParse(json['prepTimeMinutes']?.toString() ?? '') ?? 15,
+      bufferTimeMinutes: int.tryParse(json['bufferTimeMinutes']?.toString() ?? '') ?? 0,
+      customerArrived: json['customerArrived'] == true,
+      customerArrivedAt: json['customerArrivedAt'] != null ? DateTime.tryParse(json['customerArrivedAt'].toString()) : null,
       cancellationReason: json['cancellationReason']?.toString() ?? json['reason']?.toString(),
       address: parsedAddress,
     );

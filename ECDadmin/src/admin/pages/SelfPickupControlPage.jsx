@@ -114,6 +114,15 @@ export default function SelfPickupControlPage() {
               onChange={(e) => setConfig({ ...config, customerArrivalTimeoutMins: Number(e.target.value) })}
             />
           </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Order Cancellation Window (mins - full refund)"
+              type="number"
+              fullWidth
+              value={config.cancellationWindowMins}
+              onChange={(e) => setConfig({ ...config, cancellationWindowMins: Number(e.target.value) })}
+            />
+          </Grid>
           <Grid item xs={12} sx={{ textAlign: 'right' }}>
             <Button variant="contained" disabled={saving} sx={{ bgcolor: '#248C70', '&:hover': { bgcolor: '#1e755d' } }} onClick={handleSave}>
               {saving ? 'Saving...' : 'Save Self Pickup Settings'}
