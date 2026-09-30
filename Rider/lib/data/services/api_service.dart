@@ -424,6 +424,51 @@ class ApiService {
         "rating": 5.0,
       }
     };
+  static Future<String?> uploadImage(File imageFile) async {
+    try {
+      final token = await AuthService.getToken();
+      final uploadUrl = '${ApiConstants.baseUrl}/upload';
+      final request = http.MultipartRequest('POST', Uri.parse(uploadUrl));
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['url'] != null) {
+          return data['url'].toString();
+        }
+      }
+    } catch (e) {
+      log('Error uploading image: $e');
+    }
+    return null;
+  }
+
+  static Future<bool> updateRiderProfilePic(String imageUrl) async {
+    try {
+      final token = await AuthService.getToken();
+      final url = Uri.parse('${ApiConstants.baseUrl}/rider/profile');
+      final response = await http.patch(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'profilePic': imageUrl,
+          'avatar': imageUrl,
+          'profileImage': imageUrl,
+          'image': imageUrl,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (e) {
+      log('Error updating rider profile pic: $e');
+      return false;
+    }
   }
 
   static Future<Map<String, dynamic>> uploadDriverDocuments({

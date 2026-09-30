@@ -557,12 +557,12 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
       'tipAmount': isSelf ? 0 : _selectedTip,
       'leaveAtDoor': isSelf ? false : _leaveAtDoor,
       'selectedPaymentMethodName': _selectedPaymentMethod,
-      if (isSelf) ...[
+      if (isSelf) ...{
         'orderType': 'self_pickup',
         'isSelfPickup': true,
         'scheduledAt': cart.pickupDate,
         'pickupTimeSlot': cart.pickupTimeSlot,
-      ],
+      },
     };
 
     if (selectedAddress != null) {

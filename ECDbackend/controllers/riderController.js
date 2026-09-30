@@ -352,8 +352,17 @@ exports.updateRiderProfile = async (req, res) => {
       return sendError(res, 400, "Email/Mobile updates require OTP verification. Use /profile/request-update endpoint");
     }
 
-    if (req.file) {
-      user.profilePic = getFileUrl(req.file);
+    const newPic = req.file
+      ? getFileUrl(req.file)
+      : (req.body.profilePic || req.body.profileImage || req.body.avatar || req.body.image);
+
+    if (newPic) {
+      user.profilePic = newPic;
+      user.avatar = newPic;
+      rider.profilePic = newPic;
+      rider.profileImage = newPic;
+      rider.avatar = newPic;
+      rider.image = newPic;
     }
 
     if (language !== undefined) user.language = normalizeString(language);

@@ -894,8 +894,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   bool _isHandedOverOrCompleted() {
-    final s = _currentStatus.toLowerCase().trim();
-    return s == 'picked up' || s == 'picked_up' || s == 'out for delivery' || s == 'out_for_delivery' || s == 'on_the_way' || s == 'delivered' || s == 'handed over' || s == 'handed_over' || s == 'completed' || s == 'cancelled';
+    final s = _currentStatus.replaceAll('_', ' ').toLowerCase().trim();
+    return s == 'picked up' || s == 'out for delivery' || s == 'on the way' || s == 'delivered' || s == 'handed over' || s == 'completed' || s == 'cancelled';
   }
 
   @override
@@ -1628,10 +1628,6 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     );
   }
 
-  bool _isHandedOverOrCompleted() {
-    final s = _currentStatus.replaceAll('_', ' ').toLowerCase().trim();
-    return s == 'picked up' || s == 'out for delivery' || s == 'delivered' || s == 'handed over' || s == 'completed';
-  }
 
   Widget _buildRiderDetailsCard() {
     final hasRider = (widget.order.riderName != null && widget.order.riderName!.isNotEmpty) || (widget.order.riderId != null && widget.order.riderId!.isNotEmpty);

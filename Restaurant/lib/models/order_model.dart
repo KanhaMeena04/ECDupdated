@@ -15,7 +15,7 @@ class Order {
   final List<dynamic> items;
   final String orderType;
   final String? pickupTime;
-  final DateTime? createdAt;
+  DateTime? createdAt;
   final String address;
   bool customerArrived;
   DateTime? customerArrivedAt;

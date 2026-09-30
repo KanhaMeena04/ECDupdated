@@ -12,6 +12,9 @@ const riderSchema = new mongoose.Schema({
     mobile: { type: String },
     phone: { type: String },
     profilePic: { type: String },
+    profileImage: { type: String },
+    avatar: { type: String },
+    image: { type: String },
     pin: { type: String },
     associatedRestaurant: {
         type: mongoose.Schema.Types.ObjectId,

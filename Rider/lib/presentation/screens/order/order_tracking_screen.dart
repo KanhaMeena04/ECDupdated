@@ -341,17 +341,22 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           ),
         );
       }
-    } else if (_currentDeliveryStatus == 'out_for_delivery') {
-      setState(() {
-        _currentDeliveryStatus = 'reached_customer_location';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('📍 Reached Customer location! Click "Order Delivered" to complete delivery.'),
-          backgroundColor: Colors.blue,
-        ),
-      );
-    } else if (_currentDeliveryStatus == 'reached_customer_location') {
+    } else if (_currentDeliveryStatus == 'out_for_delivery' || _currentDeliveryStatus == 'on_the_way') {
+      setState(() => _isLoading = true);
+      final res = await ApiService.updateOrderStatus(orderId: orderId, status: 'reached_customer_location');
+      if (mounted) {
+        setState(() {
+          _currentDeliveryStatus = 'reached_customer_location';
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📍 Reached Customer location! Click "Order Delivered" to complete delivery.'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      }
+    } else if (_currentDeliveryStatus == 'reached_customer_location' || _currentDeliveryStatus == 'delivery_arrived') {
       setState(() => _isLoading = true);
       final res = await ApiService.updateOrderStatus(orderId: orderId, status: 'delivered');
       if (mounted) {
@@ -537,10 +542,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       if (_currentDeliveryStatus == 'picked_up' || _currentDeliveryStatus == 'accepted' || _currentDeliveryStatus == 'assigned') {
         actionBtnText = 'Order On The Way';
         actionBtnColor = primaryGreen;
-      } else if (_currentDeliveryStatus == 'out_for_delivery') {
-        actionBtnText = 'Reached Customer Location';
+      } else if (_currentDeliveryStatus == 'out_for_delivery' || _currentDeliveryStatus == 'on_the_way') {
+        actionBtnText = 'Reached Location';
         actionBtnColor = Colors.blue[700]!;
-      } else if (_currentDeliveryStatus == 'reached_customer_location') {
+      } else if (_currentDeliveryStatus == 'reached_customer_location' || _currentDeliveryStatus == 'delivery_arrived') {
         actionBtnText = 'Order Delivered';
         actionBtnColor = primaryGreen;
       } else {

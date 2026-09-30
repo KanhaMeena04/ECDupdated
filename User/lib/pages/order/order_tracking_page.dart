@@ -1933,7 +1933,22 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     // Show Real Rider Details Card
     final riderName = (rider['name'] ?? _trackingData?['driverName'] ?? 'Delivery Partner').toString();
     final riderPhone = (rider['phone'] ?? _trackingData?['driverPhone'] ?? '').toString();
-    final vehicle = (rider['vehicle'] ?? '').toString();
+    
+    String bikeNumber = '';
+    if (rider['vehicle'] is Map) {
+      bikeNumber = (rider['vehicle']['number'] ?? rider['vehicle']['regNumber'] ?? rider['vehicle']['plateNumber'] ?? '').toString().trim();
+    } else if (rider['vehicle'] != null) {
+      final vStr = rider['vehicle'].toString();
+      if (vStr.contains('number:')) {
+        final match = RegExp(r'number:\s*([^,}\s]+)').firstMatch(vStr);
+        if (match != null) bikeNumber = match.group(1) ?? '';
+      } else if (!vStr.startsWith('{')) {
+        bikeNumber = vStr.trim();
+      }
+    }
+    if (bikeNumber.isEmpty && rider['vehicleNumber'] != null) {
+      bikeNumber = rider['vehicleNumber'].toString().trim();
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1970,13 +1985,13 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      vehicle.isNotEmpty
-                          ? 'Delivery Partner ($vehicle)'
-                          : 'Your assigned delivery partner',
+                      bikeNumber.isNotEmpty
+                          ? 'Bike No: $bikeNumber'
+                          : 'Delivery Partner',
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: Color(0xFF6B7280),
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -2043,81 +2058,97 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     final labels = isPickup
         ? ['Placed', 'Accepted', 'Preparing', 'Ready', 'Handed Over']
         : ['Placed', 'Accepted', 'Preparing', 'Ready', 'Partner Picked', 'On the Way', 'Delivered'];
-    return Row(
-      children: List.generate(labels.length, (index) {
-        final isCompleted = index <= step;
-        final isActive = index == step;
 
-        return Expanded(
-          child: Column(
-            children: [
-              Row(
+    const double itemWidth = 85.0;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: List.generate(labels.length, (index) {
+            final isCompleted = index <= step;
+            final isActive = index == step;
+
+            return SizedBox(
+              width: itemWidth,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: index == 0
-                        ? const SizedBox()
-                        : Container(
-                            height: 2,
-                            color: isCompleted
-                                ? AppColors.primary
-                                : Colors.grey[200]),
-                  ),
-                  Container(
-                    width: 28,
+                  SizedBox(
                     height: 28,
-                    decoration: BoxDecoration(
-                      color: isCompleted ? AppColors.primary : Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: isCompleted
-                              ? AppColors.primary
-                              : Colors.grey[300]!,
-                          width: 2),
-                      boxShadow: isActive
-                          ? [
-                              BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  spreadRadius: 2)
-                            ]
-                          : null,
-                    ),
-                    child: Center(
-                      child: isCompleted
-                          ? const Icon(Icons.check,
-                              color: Colors.white, size: 14)
-                          : Text('${index + 1}',
-                              style: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11)),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Horizontal Line connecting steps
+                        Positioned(
+                          left: index == 0 ? itemWidth / 2 : 0,
+                          right: index == labels.length - 1 ? itemWidth / 2 : 0,
+                          child: Container(
+                            height: 3,
+                            color: isCompleted
+                                ? (index < step ? AppColors.primary : Colors.grey[200])
+                                : Colors.grey[200],
+                          ),
+                        ),
+                        // Node Circle
+                        Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            color: isCompleted ? AppColors.primary : Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isCompleted ? AppColors.primary : Colors.grey[300]!,
+                              width: 2,
+                            ),
+                            boxShadow: isActive
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.primary.withValues(alpha: 0.35),
+                                      blurRadius: 6,
+                                      spreadRadius: 2,
+                                    )
+                                  ]
+                                : null,
+                          ),
+                          child: Center(
+                            child: isCompleted
+                                ? const Icon(Icons.check, color: Colors.white, size: 14)
+                                : Text(
+                                    '${index + 1}',
+                                    style: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Expanded(
-                    child: index == labels.length - 1
-                        ? const SizedBox()
-                        : Container(
-                            height: 2,
-                            color: index < step
-                                ? AppColors.primary
-                                : Colors.grey[200]),
+                  const SizedBox(height: 6),
+                  Text(
+                    labels[index],
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.visible,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                      color: isCompleted ? const Color(0xFF1F2937) : Colors.grey[400],
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                labels[index],
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                  color: isCompleted ? const Color(0xFF1F2937) : Colors.grey[400],
-                ),
-              ),
-            ],
-          ),
-        );
-      }),
+            );
+          }),
+        ),
+      ),
     );
   }
 
@@ -2531,7 +2562,8 @@ class _ActiveRouteMapPainter extends CustomPainter {
     canvas.drawCircle(storePos, 4, dotPaint);
 
     // 7. Store Marker Badge (Top Right)
-    final storeLabel = restaurantName.isNotEmpty ? (restaurantName.length > 14 ? '${restaurantName.substring(0, 12)}...' : restaurantName) : "Restaurant";
+    final cleanRestName = _cleanRestaurantName(restaurantName);
+    final storeLabel = cleanRestName.isNotEmpty ? (cleanRestName.length > 14 ? '${cleanRestName.substring(0, 12)}...' : cleanRestName) : "Restaurant";
     _drawMarkerBadge(
       canvas,
       storePos,

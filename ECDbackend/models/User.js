@@ -54,6 +54,8 @@ const userSchema = new mongoose.Schema(
       default: "customer",
     },
     profilePic: { type: String },
+    avatar: { type: String },
+    image: { type: String },
     language: {
       type: String,
       enum: ["en", "de", "ar"],

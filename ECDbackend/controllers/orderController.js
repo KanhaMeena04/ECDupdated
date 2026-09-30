@@ -1719,6 +1719,9 @@ exports.updateOrderStatus = async (req, res) => {
       'assigned': { label: 'Rider Assigned', description: 'A rider has been assigned' },
       'reached_restaurant': { label: 'Rider at Restaurant', description: 'Rider has arrived at the restaurant' },
       'picked_up': { label: 'Picked Up', description: 'Rider has picked up your order' },
+      'out_for_delivery': { label: 'Out for Delivery', description: 'Your order is on the way!' },
+      'on_the_way': { label: 'On the Way', description: 'Your order is on the way!' },
+      'reached_customer_location': { label: 'Rider Arrived', description: 'Rider has arrived at your location' },
       'delivery_arrived': { label: 'Rider Arrived', description: 'Rider is at your location' },
       'delivered': { label: 'Delivered', description: 'Your order has been delivered' },
       'cancelled': { label: 'Order Cancelled', description: 'Order has been cancelled' }

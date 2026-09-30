@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../logic/blocs/auth/auth_bloc.dart';
 import '../../../logic/blocs/auth/auth_event.dart';
 import '../../../logic/blocs/auth/auth_state.dart';
@@ -26,6 +27,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final _amountController = TextEditingController();
   bool _isLoading = false;
+  bool _isUploadingAvatar = false;
+  String? _uploadedAvatarUrl;
   bool _isCodLoading = false;
   double _walletBalance = 230.0;
   String _workHours = "0.0";
@@ -46,6 +49,94 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
     _fetchWalletData();
     _fetchCodData();
+  }
+
+  void _showRiderImagePickerModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Change Profile Picture',
+              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: primaryGreen),
+              title: Text('Choose from Gallery', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndUploadRiderImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: primaryGreen),
+              title: Text('Take a Photo', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndUploadRiderImage(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadRiderImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: source, imageQuality: 85);
+      if (pickedFile == null) return;
+
+      setState(() => _isUploadingAvatar = true);
+
+      final file = File(pickedFile.path);
+      final imageUrl = await ApiService.uploadImage(file);
+
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        final success = await ApiService.updateRiderProfilePic(imageUrl);
+
+        if (mounted) {
+          setState(() {
+            _uploadedAvatarUrl = imageUrl;
+            _isUploadingAvatar = false;
+          });
+
+          context.read<AuthBloc>().add(const CheckAuthStatus());
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Profile picture updated successfully!'),
+              backgroundColor: primaryGreen,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to upload image. Please try again.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error uploading rider avatar: $e');
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error uploading profile picture')),
+        );
+      }
+    }
   }
 
   @override
@@ -710,31 +801,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
             bottom: 10,
             child: Row(
               children: [
-                // Avatar with Emerald Border Ring
-                Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.25),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                // Avatar with Emerald Border Ring & Camera overlay badge
+                GestureDetector(
+                  onTap: _isUploadingAvatar ? null : _showRiderImagePickerModal,
+                  child: Stack(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: CircleAvatar(
+                          radius: 38,
+                          backgroundColor: lightGreen,
+                          child: _isUploadingAvatar
+                              ? const CircularProgressIndicator(color: primaryGreen, strokeWidth: 3)
+                              : ((_uploadedAvatarUrl != null && _uploadedAvatarUrl!.isNotEmpty)
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(40),
+                                      child: Image.network(_uploadedAvatarUrl!, fit: BoxFit.cover, width: 76, height: 76),
+                                    )
+                                  : (user.avatar != null && user.avatar!.isNotEmpty)
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(40),
+                                          child: (user.avatar!.startsWith('http') || kIsWeb)
+                                              ? Image.network(user.avatar!, fit: BoxFit.cover, width: 76, height: 76)
+                                              : Image.file(File(user.avatar!), fit: BoxFit.cover, width: 76, height: 76),
+                                        )
+                                      : const Icon(Icons.person_rounded, size: 44, color: primaryGreen)),
+                        ),
+                      ),
+                      Positioned(
+                        right: 2,
+                        bottom: 2,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: primaryGreen,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
+                        ),
                       ),
                     ],
-                  ),
-                  child: CircleAvatar(
-                    radius: 38,
-                    backgroundColor: lightGreen,
-                    child: (user.avatar != null && user.avatar!.isNotEmpty)
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(40),
-                            child: (user.avatar!.startsWith('http') || kIsWeb)
-                                ? Image.network(user.avatar!, fit: BoxFit.cover, width: 76, height: 76)
-                                : Image.file(File(user.avatar!), fit: BoxFit.cover, width: 76, height: 76),
-                          )
-                        : const Icon(Icons.person_rounded, size: 44, color: primaryGreen),
                   ),
                 ),
                 const SizedBox(width: 14),

@@ -270,11 +270,28 @@ class _OrderCard extends StatelessWidget {
   final VoidCallback? onCancelSuccess;
   const _OrderCard({super.key, required this.order, this.onCancelSuccess});
 
+  String _cleanRestaurantName(dynamic rawName) {
+    if (rawName == null) return 'Restaurant';
+    if (rawName is Map) {
+      if (rawName.containsKey('en') && rawName['en'] != null) {
+        return rawName['en'].toString().trim();
+      }
+    }
+    final str = rawName.toString().trim();
+    if (str.isEmpty) return 'Restaurant';
+    final regExp = RegExp(r'\{?\s*"?en"?\s*:\s*"?([^"{}]+)"?\s*\}?');
+    final match = regExp.firstMatch(str);
+    if (match != null && match.group(1) != null) {
+      return match.group(1)!.trim();
+    }
+    return str;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final restaurant = order['restaurant'] is Map ? order['restaurant'] : (order['store'] is Map ? order['store'] : {});
-    final restaurantName = restaurant['name']?.toString() ?? 'Restaurant';
+    final restaurantName = _cleanRestaurantName(restaurant['name']);
     final restaurantImage = restaurant['image']?.toString() ?? restaurant['coverImage']?.toString() ?? restaurant['logo']?.toString() ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600';
     
     final rawItems = (order['items'] as List? ?? []);
