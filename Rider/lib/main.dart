@@ -7,13 +7,14 @@ import 'firebase_options.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vegbox_driver_app/presentation/screens/splash_screen.dart';
 import 'logic/blocs/auth/auth_bloc.dart';
-import 'logic/blocs/driver/driver_bloc.dart'; // âœ… Import DriverBloc
-// ... other imports
+import 'logic/blocs/driver/driver_bloc.dart';
+import 'data/services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await NotificationService.initialize();
   } catch (e) {
     debugPrint('Firebase init warning: $e');
   }

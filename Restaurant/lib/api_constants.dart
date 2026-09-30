@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform, kReleaseMode;
+import 'services/notification_service.dart';
 
 class ApiConstants {
   // Pass --dart-define=LOCAL_IP=192.168.x.x or --dart-define=USE_LOCAL=true for local dev testing
@@ -38,6 +39,9 @@ class ApiConstants {
     }
     _restaurantId = restaurantId;
     _authToken = authToken;
+
+    // Register FCM token with backend when session is set
+    RestaurantNotificationService.registerToken();
   }
 
   static void clearAuthenticatedSession() {

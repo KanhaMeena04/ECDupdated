@@ -8,9 +8,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/splash_screen.dart';
 import 'api_constants.dart';
 
+import 'services/notification_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await RestaurantNotificationService.initialize();
 
   if (!kIsWeb) {
     await FirebaseCrashlytics.instance

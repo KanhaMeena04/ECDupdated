@@ -1,10 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  log("Handling background FCM message in Rider app: ${message.messageId}");
+}
 
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
@@ -28,6 +35,7 @@ class NotificationService {
     if (_initialized) return;
 
     try {
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
       // 1. Request Notification Permissions
       NotificationSettings settings = await _messaging.requestPermission(
         alert: true,
