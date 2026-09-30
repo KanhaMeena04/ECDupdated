@@ -349,31 +349,69 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
                                   isSubmitting = true;
                                 });
 
-                                await Future.delayed(const Duration(milliseconds: 600));
+                                try {
+                                  final prefs = await SharedPreferences.getInstance();
+                                  final token = prefs.getString('token') ?? '';
+                                  var restId = ApiConstants.restaurantId.isNotEmpty
+                                      ? ApiConstants.restaurantId
+                                      : (prefs.getString('restaurantId') ?? '');
 
-                                if (!mounted) return;
+                                  final withdrawUrl = '${ApiConstants.baseUrl}/settlements/withdraw';
+                                  final response = await http.post(
+                                    Uri.parse(withdrawUrl),
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+                                    },
+                                    body: jsonEncode({
+                                      'amount': enteredAmount,
+                                      'restaurantId': restId,
+                                      'method': 'bank',
+                                      'bankDetails': {
+                                        'bankName': prefs.getString('bankName') ?? '',
+                                        'accountNumber': prefs.getString('bankAccount') ?? '',
+                                        'ifsc': prefs.getString('ifscCode') ?? '',
+                                        'upiId': prefs.getString('upiId') ?? '',
+                                      }
+                                    }),
+                                  );
 
-                                setState(() {
-                                  _availableBalance -= enteredAmount;
-                                  _transactions.insert(0, {
-                                    'id': 'TXN_${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-                                    'type': 'payout',
-                                    'amount': enteredAmount,
-                                    'status': 'pending',
-                                    'createdAt': DateTime.now().toIso8601String(),
-                                    'description': 'Instant Payout Request to $_destinationBank',
+                                  if (response.statusCode == 200 || response.statusCode == 201) {
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _availableBalance -= enteredAmount;
+                                      _transactions.insert(0, {
+                                        'id': 'TXN_${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+                                        'type': 'payout',
+                                        'amount': enteredAmount,
+                                        'status': 'pending',
+                                        'createdAt': DateTime.now().toIso8601String(),
+                                        'description': 'Instant Payout Request to $_destinationBank',
+                                      });
+                                    });
+                                    navigator.pop();
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text('Payout request of ₹${enteredAmount.toStringAsFixed(2)} submitted successfully!'),
+                                        backgroundColor: AppTheme.primaryGreen,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  } else {
+                                    final errData = jsonDecode(response.body);
+                                    throw Exception(errData['message'] ?? 'Failed to submit payout request');
+                                  }
+                                } catch (e) {
+                                  setModalState(() {
+                                    isSubmitting = false;
                                   });
-                                });
-
-                                navigator.pop();
-
-                                messenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text('Payout request of ₹${enteredAmount.toStringAsFixed(2)} submitted successfully!'),
-                                    backgroundColor: AppTheme.primaryGreen,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error: ${e.toString().replaceAll('Exception:', '')}'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.darkBlack,

@@ -182,6 +182,12 @@ exports.addFoodItem = async (req, res) => {
       });
     }
 
+    const shouldAutoApprove = Boolean(
+      restaurant.autoApproveMenu ||
+      restaurant.menuApprovalRequired === false ||
+      (req.user && req.user.role === 'admin')
+    );
+
     const product = await Product.create({
       restaurant: restaurant._id,
       category: category._id,
@@ -200,9 +206,10 @@ exports.addFoodItem = async (req, res) => {
       image,
       variations: normalizedVariations,
       addOns: normalizedAddOns,
-      approvalStatus: "pending",
-      isApproved: false,
-      isPublished: false,
+      approvalStatus: shouldAutoApprove ? "approved" : "pending",
+      isApproved: shouldAutoApprove,
+      isPublished: shouldAutoApprove,
+      approvedAt: shouldAutoApprove ? new Date() : undefined,
     });
 
     await Restaurant.findByIdAndUpdate(
@@ -1047,3 +1054,124 @@ exports.getSeasonalMenu = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Bulk Upload Menu Items (JSON array or CSV parsed items)
+exports.bulkUploadMenuItems = async (req, res) => {
+  try {
+    const { restaurantId } = req.params;
+    const items = req.body.items || req.body.menuItems || req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: "Please provide a valid array of menu items" });
+    }
+
+    let restaurant = null;
+    if (restaurantId && mongoose.Types.ObjectId.isValid(restaurantId)) {
+      restaurant = await Restaurant.findById(restaurantId);
+    } else if (req.user) {
+      restaurant = await Restaurant.findOne({ owner: req.user._id });
+    }
+
+    if (!restaurant) {
+      return res.status(404).json({ success: false, message: "Restaurant not found" });
+    }
+
+    const isAdmin = req.user && req.user.role === 'admin';
+    const shouldAutoApprove = isAdmin || Boolean(restaurant.autoApproveMenu);
+
+    let defaultCat = await Category.findOne({ isMaster: true });
+    if (!defaultCat) defaultCat = await Category.findOne({});
+    if (!defaultCat) {
+      defaultCat = await Category.create({ name: { en: "Main Course" }, slug: "main-course", isActive: true, isMaster: true });
+    }
+
+    const createdProducts = [];
+    const savedMenuItems = [];
+
+    for (let idx = 0; idx < items.length; idx++) {
+      const item = items[idx];
+      const nameStr = (item.name?.en || item.name || `Bulk Item ${idx + 1}`).trim();
+      const descStr = (item.description?.en || item.description || "").trim();
+      const catNameStr = (item.category || "Main Course").trim();
+      const priceNum = Number(item.price || item.basePrice || item.sellingPrice || 0);
+      const mrpNum = Number(item.mrp || item.b2cMrp || priceNum);
+      const b2bNum = Number(item.b2bPrice || item.b2bSellingPrice || priceNum);
+      const rawFoodType = (item.foodType || (item.isVeg !== false ? 'veg' : 'non-veg')).toString().toLowerCase();
+      const foodTypeStr = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
+
+      let categoryObj = defaultCat;
+      if (catNameStr) {
+        let foundCat = await Category.findOne({
+          $or: [
+            { "name.en": { $regex: `^${catNameStr}$`, $options: 'i' } },
+            { name: { $regex: `^${catNameStr}$`, $options: 'i' } },
+            { slug: catNameStr.toLowerCase().replace(/\s+/g, '-') }
+          ]
+        });
+        if (!foundCat) {
+          foundCat = await Category.create({
+            name: { en: catNameStr },
+            slug: catNameStr.toLowerCase().replace(/\s+/g, '-'),
+            isActive: true
+          }).catch(() => null);
+        }
+        if (foundCat) categoryObj = foundCat;
+      }
+
+      const product = await Product.create({
+        restaurant: restaurant._id,
+        category: categoryObj._id,
+        categoryId: categoryObj._id,
+        name: { en: nameStr },
+        description: { en: descStr },
+        image: item.image || "",
+        basePrice: priceNum,
+        sellingPrice: priceNum,
+        mrp: mrpNum,
+        pricing: {
+          b2c: { mrp: mrpNum, sellingPrice: priceNum, discountPercent: mrpNum > 0 ? Math.max(0, Math.round(((mrpNum - priceNum) / mrpNum) * 100)) : 0 },
+          b2b: { sellingPrice: b2bNum, discountPercent: mrpNum > 0 ? Math.max(0, Math.round(((mrpNum - b2bNum) / mrpNum) * 100)) : 0 }
+        },
+        foodType: foodTypeStr,
+        isVeg: foodTypeStr === 'veg',
+        available: item.outOfStock !== true && item.available !== false,
+        preparationTime: Number(item.preparationTime || 15),
+        variations: Array.isArray(item.variations || item.variants) ? (item.variations || item.variants) : [],
+        addOns: Array.isArray(item.addOns) ? item.addOns : [],
+        approvalStatus: shouldAutoApprove ? "approved" : "pending",
+        isApproved: shouldAutoApprove,
+        isPublished: shouldAutoApprove,
+        approvedAt: shouldAutoApprove ? new Date() : undefined
+      });
+
+      createdProducts.push(product);
+      savedMenuItems.push({
+        name: nameStr,
+        category: catNameStr,
+        price: priceNum,
+        basePrice: priceNum,
+        foodType: foodTypeStr,
+        isVeg: foodTypeStr === 'veg',
+        description: descStr,
+        image: item.image || "",
+        variants: item.variations || item.variants || [],
+        addOns: item.addOns || [],
+        isAvailable: item.outOfStock !== true && item.available !== false
+      });
+    }
+
+    await Restaurant.findByIdAndUpdate(restaurant._id, {
+      $addToSet: { product: { $each: createdProducts.map(p => p._id) } },
+      $push: { menu: { $each: savedMenuItems } }
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Successfully uploaded ${createdProducts.length} menu items! ${shouldAutoApprove ? 'All items auto-approved.' : 'Items submitted for admin approval.'}`,
+      count: createdProducts.length,
+      items: createdProducts
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+

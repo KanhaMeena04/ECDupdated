@@ -235,3 +235,242 @@ exports.updateRestaurantSettlementCycle = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Sync completed orders without settlement ledgers
+exports.syncOrdersToSettlements = async (req, res) => {
+  try {
+    const completedOrders = await Order.find({
+      status: { $in: ['delivered', 'completed'] }
+    }).populate('restaurant');
+
+    let createdCount = 0;
+    for (const order of completedOrders) {
+      if (!order.restaurant) continue;
+
+      let restaurantDoc = order.restaurant;
+      if (typeof restaurantDoc === 'string' || !restaurantDoc._id) {
+        restaurantDoc = await Restaurant.findById(order.restaurant);
+      }
+      if (!restaurantDoc) continue;
+
+      const existing = await SettlementLedger.findOne({ order: order._id });
+      if (!existing) {
+        await SettlementLedger.createFromOrder(order, restaurantDoc);
+        createdCount++;
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully synced ${createdCount} completed orders into settlement ledgers`,
+      createdCount
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get Rider Settlement Ledger lines with itemized earnings breakdown (Base, Distance, Peak, Rain, Bonus)
+exports.getRiderSettlements = async (req, res) => {
+  try {
+    const { riderId, status, page = 1, limit = 50 } = req.query;
+    const RiderEarningConfig = require('../models/RiderEarningConfig');
+    const Rider = require('../models/Rider');
+
+    const config = await RiderEarningConfig.getConfig();
+
+    const query = { status: { $in: ['delivered', 'completed'] } };
+    if (riderId) query.rider = riderId;
+
+    const orders = await Order.find(query)
+      .populate({
+        path: 'rider',
+        select: '_id user vehicle bankDetails upiId verificationStatus riderId',
+        populate: { path: 'user', select: 'name mobile email userImage' }
+      })
+      .sort({ deliveredAt: -1, createdAt: -1 })
+      .limit(parseInt(limit));
+
+    let totalBasePay = 0;
+    let totalDistancePay = 0;
+    let totalSurgeBonus = 0;
+    let totalRainBonus = 0;
+    let totalNetEarnings = 0;
+
+    const ledgers = orders.map((o) => {
+      const dist = o.deliveryDistanceKm || 3;
+      const basePay = config.baseEarning || 20;
+      const extraKm = Math.max(0, dist - (config.baseDistanceKm || 2));
+      const distancePay = extraKm * (config.perKmEarning || 8) || 15;
+      const surgeBonus = config.isPeakBonusActive ? (config.peakBonus || 10) : 10;
+      const rainBonus = config.isRainBonusActive ? (config.rainBonus || 10) : 10;
+      const incentiveBonus = o.tip || 0;
+
+      const grossEarnings = o.riderEarning || (basePay + distancePay + surgeBonus + rainBonus + incentiveBonus);
+      const deductions = 0;
+      const netEarning = Math.max(0, grossEarnings - deductions);
+
+      totalBasePay += basePay;
+      totalDistancePay += distancePay;
+      totalSurgeBonus += surgeBonus;
+      totalRainBonus += rainBonus;
+      totalNetEarnings += netEarning;
+
+      const rUser = o.rider?.user || {};
+      const rBank = o.rider?.bankDetails || {};
+
+      return {
+        _id: o._id,
+        orderId: o.orderNumber || `ORD-${o._id.toString().slice(-6).toUpperCase()}`,
+        orderDate: o.deliveredAt || o.createdAt,
+        riderId: o.rider?.riderId || (o.rider?._id ? `RID-${o.rider._id.toString().slice(-6).toUpperCase()}` : 'N/A'),
+        riderName: rUser.name || o.riderName || 'Rider Partner',
+        riderPhone: rUser.mobile || o.riderPhone || 'N/A',
+        riderEmail: rUser.email || '',
+        bankDetails: {
+          accountNumber: rBank.accountNumber || '',
+          ifsc: rBank.ifsc || rBank.ifscCode || '',
+          bankName: rBank.bankName || '',
+          upiId: o.rider?.upiId || rBank.upiId || ''
+        },
+        deliveryDistanceKm: dist,
+        breakdown: {
+          basePay,
+          distancePay,
+          surgeBonus,
+          rainBonus,
+          incentiveBonus,
+          grossEarnings,
+          deductions,
+          netEarning
+        },
+        status: status || (o.paymentStatus === 'paid' ? 'PAID' : 'CALCULATED')
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      summary: {
+        totalOrders: ledgers.length,
+        totalBasePay,
+        totalDistancePay,
+        totalSurgeBonus,
+        totalRainBonus,
+        totalNetEarnings
+      },
+      ledgers,
+      config: {
+        baseEarning: config.baseEarning,
+        perKmEarning: config.perKmEarning,
+        peakBonus: config.peakBonus,
+        rainBonus: config.rainBonus,
+        incentiveTiers: config.incentiveTiers
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Restaurant App Earnings & Settlement Overview (Today, Week, Month, Order-wise breakdown)
+exports.getRestaurantAppEarningsAndSettlement = async (req, res) => {
+  try {
+    let { restaurantId } = req.params;
+    const userId = req.user?._id;
+
+    let restaurant = null;
+    if (restaurantId) {
+      restaurant = await Restaurant.findById(restaurantId);
+    } else if (userId) {
+      restaurant = await Restaurant.findOne({ owner: userId });
+    }
+
+    if (!restaurant) {
+      return res.status(404).json({ success: false, message: 'Restaurant profile not found' });
+    }
+
+    const rWallet = await RestaurantWallet.findOne({ restaurant: restaurant._id });
+    const walletBalance = rWallet?.balance ?? restaurant.walletBalance ?? 0;
+
+    const ledgers = await SettlementLedger.find({ restaurant: restaurant._id })
+      .populate('order', 'orderNumber itemTotal totalAmount status createdAt paymentMethod')
+      .sort({ createdAt: -1 });
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    let todayEarnings = 0;
+    let weekEarnings = 0;
+    let monthEarnings = 0;
+    let totalEarnings = 0;
+
+    let pendingSettlementAmount = 0;
+    let pendingCount = 0;
+    let processingSettlementAmount = 0;
+    let processingCount = 0;
+    let paidSettlementAmount = 0;
+    let paidCount = 0;
+
+    const orderWiseBreakdown = ledgers.map(l => {
+      const createdAt = new Date(l.createdAt);
+      const netPayable = l.netPayable || 0;
+
+      totalEarnings += netPayable;
+      if (createdAt >= startOfToday) todayEarnings += netPayable;
+      if (createdAt >= startOfWeek) weekEarnings += netPayable;
+      if (createdAt >= startOfMonth) monthEarnings += netPayable;
+
+      if (['CALCULATED', 'REVIEW'].includes(l.status)) {
+        pendingSettlementAmount += netPayable;
+        pendingCount++;
+      } else if (['APPROVED', 'PROCESSING'].includes(l.status)) {
+        processingSettlementAmount += netPayable;
+        processingCount++;
+      } else if (['PAID', 'RECONCILED'].includes(l.status)) {
+        paidSettlementAmount += netPayable;
+        paidCount++;
+      }
+
+      return {
+        settlementId: l.settlementId,
+        orderId: l.order?.orderNumber || l.order?._id || 'N/A',
+        createdAt: l.createdAt,
+        grossSales: l.grossSales,
+        commissionPercent: l.platformCommissionPercent || 20,
+        commissionAmount: l.platformCommissionAmount,
+        packagingFee: l.packagingFee || 0,
+        couponShare: l.couponDiscountShare || 0,
+        netPayable: l.netPayable,
+        status: l.status
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      restaurant: {
+        _id: restaurant._id,
+        name: restaurant.name,
+        settlementCycle: restaurant.settlementCycle || 'T+2'
+      },
+      earnings: {
+        today: parseFloat(todayEarnings.toFixed(2)),
+        week: parseFloat(weekEarnings.toFixed(2)),
+        month: parseFloat(monthEarnings.toFixed(2)),
+        total: parseFloat(totalEarnings.toFixed(2)),
+        walletBalance: parseFloat(walletBalance.toFixed(2))
+      },
+      settlementsSummary: {
+        pending: { amount: parseFloat(pendingSettlementAmount.toFixed(2)), count: pendingCount },
+        processing: { amount: parseFloat(processingSettlementAmount.toFixed(2)), count: processingCount },
+        paid: { amount: parseFloat(paidSettlementAmount.toFixed(2)), count: paidCount }
+      },
+      orderWiseBreakdown
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

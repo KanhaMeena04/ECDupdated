@@ -13,12 +13,15 @@ const {
   editProduct,
   deleteProduct,
   getSeasonalMenu,
+  bulkUploadMenuItems,
 } = require("../controllers/menuController");
 const { upload } = require("../utils/upload");
 router.get("/", optionalAuth, getMenu);
 router.get("/me", optionalAuth, getMenu);
 router.get("/vendor/:restaurantId", optionalAuth, getMenu);
 router.get("/:restaurantId", optionalAuth, getMenu);
+router.post("/bulk-upload", protect, bulkUploadMenuItems);
+router.post("/:restaurantId/bulk-upload", protect, bulkUploadMenuItems);
 router.post(
   "/category",
   protect,

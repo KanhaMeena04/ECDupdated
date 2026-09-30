@@ -24,29 +24,97 @@ class _OrderManagementSettingsScreenState extends State<OrderManagementSettingsS
   final TextEditingController _cancellationWindowController = TextEditingController(text: '5 mins');
 
   @override
-  void dispose() {
-    _customLimitController.dispose();
-    _prepTimeController.dispose();
-    _prepBufferController.dispose();
-    _pickupSlotController.dispose();
-    _maxPickupCapacityController.dispose();
-    _gracePeriodController.dispose();
-    _cancellationWindowController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadSettings();
   }
 
-  void _saveSettings() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Order management settings updated successfully!',
-          style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500),
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final restId = prefs.getString('restaurantId') ?? '';
+      final token = prefs.getString('token') ?? '';
+
+      if (restId.isNotEmpty) {
+        final res = await http.get(
+          Uri.parse('${ApiConstants.baseUrl}/restaurants/$restId'),
+          headers: {
+            'Content-Type': 'application/json',
+            if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+          },
+        ).timeout(const Duration(seconds: 5));
+
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          final rest = data['restaurant'] ?? data;
+          if (mounted && rest != null) {
+            setState(() {
+              _autoAcceptOrders = rest['autoAcceptOrders'] == true;
+              _selfPickupEnabled = rest['isSelfPickupEnabled'] != false;
+              if (rest['estimatedPreparationTime'] != null) {
+                _prepTimeController.text = '${rest['estimatedPreparationTime']} mins';
+              }
+              if (rest['prepBufferTimeMinutes'] != null) {
+                _prepBufferController.text = '${rest['prepBufferTimeMinutes']} mins';
+              }
+              if (rest['cancellationWindowMinutes'] != null) {
+                _cancellationWindowController.text = '${rest['cancellationWindowMinutes']} mins';
+              }
+              if (rest['gracePeriodMinutes'] != null) {
+                _gracePeriodController.text = '${rest['gracePeriodMinutes']} mins';
+              }
+            });
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final restId = prefs.getString('restaurantId') ?? '';
+      final token = prefs.getString('token') ?? '';
+
+      final prepTimeVal = int.tryParse(_prepTimeController.text.replaceAll(RegExp(r'\D'), '')) ?? 15;
+      final bufferVal = int.tryParse(_prepBufferController.text.replaceAll(RegExp(r'\D'), '')) ?? 0;
+      final cancelVal = int.tryParse(_cancellationWindowController.text.replaceAll(RegExp(r'\D'), '')) ?? 5;
+      final graceVal = int.tryParse(_gracePeriodController.text.replaceAll(RegExp(r'\D'), '')) ?? 15;
+
+      final payload = {
+        'autoAcceptOrders': _autoAcceptOrders,
+        'isSelfPickupEnabled': _selfPickupEnabled,
+        'estimatedPreparationTime': prepTimeVal,
+        'prepBufferTimeMinutes': bufferVal,
+        'cancellationWindowMinutes': cancelVal,
+        'gracePeriodMinutes': graceVal,
+      };
+
+      if (restId.isNotEmpty) {
+        await http.put(
+          Uri.parse('${ApiConstants.baseUrl}/restaurants/$restId'),
+          headers: {
+            'Content-Type': 'application/json',
+            if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(payload),
+        ).timeout(const Duration(seconds: 5));
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Order management settings updated successfully!',
+            style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w500),
+          ),
+          backgroundColor: AppColors.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        backgroundColor: AppColors.primaryGreen,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+      );
+    }
   }
 
   @override

@@ -258,7 +258,7 @@ const AdminRoutes = () => {
 				 <Route path="/restaurant-payout" element={<RestaurantPayoutList/>} />
 				 <Route path="/restaurant-transaction-history" element={<RestaurantTransactionHistory/>} />
 
-				 <Route path="/driver-payout" element={<DriverPayout/>} />
+				 <Route path="/driver-payout" element={<RiderPayoutRequests/>} />
 				 <Route path="/driver-transaction-history" element={<DriverTransactionHistory/>} />
 				 <Route path="/rider-cash-management" element={<RiderCashManagement/>} />
 				 <Route path="/financial-overview" element={<AdminFinancialOverview/>} />

@@ -117,7 +117,13 @@ const AddRestaurantForm = () => {
   const [ifscCode, setIfscCode] = useState("");
   const [upiId, setUpiId] = useState("");
 
-  // 6. Operational Schedule (Step 6 of App)
+  // 6. Operational & Delivery Controls (Step 6 of App)
+  const [geofenceRadius, setGeofenceRadius] = useState("5");
+  const [preparationTime, setPreparationTime] = useState("15");
+  const [isSelfPickupEnabled, setIsSelfPickupEnabled] = useState(true);
+  const [autoApproveMenu, setAutoApproveMenu] = useState(true);
+  const [isKitchenBusy, setIsKitchenBusy] = useState(false);
+  const [kitchenBusyReason, setKitchenBusyReason] = useState("Normal");
   const [weeklySchedule, setWeeklySchedule] = useState({
     monday: { open: "09:00 AM", close: "11:00 PM", isClosed: false },
     tuesday: { open: "09:00 AM", close: "11:00 PM", isClosed: false },
@@ -128,14 +134,109 @@ const AddRestaurantForm = () => {
     sunday: { open: "Closed", close: "Closed", isClosed: true },
   });
 
-  // 7. Initial Menu Items (Step 7 of App)
+  // 7. Initial Menu Items & Bulk Upload (Step 7 of App)
   const [menuItems, setMenuItems] = useState([]);
   const [newItemName, setNewItemName] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
+  const [newItemMrp, setNewItemMrp] = useState("");
+  const [newItemB2bPrice, setNewItemB2bPrice] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("Main Course");
   const [newItemFoodType, setNewItemFoodType] = useState("Veg");
   const [newItemDesc, setNewItemDesc] = useState("");
   const [newItemImage, setNewItemImage] = useState(null);
+
+  // Bulk Menu Upload Handler (JSON / CSV)
+  const handleBulkMenuUpload = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result;
+        let parsedItems = [];
+        if (file.name.endsWith(".json")) {
+          parsedItems = JSON.parse(text);
+        } else {
+          // Parse CSV
+          const lines = text.split("\n").filter((l) => l.trim());
+          const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(",").map((c) => c.trim());
+            if (cols.length >= 2) {
+              const item = {};
+              headers.forEach((h, idx) => {
+                item[h] = cols[idx] || "";
+              });
+              parsedItems.push({
+                name: item.name || item["item name"] || `Item ${i}`,
+                price: Number(item.price || item["selling price"] || item.sellingprice || 0),
+                mrp: Number(item.mrp || item.price || 0),
+                b2bPrice: Number(item.b2bprice || item["b2b price"] || item.price || 0),
+                category: item.category || "Main Course",
+                foodType: item.foodtype || item["food type"] || "Veg",
+                isVeg: !(item.foodtype || "").toLowerCase().includes("non"),
+                description: item.description || "",
+                image: item.image || item.photo || "",
+              });
+            }
+          }
+        }
+        if (Array.isArray(parsedItems) && parsedItems.length > 0) {
+          const formatted = parsedItems.map((it) => ({
+            name: it.name || "Bulk Item",
+            price: Number(it.price || it.basePrice || 0),
+            basePrice: Number(it.price || it.basePrice || 0),
+            mrp: Number(it.mrp || it.price || 0),
+            b2bPrice: Number(it.b2bPrice || it.b2bprice || it.price || 0),
+            category: it.category || "Main Course",
+            foodType: it.foodType || (it.isVeg !== false ? "Veg" : "Non-Veg"),
+            isVeg: it.isVeg !== false && !(it.foodType || "").toLowerCase().includes("non"),
+            description: it.description || "",
+            image: it.image || "",
+          }));
+          setMenuItems((prev) => [...prev, ...formatted]);
+          alert(`Successfully imported ${formatted.length} menu items!`);
+        } else {
+          alert("Invalid menu file format. Please upload valid JSON or CSV.");
+        }
+      } catch (err) {
+        console.error("Bulk upload parse error:", err);
+        alert("Failed to parse menu file. Ensure it is valid JSON or CSV.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Download Sample Menu JSON Template
+  const handleDownloadMenuTemplate = () => {
+    const sample = [
+      {
+        name: "Paneer Tikka Butter Masala",
+        price: 240,
+        mrp: 290,
+        b2bPrice: 210,
+        category: "Main Course",
+        foodType: "Veg",
+        description: "Fresh cottage cheese cooked in creamy tomato butter gravy",
+        image: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7"
+      },
+      {
+        name: "Chicken Biryani (Hyderabadi)",
+        price: 280,
+        mrp: 340,
+        b2bPrice: 250,
+        category: "Main Course",
+        foodType: "Non-Veg",
+        description: "Aromatic basmati rice layered with spiced marinated chicken",
+        image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8"
+      }
+    ];
+    const blob = new Blob([JSON.stringify(sample, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ECDKART_Sample_Menu_Template.json";
+    a.click();
+  };
 
   // File to base64 helper
   const handleFileRead = (file, callback) => {
@@ -356,11 +457,17 @@ const AddRestaurantForm = () => {
         ifscCode: ifscCode.trim(),
         upiId: upiId.trim(),
       },
-      deliveryTime: 30,
+      deliveryTime: Number(preparationTime) || 30,
+      estimatedPreparationTime: Number(preparationTime) || 15,
+      geofenceRadius: Number(geofenceRadius) || 5,
+      isSelfPickupEnabled: Boolean(isSelfPickupEnabled),
+      autoApproveMenu: Boolean(autoApproveMenu),
+      isTemporarilyClosed: Boolean(isKitchenBusy),
+      kitchenBusyReason: kitchenBusyReason || "Normal",
       packagingCharge: 0,
       adminCommission: 10,
       paymentMethods: "Both",
-      deliveryType: ["Home Delivery", "Pickup"],
+      deliveryType: isSelfPickupEnabled ? ["Home Delivery", "Pickup"] : ["Home Delivery"],
       timing: weeklySchedule,
       menu: menuItems,
       menuItems: menuItems,
@@ -905,14 +1012,159 @@ const AddRestaurantForm = () => {
         </Grid>
       </FormSectionCard>
 
-      {/* SECTION 6: OPERATIONAL TIMINGS */}
+      {/* SECTION 6: OPERATIONAL & DELIVERY CONTROLS */}
       <FormSectionCard
         step="6"
-        title="Weekly Operating Timings"
-        subtitle="Working days and opening / closing schedule"
+        title="Operational & Delivery Controls"
+        subtitle="Delivery radius, preparation time, self pickup, kitchen busy status & trusted auto-approve settings"
         icon={Schedule}
       >
+        <Grid item xs={12} sm={4}>
+          <TextField
+            label="Delivery Radius (KM) *"
+            type="number"
+            value={geofenceRadius}
+            onChange={(e) => setGeofenceRadius(e.target.value)}
+            fullWidth
+            required
+            placeholder="5"
+            helperText="Maximum delivery radius in KM"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={4}>
+          <TextField
+            label="Avg. Preparation Time (Mins) *"
+            type="number"
+            value={preparationTime}
+            onChange={(e) => setPreparationTime(e.target.value)}
+            fullWidth
+            required
+            placeholder="15"
+            helperText="Estimated kitchen prep time per order"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={4}>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              bgcolor: isSelfPickupEnabled ? "#F0FDF4" : "#F8FAFC",
+              borderColor: isSelfPickupEnabled ? "#BBF7D0" : "#E2E8F0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700} color="#1E293B">
+                Self Pickup Mode
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Allow customers to pick up orders directly
+              </Typography>
+            </Box>
+            <Switch
+              checked={isSelfPickupEnabled}
+              onChange={(e) => setIsSelfPickupEnabled(e.target.checked)}
+              sx={{
+                "& .MuiSwitch-switchBase.Mui-checked": { color: "#16A34A" },
+                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#16A34A" },
+              }}
+            />
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              bgcolor: autoApproveMenu ? "#EFF6FF" : "#F8FAFC",
+              borderColor: autoApproveMenu ? "#BFDBFE" : "#E2E8F0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700} color="#1E293B">
+                Trusted Partner (Auto-Approve Menu)
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Menu items added by restaurant bypass admin approval
+              </Typography>
+            </Box>
+            <Switch
+              checked={autoApproveMenu}
+              onChange={(e) => setAutoApproveMenu(e.target.checked)}
+              sx={{
+                "& .MuiSwitch-switchBase.Mui-checked": { color: "#2563EB" },
+                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#2563EB" },
+              }}
+            />
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              bgcolor: isKitchenBusy ? "#FFF1F2" : "#F8FAFC",
+              borderColor: isKitchenBusy ? "#FECDD3" : "#E2E8F0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700} color={isKitchenBusy ? "#BE123C" : "#1E293B"}>
+                Kitchen Busy Switch
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Pause incoming orders temporarily
+              </Typography>
+            </Box>
+            <Switch
+              checked={isKitchenBusy}
+              onChange={(e) => setIsKitchenBusy(e.target.checked)}
+              sx={{
+                "& .MuiSwitch-switchBase.Mui-checked": { color: "#E11D48" },
+                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: "#E11D48" },
+              }}
+            />
+          </Paper>
+        </Grid>
+
+        {isKitchenBusy && (
+          <Grid item xs={12}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Kitchen Busy Reason</InputLabel>
+              <Select
+                value={kitchenBusyReason}
+                label="Kitchen Busy Reason"
+                onChange={(e) => setKitchenBusyReason(e.target.value)}
+              >
+                <MenuItem value="High Demand">High Rush / High Demand</MenuItem>
+                <MenuItem value="Kitchen Maintenance">Kitchen Maintenance</MenuItem>
+                <MenuItem value="Rain Delay">Heavy Rain Delay</MenuItem>
+                <MenuItem value="Staff Shortage">Staff Shortage</MenuItem>
+                <MenuItem value="Normal">Other Reason</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        )}
+
+        {/* Weekly Timings Table */}
         <Grid item xs={12}>
+          <Typography variant="subtitle2" fontWeight={700} color="#334155" sx={{ mb: 1 }}>
+            Weekly Operating Schedule
+          </Typography>
           <Box sx={{ border: "1px solid #E2E8F0", borderRadius: 2.5, overflow: "hidden" }}>
             <Table size="small">
               <TableHead sx={{ bgcolor: "#F8FAFC" }}>
@@ -969,16 +1221,43 @@ const AddRestaurantForm = () => {
         </Grid>
       </FormSectionCard>
 
-      {/* SECTION 7: INITIAL MENU ITEMS */}
+      {/* SECTION 7: INITIAL MENU ITEMS & BULK MENU UPLOAD */}
       <FormSectionCard
         step="7"
-        title="Initial Menu Items (Optional)"
-        subtitle="Add starter dishes to show immediately on the restaurant menu"
+        title="Menu Master & Bulk Menu Upload"
+        subtitle="Add individual starter dishes or bulk upload complete restaurant menu via JSON / CSV"
         icon={Fastfood}
+        actionButton={
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleDownloadMenuTemplate}
+              sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2 }}
+            >
+              Template
+            </Button>
+            <Button
+              component="label"
+              size="small"
+              variant="contained"
+              startIcon={<CloudUpload fontSize="small" />}
+              sx={{ bgcolor: "#2563EB", "&:hover": { bgcolor: "#1D4ED8" }, textTransform: "none", fontWeight: 700, borderRadius: 2 }}
+            >
+              Bulk Upload
+              <input
+                type="file"
+                hidden
+                accept=".json,.csv"
+                onChange={(e) => handleBulkMenuUpload(e.target.files[0])}
+              />
+            </Button>
+          </Box>
+        }
       >
         <Grid item xs={12} sm={4}>
           <TextField
-            label="Dish Name"
+            label="Dish Name *"
             size="small"
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
@@ -988,7 +1267,7 @@ const AddRestaurantForm = () => {
         </Grid>
         <Grid item xs={12} sm={2.5}>
           <TextField
-            label="Price (₹)"
+            label="Selling Price (₹) *"
             size="small"
             type="number"
             value={newItemPrice}
@@ -997,7 +1276,29 @@ const AddRestaurantForm = () => {
             placeholder="240"
           />
         </Grid>
+        <Grid item xs={12} sm={2.5}>
+          <TextField
+            label="MRP (₹)"
+            size="small"
+            type="number"
+            value={newItemMrp}
+            onChange={(e) => setNewItemMrp(e.target.value)}
+            fullWidth
+            placeholder="290"
+          />
+        </Grid>
         <Grid item xs={12} sm={3}>
+          <TextField
+            label="B2B Price (₹)"
+            size="small"
+            type="number"
+            value={newItemB2bPrice}
+            onChange={(e) => setNewItemB2bPrice(e.target.value)}
+            fullWidth
+            placeholder="210"
+          />
+        </Grid>
+        <Grid item xs={12} sm={4}>
           <FormControl fullWidth size="small">
             <InputLabel>Category</InputLabel>
             <Select
@@ -1013,7 +1314,7 @@ const AddRestaurantForm = () => {
             </Select>
           </FormControl>
         </Grid>
-        <Grid item xs={12} sm={2.5}>
+        <Grid item xs={12} sm={3}>
           <FormControl fullWidth size="small">
             <InputLabel>Food Type</InputLabel>
             <Select
@@ -1026,16 +1327,6 @@ const AddRestaurantForm = () => {
               <MenuItem value="Egg">Egg (Yellow)</MenuItem>
             </Select>
           </FormControl>
-        </Grid>
-        <Grid item xs={12} sm={7}>
-          <TextField
-            label="Short Description"
-            size="small"
-            value={newItemDesc}
-            onChange={(e) => setNewItemDesc(e.target.value)}
-            fullWidth
-            placeholder="Rich gravy with authentic Indian spices and fresh cottage cheese"
-          />
         </Grid>
         <Grid item xs={12} sm={5}>
           <Box sx={{ display: "flex", gap: 1 }}>

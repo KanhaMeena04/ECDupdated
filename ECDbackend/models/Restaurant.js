@@ -130,6 +130,8 @@ const restaurantSchema = new mongoose.Schema(
     autoAcceptOrders: { type: Boolean, default: false },
     prepBufferTimeMinutes: { type: Number, default: 0 },
     isSelfPickupEnabled: { type: Boolean, default: true },
+    autoApproveMenu: { type: Boolean, default: false }, // Trusted Restaurant auto-approve menu switch
+    kitchenBusyReason: { type: String, default: "" }, // Reason for kitchen busy status
     cancellationWindowMinutes: { type: Number, default: 5 },
     gracePeriodMinutes: { type: Number, default: 15 },
     isTemporarilyClosed: { type: Boolean, default: false },
