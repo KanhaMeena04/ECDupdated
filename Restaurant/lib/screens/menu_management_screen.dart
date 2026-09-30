@@ -2958,7 +2958,7 @@ class _ExcelMenuImportSheetState extends State<ExcelMenuImportSheet> {
                           style: GoogleFonts.poppins(color: Colors.grey[700], fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                         Text(
-                          'Choose an Excel file or tap a sample menu above',
+                          'Choose an Excel file or paste CSV data above',
                           style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 11),
                         ),
                       ],
@@ -3167,66 +3167,7 @@ class _ExcelMenuImportSheetState extends State<ExcelMenuImportSheet> {
                   ),
           ),
         ),
-        const SizedBox(height: 16),
-
-        // Quick Presets Header
-        Text(
-          'Or test with 1-tap sample menus:',
-          style: GoogleFonts.poppins(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        // Presets Chips
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _buildPresetChip(
-              title: '🍲 North Indian (6 dishes)',
-              isSelected: _selectedFileName == 'North_Indian_Menu_Sample.xlsx',
-              onTap: () => _loadPreset(_northIndianPreset, 'North_Indian_Menu_Sample.xlsx', '18.4 KB'),
-            ),
-            _buildPresetChip(
-              title: '🍔 Fast Food & Pizza (5 dishes)',
-              isSelected: _selectedFileName == 'Fast_Food_Menu_Sample.xlsx',
-              onTap: () => _loadPreset(_fastFoodPreset, 'Fast_Food_Menu_Sample.xlsx', '15.2 KB'),
-            ),
-          ],
-        ),
       ],
-    );
-  }
-
-  Widget _buildPresetChip({
-    required String title,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryGreen.withValues(alpha: 0.12) : const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? AppColors.primaryGreen : Colors.grey[300]!,
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Text(
-          title,
-          style: GoogleFonts.poppins(
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? AppColors.primaryGreen : Colors.black87,
-          ),
-        ),
-      ),
     );
   }
 

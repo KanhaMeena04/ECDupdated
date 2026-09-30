@@ -70,12 +70,31 @@ const EditRestaurantForm = () => {
             <Typography className="text-emerald-100 text-sm cursor-pointer hover:underline" onClick={() => navigate("/restaurants")}>Restaurants</Typography>
             <Typography className="text-white text-sm font-bold">Edit Details</Typography>
           </Breadcrumbs>
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center flex-wrap gap-4">
             <h1 className="text-white text-3xl font-extrabold flex items-center gap-3">
               <Store size={32} /> {displayName || "Edit Restaurant"}
             </h1>
-            <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg border border-white/30 text-white text-sm flex items-center gap-2">
-              <History size={16} /> Last Updated: Dec 31, 2025
+            <div className="flex items-center gap-3">
+              <Button
+                variant="contained"
+                onClick={() => navigate(`/edit-restaurant-menu/${id}`)}
+                sx={{
+                  backgroundColor: "#ffffff",
+                  color: "#00a67e",
+                  fontWeight: "bold",
+                  textTransform: "none",
+                  borderRadius: "8px",
+                  px: 3,
+                  py: 1,
+                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                  "&:hover": { backgroundColor: "#f0fdf4" }
+                }}
+              >
+                🍽️ Manage / Add Menu
+              </Button>
+              <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg border border-white/30 text-white text-sm flex items-center gap-2">
+                <History size={16} /> Last Updated: Dec 31, 2025
+              </div>
             </div>
           </div>
         </div>
@@ -230,8 +249,34 @@ const EditRestaurantForm = () => {
                 </FormControl>
 
               </div>
+          {/* Menu Master & Quick Add Banner */}
+          <div className="mx-8 mb-6 p-6 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+              <h3 className="text-lg font-extrabold text-emerald-900 flex items-center gap-2">
+                🍔 Menu Master & Bulk Menu Upload
+              </h3>
+              <p className="text-xs text-emerald-700 font-medium mt-1">
+                Add, edit, bulk import or manage pre-approved menu items for this restaurant.
+              </p>
             </div>
-          </form>
+            <Button
+              variant="contained"
+              onClick={() => navigate(`/edit-restaurant-menu/${id}`)}
+              sx={{
+                backgroundColor: "#00a67e",
+                color: "#ffffff",
+                fontWeight: "bold",
+                textTransform: "none",
+                borderRadius: "10px",
+                px: 4,
+                py: 1.5,
+                fontSize: "14px",
+                "&:hover": { backgroundColor: "#008f6d" }
+              }}
+            >
+              Open Full Menu Manager
+            </Button>
+          </div>
 
           {/* Sticky-feel Footer */}
           <div className="bg-gray-100/50 p-8 border-t border-gray-200 flex justify-between items-center">

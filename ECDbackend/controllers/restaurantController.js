@@ -399,10 +399,14 @@ exports.adminCreateRestaurant = async (req, res) => {
           foodType: item.foodType || (item.isVeg ? 'Veg' : 'Non-Veg'),
           isVeg: item.isVeg !== undefined ? Boolean(item.isVeg) : true,
           description: item.description || "",
-          image: itemImg,
+          image: itemImg || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
           variants: item.variants || [],
           addOns: item.addOns || [],
           isAvailable: true,
+          available: true,
+          isApproved: true,
+          approvalStatus: 'approved',
+          isPublished: true
         });
       }
     }
@@ -470,22 +474,52 @@ exports.adminCreateRestaurant = async (req, res) => {
     if (savedMenu.length > 0) {
       let defaultCat = await Category.findOne({ isMaster: true });
       if (!defaultCat) defaultCat = await Category.findOne({});
+      if (!defaultCat) {
+        defaultCat = await Category.create({ name: { en: "Main Course" }, slug: "main-course", isActive: true, isMaster: true });
+      }
       for (const menuItem of savedMenu) {
         try {
-          await Product.create({
+          let catObj = defaultCat;
+          if (menuItem.category) {
+            let foundCat = await Category.findOne({
+              $or: [
+                { "name.en": { $regex: `^${menuItem.category.trim()}$`, $options: 'i' } },
+                { name: { $regex: `^${menuItem.category.trim()}$`, $options: 'i' } },
+                { slug: menuItem.category.toLowerCase().replace(/\s+/g, '-') }
+              ]
+            });
+            if (!foundCat) {
+              foundCat = await Category.create({
+                name: { en: menuItem.category.trim() },
+                slug: menuItem.category.trim().toLowerCase().replace(/\s+/g, '-'),
+                isActive: true
+              }).catch(() => null);
+            }
+            if (foundCat) catObj = foundCat;
+          }
+
+          const createdProd = await Product.create({
             restaurant: restaurant._id,
-            category: defaultCat ? defaultCat._id : new mongoose.Types.ObjectId(),
+            category: catObj._id,
+            categoryId: catObj._id,
             name: { en: menuItem.name },
             description: { en: menuItem.description },
-            image: menuItem.image,
+            image: menuItem.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
             basePrice: menuItem.basePrice,
             sellingPrice: menuItem.basePrice,
+            mrp: menuItem.basePrice,
+            pricing: {
+              b2c: { mrp: menuItem.basePrice, sellingPrice: menuItem.basePrice, discountPercent: 0 },
+              b2b: { sellingPrice: menuItem.basePrice, discountPercent: 0 }
+            },
             isVeg: menuItem.isVeg,
             foodType: menuItem.isVeg ? 'veg' : 'non-veg',
             available: true,
             isApproved: true,
             approvalStatus: 'approved',
+            isPublished: true
           });
+          await Restaurant.findByIdAndUpdate(restaurant._id, { $addToSet: { product: createdProd._id } });
         } catch (prodErr) {
           console.warn('[Admin Product Create Notice]:', prodErr.message);
         }
@@ -2867,6 +2901,13 @@ exports.vendorAddMenuItem = async (req, res) => {
       return null;
     }).filter(Boolean) : [];
 
+    const shouldAutoApprove = Boolean(
+      (req.user && req.user.role === 'admin') ||
+      restaurantDoc.restaurantApproved !== false ||
+      restaurantDoc.autoApproveMenu ||
+      restaurantDoc.menuApprovalRequired === false
+    );
+
     const product = await Product.create({
       name: { en: (typeof name === 'string' ? name : (name?.en || 'New Item')) },
       description: { en: (typeof description === 'string' ? description : (description?.en || '')) },
@@ -2887,12 +2928,12 @@ exports.vendorAddMenuItem = async (req, res) => {
       categoryId: catObjId,
       subcategory: subcategory || (foundCat?.name?.en || foundCat?.name || ''),
       subcategoryId: subCatObjId,
-      image: image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
+      image: (image && image.trim().length > 0) ? image.trim() : "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
       variations: normalizedVariations,
       addOns: normalizedAddOns,
-      approvalStatus: 'pending',
-      isApproved: false,
-      isPublished: false,
+      approvalStatus: shouldAutoApprove ? 'approved' : 'pending',
+      isApproved: shouldAutoApprove,
+      isPublished: shouldAutoApprove,
       isRejected: false
     });
 
@@ -2967,8 +3008,12 @@ exports.vendorBulkImportMenuItems = async (req, res) => {
       defaultCat = await Category.create({ name: { en: "Main Course" }, slug: "main-course", isActive: true, isMaster: true });
     }
 
-    const createdProducts = [];
-    const isApprovedByRest = Boolean(restaurantDoc.restaurantApproved || restaurantDoc.menuAutoApproval);
+    const isApprovedByRest = Boolean(
+      (req.user && req.user.role === 'admin') ||
+      restaurantDoc.restaurantApproved !== false ||
+      restaurantDoc.autoApproveMenu ||
+      restaurantDoc.menuAutoApproval
+    );
 
     for (const item of items) {
       const itemName = (item.name || item.title || "").trim();
@@ -2997,6 +3042,7 @@ exports.vendorBulkImportMenuItems = async (req, res) => {
       const itemMrp = Number(item.mrp ?? item.b2cMrp ?? itemPrice);
       const rawFoodType = (item.foodType || (item.isVeg === false ? 'non-veg' : 'veg')).toString().toLowerCase();
       const foodType = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
+      const itemImg = (item.image && item.image.trim().length > 0) ? item.image.trim() : "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400";
 
       const product = await Product.create({
         restaurant: resolvedRestId,
@@ -3016,13 +3062,13 @@ exports.vendorBulkImportMenuItems = async (req, res) => {
         available: true,
         isAvailable: true,
         preparationTime: Number(item.preparationTime || 15),
-        image: item.image || "",
+        image: itemImg,
         variations: Array.isArray(item.flavors) ? item.flavors.map(f => ({ name: { en: typeof f === 'string' ? f : f.name || 'Standard' } })) : [],
         addOns: Array.isArray(item.addOns) ? item.addOns.map(a => ({ name: { en: a.name || 'Add-on' }, price: Number(a.price || 0) })) : [],
         isApproved: isApprovedByRest,
         approvalStatus: isApprovedByRest ? "approved" : "pending",
-        isPublished: true,
-        createdBy: "restaurant_vendor"
+        isPublished: isApprovedByRest,
+        createdBy: req.user?.role === 'admin' ? "admin" : "restaurant_vendor"
       });
 
       if (!Array.isArray(restaurantDoc.menu)) {

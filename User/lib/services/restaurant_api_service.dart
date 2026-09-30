@@ -661,10 +661,15 @@ class RestaurantApiService {
       }
     }
 
+    final String rawImg = (json['image'] ?? json['imageUrl'] ?? '').toString().trim();
+    final String itemImageUrl = (rawImg.isNotEmpty && rawImg != 'null')
+        ? rawImg
+        : 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400';
+
     return MenuItem(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       name: pName,
-      imageUrl: json['image']?.toString() ?? json['imageUrl']?.toString() ?? 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
+      imageUrl: itemImageUrl,
       price: rawPrice,
       originalPrice: rawMrp > rawPrice ? rawMrp : null,
       comparisonTag: rawDiscount > 0 ? '${rawDiscount.toInt()}% OFF' : null,

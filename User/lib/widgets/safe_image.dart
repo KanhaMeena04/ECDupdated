@@ -21,14 +21,15 @@ class SafeImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (url.isEmpty) {
-      return errorBuilder?.call(context, 'empty url', null) ?? 
-             Container(
-               width: width, 
-               height: height, 
-               color: Colors.grey[200], 
-               child: const Icon(Icons.image_not_supported, color: Colors.grey)
-             );
+    const fallbackFoodUrl = 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400';
+
+    if (url.isEmpty || url.trim() == 'null') {
+      return Image.network(
+        fallbackFoodUrl,
+        width: width,
+        height: height,
+        fit: fit ?? BoxFit.cover,
+      );
     }
 
     String cleanUrl = url.trim();
@@ -44,11 +45,11 @@ class SafeImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
-        errorBuilder: errorBuilder ?? (context, error, stackTrace) => Container(
-          width: width, 
-          height: height, 
-          color: Colors.grey[200], 
-          child: const Icon(Icons.image_not_supported, color: Colors.grey),
+        errorBuilder: errorBuilder ?? (context, error, stackTrace) => Image.network(
+          fallbackFoodUrl,
+          width: width,
+          height: height,
+          fit: fit ?? BoxFit.cover,
         ),
       );
     }
@@ -67,20 +68,20 @@ class SafeImage extends StatelessWidget {
           width: width,
           height: height,
           fit: fit,
-          errorBuilder: errorBuilder ?? (context, error, stackTrace) => Container(
-            width: width, 
-            height: height, 
-            color: Colors.grey[200], 
-            child: const Icon(Icons.image_not_supported, color: Colors.grey),
+          errorBuilder: errorBuilder ?? (context, error, stackTrace) => Image.network(
+            fallbackFoodUrl,
+            width: width,
+            height: height,
+            fit: fit ?? BoxFit.cover,
           ),
         );
       }
 
-      return errorBuilder?.call(context, 'invalid url', null) ?? Container(
-        width: width, 
-        height: height, 
-        color: Colors.grey[200], 
-        child: const Icon(Icons.fastfood, color: Colors.grey),
+      return Image.network(
+        fallbackFoodUrl,
+        width: width,
+        height: height,
+        fit: fit ?? BoxFit.cover,
       );
     }
 
@@ -90,11 +91,11 @@ class SafeImage extends StatelessWidget {
       height: height,
       fit: fit,
       loadingBuilder: loadingBuilder,
-      errorBuilder: errorBuilder ?? (context, error, stackTrace) => Container(
-        width: width, 
-        height: height, 
-        color: Colors.grey[200], 
-        child: const Icon(Icons.fastfood, color: Colors.grey),
+      errorBuilder: errorBuilder ?? (context, error, stackTrace) => Image.network(
+        fallbackFoodUrl,
+        width: width,
+        height: height,
+        fit: fit ?? BoxFit.cover,
       ),
     );
   }
