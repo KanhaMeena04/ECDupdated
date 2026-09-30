@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
@@ -424,6 +425,7 @@ class ApiService {
         "rating": 5.0,
       }
     };
+  }
   static Future<String?> uploadImage(File imageFile) async {
     try {
       final token = await AuthService.getToken();

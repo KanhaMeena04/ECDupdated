@@ -2443,6 +2443,23 @@ class _ActiveRouteMapPainter extends CustomPainter {
     this.isRiderAssigned = false,
   });
 
+  String _cleanRestaurantName(dynamic rawName) {
+    if (rawName == null) return 'Restaurant';
+    final str = rawName.toString().trim();
+    if (str.isEmpty) return 'Restaurant';
+    if (str.contains('{en:')) {
+      final match = RegExp(r'\{en:\s*([^}]+)\}').firstMatch(str);
+      if (match != null) return match.group(1)?.trim() ?? str;
+    }
+    if (str.startsWith('{') && str.endsWith('}')) {
+      try {
+        final decoded = jsonDecode(str);
+        if (decoded is Map && decoded.containsKey('en')) return decoded['en'].toString();
+      } catch (_) {}
+    }
+    return str;
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     // 1. Base Map Background
