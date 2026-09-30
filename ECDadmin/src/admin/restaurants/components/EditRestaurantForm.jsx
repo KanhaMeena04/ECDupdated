@@ -247,8 +247,10 @@ const EditRestaurantForm = () => {
                        <MenuItem value="Dining">Dining</MenuItem>
                      </Select>
                 </FormControl>
-
               </div>
+            </div>
+          </form>
+
           {/* Menu Master & Quick Add Banner */}
           <div className="mx-8 mb-6 p-6 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
