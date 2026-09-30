@@ -26,18 +26,11 @@ const BRAND_BG_LIGHT = "#FFF5F2";
   {/* Container Card */}
   <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm border border-gray-100 p-8">
     
-    {/* Header Section with Tutorial Button */}
+    {/* Header Section */}
     <div className="flex justify-between items-center mb-8">
       <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">
         Country Settings
       </h2>
-      <button 
-        style={{ backgroundColor: BRAND_BG_LIGHT, color: BRAND_MAIN }}
-        className="flex items-center gap-2 hover:opacity-80 px-4 py-2 rounded-lg text-sm font-bold transition-all border border-red-100"
-      >
-        <PlayCircleOutlineIcon fontSize="small" />
-        Video Tutorial
-      </button>
     </div>
 
     {/* Form Grid */}

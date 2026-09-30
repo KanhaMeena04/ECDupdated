@@ -10,12 +10,18 @@ class UserProvider extends ChangeNotifier {
   String _email = '';
   String _phone = '';
   String _avatar = '';
+  double _walletBalance = 0.0;
+  bool _isCodBlocked = false;
+  bool _codActive = true;
   bool _isLoading = false;
 
   String get name => _name;
   String get email => _email;
   String get phone => _phone;
   String get avatar => _avatar;
+  double get walletBalance => _walletBalance;
+  bool get isCodBlocked => _isCodBlocked;
+  bool get codActive => _codActive;
   bool get isLoading => _isLoading;
   bool get isGuest => _phone.isEmpty && (_name == 'Guest User' || _name == 'User Name');
 
@@ -34,12 +40,19 @@ class UserProvider extends ChangeNotifier {
       final savedName = prefs.getString('saved_user_name');
       final savedEmail = prefs.getString('saved_user_email');
       final savedAvatar = prefs.getString('saved_user_avatar');
+      final savedWallet = prefs.getDouble('saved_user_wallet');
+      final savedCodBlocked = prefs.getBool('saved_user_cod_blocked');
 
       if (token != null && token.isNotEmpty && savedPhone != null && savedPhone.isNotEmpty) {
         _phone = savedPhone;
         _name = (savedName != null && savedName.isNotEmpty) ? savedName : 'User';
         _email = savedEmail ?? '';
         _avatar = savedAvatar ?? '';
+        if (savedWallet != null) _walletBalance = savedWallet;
+        if (savedCodBlocked != null) {
+          _isCodBlocked = savedCodBlocked;
+          _codActive = !savedCodBlocked;
+        }
         notifyListeners();
       }
     } catch (e) {
@@ -55,17 +68,30 @@ class UserProvider extends ChangeNotifier {
         await prefs.setString('saved_user_name', _name);
         await prefs.setString('saved_user_email', _email);
         await prefs.setString('saved_user_avatar', _avatar);
+        await prefs.setDouble('saved_user_wallet', _walletBalance);
+        await prefs.setBool('saved_user_cod_blocked', _isCodBlocked);
       }
     } catch (e) {
       debugPrint('Error saving user session to prefs: $e');
     }
   }
 
-  void setUserInfo({String? name, String? email, String? phone, String? avatar}) {
+  void setUserInfo({String? name, String? email, String? phone, String? avatar, double? walletBalance, bool? isCodBlocked}) {
     if (name != null && name.isNotEmpty) _name = name;
     if (email != null) _email = email;
     if (phone != null && phone.isNotEmpty) _phone = phone;
     if (avatar != null) _avatar = avatar;
+    if (walletBalance != null) _walletBalance = walletBalance;
+    if (isCodBlocked != null) {
+      _isCodBlocked = isCodBlocked;
+      _codActive = !isCodBlocked;
+    }
+    _saveSessionToPrefs();
+    notifyListeners();
+  }
+
+  void updateWalletBalance(double newBalance) {
+    _walletBalance = newBalance;
     _saveSessionToPrefs();
     notifyListeners();
   }
@@ -75,6 +101,9 @@ class UserProvider extends ChangeNotifier {
     _email = '';
     _phone = '';
     _avatar = '';
+    _walletBalance = 0.0;
+    _isCodBlocked = false;
+    _codActive = true;
     _hasFetchedProfile = false;
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -82,6 +111,8 @@ class UserProvider extends ChangeNotifier {
       await prefs.remove('saved_user_name');
       await prefs.remove('saved_user_email');
       await prefs.remove('saved_user_avatar');
+      await prefs.remove('saved_user_wallet');
+      await prefs.remove('saved_user_cod_blocked');
     } catch (_) {}
     notifyListeners();
   }
@@ -116,6 +147,18 @@ class UserProvider extends ChangeNotifier {
         } else if (userData['profilePic'] != null) {
           _avatar = userData['profilePic'].toString();
         }
+
+        // Live wallet balance from backend
+        if (userData['walletBalance'] != null) {
+          _walletBalance = (userData['walletBalance'] as num).toDouble();
+        } else if (userData['wallet'] != null) {
+          final wStr = userData['wallet'].toString().replaceAll(RegExp(r'[^0-9.]'), '');
+          _walletBalance = double.tryParse(wStr) ?? 0.0;
+        }
+
+        // COD block status from admin
+        _isCodBlocked = userData['isCodBlocked'] == true || userData['codActive'] == false;
+        _codActive = userData['codActive'] != false && userData['isCodBlocked'] != true;
 
         await _saveSessionToPrefs();
       } else {

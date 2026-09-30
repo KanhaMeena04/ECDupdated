@@ -1,10 +1,11 @@
 import React from 'react';
 import { 
   Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Paper, Button, TextField 
+  TableHead, TableRow, Paper, Button, TextField, InputAdornment 
 } from '@mui/material';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import SearchIcon from '@mui/icons-material/Search';
 
 const ReportTable = ({ title, columns, data, showSummary = false, summaryData = {} }) => {
   return (
@@ -19,7 +20,20 @@ const ReportTable = ({ title, columns, data, showSummary = false, summaryData = 
             Date Filter
           </Button>
         </div>
-        <TextField size="small" placeholder="Search..." variant="outlined" className="bg-white w-64" />
+        <TextField 
+          size="small" 
+          placeholder="Search reports..." 
+          variant="outlined" 
+          className="bg-white w-64" 
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" sx={{ color: '#9ca3af' }} />
+              </InputAdornment>
+            ),
+            sx: { borderRadius: '20px' }
+          }}
+        />
       </div>
 
       {/* Summary Section (For Profit/Loss and Order Reports) */}

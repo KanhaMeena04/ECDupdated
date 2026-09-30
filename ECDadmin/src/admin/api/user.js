@@ -9,28 +9,28 @@ const useUsers = (role = 'customer', page = 1, limit = 10, search = '') => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      setLoading(true);
-      try {
-        const res = await axios.get(`${API_BASE_URL}/api/admin/users`, {
-          params: { role, page, limit, search },
-          withCredentials: true
-        });
-        setData(res.data || { users: [], total: 0, page: 1, limit: 10 });
-        setError(null);
-      } catch (err) {
-        setError(err.response?.data?.message || err.message || 'Failed to fetch users');
-        setData({ users: [], total: 0, page: 1, limit: 10 });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUsers();
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/admin/users`, {
+        params: { role, page, limit, search },
+        withCredentials: true
+      });
+      setData(res.data || { users: [], total: 0, page: 1, limit: 10 });
+      setError(null);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to fetch users');
+      setData({ users: [], total: 0, page: 1, limit: 10 });
+    } finally {
+      setLoading(false);
+    }
   }, [role, page, limit, search]);
 
-  return { data, loading, error };
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  return { data, loading, error, refetch: fetchUsers };
 };
 
 /* ================== USER DETAILS ================== */
@@ -72,16 +72,36 @@ const useUserDetails = () => {
 
 /* ================== ADD MONEY TO WALLET ================== */
 const useAddMoneyToWallet = () => {
-  const { id } = useParams();
+  const { id: routeId } = useParams();
 
-  const addMoneyToWallet = async (amount) => {
-    if (!id) throw new Error("Wallet user id missing");
+  const addMoneyToWallet = async (payloadOrAmount, maybeAmount) => {
+    let targetUserId = routeId;
+    let targetAmount = maybeAmount;
+
+    if (payloadOrAmount && typeof payloadOrAmount === 'object') {
+      targetUserId = payloadOrAmount.userId || payloadOrAmount.id || routeId;
+      targetAmount = payloadOrAmount.amount;
+    } else if (typeof payloadOrAmount === 'number' || (typeof payloadOrAmount === 'string' && !isNaN(payloadOrAmount))) {
+      targetAmount = payloadOrAmount;
+    }
+
+    if (!targetUserId) {
+      throw new Error("Wallet user id missing");
+    }
+
+    const numAmount = Number(targetAmount);
+    if (!numAmount || numAmount <= 0) {
+      throw new Error("Invalid topup amount");
+    }
 
     try {
+      // Primary admin wallet adjust endpoint
       const res = await axios.post(
-        `${API_BASE_URL}/api/wallet/add/${id}`,
+        `${API_BASE_URL}/api/admin/users/${targetUserId}/wallet-adjust`,
         {
-          amount,
+          amount: numAmount,
+          type: 'credit',
+          note: 'Admin wallet topup',
           transactionId: `ADMIN_${Date.now()}`,
         },
         { withCredentials: true }
@@ -89,7 +109,21 @@ const useAddMoneyToWallet = () => {
 
       return res.data;
     } catch (error) {
-      throw error.response?.data || error;
+      // Fallback to legacy endpoint if available
+      try {
+        const fallbackRes = await axios.post(
+          `${API_BASE_URL}/api/wallet/add/${targetUserId}`,
+          {
+            amount: numAmount,
+            type: 'credit',
+            transactionId: `ADMIN_${Date.now()}`,
+          },
+          { withCredentials: true }
+        );
+        return fallbackRes.data;
+      } catch (fallbackError) {
+        throw error.response?.data || fallbackError.response?.data || error;
+      }
     }
   };
 
@@ -135,7 +169,11 @@ const useCODBlockUnblock = () => {
     try {
       const res = await axios.put(
         `${API_BASE_URL}/api/admin/users/${userId}/cod`,
-        { isCodBlocked: isBlocked },
+        {
+          isCodBlocked: !!isBlocked,
+          active: !isBlocked,
+          block: !!isBlocked
+        },
         { withCredentials: true }
       );
       return res.data;

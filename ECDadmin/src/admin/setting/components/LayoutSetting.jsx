@@ -30,20 +30,7 @@ const LayoutSetting = () => {
     <div className="p-6 bg-gray-50 min-h-screen font-sans">
       <div className="max-w-[1600px] mx-auto space-y-6">
         
-        {/* Top Header Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 relative">
-          <div className="absolute top-4 right-4">
-            <Button 
-              variant="contained" 
-              size="small"
-              startIcon={<PlayCircleOutlineIcon />}
-              className="bg-[#fdf6d2] text-[#856404] hover:bg-[#f9f0c3] capitalize shadow-none border border-[#ffeeba]"
-              sx={{ color: '#856404', backgroundColor: '#fdf6d2', '&:hover': { backgroundColor: '#f9f0c3' } }}
-            >
-              Video Tutorial
-            </Button>
-          </div>
-
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="space-y-6">
             {/* Home Page Settings */}
             <section>

@@ -9,8 +9,8 @@ function useDashboardData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchDashboard = useCallback(async () => {
-    setLoading(true);
+  const fetchDashboard = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
 
     try {
@@ -23,20 +23,26 @@ function useDashboardData() {
       setHeatmap(Array.isArray(data.heatmap) ? data.heatmap : []);
       setSalesSeries(Array.isArray(data.salesSeries) ? data.salesSeries : []);
     } catch (err) {
-      setTotals({});
-      setHeatmap([]);
-      setSalesSeries([]);
-      setError(err.response?.data?.message || err.message || "Something went wrong");
+      if (!silent) {
+        setTotals({});
+        setHeatmap([]);
+        setSalesSeries([]);
+        setError(err.response?.data?.message || err.message || "Something went wrong");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchDashboard();
+    fetchDashboard(false);
+    const interval = setInterval(() => {
+      fetchDashboard(true);
+    }, 5000);
+    return () => clearInterval(interval);
   }, [fetchDashboard]);
 
-  return { totals, heatmap, salesSeries, loading, error, refetch: fetchDashboard };
+  return { totals, heatmap, salesSeries, loading, error, refetch: () => fetchDashboard(false) };
 }
 
 export { useDashboardData };

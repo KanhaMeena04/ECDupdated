@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -38,11 +39,11 @@ export default function StateList() {
           + Add State
         </button>
 
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-500">Search</span>
+        <div className="relative flex items-center w-64">
+          <Search size={16} className="absolute left-3 text-gray-400 pointer-events-none" />
           <input
-            placeholder="Search"
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none"
+            placeholder="Search state..."
+            className="w-full bg-white text-gray-800 placeholder-gray-400 pl-9 pr-4 py-1.5 border border-gray-300 rounded-full text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
           />
         </div>
       </div>

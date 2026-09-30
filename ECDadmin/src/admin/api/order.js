@@ -96,8 +96,8 @@ const useOrderDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
-  const fetchDashboard = useCallback(async () => {
-    setLoading(true);
+  const fetchDashboard = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(false);
     try {
       const res = await axios.get(`${API_BASE_URL}/api/admin/order-dashboard`, {
@@ -110,20 +110,26 @@ const useOrderDashboard = () => {
       setRecentOrders(Array.isArray(data.recentOrders) ? data.recentOrders : []);
     } catch (err) {
       console.error("Dashboard fetch failed:", err);
-      setStats(INITIAL_STATS);
-      setTodayOrders(INITIAL_TODAY_ORDERS);
-      setRecentOrders([]);
-      setError(true);
+      if (!silent) {
+        setStats(INITIAL_STATS);
+        setTodayOrders(INITIAL_TODAY_ORDERS);
+        setRecentOrders([]);
+        setError(true);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchDashboard();
+    fetchDashboard(false);
+    const interval = setInterval(() => {
+      fetchDashboard(true);
+    }, 5000);
+    return () => clearInterval(interval);
   }, [fetchDashboard]);
 
-  return { stats, todayOrders, recentOrders, loading, error, refetch: fetchDashboard };
+  return { stats, todayOrders, recentOrders, loading, error, refetch: () => fetchDashboard(false) };
 };
 
 export { useAdminOrders, useAdminOrderDetails, useOrderDashboard };

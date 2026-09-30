@@ -1961,10 +1961,20 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
                                       color: isDark ? Colors.white : const Color(0xFF1F2937),
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
-                                  const Text(
-                                    'Cash on Delivery (UPI/Cash)',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                  Builder(
+                                    builder: (context) {
+                                      final userProvider = context.watch<UserProvider>();
+                                      if (userProvider.isCodBlocked) {
+                                        return const Text(
+                                          'Online / Wallet (COD Blocked by Admin)',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.red),
+                                        );
+                                      }
+                                      return const Text(
+                                        'Cash on Delivery (UPI/Cash)',
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                      );
+                                    },
                                   ),
                                 ],
                               ),

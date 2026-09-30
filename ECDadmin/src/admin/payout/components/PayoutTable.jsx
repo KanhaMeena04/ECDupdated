@@ -26,14 +26,14 @@ const PayoutTable = ({
     <Paper elevation={0} className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
       {/* Search Header */}
       <div className="p-4 border-b border-gray-100 flex justify-end items-center bg-white">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+        <div className="relative w-64">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
           <input
             type="text"
             placeholder={searchPlaceholder}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            className="pl-10 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#248C70] w-64"
+            className="w-full bg-white text-gray-800 placeholder-gray-400 pl-10 pr-4 py-2 border border-gray-200 rounded-full text-sm focus:outline-none focus:border-[#248C70] focus:ring-2 focus:ring-[#248C70]/20 transition-all shadow-sm"
           />
         </div>
       </div>

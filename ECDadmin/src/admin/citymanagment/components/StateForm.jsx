@@ -26,7 +26,7 @@ const StateForm = () => {
       {/* Main Container */}
       <div className="max-w-7xl mx-auto bg-white rounded-lg shadow-sm border border-gray-100 p-6">
         
-        {/* Header: Tabs and Video Tutorial */}
+        {/* Header: Language Tabs */}
         <div className="flex justify-between items-center mb-8 border-b border-gray-100">
           <Tabs 
             value={language} 
@@ -40,11 +40,6 @@ const StateForm = () => {
             <Tab icon={<TranslateIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="English" />
             <Tab icon={<TranslateIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Arabic" />
           </Tabs>
-
-          <button className="flex items-center gap-2 bg-[#fdf2d0] hover:bg-[#fbe9b3] text-[#856404] px-4 py-2 rounded-md text-sm font-medium transition-colors">
-            <PlayCircleOutlineIcon fontSize="small" />
-            Video Tutorial
-          </button>
         </div>
 
         {/* Form Fields Grid */}

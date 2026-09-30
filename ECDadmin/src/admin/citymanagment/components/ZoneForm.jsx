@@ -56,14 +56,6 @@
 //           <Typography variant="h6" className="font-semibold flex items-center gap-2">
 //             <MapPin size={20} /> Edit City Details
 //           </Typography>
-//           <Button 
-//             variant="outlined" 
-//             color="inherit" 
-//             size="small"
-//             className="border-white/50 hover:bg-white/10"
-//           >
-//             Video Tutorial
-//           </Button>
 //         </div>
 
 //         <form onSubmit={handleSubmit} className="p-6 space-y-6">

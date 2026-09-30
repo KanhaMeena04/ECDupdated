@@ -25,6 +25,8 @@ router.put('/admin/update-balance', protect, admin, updateWalletBalance);
 router.delete('/admin/transaction/:transactionId', protect, admin, deleteTransaction);
 router.get('/', protect, getWalletDetails);
 router.post('/add/money', protect, addMoneyToWallet);
+const adminController = require('../controllers/adminController');
+router.post('/add/:id', protect, adminController.adjustWallet);
 router.get('/:userId/transactions', protect, getTransactionHistory);
 router.get('/:userId', protect, getWalletDetailsByUserId);
 module.exports = router;

@@ -263,6 +263,7 @@ router.get("/transactions/restaurants", protect, admin, dashboardController.getR
 router.get("/transactions/drivers", protect, admin, dashboardController.getDriverTransactionHistory);
 router.get('/orders/dashboard', protect, admin, adminController.getOrdersDashboard);
 router.get('/order-dashboard', protect, admin, adminController.getOrdersDashboard);
+router.get('/notifications/live-orders', protect, admin, adminController.getAdminLiveNotifications);
 router.get("/users", protect, admin, adminController.getAllUsers);
 router.get("/users/:id", protect, admin, adminController.getUserById);
 router.put("/users/:id/block", protect, admin, adminController.blockUser);

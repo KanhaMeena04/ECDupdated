@@ -243,7 +243,8 @@ class ProfileTab extends StatelessWidget {
                   _buildWalletCard(
                     context: context,
                     isDark: isDark,
-                    onTap: () => _showWalletSheet(context, isDark),
+                    walletBalance: userProvider.walletBalance,
+                    onTap: () => _showWalletSheet(context, isDark, userProvider.walletBalance),
                   ),
 
                   const SizedBox(height: 16),
@@ -427,6 +428,7 @@ class ProfileTab extends StatelessWidget {
   Widget _buildWalletCard({
     required BuildContext context,
     required bool isDark,
+    required double walletBalance,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -468,12 +470,12 @@ class ProfileTab extends StatelessWidget {
                 ),
               ],
             ),
-            const Text(
-              '₹0.00',
+            Text(
+              '₹${walletBalance.toStringAsFixed(2)}',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
-                color: Colors.red,
+                color: walletBalance > 0 ? const Color(0xFF10B981) : (isDark ? Colors.white70 : const Color(0xFF4B5563)),
               ),
             ),
           ],
@@ -562,7 +564,10 @@ class ProfileTab extends StatelessWidget {
     );
   }
 
-  void _showWalletSheet(BuildContext context, bool isDark) {
+  void _showWalletSheet(BuildContext context, bool isDark, [double? balance]) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final currentBal = balance ?? userProvider.walletBalance;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -605,14 +610,14 @@ class ProfileTab extends StatelessWidget {
                 border:
                     Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
               ),
-              child: const Column(
+              child: Column(
                 children: [
-                  Text('Current Balance',
+                  const Text('Current Balance',
                       style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    '₹0.00',
-                    style: TextStyle(
+                    '₹${currentBal.toStringAsFixed(2)}',
+                    style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w900,
                         color: AppColors.primary),
@@ -632,7 +637,7 @@ class ProfileTab extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Add Money to Wallet',
+                child: const Text('Close',
                     style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
@@ -799,15 +804,56 @@ class ProfileTab extends StatelessWidget {
               subtitle: const Text('Manage your credit & debit cards',
                   style: TextStyle(fontSize: 11, color: Colors.grey)),
             ),
-            ListTile(
-              leading: const Icon(Icons.money_outlined,
-                  color: AppColors.primary),
-              title: Text('Cash on Delivery',
-                  style: TextStyle(
-                      fontSize: 14,
-                      color: isDark ? Colors.white : Colors.black)),
-              subtitle: const Text('Pay when food arrives',
-                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+            Consumer<UserProvider>(
+              builder: (context, userProvider, _) {
+                final isBlocked = userProvider.isCodBlocked;
+                return ListTile(
+                  leading: Icon(
+                    Icons.money_outlined,
+                    color: isBlocked ? Colors.grey : AppColors.primary,
+                  ),
+                  title: Row(
+                    children: [
+                      Text(
+                        'Cash on Delivery',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isDark ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isBlocked ? Colors.red.withOpacity(0.1) : const Color(0xFF10B981).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isBlocked ? Colors.red.withOpacity(0.5) : const Color(0xFF10B981).withOpacity(0.5),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Text(
+                          isBlocked ? 'Blocked by Admin' : 'Active',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isBlocked ? Colors.red : const Color(0xFF10B981),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  subtitle: Text(
+                    isBlocked
+                        ? 'Cash on Delivery is currently disabled by Admin for your account'
+                        : 'Pay with cash or UPI upon delivery',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isBlocked ? Colors.red[400] : Colors.grey,
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
           ],

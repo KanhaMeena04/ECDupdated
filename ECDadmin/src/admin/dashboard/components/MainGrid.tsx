@@ -19,6 +19,7 @@ import {
   Filler,
 } from 'chart.js';
 
+import { useNavigate } from 'react-router-dom';
 import { useDashboardData } from '../../api/dashboard';
 
 const Grid: any = MuiGrid;
@@ -28,7 +29,18 @@ ChartJS.register(
   LinearScale, PointElement, LineElement, Filler
 );
 
+const safeName = (val: any, fallback = ''): string => {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'string') return val.trim() || fallback;
+  if (typeof val === 'number') return String(val);
+  if (typeof val === 'object') {
+    return val.en || val.hi || val.name || val.title || (Object.values(val).find(v => typeof v === 'string') || fallback);
+  }
+  return String(val);
+};
+
 const MainGrid = () => {
+  const navigate = useNavigate();
   const { totals, salesSeries: apiSalesSeries, loading, error } = useDashboardData();
 
   // Define default/initial fallback values if API returns empty data
@@ -47,20 +59,22 @@ const MainGrid = () => {
     ordersFailed: Number(rawDashboard.ordersFailed ?? 0),
     salesSeries: Array.isArray(apiSalesSeries) ? apiSalesSeries : [],
     recentOrders: Array.isArray(rawDashboard.recentOrders) ? rawDashboard.recentOrders.map((o: any) => ({
-      id: `#ORD-${String(o.id).slice(-4).toUpperCase()}`,
-      customerName: o.customerName || 'Customer',
-      amount: `₹${o.amount}`,
-      status: o.status || 'Pending'
+      id: safeName(o.orderNumber) || `#ORD-${String(o.id).slice(-4).toUpperCase()}`,
+      orderId: String(o.id || o._id || ''),
+      restaurantName: safeName(o.restaurantName, 'Restaurant'),
+      customerName: safeName(o.customerName, 'Customer'),
+      amount: `₹${safeName(o.amount, '0.00')}`,
+      status: safeName(o.status, 'Pending')
     })) : [],
     topRestaurants: Array.isArray(rawDashboard.topRestaurants) ? rawDashboard.topRestaurants.map((r: any) => ({
-      name: r.name || 'Restaurant',
-      orders: r.orders || 0,
-      amount: `₹${r.amount || '0.00'}`
+      name: safeName(r.name, 'Restaurant'),
+      orders: Number(r.orders || 0),
+      amount: `₹${safeName(r.amount, '0.00')}`
     })) : [],
     topUsers: Array.isArray(rawDashboard.topUsers) ? rawDashboard.topUsers.map((u: any) => ({
-      name: u.name || 'User',
-      orders: u.orders || 0,
-      amount: `₹${u.amount || '0.00'}`
+      name: safeName(u.name, 'Customer'),
+      orders: Number(u.orders || 0),
+      amount: `₹${safeName(u.amount, '0.00')}`
     })) : []
   };
 
@@ -260,63 +274,105 @@ const MainGrid = () => {
           </Paper>
 
           {/* Recent Orders */}
-          <Paper className="bg-white shadow-sm border border-[#94B2AA]/30 rounded-2xl p-5 sm:p-6 overflow-hidden">
-            <Typography variant="h6" className="font-heading font-bold text-[#2C2C2C] mb-4">
-              Recent Orders
-            </Typography>
-            {dashboard.recentOrders.map((order, i) => (
-              <div key={i} className="flex items-center justify-between gap-2 mb-4 last:mb-0 min-w-0">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className="w-9 h-9 rounded-xl bg-[#E89D1E]/15 flex items-center justify-center text-[#E89D1E] font-bold text-sm shrink-0">
-                    ⏱
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm text-[#2C2C2C] truncate">{order.id}</p>
-                    <p className="text-xs text-gray-500 truncate">{order.status}</p>
-                  </div>
-                </div>
-                <p className="text-[#248C70] font-bold text-sm shrink-0 whitespace-nowrap">{order.amount}</p>
+          <Paper className="bg-white shadow-sm border border-[#94B2AA]/30 rounded-2xl p-5 sm:p-6 overflow-hidden flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <Typography variant="h6" className="font-heading font-bold text-[#2C2C2C]">
+                  Recent Orders
+                </Typography>
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Live
+                </span>
               </div>
-            ))}
+              {dashboard.recentOrders.length === 0 ? (
+                <p className="text-xs text-gray-400 py-6 text-center">No recent orders found</p>
+              ) : (
+                dashboard.recentOrders.map((order, i) => (
+                  <div 
+                    key={i} 
+                    onClick={() => order.orderId && navigate(`/view-order/${order.orderId}`)}
+                    className="flex items-center justify-between gap-2 mb-3.5 last:mb-0 min-w-0 cursor-pointer hover:bg-slate-50 p-1.5 rounded-lg transition-colors group"
+                    title="Click to view live order details"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="w-9 h-9 rounded-xl bg-[#E89D1E]/15 flex items-center justify-center text-[#E89D1E] font-bold text-sm shrink-0">
+                        ⏱
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-semibold text-sm text-[#2C2C2C] truncate">{order.id}</p>
+                          <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 truncate max-w-[130px]">
+                            🍽️ {order.restaurantName}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 truncate capitalize">{order.status}</p>
+                      </div>
+                    </div>
+                    <p className="text-[#248C70] font-bold text-sm shrink-0 whitespace-nowrap">{order.amount}</p>
+                  </div>
+                ))
+              )}
+            </div>
           </Paper>
 
           {/* Top Restaurants */}
-          <Paper className="bg-white shadow-sm border border-[#94B2AA]/30 rounded-2xl p-5 sm:p-6 overflow-hidden">
-            <Typography variant="h6" className="font-heading font-bold text-[#2C2C2C] mb-4">
-              Top Restaurants
-            </Typography>
-            {dashboard.topRestaurants.map((res, i) => (
-              <div key={i} className="flex justify-between items-center gap-2 mb-4 last:mb-0 min-w-0">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-sm text-[#2C2C2C] truncate">{res.name}</p>
-                  <p className="text-xs text-gray-500">Orders: {res.orders}</p>
-                </div>
-                <p className="text-[#248C70] font-bold text-sm shrink-0 whitespace-nowrap">{res.amount}</p>
+          <Paper className="bg-white shadow-sm border border-[#94B2AA]/30 rounded-2xl p-5 sm:p-6 overflow-hidden flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <Typography variant="h6" className="font-heading font-bold text-[#2C2C2C]">
+                  Top Restaurants
+                </Typography>
+                <span className="text-xs text-gray-400 font-medium">By Revenue</span>
               </div>
-            ))}
+              {dashboard.topRestaurants.length === 0 ? (
+                <p className="text-xs text-gray-400 py-6 text-center">No restaurant data</p>
+              ) : (
+                dashboard.topRestaurants.map((res, i) => (
+                  <div key={i} className="flex justify-between items-center gap-2 mb-3.5 last:mb-0 min-w-0 hover:bg-slate-50 p-1.5 rounded-lg transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm text-[#2C2C2C] truncate" title={res.name}>
+                        🍽️ {res.name}
+                      </p>
+                      <p className="text-xs text-gray-500">Orders: {res.orders}</p>
+                    </div>
+                    <p className="text-[#248C70] font-bold text-sm shrink-0 whitespace-nowrap">{res.amount}</p>
+                  </div>
+                ))
+              )}
+            </div>
           </Paper>
 
           {/* Top Users */}
-          <Paper className="bg-white shadow-sm border border-[#94B2AA]/30 rounded-2xl p-5 sm:p-6 overflow-hidden">
-            <Typography variant="h6" className="font-heading font-bold text-[#2C2C2C] mb-4">
-              Top Users
-            </Typography>
-            {dashboard.topUsers.map((user, i) => (
-              <div key={i} className="flex justify-between items-center gap-2 mb-4 last:mb-0 min-w-0">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className="w-9 h-9 rounded-xl bg-[#248C70]/10 flex items-center justify-center text-[#248C70] shrink-0">
-                    👤
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm text-[#2C2C2C] truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500">Orders: {user.orders}</p>
-                  </div>
-                </div>
-                <span className="text-[#248C70] font-bold text-xs px-2 py-0.5 rounded-full bg-[#248C70]/10 border border-[#248C70]/20 shrink-0 whitespace-nowrap">
-                  {(user as any).amount || 'Active'}
-                </span>
+          <Paper className="bg-white shadow-sm border border-[#94B2AA]/30 rounded-2xl p-5 sm:p-6 overflow-hidden flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <Typography variant="h6" className="font-heading font-bold text-[#2C2C2C]">
+                  Top Users
+                </Typography>
+                <span className="text-xs text-gray-400 font-medium">By Volume</span>
               </div>
-            ))}
+              {dashboard.topUsers.length === 0 ? (
+                <p className="text-xs text-gray-400 py-6 text-center">No user data</p>
+              ) : (
+                dashboard.topUsers.map((user, i) => (
+                  <div key={i} className="flex justify-between items-center gap-2 mb-3.5 last:mb-0 min-w-0 hover:bg-slate-50 p-1.5 rounded-lg transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="w-9 h-9 rounded-xl bg-[#248C70]/10 flex items-center justify-center text-[#248C70] shrink-0">
+                        👤
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-sm text-[#2C2C2C] truncate">{user.name}</p>
+                        <p className="text-xs text-gray-500">Orders: {user.orders}</p>
+                      </div>
+                    </div>
+                    <span className="text-[#248C70] font-bold text-xs px-2.5 py-1 rounded-full bg-[#248C70]/10 border border-[#248C70]/20 shrink-0 whitespace-nowrap">
+                      {user.amount}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
           </Paper>
         </div>
       </Container>

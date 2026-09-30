@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LuPencilLine, LuTrash2 } from "react-icons/lu";
+import { Search, X } from 'lucide-react';
 import { UnfoldMoreOutlined } from '@mui/icons-material';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
@@ -60,14 +61,24 @@ const RoleListTable = () => {
     <div className="w-full font-sans p-4 bg-white rounded-md shadow-sm border border-gray-100">
       <div className="flex justify-between items-center mb-4 gap-2">
         <h2 className="text-lg font-bold text-gray-800">Platform System Roles</h2>
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-500">Search</label>
+        <div className="relative flex items-center w-64">
+          <Search size={16} className="absolute left-3 text-gray-400 pointer-events-none" />
           <input
             type="text"
-            className="border border-gray-300 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-teal-500"
+            placeholder="Search roles..."
+            className="w-full bg-white text-gray-800 placeholder-gray-400 pl-9 pr-8 py-1.5 border border-gray-300 rounded-full text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute right-2.5 text-gray-400 hover:text-gray-600 p-0.5"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       </div>
 

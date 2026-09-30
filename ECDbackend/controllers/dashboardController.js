@@ -160,69 +160,140 @@ exports.getOverview = async (req, res) => {
       salesSeries.push({ month: label, orders: row ? row.orders : 0 });
     }
 
+    function safeName(val, fallback = "") {
+      if (val === null || val === undefined) return fallback;
+      if (typeof val === "string") return val.trim() || fallback;
+      if (typeof val === "number") return String(val);
+      if (typeof val === "object") {
+        return val.en || val.hi || val.name || val.title || (Object.values(val).find(v => typeof v === 'string') || fallback);
+      }
+      return String(val);
+    }
+
     const recentOrdersDocs = await Order.find({})
-      .select("_id status totalAmount createdAt")
+      .populate("restaurant", "name restaurantName title")
+      .populate("customer", "name")
       .sort({ createdAt: -1 })
-      .limit(5)
+      .limit(6)
       .lean();
 
-    const recentOrders = recentOrdersDocs.map((o) => ({
-      id: String(o._id),
-      status: o.status,
-      amount: Number(o.totalAmount || 0).toFixed(2),
-    }));
+    const recentOrders = recentOrdersDocs.map((o) => {
+      const restName = safeName(o.restaurant?.name) || safeName(o.restaurantName) || "Restaurant";
+      const custName = safeName(o.customer?.name) || safeName(o.customerName) || "Customer";
+      const code = o.orderNumber ? `#${o.orderNumber}` : `#ORD-${String(o._id).slice(-4).toUpperCase()}`;
+      return {
+        id: String(o._id),
+        orderNumber: code,
+        status: o.status || "pending",
+        amount: Number(o.totalAmount || 0).toFixed(2),
+        restaurantName: restName,
+        customerName: custName,
+        createdAt: o.createdAt,
+      };
+    });
 
     const topRestaurantsAgg = await Order.aggregate([
-      { $match: deliveredMatch },
-      { $group: { _id: "$restaurant", orders: { $sum: 1 }, amount: { $sum: { $ifNull: ["$totalAmount", 0] } } } },
+      {
+        $group: {
+          _id: "$restaurant",
+          orders: { $sum: 1 },
+          amount: { $sum: { $ifNull: ["$totalAmount", 0] } },
+          sampleRestName: { $first: "$restaurantName" }
+        }
+      },
+      { $match: { _id: { $ne: null } } },
       { $sort: { orders: -1, amount: -1 } },
-      { $limit: 5 },
-      {
-        $lookup: {
-          from: "restaurants",
-          localField: "_id",
-          foreignField: "_id",
-          as: "restaurant",
-        },
-      },
-      { $unwind: { path: "$restaurant", preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          name: { $ifNull: ["$restaurant.name.en", "$restaurant.name"] },
-          orders: 1,
-          amount: 1,
-        },
-      },
+      { $limit: 6 }
     ]);
 
-    const topRestaurants = topRestaurantsAgg.map((r) => ({
-      name: r.name || "Unknown",
-      orders: r.orders || 0,
-      amount: Number(r.amount || 0).toFixed(2),
-    }));
+    const mongoose = require("mongoose");
+    const rawRestIds = topRestaurantsAgg.map((r) => r._id).filter(Boolean);
+    const objIds = rawRestIds
+      .map((id) => {
+        try {
+          return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : null;
+        } catch (_) { return null; }
+      })
+      .filter(Boolean);
+    const strIds = rawRestIds.map((id) => String(id));
+
+    const foundRestaurants = await Restaurant.find({
+      $or: [
+        { _id: { $in: objIds } },
+        { _id: { $in: strIds } },
+        { restaurantId: { $in: strIds } }
+      ]
+    }).select("_id name restaurantName title restaurantId").lean();
+
+    const restMap = new Map();
+    foundRestaurants.forEach((r) => {
+      restMap.set(String(r._id), r);
+      if (r.restaurantId) restMap.set(String(r.restaurantId), r);
+    });
+
+    const topRestaurants = topRestaurantsAgg.map((r) => {
+      const doc = restMap.get(String(r._id));
+      let name = safeName(doc?.name) || safeName(doc?.restaurantName) || safeName(doc?.title) || safeName(r.sampleRestName);
+
+      if (!name || name === "Unknown" || name === "Restaurant") {
+        name = safeName(r.sampleRestName) || `Restaurant #${String(r._id).slice(-4).toUpperCase()}`;
+      }
+
+      return {
+        id: String(r._id),
+        name,
+        orders: r.orders || 0,
+        amount: Number(r.amount || 0).toFixed(2),
+      };
+    });
 
     const topUsersAgg = await Order.aggregate([
-      { $match: deliveredMatch },
-      { $group: { _id: "$customer", orders: { $sum: 1 }, amount: { $sum: { $ifNull: ["$totalAmount", 0] } } } },
-      { $sort: { orders: -1, amount: -1 } },
-      { $limit: 5 },
       {
-        $lookup: {
-          from: "users",
-          localField: "_id",
-          foreignField: "_id",
-          as: "user",
-        },
+        $group: {
+          _id: "$customer",
+          orders: { $sum: 1 },
+          amount: { $sum: { $ifNull: ["$totalAmount", 0] } },
+          sampleCustName: { $first: "$customerName" }
+        }
       },
-      { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
-      { $project: { name: "$user.name", orders: 1, amount: 1 } },
+      { $match: { _id: { $ne: null } } },
+      { $sort: { orders: -1, amount: -1 } },
+      { $limit: 6 }
     ]);
 
-    const topUsers = topUsersAgg.map((u) => ({
-      name: u.name || "Customer",
-      orders: u.orders || 0,
-      amount: Number(u.amount || 0).toFixed(2),
-    }));
+    const rawUserIds = topUsersAgg.map((u) => u._id).filter(Boolean);
+    const userObjIds = rawUserIds
+      .map((id) => {
+        try {
+          return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : null;
+        } catch (_) { return null; }
+      })
+      .filter(Boolean);
+    const userStrIds = rawUserIds.map((id) => String(id));
+
+    const foundUsers = await User.find({
+      $or: [
+        { _id: { $in: userObjIds } },
+        { _id: { $in: userStrIds } }
+      ]
+    }).select("_id name mobile").lean();
+
+    const userMap = new Map();
+    foundUsers.forEach((u) => {
+      userMap.set(String(u._id), u);
+    });
+
+    const topUsers = topUsersAgg.map((u) => {
+      const doc = userMap.get(String(u._id));
+      let name = safeName(doc?.name) || safeName(u.sampleCustName) || (doc?.mobile ? `User ${doc.mobile.slice(-4)}` : "Customer");
+
+      return {
+        id: String(u._id),
+        name,
+        orders: u.orders || 0,
+        amount: Number(u.amount || 0).toFixed(2),
+      };
+    });
 
     res.status(200).json({
       // Business Overview

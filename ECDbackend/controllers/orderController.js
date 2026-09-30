@@ -418,10 +418,13 @@ exports.placeOrder = async (req, res) => {
       } finally {
         session.endSession();
       }
-    } else if (paymentMethod === "online") {
+    } else if (paymentMethod === "online" || normalizedMethod === "online") {
       paymentStatus = "pending";
       logPayment(null, user._id, "online", totalPayment, "pending");
-    } else if (paymentMethod === "cod") {
+    } else if (paymentMethod === "cod" || normalizedMethod === "cod") {
+      if (user.isCodBlocked === true || user.codActive === false) {
+        return sendError(res, 400, "Cash on Delivery is disabled for your account. Please pay online or use your wallet.");
+      }
       paymentStatus = "pending";
       logPayment(null, user._id, "cod", totalPayment, "pending");
     }
@@ -637,9 +640,16 @@ exports.placeOrder = async (req, res) => {
       logger.error("Notify error", e);
     }
     try {
+      const restNameStr = typeof restaurant.name === 'object'
+        ? (restaurant.name.en || restaurant.name.hi || Object.values(restaurant.name)[0] || 'Restaurant')
+        : (restaurant.name || 'Restaurant');
+
       socketService.emitToAdmin("order:new", {
         orderId: newOrder._id,
         orderIds: [newOrder._id],
+        orderCode: `#${newOrder._id.toString().slice(-6).toUpperCase()}`,
+        restaurantId: restaurant._id,
+        restaurantName: restNameStr,
         customerName: user.name,
         customerPhone: user.mobile || user.phone,
         customerLocation: {
@@ -650,6 +660,7 @@ exports.placeOrder = async (req, res) => {
         deliveryAddress: deliveryAddress.addressLine,
         restaurantCount: 1,
         totalAmount: totalPayment,
+        orderType: newOrder.orderType,
         paymentMethod,
         status: "placed",
         timestamp: new Date(),

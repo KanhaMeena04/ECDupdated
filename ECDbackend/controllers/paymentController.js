@@ -152,11 +152,20 @@ async function finalizeOrderPaymentSuccess(order, transactionId, sourceLabel) {
             message: "Payment confirmed. Your order has been sent to the restaurant.",
             timestamp: new Date(),
         });
+        const restNameStr = typeof order.restaurant?.name === 'object'
+            ? (order.restaurant.name.en || Object.values(order.restaurant.name)[0] || 'Restaurant')
+            : (order.restaurant?.name || 'Restaurant');
+
         socketService.emitToAdmin("order:new", {
+            orderId: order._id,
             orderIds: [order._id],
+            orderCode: `#${order._id.toString().slice(-6).toUpperCase()}`,
+            restaurantId: order.restaurant?._id,
+            restaurantName: restNameStr,
             customerName: order.customer.name,
             restaurantCount: 1,
             totalAmount: order.totalAmount,
+            orderType: order.orderType,
             paymentMethod: order.paymentMethod,
             timestamp: new Date(),
         });

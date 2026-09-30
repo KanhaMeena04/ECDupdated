@@ -57,6 +57,8 @@ export const menuItems = [
       { text: 'All Restaurants', path: '/restaurants' },
       { text: 'Pending Approval', path: '/pending-restaurants' },
       { text: 'Approved Restaurants', path: '/approve-restaurant' },
+      { text: 'Restaurant Promocodes', path: '/promocodes' },
+      { text: 'Add Promocode', path: '/add-promocodes' },
       { text: 'Documents', path: '/documents' },
       { text: 'Restaurant Controls', path: '/active-restaurants' },
     ]
@@ -68,8 +70,9 @@ export const menuItems = [
     children: [
       { text: 'All Riders', path: '/driver-list' },
       { text: 'Pending Verification', path: '/pending-driver-list' },
-      { text: 'Earnings', path: '/rider-earnings-control' },
-      { text: 'Incentives', path: '/promocodes' },
+      { text: 'Earnings & Config', path: '/rider-earnings-control' },
+      { text: 'Payout Requests', path: '/rider-payout-requests' },
+      { text: 'Cash Management', path: '/rider-cash-management' },
     ]
   },
 

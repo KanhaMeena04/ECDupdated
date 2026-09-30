@@ -211,21 +211,43 @@ exports.getOrdersDashboard = async (req, res) => {
         { label: 'Cancelled Orders', value: cancelledToday }
       ]
     };
+function safeString(val, fallback = '') {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number') return String(val);
+  if (typeof val === 'object') {
+    return val.en || val.hi || val.name || val.title || (Object.values(val).find(v => typeof v === 'string') || fallback);
+  }
+  return String(val);
+}
+
     const formattedRecentOrders = recentOrders.map(order => {
       const statusType = order.status === 'cancelled' ? 'failed' :
         order.status === 'delivered' ? 'completed' : 'processing';
       const color = statusType === 'failed' ? 'text-red-500' :
         statusType === 'completed' ? 'text-green-500' : 'text-yellow-500';
+
+      const restName = safeString(order.restaurant?.name) || safeString(order.restaurantName) || 'Restaurant';
+      const customerName = safeString(order.customer?.name) || safeString(order.customerName) || 'Customer';
+
       return {
         _id: order._id,
         id: `#${order._id.toString().slice(-6).toUpperCase()}`,
+        orderCode: `#${order._id.toString().slice(-6).toUpperCase()}`,
         status: order.status.charAt(0).toUpperCase() + order.status.slice(1).replace(/_/g, ' '),
+        rawStatus: order.status,
         statusType,
         color,
         amount: `$${Number(order.totalAmount || 0).toFixed(2)}`,
-        customer: order.customer,
-        restaurant: order.restaurant,
+        inrAmount: `₹${Number(order.totalAmount || 0).toFixed(2)}`,
+        totalAmount: Number(order.totalAmount || 0),
+        customer: order.customer ? { ...order.customer, name: customerName } : null,
+        customerName,
+        restaurant: order.restaurant ? { ...order.restaurant, name: restName } : null,
+        restaurantName: restName,
         rider: order.rider,
+        orderType: order.orderType || 'delivery',
+        itemCount: Array.isArray(order.items) ? order.items.length : 1,
         createdAt: order.createdAt
       };
     });
@@ -238,6 +260,57 @@ exports.getOrdersDashboard = async (req, res) => {
   } catch (error) {
     console.error('Orders Dashboard error:', error);
     res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getAdminLiveNotifications = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 15;
+    const orders = await Order.find({})
+      .populate('restaurant', 'name logo address')
+      .populate('customer', 'name mobile')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    const notifications = orders.map((order) => {
+      const restaurantName = safeString(order.restaurant?.name) || safeString(order.restaurantName) || 'Restaurant';
+      const customerName = safeString(order.customer?.name) || safeString(order.customerName) || 'Customer';
+
+      const orderCode = order._id.toString().slice(-6).toUpperCase();
+      const orderTypeBadge = order.orderType === 'self_pickup' ? 'Self Pickup' : 'Delivery';
+      const itemsCount = Array.isArray(order.items) ? order.items.length : 1;
+      const amountStr = `₹${Number(order.totalAmount || 0).toFixed(2)}`;
+
+      return {
+        id: order._id.toString(),
+        orderId: order._id.toString(),
+        orderCode: `#${orderCode}`,
+        restaurantName,
+        customerName,
+        title: `Order #${orderCode} • ${restaurantName}`,
+        description: `${amountStr} • ${itemsCount} items • ${orderTypeBadge}`,
+        status: order.status,
+        orderType: order.orderType || 'delivery',
+        amount: Number(order.totalAmount || 0),
+        amountFormatted: amountStr,
+        createdAt: order.createdAt,
+        read: ['delivered', 'cancelled'].includes(order.status),
+      };
+    });
+
+    const activeOrdersCount = await Order.countDocuments({
+      status: { $in: ['placed', 'accepted', 'preparation', 'ready', 'assigned', 'picked_up'] }
+    });
+
+    res.status(200).json({
+      success: true,
+      unreadCount: activeOrdersCount,
+      notifications,
+    });
+  } catch (error) {
+    console.error('Admin live notifications error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.getRestaurantMenuAdmin = async (req, res) => {
@@ -815,12 +888,16 @@ exports.getAllUsers = async (req, res) => {
         User.updateOne({ _id: userObj._id }, { $set: { firstName: fName, lastName: lName, name: fullName } }).catch(() => {});
       }
 
+      const isCodBlocked = userObj.isCodBlocked === true || userObj.codActive === false;
       return {
         ...userObj,
+        isCodBlocked,
+        codActive: !isCodBlocked,
         firstName: fName,
         lastName: lName || "-",
         name: fullName,
         wallet: `₹${(userObj.walletBalance || 0).toFixed(2)}`,
+        walletBalance: userObj.walletBalance || 0,
         registeredAt: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "",
       };
     });
@@ -860,12 +937,16 @@ exports.getUserById = async (req, res) => {
       }
     }
 
+    const isCodBlocked = userObj.isCodBlocked === true || userObj.codActive === false;
     res.status(200).json({
       ...userObj,
+      isCodBlocked,
+      codActive: !isCodBlocked,
       firstName: fName,
       lastName: lName || "-",
       name: fullName,
       wallet: `₹${(userObj.walletBalance || 0).toFixed(2)}`,
+      walletBalance: userObj.walletBalance || 0,
       registeredAt: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "",
     });
   } catch (error) {
@@ -898,48 +979,82 @@ exports.blockUser = async (req, res) => {
 };
 exports.toggleUserCOD = async (req, res) => {
   try {
-    const { active } = req.body;
+    const { active, isCodBlocked, block } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    user.codActive = !!active;
+
+    let blocked = false;
+    if (typeof isCodBlocked !== 'undefined') {
+      blocked = !!isCodBlocked;
+    } else if (typeof block !== 'undefined') {
+      blocked = !!block;
+    } else if (typeof active !== 'undefined') {
+      blocked = !active;
+    }
+
+    user.isCodBlocked = blocked;
+    user.codActive = !blocked;
     await user.save();
-    res.status(200).json({ message: `COD ${user.codActive ? 'enabled' : 'disabled'}`, user });
+
+    res.status(200).json({
+      success: true,
+      message: `COD ${blocked ? 'blocked' : 'unblocked'} successfully`,
+      user: {
+        ...user.toObject(),
+        isCodBlocked: blocked,
+        codActive: !blocked
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 exports.adjustWallet = async (req, res) => {
   try {
-    const { amount, type, note } = req.body;
-    if (!amount || !["credit", "debit"].includes(type))
-      return res.status(400).json({ message: "Invalid payload" });
+    const { amount, type = "credit", note } = req.body;
+    const adjustType = type || "credit";
+    if (!amount || !["credit", "debit"].includes(adjustType))
+      return res.status(400).json({ message: "Invalid payload: valid amount and type (credit/debit) required" });
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: "User not found" });
     const amt = Number(amount);
-    if (type === "debit" && user.walletBalance < amt)
+    if (isNaN(amt) || amt <= 0)
+      return res.status(400).json({ message: "Amount must be a positive number" });
+
+    user.walletBalance = user.walletBalance || 0;
+    if (adjustType === "debit" && user.walletBalance < amt)
       return res
         .status(400)
         .json({ message: "Insufficient user wallet balance" });
     user.walletBalance =
-      type === "credit" ? user.walletBalance + amt : user.walletBalance - amt;
+      adjustType === "credit" ? user.walletBalance + amt : user.walletBalance - amt;
     await user.save();
-    await WalletTransaction.create({
-      user: user._id,
-      amount: type === "credit" ? amt : -amt,
-      type: type === "credit" ? "credit" : "debit",
-      description: note || `Admin ${type} adjustment`,
-    });
+    try {
+      await WalletTransaction.create({
+        user: user._id,
+        amount: adjustType === "credit" ? amt : -amt,
+        type: adjustType === "credit" ? "credit" : "debit",
+        description: note || `Admin ${adjustType} adjustment`,
+      });
+    } catch (txErr) {
+      console.error("WalletTransaction creation err:", txErr.message);
+    }
     try {
       await sendNotification(
         user._id,
         "Wallet Updated",
-        `Your wallet has been ${type === "credit" ? "credited" : "debited"
-        } by ${amt}`
+        `Your wallet has been ${adjustType === "credit" ? "credited" : "debited"} by ₹${amt}`
       );
     } catch (e) { }
     res
       .status(200)
-      .json({ message: "Wallet updated", balance: user.walletBalance });
+      .json({
+        success: true,
+        message: "Wallet updated successfully",
+        balance: user.walletBalance,
+        walletBalance: user.walletBalance,
+        wallet: `₹${user.walletBalance.toFixed(2)}`
+      });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

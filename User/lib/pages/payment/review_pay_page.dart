@@ -200,6 +200,18 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
 
   void _proceedToPayment(double grandTotal) {
     if (_selectedPaymentMethod == 'Cash on Delivery') {
+      try {
+        final userProvider = context.read<UserProvider>();
+        if (userProvider.isCodBlocked) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cash on Delivery is blocked for your account by Admin. Please select Online Payment or Wallet.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      } catch (_) {}
       _processAndConfirmOrder();
     } else {
       _showOnlinePaymentSimulationModal(context, grandTotal);
@@ -970,22 +982,58 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
 
                         // Group 3: Cash on Delivery (Default)
                         if (_isCodEnabled)
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: const Color(0xFFF3F4F6)),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: RadioListTile<String>(
-                              value: 'Cash on Delivery',
-                              groupValue: tempSelected,
-                              activeColor: AppColors.primary,
-                              title: const Text('Cash on Delivery',
-                                  style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700)),
-                              onChanged: (v) =>
-                                  setModalState(() => tempSelected = v!),
-                            ),
+                          Builder(
+                            builder: (context) {
+                              final userProvider = context.watch<UserProvider>();
+                              final isCodBlocked = userProvider.isCodBlocked;
+                              return Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: isCodBlocked ? Colors.red.withOpacity(0.3) : const Color(0xFFF3F4F6),
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  color: isCodBlocked ? Colors.red.withOpacity(0.04) : Colors.transparent,
+                                ),
+                                child: RadioListTile<String>(
+                                  value: 'Cash on Delivery',
+                                  groupValue: tempSelected,
+                                  activeColor: AppColors.primary,
+                                  title: Row(
+                                    children: [
+                                      Text(
+                                        'Cash on Delivery',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: isCodBlocked ? Colors.grey : null,
+                                        ),
+                                      ),
+                                      if (isCodBlocked) ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Text(
+                                            'Blocked by Admin',
+                                            style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  subtitle: isCodBlocked
+                                      ? const Text('Disabled for your account by Admin',
+                                          style: TextStyle(fontSize: 11, color: Colors.red))
+                                      : null,
+                                  onChanged: isCodBlocked
+                                      ? null
+                                      : (v) => setModalState(() => tempSelected = v!),
+                                ),
+                              );
+                            },
                           ),
 
                         const SizedBox(height: 24),

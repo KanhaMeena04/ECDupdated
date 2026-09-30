@@ -97,6 +97,7 @@ const userSchema = new mongoose.Schema(
     fcmToken: { type: String },
     recentSearches: [{ type: String }],
     codActive: { type: Boolean, default: true },
+    isCodBlocked: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
