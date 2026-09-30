@@ -37,7 +37,8 @@ import { toast } from "react-hot-toast";
 import { API_BASE_URL } from "../../../utils/utils";
 
 const EditRestaurantMenuForm = () => {
-  const { restaurantId } = useParams();
+  const params = useParams();
+  const restaurantId = params.restaurantId || params.id || "";
   const [menu, setMenu] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -71,7 +72,10 @@ const EditRestaurantMenuForm = () => {
 
   // Fetch Menu & Restaurant Profile
   const fetchMenu = async () => {
-    if (!restaurantId) return;
+    if (!restaurantId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
@@ -97,6 +101,7 @@ const EditRestaurantMenuForm = () => {
         setAutoApproveMenu(Boolean(restObj.autoApproveMenu));
       }
     } catch (err) {
+      console.error("Failed to load menu items:", err);
       toast.error("Failed to load menu items");
     } finally {
       setLoading(false);
@@ -104,7 +109,11 @@ const EditRestaurantMenuForm = () => {
   };
 
   useEffect(() => {
-    fetchMenu();
+    if (restaurantId) {
+      fetchMenu();
+    } else {
+      setLoading(false);
+    }
   }, [restaurantId]);
 
   // Toggle Auto-Approve Menu for Restaurant
@@ -741,14 +750,70 @@ const EditRestaurantMenuForm = () => {
               </FormControl>
             </div>
 
-            <TextField
-              label="Dish Image URL / Photo"
-              value={itemImage}
-              onChange={(e) => setItemImage(e.target.value)}
-              fullWidth
-              size="small"
-              placeholder="https://..."
-            />
+            {/* Image Selection Section: Dual File Browse & URL */}
+            <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <label className="block text-xs font-bold text-slate-700">
+                Dish Photo (Upload File or Enter URL)
+              </label>
+              
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outlined"
+                  component="label"
+                  size="small"
+                  startIcon={<Upload size={16} />}
+                  sx={{ textTransform: "none", fontWeight: 700, borderRadius: "8px", borderColor: "#00a67e", color: "#00a67e" }}
+                >
+                  Browse Photo
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          setItemImage(evt.target?.result || "");
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </Button>
+                <span className="text-xs text-slate-400 font-medium">or paste link below</span>
+              </div>
+
+              <TextField
+                label="Image URL (Optional)"
+                value={itemImage.startsWith("data:") ? "[Local Photo Selected]" : itemImage}
+                onChange={(e) => setItemImage(e.target.value)}
+                fullWidth
+                size="small"
+                placeholder="https://..."
+              />
+
+              {itemImage && (
+                <div className="flex items-center gap-3 pt-2">
+                  <img
+                    src={itemImage}
+                    alt="Preview"
+                    className="w-16 h-16 object-cover rounded-lg border border-emerald-300 shadow-sm"
+                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400"; }}
+                  />
+                  <div>
+                    <p className="text-xs font-bold text-emerald-700">Image Loaded</p>
+                    <button
+                      type="button"
+                      onClick={() => setItemImage("")}
+                      className="text-[11px] text-red-600 underline font-medium"
+                    >
+                      Remove Photo
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <TextField
               label="Description"

@@ -113,6 +113,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
       }
     };
     SocketService.onOrderStatusUpdated(_socketCallback!);
+    SocketService.on('order:location_update', _socketCallback!);
+    SocketService.on('rider:location_update', _socketCallback!);
   }
 
   @override
@@ -124,6 +126,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     SocketService.leaveOrder(widget.orderId);
     if (_socketCallback != null) {
       SocketService.offOrderStatusUpdated(_socketCallback);
+      SocketService.off('order:location_update', _socketCallback);
+      SocketService.off('rider:location_update', _socketCallback);
     }
     super.dispose();
   }
@@ -1585,16 +1589,34 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     final restData = _trackingData?['restaurant'] ?? {};
     final restName = (restData['name'] ?? widget.restaurantName).toString();
     final userAddr = (_trackingData?['deliveryLocation']?['address'] ?? _trackingData?['order']?['deliveryAddress']?['address'] ?? widget.deliveryAddress).toString();
-    final riderData = _trackingData?['rider'];
+    final riderData = _trackingData?['rider'] ?? _trackingData?['driver'];
     final rName = (riderData?['name'] ?? _trackingData?['driverName'] ?? 'Rider').toString();
-    final hasRider = riderData != null && (riderData['name'] != null || riderData['phone'] != null);
+    final hasRider = riderData != null && (riderData['name'] != null || riderData['phone'] != null || _trackingData?['driverName'] != null);
 
     final double? restLat = restData['lat'] != null ? double.tryParse(restData['lat'].toString()) : null;
     final double? restLng = restData['lng'] != null ? double.tryParse(restData['lng'].toString()) : null;
-    final double? userLat = _trackingData?['user']?['lat'] != null ? double.tryParse(_trackingData!['user']['lat'].toString()) : null;
-    final double? userLng = _trackingData?['user']?['lng'] != null ? double.tryParse(_trackingData!['user']['lng'].toString()) : null;
-    final double? riderLat = riderData?['lat'] != null ? double.tryParse(riderData!['lat'].toString()) : null;
-    final double? riderLng = riderData?['lng'] != null ? double.tryParse(riderData!['lng'].toString()) : null;
+    final userObj = _trackingData?['user'] ?? _trackingData?['deliveryLocation'] ?? {};
+    final double? userLat = (userObj['lat'] ?? userObj['latitude']) != null ? double.tryParse((userObj['lat'] ?? userObj['latitude']).toString()) : null;
+    final double? userLng = (userObj['lng'] ?? userObj['longitude']) != null ? double.tryParse((userObj['lng'] ?? userObj['longitude']).toString()) : null;
+
+    double? riderLat;
+    double? riderLng;
+    if (riderData != null && riderData is Map) {
+      if (riderData['lat'] != null) riderLat = double.tryParse(riderData['lat'].toString());
+      if (riderData['lng'] != null) riderLng = double.tryParse(riderData['lng'].toString());
+      if (riderLat == null && riderData['location']?['coordinates']?.length == 2) {
+        riderLng = double.tryParse(riderData['location']['coordinates'][0].toString());
+        riderLat = double.tryParse(riderData['location']['coordinates'][1].toString());
+      }
+      if (riderLat == null && riderData['currentLocation']?['coordinates']?.length == 2) {
+        riderLng = double.tryParse(riderData['currentLocation']['coordinates'][0].toString());
+        riderLat = double.tryParse(riderData['currentLocation']['coordinates'][1].toString());
+      }
+    }
+    if (riderLat == null && _trackingData?['driver']?['lat'] != null) {
+      riderLat = double.tryParse(_trackingData!['driver']['lat'].toString());
+      riderLng = double.tryParse(_trackingData!['driver']['lng'].toString());
+    }
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -1632,63 +1654,21 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
           // 2. Interactive Route Tracking Map Canvas
           SizedBox(
-            height: 220,
+            height: 240,
             width: double.infinity,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _ActiveRouteMapPainter(
-                      riderName: rName,
-                      restaurantName: restName,
-                      userAddress: userAddr,
-                      riderLat: riderLat,
-                      riderLng: riderLng,
-                      restLat: restLat,
-                      restLng: restLng,
-                      userLat: userLat,
-                      userLng: userLng,
-                      isRiderAssigned: hasRider,
-                    ),
-                  ),
-                ),
-                // Rider Location Ping Marker with Brand Logo
-                Align(
-                  alignment: const Alignment(0.0, -0.04),
-                  child: Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF248C70), width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF248C70).withOpacity(0.4),
-                          blurRadius: 10,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(4),
-                    child: ClipOval(
-                      child: Image.asset(
-                        'assets/splash_logo.png',
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Image.asset(
-                          'assets/logo.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.delivery_dining,
-                            color: Color(0xFF248C70),
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            child: CustomPaint(
+              painter: _ActiveRouteMapPainter(
+                riderName: rName,
+                restaurantName: restName,
+                userAddress: userAddr,
+                riderLat: riderLat,
+                riderLng: riderLng,
+                restLat: restLat,
+                restLng: restLng,
+                userLat: userLat,
+                userLng: userLng,
+                isRiderAssigned: hasRider,
+              ),
             ),
           ),
 
@@ -2533,35 +2513,49 @@ class _ActiveRouteMapPainter extends CustomPainter {
     final homePos = userLat != null && userLng != null ? toCanvas(uLat, uLng) : Offset(50, size.height * 0.75);
     final partnerPos = riderLat != null && riderLng != null ? toCanvas(dLat, dLng) : (storePos + homePos) / 2;
 
-    // 6. Navigation Route Line (Home -> Partner -> Store)
-    final routePath = Path();
-    routePath.moveTo(homePos.dx, homePos.dy);
-    routePath.lineTo(partnerPos.dx, partnerPos.dy);
-    routePath.lineTo(storePos.dx, storePos.dy);
+    // 6. Navigation Route Polyline (Restaurant -> Rider -> Customer)
+    // Completed Leg (Store -> Rider)
+    final pathStoreToRider = Path();
+    pathStoreToRider.moveTo(storePos.dx, storePos.dy);
+    final turn1 = Offset(storePos.dx, (storePos.dy + partnerPos.dy) / 2);
+    pathStoreToRider.quadraticBezierTo(turn1.dx, turn1.dy, partnerPos.dx, partnerPos.dy);
 
-    // Glowing Navigation Route Polyline
+    final completedLegPaint = Paint()
+      ..color = const Color(0xFF10B981).withValues(alpha: 0.45)
+      ..strokeWidth = 6
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(pathStoreToRider, completedLegPaint);
+
+    // Active Delivery Leg (Rider -> Home)
+    final pathRiderToHome = Path();
+    pathRiderToHome.moveTo(partnerPos.dx, partnerPos.dy);
+    final turn2 = Offset((partnerPos.dx + homePos.dx) / 2, partnerPos.dy);
+    pathRiderToHome.quadraticBezierTo(turn2.dx, turn2.dy, homePos.dx, homePos.dy);
+
     final routeGlow = Paint()
       ..color = const Color(0x663B82F6)
       ..strokeWidth = 12
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(routePath, routeGlow);
+    canvas.drawPath(pathRiderToHome, routeGlow);
 
     final routeCore = Paint()
       ..color = const Color(0xFF2563EB)
-      ..strokeWidth = 5
+      ..strokeWidth = 5.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(routePath, routeCore);
+    canvas.drawPath(pathRiderToHome, routeCore);
 
     // Waypoint dots
     final dotPaint = Paint()..color = Colors.white;
-    canvas.drawCircle(homePos, 4, dotPaint);
-    canvas.drawCircle(storePos, 4, dotPaint);
+    canvas.drawCircle(homePos, 5, dotPaint);
+    canvas.drawCircle(storePos, 5, dotPaint);
 
-    // 7. Store Marker Badge (Top Right)
+    // 7. Store Marker Badge (Top Right / Store Location)
     final cleanRestName = _cleanRestaurantName(restaurantName);
     final storeLabel = cleanRestName.isNotEmpty ? (cleanRestName.length > 14 ? '${cleanRestName.substring(0, 12)}...' : cleanRestName) : "Restaurant";
     _drawMarkerBadge(
@@ -2571,7 +2565,7 @@ class _ActiveRouteMapPainter extends CustomPainter {
       subLabel: storeLabel,
     );
 
-    // 8. Customer Home Marker Badge (Bottom Left)
+    // 8. Customer Home Marker Badge (Bottom Left / Customer Location)
     final homeLabel = userAddress.isNotEmpty ? (userAddress.length > 14 ? '${userAddress.substring(0, 12)}...' : userAddress) : "Home";
     _drawMarkerBadge(
       canvas,
@@ -2581,29 +2575,40 @@ class _ActiveRouteMapPainter extends CustomPainter {
       isBottom: true,
     );
 
-    // 9. Delivery Partner Marker Badge (Only if assigned)
+    // 9. Live Rider Location Ping Marker with Brand Logo Badge (at partnerPos)
     if (isRiderAssigned) {
-      canvas.drawCircle(partnerPos, 26, Paint()..color = AppColors.primary.withValues(alpha: 0.25));
-      canvas.drawCircle(partnerPos + const Offset(0, 3), 18, Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+      // Outer Pulse Rings at Rider Live Position
+      canvas.drawCircle(partnerPos, 26, Paint()..color = AppColors.primary.withValues(alpha: 0.22));
+      canvas.drawCircle(partnerPos, 19, Paint()..color = AppColors.primary.withValues(alpha: 0.38));
+      canvas.drawCircle(partnerPos + const Offset(0, 3), 16, Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
 
+      // Brand Logo Marker Outer White Circle & Green Border
+      canvas.drawCircle(partnerPos, 16, Paint()..color = Colors.white);
+      canvas.drawCircle(partnerPos, 16, Paint()..color = AppColors.primary..style = PaintingStyle.stroke..strokeWidth = 3);
+
+      // ECD Brand Logo Circle Core
+      canvas.drawCircle(partnerPos, 9, Paint()..color = AppColors.primary);
+      canvas.drawCircle(partnerPos, 4, Paint()..color = Colors.white);
+
+      // Tooltip Banner above Rider Live Location
       final rDisplay = riderName.isNotEmpty ? riderName : "Rider";
       final bubbleText = "$rDisplay 🚴";
 
       final bubbleRect = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: partnerPos + const Offset(0, -28), width: 110, height: 24),
+        Rect.fromCenter(center: partnerPos + const Offset(0, -30), width: 116, height: 24),
         const Radius.circular(12),
       );
       canvas.drawRRect(bubbleRect.shift(const Offset(0, 2)), Paint()..color = Colors.black26..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
       canvas.drawRRect(bubbleRect, Paint()..color = AppColors.primary);
 
       final arrowPath = Path()
-        ..moveTo(partnerPos.dx - 5, partnerPos.dy - 16)
-        ..lineTo(partnerPos.dx + 5, partnerPos.dy - 16)
-        ..lineTo(partnerPos.dx, partnerPos.dy - 10)
+        ..moveTo(partnerPos.dx - 5, partnerPos.dy - 18)
+        ..lineTo(partnerPos.dx + 5, partnerPos.dy - 18)
+        ..lineTo(partnerPos.dx, partnerPos.dy - 12)
         ..close();
       canvas.drawPath(arrowPath, Paint()..color = AppColors.primary);
 
-      _drawTextLabel(canvas, bubbleText, partnerPos + const Offset(0, -28), 10, Colors.white, isBold: true);
+      _drawTextLabel(canvas, bubbleText, partnerPos + const Offset(0, -30), 10, Colors.white, isBold: true);
     }
   }
 
@@ -2641,7 +2646,16 @@ class _ActiveRouteMapPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ActiveRouteMapPainter oldDelegate) {
+    return oldDelegate.riderLat != riderLat ||
+        oldDelegate.riderLng != riderLng ||
+        oldDelegate.restLat != restLat ||
+        oldDelegate.restLng != restLng ||
+        oldDelegate.userLat != userLat ||
+        oldDelegate.userLng != userLng ||
+        oldDelegate.isRiderAssigned != isRiderAssigned ||
+        oldDelegate.riderName != riderName;
+  }
 }
 
 class _QrCodePainter extends CustomPainter {

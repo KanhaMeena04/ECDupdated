@@ -1067,16 +1067,33 @@ exports.bulkUploadMenuItems = async (req, res) => {
     let restaurant = null;
     if (restaurantId && mongoose.Types.ObjectId.isValid(restaurantId)) {
       restaurant = await Restaurant.findById(restaurantId);
-    } else if (req.user) {
-      restaurant = await Restaurant.findOne({ owner: req.user._id });
+    }
+    if (!restaurant && restaurantId && restaurantId !== "undefined" && restaurantId !== "me") {
+      restaurant = await Restaurant.findOne({
+        $or: [
+          { restaurantId },
+          { slug: restaurantId },
+          { contactNumber: restaurantId },
+          { phone: restaurantId },
+          { email: restaurantId }
+        ]
+      });
+    }
+    if (!restaurant && req.user) {
+      if (req.user.restaurant && mongoose.Types.ObjectId.isValid(req.user.restaurant)) {
+        restaurant = await Restaurant.findById(req.user.restaurant);
+      }
+      if (!restaurant) {
+        restaurant = await Restaurant.findOne({ owner: req.user._id });
+      }
     }
 
     if (!restaurant) {
-      return res.status(404).json({ success: false, message: "Restaurant not found" });
+      return res.status(404).json({ success: false, message: "Restaurant not found for menu creation" });
     }
 
     const isAdmin = req.user && req.user.role === 'admin';
-    const shouldAutoApprove = isAdmin || Boolean(restaurant.autoApproveMenu);
+    const shouldAutoApprove = isAdmin || Boolean(restaurant.autoApproveMenu || restaurant.restaurantApproved !== false);
 
     let defaultCat = await Category.findOne({ isMaster: true });
     if (!defaultCat) defaultCat = await Category.findOne({});
@@ -1097,6 +1114,7 @@ exports.bulkUploadMenuItems = async (req, res) => {
       const b2bNum = Number(item.b2bPrice || item.b2bSellingPrice || priceNum);
       const rawFoodType = (item.foodType || (item.isVeg !== false ? 'veg' : 'non-veg')).toString().toLowerCase();
       const foodTypeStr = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
+      const itemImgStr = (item.image && item.image.trim()) ? item.image.trim() : "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400";
 
       let categoryObj = defaultCat;
       if (catNameStr) {
@@ -1123,7 +1141,7 @@ exports.bulkUploadMenuItems = async (req, res) => {
         categoryId: categoryObj._id,
         name: { en: nameStr },
         description: { en: descStr },
-        image: item.image || "",
+        image: itemImgStr,
         basePrice: priceNum,
         sellingPrice: priceNum,
         mrp: mrpNum,

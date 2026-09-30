@@ -1563,6 +1563,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildCardActionArea(Order order) {
     final s = order.status.toLowerCase().trim();
     final bool isSelfPickup = order.isSelfPickup;
+    final isHandedOverOrPickedUp = s == 'picked_up' || s == 'picked up' || s == 'out_for_delivery' || s == 'out for delivery' || s == 'on_the_way' || s == 'on the way' || s == 'handed_over' || s == 'handed over' || s == 'handovered';
 
     // 1. Placed / Pending
     if (s == 'placed' || s == 'pending') {
@@ -1641,10 +1642,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    // 3. Ready / Ready for Pickup
+    // 3. Picked Up / Handed Over to Rider (Delivery Flow - Completed from restaurant side)
+    if (!isSelfPickup && (isHandedOverOrPickedUp || s == 'delivered' || s == 'completed')) {
+      final riderNameStr = (order.riderName != null && order.riderName!.isNotEmpty) ? order.riderName : 'Delivery Partner';
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                '🚀 Order Handed Over to Rider ($riderNameStr)',
+                style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20),
+          ],
+        ),
+      );
+    }
+
+    // 4. Ready / Ready for Pickup
     if (s == 'ready' || s == 'ready_for_pickup' || s == 'ready for pickup') {
       final hasRider = (order.riderName != null && order.riderName!.isNotEmpty) || (order.riderId != null && order.riderId!.isNotEmpty);
-      if (hasRider) {
+      if (hasRider && !isHandedOverOrPickedUp) {
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -1728,8 +1755,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    // 4. Assigned / Rider Assigned / Reached Store
-    if (s == 'assigned' || s == 'rider_assigned' || s == 'rider_accepted' || s == 'reached_store' || s == 'reached_restaurant' || (order.riderName != null && order.riderName!.isNotEmpty && s != 'picked_up' && s != 'out_for_delivery' && s != 'delivered')) {
+    // 5. Assigned / Rider Assigned / Reached Store
+    if (!isHandedOverOrPickedUp && (s == 'assigned' || s == 'rider_assigned' || s == 'rider_accepted' || s == 'reached_store' || s == 'reached_restaurant' || (order.riderName != null && order.riderName!.isNotEmpty))) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -1759,27 +1786,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    // 5. Picked Up / Out for Delivery
-    if (s == 'picked_up' || s == 'out_for_delivery' || s == 'on_the_way') {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF3F4F6),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '🚀 Handed Over to Rider (${order.riderName ?? 'Delivery Partner'})',
-              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
-            ),
-            const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20),
-          ],
-        ),
-      );
-    }
-
     // 6. Delivered / Completed / Handed Over
     if (s == 'delivered' || s == 'completed' || s == 'handovered') {
       return Container(
@@ -1792,7 +1798,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '🎉 Order Completed',
+              isSelfPickup ? '🎉 Self Pickup Completed' : '🚀 Order Handed Over to Rider',
               style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
             ),
             const Icon(Icons.check_circle, color: AppColors.primaryGreen, size: 20),

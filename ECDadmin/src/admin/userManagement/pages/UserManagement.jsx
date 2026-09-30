@@ -108,6 +108,14 @@ const UserManagement = () => {
     }
   };
 
+  // Real-time 5s polling for new user signups
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetch();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [refetch]);
+
   const usersList = useMemo(() => {
     return Array.isArray(data?.users) ? data.users : [];
   }, [data]);
@@ -180,6 +188,13 @@ const UserManagement = () => {
 
         {/* Right Controls: Refresh & Total Counter */}
         <div className="flex items-center gap-3 self-end md:self-auto">
+          <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            Live DB Sync
+          </span>
           <div className="text-xs font-semibold px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg">
             Total Users: <span className="text-emerald-600 font-bold">{totalUsers}</span>
           </div>
@@ -199,7 +214,6 @@ const UserManagement = () => {
 
       {/* Main Table Card */}
       <TableContainer component={Paper} elevation={0} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-        {/* Subtle loading indicator that doesn't unmount table or lose focus */}
         {loading && (
           <LinearProgress 
             sx={{ 
@@ -233,14 +247,23 @@ const UserManagement = () => {
             {usersList.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={headers.length + 1} className="text-center py-12 text-gray-500 text-sm">
-                  {loading ? 'Searching users...' : search ? `No users found matching "${search}"` : 'No users found'}
+                  {loading ? 'Searching users in Database...' : search ? `No customers found matching "${search}"` : 'No customers registered yet'}
                 </TableCell>
               </TableRow>
             ) : (
               usersList.map((user, index) => {
-                const displayName = user.firstName || user.lastName
-                  ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
-                  : user.name || 'User';
+                const mob = (user.mobile || user.phone || '').toString();
+                const displayName = (user.name && user.name !== 'User' && user.name !== '-')
+                  ? user.name
+                  : (user.firstName || user.lastName
+                      ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+                      : (mob ? `Customer ${mob.slice(-4)}` : 'Customer'));
+
+                const hasRealFirstLast = Boolean(
+                  (user.firstName && user.firstName !== '-' && user.firstName !== 'User') ||
+                  (user.lastName && user.lastName !== '-' && user.lastName !== 'User')
+                );
+
                 const isCodBlocked = user.isCodBlocked === true || user.codActive === false;
                 const isCodUpdating = codLoadingId === user._id;
 
@@ -253,7 +276,7 @@ const UserManagement = () => {
                     {/* Name */}
                     <TableCell className="border-r border-gray-200 text-gray-800 text-xs font-medium py-3">
                       <div className="font-semibold text-gray-900">{displayName}</div>
-                      {(user.firstName || user.lastName) && (
+                      {hasRealFirstLast && (
                         <div className="text-[10px] text-gray-500 font-normal mt-0.5">
                           First: <span className="font-medium text-gray-700">{user.firstName || '-'}</span> | Last: <span className="font-medium text-gray-700">{user.lastName || '-'}</span>
                         </div>
@@ -267,13 +290,13 @@ const UserManagement = () => {
 
                     {/* Phone Number */}
                     <TableCell className="border-r border-gray-200 text-gray-600 text-xs py-3 font-mono">
-                      {user.mobile || user.phone || 'N/A'}
+                      {mob ? (mob.startsWith('+') ? mob : `+91${mob}`) : 'N/A'}
                     </TableCell>
 
                     {/* Login Type */}
                     <TableCell className="border-r border-gray-200 text-gray-600 text-xs py-3">
-                      <span className="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600 capitalize">
-                        {user.type || 'web'}
+                      <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-700 capitalize">
+                        {user.type || (mob ? 'Mobile App' : 'Web')}
                       </span>
                     </TableCell>
 
@@ -289,7 +312,7 @@ const UserManagement = () => {
 
                     {/* Wallet */}
                     <TableCell className="border-r border-gray-200 text-xs font-semibold py-3">
-                      <span className="text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 font-mono">
+                      <span className="text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100 font-mono">
                         {user.wallet || `₹${(user.walletBalance || 0).toFixed(2)}`}
                       </span>
                     </TableCell>

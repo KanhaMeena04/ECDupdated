@@ -867,38 +867,36 @@ exports.getAllUsers = async (req, res) => {
       let fName = (userObj.firstName || "").trim();
       let lName = (userObj.lastName || "").trim();
       let fullName = (userObj.name || "").trim();
+      const mobileNum = (userObj.mobile || userObj.phone || "").toString();
 
-      if ((!fName && !lName) || fName === "User") {
-        if (fullName && fullName !== "User") {
-          const parts = fullName.split(" ");
-          fName = parts[0] || "";
-          lName = parts.slice(1).join(" ") || "";
-        }
-      }
-      if (!fullName || fullName === "User") {
-        if (fName && fName !== "User") {
-          fullName = `${fName} ${lName}`.trim();
-        } else {
-          fullName = "User";
-        }
-      }
+      if (fName === "User" || fName === "-") fName = "";
+      if (lName === "User" || lName === "-") lName = "";
+      if (fullName === "User" || fullName === "-") fullName = "";
 
-      // Auto-reconcile DB record if name is real but firstName was "User"
-      if (fullName !== "User" && (userObj.firstName === "User" || !userObj.firstName)) {
-        User.updateOne({ _id: userObj._id }, { $set: { firstName: fName, lastName: lName, name: fullName } }).catch(() => {});
+      if (!fullName && (fName || lName)) {
+        fullName = `${fName} ${lName}`.trim();
+      }
+      if (!fullName && mobileNum) {
+        fullName = `Customer ${mobileNum.slice(-4)}`;
+      }
+      if (!fullName) {
+        fullName = `Customer ${userObj._id.toString().slice(-4).toUpperCase()}`;
       }
 
       const isCodBlocked = userObj.isCodBlocked === true || userObj.codActive === false;
+      const loginType = userObj.loginType || userObj.type || (mobileNum ? "Mobile App" : "Web");
+
       return {
         ...userObj,
         isCodBlocked,
         codActive: !isCodBlocked,
         firstName: fName,
-        lastName: lName || "-",
+        lastName: lName,
         name: fullName,
-        wallet: `₹${(userObj.walletBalance || 0).toFixed(2)}`,
-        walletBalance: userObj.walletBalance || 0,
-        registeredAt: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "",
+        type: loginType,
+        wallet: `₹${(userObj.walletBalance || userObj.wallet || 0).toFixed(2)}`,
+        walletBalance: userObj.walletBalance || userObj.wallet || 0,
+        registeredAt: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "N/A",
       };
     });
 
@@ -910,6 +908,7 @@ exports.getAllUsers = async (req, res) => {
       pages: Math.ceil(total / limit)
     });
   } catch (error) {
+    console.error("Error in getAllUsers:", error);
     res.status(500).json({ message: error.message });
   }
 };

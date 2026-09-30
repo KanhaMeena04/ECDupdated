@@ -4,16 +4,33 @@ import { API_BASE_URL } from "../../utils/utils";
 import { CheckCircle, Cancel, AccessTime, EventNote } from "@mui/icons-material";
 import toast from "react-hot-toast";
 
-const useAdminOrders = ({ status = "placed", date, orderId }) => {
+const useAdminOrders = ({
+  status = "all",
+  timeRange = "all",
+  search = "",
+  orderType = "all",
+  date,
+  orderId,
+  refreshInterval = 5000,
+} = {}) => {
   const [orders, setOrders] = useState([]);
+  const [summary, setSummary] = useState({
+    totalOrders: 0,
+    totalRevenue: 0,
+    activeCount: 0,
+    deliveredCount: 0,
+    cancelledCount: 0,
+    selfPickupCount: 0,
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const fetchOrders = useCallback(async () => {
-    setLoading(true);
+
+  const fetchOrders = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError("");
     try {
       const res = await axios.get(`${API_BASE_URL}/api/orders/admin/all`, {
-        params: { status, date, orderId },
+        params: { status, timeRange, search, orderType, date, orderId, limit: 100 },
         withCredentials: true,
       });
 
@@ -24,20 +41,30 @@ const useAdminOrders = ({ status = "placed", date, orderId }) => {
         : [];
 
       setOrders(list);
+      if (res.data?.summary) {
+        setSummary(res.data.summary);
+      }
     } catch (err) {
-      toast.error("Fetch orders failed:", err);
-      setOrders([]);
-      setError(err?.response?.data?.message || "Failed to fetch orders");
+      if (!silent) {
+        setOrders([]);
+        setError(err?.response?.data?.message || "Failed to fetch orders");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, [status, date, orderId]);
+  }, [status, timeRange, search, orderType, date, orderId]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    fetchOrders(false);
+    if (refreshInterval > 0) {
+      const interval = setInterval(() => {
+        fetchOrders(true);
+      }, refreshInterval);
+      return () => clearInterval(interval);
+    }
+  }, [fetchOrders, refreshInterval]);
 
-  return { orders, loading, error, refetch: fetchOrders, setOrders };
+  return { orders, summary, loading, error, refetch: () => fetchOrders(false), setOrders };
 };
 
 

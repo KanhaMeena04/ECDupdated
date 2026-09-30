@@ -197,9 +197,9 @@ class Order {
       parsedStatus = 'Failed';
     } else if (rawStatus == 'refunded') {
       parsedStatus = 'Refunded';
-    } else if (rawStatus == 'picked_up' || rawStatus == 'out_for_delivery') {
+    } else if (rawStatus == 'picked_up' || rawStatus == 'picked up' || rawStatus == 'out_for_delivery' || rawStatus == 'out for delivery' || rawStatus == 'on_the_way' || rawStatus == 'on the way' || rawStatus == 'handed_over' || rawStatus == 'handed over' || rawStatus == 'handovered') {
       parsedStatus = 'Picked Up';
-    } else if (rawStatus == 'delivered') {
+    } else if (rawStatus == 'delivered' || rawStatus == 'completed') {
       parsedStatus = 'Delivered';
     }
     

@@ -2470,16 +2470,34 @@ exports.reportIssue = async (req, res) => {
 };
 exports.getAllOrdersAdmin = async (req, res) => {
   try {
-    const { page, limit, skip } = getPaginationParams(req, 50);
-    const { status, date, orderId, userId, customerId, restaurantId, search } = req.query;
+    const { page, limit, skip } = getPaginationParams(req, 100);
+    const { status, date, timeRange, range, orderId, userId, customerId, restaurantId, orderType, search } = req.query;
     let query = {};
-    
+
+    // 1. Status Filter
     if (status && status !== "all") {
-      const statusList = String(status).split(',').map(s => s.trim()).filter(Boolean);
-      if (statusList.length > 1) {
-        query.status = { $in: statusList };
-      } else if (statusList.length === 1) {
-        query.status = statusList[0];
+      const rawStatus = String(status).trim().toLowerCase();
+      if (rawStatus === "active" || rawStatus === "pending") {
+        query.status = { $in: ["placed", "pending", "accepted", "preparing", "ready_for_pickup", "out_for_delivery"] };
+      } else if (rawStatus === "pickup" || rawStatus === "self_pickup" || rawStatus === "self pickup") {
+        query.$or = [{ orderType: { $in: ["pickup", "self_pickup"] } }, { status: { $in: ["pickup", "self_pickup"] } }];
+      } else {
+        const statusList = String(status).split(',').map(s => s.trim()).filter(Boolean);
+        if (statusList.length > 1) {
+          query.status = { $in: statusList };
+        } else if (statusList.length === 1) {
+          query.status = statusList[0];
+        }
+      }
+    }
+
+    // 2. Order Type Filter (Delivery vs Self Pickup)
+    if (orderType && orderType !== "all") {
+      const t = String(orderType).trim().toLowerCase();
+      if (t.includes("pickup") || t.includes("self")) {
+        query.orderType = { $in: ["pickup", "self_pickup"] };
+      } else if (t.includes("delivery")) {
+        query.orderType = { $in: ["delivery", "Home Delivery"] };
       }
     }
 
@@ -2498,36 +2516,113 @@ exports.getAllOrdersAdmin = async (req, res) => {
       query.restaurant = restaurantId;
     }
 
-    if (search && search.trim()) {
-      const s = search.trim();
-      const searchConditions = [];
-      if (mongoose.Types.ObjectId.isValid(s)) {
-        searchConditions.push({ _id: s });
-      }
-      // Will match populated fields if needed, or query direct regex
-      if (searchConditions.length > 0) {
-        query.$or = searchConditions;
-      }
-    }
-
+    // 3. Time Range / Date Filter (Daily, Weekly, Monthly, Yearly)
+    const activeRange = timeRange || range;
     if (date) {
       const start = new Date(date);
       const end = new Date(date);
       end.setHours(23, 59, 59, 999);
       query.createdAt = { $gte: start, $lte: end };
+    } else if (activeRange && activeRange !== "all") {
+      const now = new Date();
+      let startDate = new Date();
+      if (activeRange === "today" || activeRange === "daily") {
+        startDate.setHours(0, 0, 0, 0);
+      } else if (activeRange === "weekly") {
+        startDate.setDate(now.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+      } else if (activeRange === "monthly") {
+        startDate.setDate(now.getDate() - 30);
+        startDate.setHours(0, 0, 0, 0);
+      } else if (activeRange === "yearly") {
+        startDate = new Date(now.getFullYear(), 0, 1);
+      }
+      query.createdAt = { $gte: startDate };
     }
 
-    const total = await Order.countDocuments(query);
-    const orders = await Order.find(query)
-      .populate("customer", "name email mobile address")
-      .populate("restaurant", "name address contactNumber phone email")
-      .populate({
-        path: "rider",
-        populate: { path: "user", select: "name mobile profilePic" }
-      })
-      .skip(skip)
-      .limit(limit)
-      .sort({ createdAt: -1 }); // Newest first
+    // 4. Search Filter across Customer, Restaurant, Rider, Order Number, Address, etc.
+    if (search && search.trim()) {
+      const s = search.trim();
+      const escapedS = s.replace(/[^a-zA-Z0-9\s]/g, '');
+      const sRegex = new RegExp(escapedS, 'i');
+
+      const [matchingUsers, matchingRestaurants, matchingRiders] = await Promise.all([
+        User.find({ $or: [{ name: sRegex }, { mobile: sRegex }, { email: sRegex }] }).select('_id'),
+        Restaurant.find({ $or: [{ name: sRegex }, { "name.en": sRegex }, { phone: sRegex }, { contactNumber: sRegex }] }).select('_id'),
+        Rider.find({}).populate({ path: 'user', match: { name: sRegex } }).select('_id')
+      ]);
+
+      const userIds = matchingUsers.map(u => u._id);
+      const restIds = matchingRestaurants.map(r => r._id);
+      const riderIds = matchingRiders.filter(r => r.user).map(r => r._id);
+
+      const searchConditions = [
+        { orderNumber: sRegex },
+        { paymentMethod: sRegex },
+        { status: sRegex },
+        { orderType: sRegex },
+        { "deliveryAddress.addressLine": sRegex },
+        { "deliveryAddress.fullAddress": sRegex },
+        { "deliveryAddress.area": sRegex },
+        { "deliveryAddress.city": sRegex }
+      ];
+
+      if (mongoose.Types.ObjectId.isValid(s)) {
+        searchConditions.push({ _id: s });
+      }
+      if (userIds.length > 0) {
+        searchConditions.push({ customer: { $in: userIds } });
+      }
+      if (restIds.length > 0) {
+        searchConditions.push({ restaurant: { $in: restIds } });
+      }
+      if (riderIds.length > 0) {
+        searchConditions.push({ rider: { $in: riderIds } });
+      }
+
+      query.$or = searchConditions;
+    }
+
+    // 5. Calculate Live Summary Stats for Admin Overview Cards
+    const [total, orders, allMatchingOrdersForSummary] = await Promise.all([
+      Order.countDocuments(query),
+      Order.find(query)
+        .populate("customer", "name email mobile address")
+        .populate("restaurant", "name address contactNumber phone email")
+        .populate({
+          path: "rider",
+          populate: { path: "user", select: "name mobile profilePic" }
+        })
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 }),
+      Order.find(query).select("totalAmount status orderType").lean()
+    ]);
+
+    let totalRevenue = 0;
+    let activeCount = 0;
+    let deliveredCount = 0;
+    let cancelledCount = 0;
+    let selfPickupCount = 0;
+
+    allMatchingOrdersForSummary.forEach(o => {
+      totalRevenue += Number(o.totalAmount || 0);
+      const st = String(o.status || '').toLowerCase();
+      const ot = String(o.orderType || '').toLowerCase();
+
+      if (["placed", "pending", "accepted", "preparing", "ready_for_pickup", "out_for_delivery"].includes(st)) {
+        activeCount++;
+      }
+      if (st === "delivered") {
+        deliveredCount++;
+      }
+      if (st === "cancelled" || st === "failed") {
+        cancelledCount++;
+      }
+      if (ot === "pickup" || ot === "self_pickup") {
+        selfPickupCount++;
+      }
+    });
 
     res.status(200).json({
       orders,
@@ -2535,8 +2630,17 @@ exports.getAllOrdersAdmin = async (req, res) => {
       page,
       limit,
       pages: Math.ceil(total / limit),
+      summary: {
+        totalOrders: total,
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        activeCount,
+        deliveredCount,
+        cancelledCount,
+        selfPickupCount
+      }
     });
   } catch (error) {
+    console.error("Error in getAllOrdersAdmin:", error);
     res.status(500).json({ message: error.message });
   }
 };

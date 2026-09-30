@@ -215,12 +215,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       final hasRider = (widget.order.riderName != null && widget.order.riderName!.isNotEmpty) ||
           (widget.order.riderId != null && widget.order.riderId!.isNotEmpty) ||
           ['assigned', 'rider assigned', 'rider_assigned', 'rider_accepted', 'reached_store', 'reached_restaurant'].contains(_currentStatus.toLowerCase());
+      final isHandedOverOrPickedUp = ['picked up', 'picked_up', 'out for delivery', 'out_for_delivery', 'on the way', 'on_the_way', 'delivered', 'handed over', 'handed_over', 'handovered', 'completed'].contains(_currentStatus.toLowerCase().trim());
 
-      if (hasRider && _currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && _currentStatus != 'Handed Over') {
-        _showOtpVerificationModal();
-      } else if (_currentStatus == 'Ready' || _currentStatus == 'Ready for Pickup') {
-        _showSearchingRiderModal();
-      } else if (_currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery' || _currentStatus == 'Handed Over') {
+      if (isHandedOverOrPickedUp) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -229,6 +226,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             ),
           );
         }
+      } else if (hasRider) {
+        _showOtpVerificationModal();
+      } else if (_currentStatus == 'Ready' || _currentStatus == 'Ready for Pickup') {
+        _showSearchingRiderModal();
       }
     }
   }
@@ -1754,29 +1755,30 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       final hasRider = (widget.order.riderName != null && widget.order.riderName!.isNotEmpty) ||
           (widget.order.riderId != null && widget.order.riderId!.isNotEmpty) ||
           ['assigned', 'rider assigned', 'rider_assigned', 'rider_accepted', 'reached_store', 'reached_restaurant'].contains(_currentStatus.toLowerCase());
+      final isHandedOverOrPickedUp = ['picked up', 'picked_up', 'out for delivery', 'out_for_delivery', 'on the way', 'on_the_way', 'delivered', 'handed over', 'handed_over', 'handovered', 'completed'].contains(_currentStatus.toLowerCase().trim());
 
-      if (_currentStatus == 'Placed' || _currentStatus == 'Pending') {
+      if (isHandedOverOrPickedUp) {
+        text = '🚀 Order Handed Over to Rider. Role completed for restaurant.';
+        buttonText = 'Handed Over to Rider';
+      } else if (_currentStatus == 'Placed' || _currentStatus == 'Pending') {
         text = 'Accept order and start food preparation in kitchen?';
         buttonText = 'Start Preparing';
       } else if (_currentStatus == 'Preparing') {
         text = 'Is food preparation complete and ready for pickup?';
         buttonText = 'Mark Ready';
-      } else if (hasRider && _currentStatus != 'Picked Up' && _currentStatus != 'Out for Delivery' && _currentStatus != 'Delivered' && _currentStatus != 'Handed Over') {
+      } else if (hasRider) {
         text = '🚴 Rider ${widget.order.riderName ?? "Assigned"}! Ask 4-digit OTP to handover food.';
         buttonText = 'Verify Rider OTP';
       } else if (_currentStatus == 'Ready' || _currentStatus == 'Ready for Pickup') {
         text = 'Food is Ready! Click Search Rider to notify nearby delivery riders.';
         buttonText = 'Search Rider';
-      } else if (_currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery' || _currentStatus == 'Handed Over') {
-        text = '🚀 Order Handed Over to Rider. Role completed for restaurant.';
-        buttonText = 'Handed Over to Rider';
       } else {
         text = 'Order completed successfully.';
         buttonText = 'Completed';
       }
     }
 
-    final isDelivered = _currentStatus == 'Delivered' || _currentStatus == 'Handed Over' || _currentStatus == 'Picked Up' || _currentStatus == 'Out for Delivery' || _currentStatus == 'Completed';
+    final isDelivered = ['delivered', 'handed over', 'handed_over', 'handovered', 'picked up', 'picked_up', 'out for delivery', 'out_for_delivery', 'completed'].contains(_currentStatus.toLowerCase().trim());
 
     return Container(
       padding: const EdgeInsets.all(16),
