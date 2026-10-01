@@ -455,12 +455,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         ? null
                         : () async {
                             setDialogState(() => isSubmitting = true);
+                            await ApiService.updateOrderStatus(orderId: orderId, status: 'delivered');
                             await ApiService.rateCustomer(
                               orderId: orderId,
                               rating: selectedRating,
                               note: noteController.text.trim(),
                             );
                             if (mounted) {
+                              context.read<DriverBloc>().add(const LoadActiveOrders());
                               Navigator.pop(ctx);
                               Navigator.pop(context, true);
                               ScaffoldMessenger.of(context).showSnackBar(

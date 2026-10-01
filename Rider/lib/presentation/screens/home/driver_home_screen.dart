@@ -1059,8 +1059,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                   color: primaryGreen,
                   title: storeName,
                   subtitle: storeAddress,
-                  onTrack: () {
-                    Navigator.of(context).push(
+                  onTrack: () async {
+                    await Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => OrderTrackingScreen(
                           order: activeOrder,
@@ -1068,6 +1068,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                         ),
                       ),
                     );
+                    if (context.mounted) {
+                      context.read<DriverBloc>().add(const LoadActiveOrders());
+                    }
                   },
                 ),
                 const SizedBox(height: 16),
@@ -1078,8 +1081,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                   color: primaryGreen,
                   title: customerName,
                   subtitle: deliveryAddress,
-                  onTrack: () {
-                    Navigator.of(context).push(
+                  onTrack: () async {
+                    await Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => OrderTrackingScreen(
                           order: activeOrder,
@@ -1087,6 +1090,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                         ),
                       ),
                     );
+                    if (context.mounted) {
+                      context.read<DriverBloc>().add(const LoadActiveOrders());
+                    }
                   },
                 ),
                 const SizedBox(height: 20),
@@ -2103,10 +2109,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               if (!isHistorical) ...[
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final status = order['deliveryStatus'] ?? 'accepted';
                     final isToStore = ['accepted', 'assigned', 'reached_store'].contains(status);
-                    Navigator.of(context).push(
+                    await Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => OrderTrackingScreen(
                           order: order,
@@ -2114,6 +2120,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                         ),
                       ),
                     );
+                    if (context.mounted) {
+                      context.read<DriverBloc>().add(const LoadActiveOrders());
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryGreen,
