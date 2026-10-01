@@ -1809,7 +1809,7 @@ exports.updateOrderStatus = async (req, res) => {
           message: customerMessage,
         },
       );
-      if (['accepted', 'preparing', 'ready', 'assigned', 'picked_up', 'delivery_arrived', 'delivered', 'cancelled'].includes(status)) {
+      if (['accepted', 'preparing', 'ready', 'assigned', 'picked_up', 'out_for_delivery', 'on_the_way', 'reached_customer_location', 'delivery_arrived', 'delivered', 'cancelled'].includes(status)) {
         try {
           await sendNotification(
             populatedOrder.customer._id,
@@ -1923,7 +1923,10 @@ function getCustomerStatusMessage(status, restaurantName) {
     'ready': 'Your order is ready, waiting for delivery partner',
     'assigned': 'A rider has been assigned to deliver your order',
     'reached_restaurant': 'Rider has arrived at the restaurant',
-    'picked_up': 'Your order is on the way!',
+    'picked_up': 'Order picked up from restaurant!',
+    'out_for_delivery': 'Your order is out for delivery! Rider is on the way.',
+    'on_the_way': 'Your order is on the way!',
+    'reached_customer_location': 'Rider has arrived at your location',
     'delivery_arrived': 'Rider has arrived at your location',
     'delivered': 'Your order has been delivered. Enjoy your meal!',
     'cancelled': 'Your order has been cancelled'
@@ -1936,9 +1939,12 @@ function getCustomerNotificationTitle(status) {
     'preparing': 'Cooking Started',
     'ready': 'Order Ready!',
     'assigned': 'Rider Assigned',
-    'picked_up': 'Out for Delivery',
+    'picked_up': 'Food Picked Up',
+    'out_for_delivery': 'Out for Delivery 🚀',
+    'on_the_way': 'Order On The Way 🚀',
+    'reached_customer_location': 'Rider Arrived!',
     'delivery_arrived': 'Rider Arrived!',
-    'delivered': 'Delivered Successfully',
+    'delivered': 'Order Delivered 🎉',
     'cancelled': 'Order Cancelled'
   };
   return titles[status] || 'Order Update';

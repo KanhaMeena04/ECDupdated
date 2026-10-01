@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/order_api_service.dart';
 import '../../services/restaurant_api_service.dart';
@@ -38,6 +39,7 @@ class OrderTrackingPage extends StatefulWidget {
 
 class _OrderTrackingPageState extends State<OrderTrackingPage>
     with SingleTickerProviderStateMixin {
+  GoogleMapController? _mapController;
   Map<String, dynamic>? _trackingData;
   Function(dynamic)? _socketCallback;
   bool _isFindingDriver = false; // Never true by default to avoid false driver UI for self pickup
@@ -113,8 +115,10 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
       }
     };
     SocketService.onOrderStatusUpdated(_socketCallback!);
+    SocketService.on('order:status', _socketCallback!);
     SocketService.on('order:location_update', _socketCallback!);
     SocketService.on('rider:location_update', _socketCallback!);
+    SocketService.on('rider:location_updated', _socketCallback!);
   }
 
   @override
@@ -123,11 +127,14 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     _searchTimer?.cancel();
     _mockTimer?.cancel();
     _pulseController?.dispose();
+    _mapController?.dispose();
     SocketService.leaveOrder(widget.orderId);
     if (_socketCallback != null) {
       SocketService.offOrderStatusUpdated(_socketCallback);
+      SocketService.off('order:status', _socketCallback);
       SocketService.off('order:location_update', _socketCallback);
       SocketService.off('rider:location_update', _socketCallback);
+      SocketService.off('rider:location_updated', _socketCallback);
     }
     super.dispose();
   }
@@ -475,23 +482,56 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
       return 0; // scheduled/placed
     } else {
       if (status == 'delivered' || status == 'completed') return 6;
-      if (status == 'out_for_delivery' || status == 'on_the_way') return 5;
+      if (status == 'out_for_delivery' || status == 'on_the_way' || status == 'reached_customer_location' || status == 'delivery_arrived') return 5;
       if (status == 'picked_up' || status == 'partner_picked') return 4;
       if (status == 'ready' || status == 'ready_for_pickup') return 3;
       if (status == 'preparing' || status == 'in_kitchen') return 2;
-      if (status == 'confirmed' || status == 'accepted') return 1;
+      if (status == 'confirmed' || status == 'accepted' || status == 'assigned' || status == 'reached_restaurant' || status == 'reached_store') return 1;
       return 0; // placed/pending
     }
+  }
+
+  String _formatETA(dynamic rawEta) {
+    if (rawEta == null) return '15-20 mins';
+    final str = rawEta.toString().trim();
+    if (str.isEmpty) return '15-20 mins';
+
+    if (RegExp(r'^\d+\s*mins?$', caseSensitive: false).hasMatch(str)) {
+      return str;
+    }
+    if (RegExp(r'^\d+-\d+\s*mins?$', caseSensitive: false).hasMatch(str)) {
+      return str;
+    }
+
+    try {
+      final etaDate = DateTime.tryParse(str);
+      if (etaDate != null) {
+        final now = DateTime.now();
+        final diff = etaDate.difference(now).inMinutes;
+        if (diff <= 0) return '5-10 mins';
+        if (diff > 120) return '15-20 mins';
+        return '$diff mins';
+      }
+    } catch (_) {}
+
+    final digits = str.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isNotEmpty) {
+      final val = int.tryParse(digits) ?? 15;
+      if (val > 120) return '15-20 mins';
+      return '$val mins';
+    }
+
+    return '15-20 mins';
   }
 
   String get _statusTitle {
     final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
     if (status == 'delivered' || status == 'completed' || status == 'handovered') return 'Order Completed!';
-    if (status == 'picked_up' || status == 'out_for_delivery' || status == 'on_the_way') return 'Order is on the way';
-    if (status == 'partner_picked') return 'Partner Picked Order';
+    if (status == 'out_for_delivery' || status == 'on_the_way' || status == 'reached_customer_location' || status == 'delivery_arrived') return 'Order is on the way';
+    if (status == 'picked_up' || status == 'partner_picked') return 'Partner Picked Order';
     if (status == 'ready' || status == 'ready_for_pickup') return 'Food Prepared & Ready';
     if (status == 'preparing' || status == 'in_kitchen') return 'Order Preparing in Kitchen';
-    if (status == 'confirmed' || status == 'accepted') return 'Order Accepted by Restaurant';
+    if (status == 'confirmed' || status == 'accepted' || status == 'assigned' || status == 'reached_restaurant' || status == 'reached_store') return 'Order Accepted & Rider Assigned';
     if (status == 'cancelled') return 'Order Cancelled';
     return 'Waiting for Restaurant Acceptance';
   }
@@ -499,8 +539,12 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   String get _statusSubtitle {
     final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
     if (status == 'delivered' || status == 'completed') return 'Thank you! Enjoy your meal!';
-    if (status == 'picked_up' || status == 'out_for_delivery' || status == 'on_the_way') {
-      return 'Arriving in ${_trackingData?['estimatedDeliveryTime'] ?? '15 mins'}';
+    if (status == 'out_for_delivery' || status == 'on_the_way' || status == 'reached_customer_location' || status == 'delivery_arrived') {
+      final etaStr = _formatETA(_trackingData?['estimatedDeliveryTime'] ?? _trackingData?['order']?['estimatedDeliveryTime']);
+      return 'Arriving in $etaStr';
+    }
+    if (status == 'picked_up' || status == 'partner_picked') {
+      return 'Delivery partner has picked up order from restaurant & starting delivery soon!';
     }
     if (status == 'ready' || status == 'ready_for_pickup') {
       return _isSelfPickup ? 'Food is ready at counter! Show OTP or QR to pickup' : 'Delivery partner is picking up your order';
@@ -515,7 +559,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   Color get _statusBannerColor {
     final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
     if (status == 'delivered' || status == 'completed') return const Color(0xFF16A34A);
-    if (status == 'picked_up' || status == 'out_for_delivery' || status == 'on_the_way') return AppColors.primary;
+    if (status == 'picked_up' || status == 'out_for_delivery' || status == 'on_the_way' || status == 'reached_customer_location' || status == 'delivery_arrived') return AppColors.primary;
     if (status == 'cancelled') return Colors.red;
     return const Color(0xFFD97706);
   }
@@ -1618,6 +1662,60 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
       riderLng = double.tryParse(_trackingData!['driver']['lng'].toString());
     }
 
+    final double defaultRestLat = restLat ?? 22.7196;
+    final double defaultRestLng = restLng ?? 75.8577;
+    final double defaultUserLat = userLat ?? (defaultRestLat + 0.015);
+    final double defaultUserLng = userLng ?? (defaultRestLng + 0.015);
+
+    final String activeStatus = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
+    final bool isOnTheWay = activeStatus == 'out_for_delivery' || activeStatus == 'on_the_way' || activeStatus == 'reached_customer_location' || activeStatus == 'delivery_arrived';
+
+    // Rider location rule: Before "Order On The Way", rider is physically AT THE RESTAURANT.
+    final double activeRiderLat = (!isOnTheWay) ? defaultRestLat : (riderLat ?? defaultRestLat);
+    final double activeRiderLng = (!isOnTheWay) ? defaultRestLng : (riderLng ?? defaultRestLng);
+
+    final Set<Marker> trackingMarkers = {
+      Marker(
+        markerId: const MarkerId('restaurant'),
+        position: LatLng(defaultRestLat, defaultRestLng),
+        infoWindow: InfoWindow(title: restName, snippet: 'Restaurant Location'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+      ),
+      Marker(
+        markerId: const MarkerId('customer'),
+        position: LatLng(defaultUserLat, defaultUserLng),
+        infoWindow: const InfoWindow(title: 'Delivery Address'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+      ),
+    };
+
+    if (hasRider) {
+      trackingMarkers.add(
+        Marker(
+          markerId: const MarkerId('rider'),
+          position: LatLng(activeRiderLat, activeRiderLng),
+          infoWindow: InfoWindow(
+            title: 'Rider: $rName',
+            snippet: !isOnTheWay ? 'At Restaurant (Preparing to leave)' : 'On the way to deliver',
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        ),
+      );
+    }
+
+    final Set<Polyline> trackingPolylines = {
+      Polyline(
+        polylineId: const PolylineId('route_line'),
+        color: isOnTheWay ? AppColors.primary : Colors.orange,
+        width: 5,
+        points: [
+          LatLng(defaultRestLat, defaultRestLng),
+          LatLng(activeRiderLat, activeRiderLng),
+          LatLng(defaultUserLat, defaultUserLng),
+        ],
+      ),
+    };
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Column(
@@ -1652,22 +1750,22 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             ),
           ),
 
-          // 2. Interactive Route Tracking Map Canvas
+          // 2. Real Google Map Live Tracking View
           SizedBox(
-            height: 240,
+            height: 250,
             width: double.infinity,
-            child: CustomPaint(
-              painter: _ActiveRouteMapPainter(
-                riderName: rName,
-                restaurantName: restName,
-                userAddress: userAddr,
-                riderLat: riderLat,
-                riderLng: riderLng,
-                restLat: restLat,
-                restLng: restLng,
-                userLat: userLat,
-                userLng: userLng,
-                isRiderAssigned: hasRider,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: LatLng((defaultRestLat + defaultUserLat) / 2, (defaultRestLng + defaultUserLng) / 2),
+                  zoom: 13.5,
+                ),
+                markers: trackingMarkers,
+                polylines: trackingPolylines,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                onMapCreated: (controller) => _mapController = controller,
               ),
             ),
           ),
