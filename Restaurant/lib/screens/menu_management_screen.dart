@@ -1062,8 +1062,8 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
     );
   }
 
-  Widget _buildItemThumbnail(String? imagePath) {
-    if (imagePath == null || imagePath.isEmpty) {
+  Widget _buildItemThumbnail(String? rawImagePath) {
+    if (rawImagePath == null || rawImagePath.isEmpty) {
       return Container(
         width: 80,
         height: 80,
@@ -1071,12 +1071,22 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
         child: const Icon(Icons.fastfood, color: Colors.grey, size: 30),
       );
     }
+    String imagePath = rawImagePath.trim();
     if (imagePath.startsWith('data:image')) {
-      final base64Data = imagePath.split(',').last;
-      final bytes = base64Decode(base64Data);
-      return Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover);
+      try {
+        final base64Data = imagePath.split(',').last;
+        final bytes = base64Decode(base64Data);
+        return Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover);
+      } catch (_) {}
+    }
+    if (!imagePath.startsWith('http') && !imagePath.startsWith('assets/')) {
+      final baseOrigin = ApiConstants.baseUrl.replaceAll(RegExp(r'/api(/v1)?/?$'), '');
+      imagePath = imagePath.startsWith('/') ? '$baseOrigin$imagePath' : '$baseOrigin/$imagePath';
     }
     if (imagePath.startsWith('http')) {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android && imagePath.contains('localhost')) {
+        imagePath = imagePath.replaceAll('localhost', '10.0.2.2');
+      }
       return Image.network(
         imagePath,
         width: 80,

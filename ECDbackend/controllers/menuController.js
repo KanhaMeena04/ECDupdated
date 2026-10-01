@@ -402,6 +402,7 @@ exports.getMenu = async (req, res) => {
     const queryFilter = {
       $or: [
         { restaurant: restaurant._id },
+        { restaurant: restaurant._id.toString() },
         ...(validProductObjIds.length > 0 ? [{ _id: { $in: validProductObjIds } }] : [])
       ]
     };
@@ -430,20 +431,26 @@ exports.getMenu = async (req, res) => {
 
     products.forEach((p) => {
       const catObj = p.categoryId || p.category;
-      const catName = catObj ? (catObj.name?.en || catObj.name || "Main Course") : "Main Course";
+      const catName = catObj ? (typeof catObj === 'string' ? catObj : (catObj.name?.en || catObj.name || "Main Course")) : "Main Course";
       const subcatObj = p.subcategoryId;
 
       const b2cSelling = p.pricing?.b2c?.sellingPrice ?? p.sellingPrice ?? p.basePrice ?? 0;
       const b2cMrp = p.pricing?.b2c?.mrp ?? p.mrp ?? b2cSelling;
       const b2bSelling = p.pricing?.b2b?.sellingPrice ?? b2cSelling;
 
+      const rawName = p.name;
+      const itemName = typeof rawName === 'object' ? (rawName?.en || Object.values(rawName)[0] || '') : (rawName || '');
+
+      const rawDesc = p.description;
+      const itemDesc = typeof rawDesc === 'object' ? (rawDesc?.en || Object.values(rawDesc)[0] || '') : (rawDesc || '');
+
       const formattedItem = {
-        _id: p._id,
-        id: p._id,
-        categoryId: catObj ? catObj._id : null,
-        subcategoryId: subcatObj ? subcatObj._id : null,
-        name: p.name?.en || p.name || "",
-        description: p.description ? (p.description.en || p.description) : "",
+        _id: p._id.toString(),
+        id: p._id.toString(),
+        categoryId: catObj && typeof catObj === 'object' ? catObj._id : null,
+        subcategoryId: subcatObj && typeof subcatObj === 'object' ? subcatObj._id : null,
+        name: itemName,
+        description: itemDesc,
         image: p.image || "",
         basePrice: b2cSelling,
         b2cPrice: b2cSelling,
@@ -463,22 +470,22 @@ exports.getMenu = async (req, res) => {
         isRejected: Boolean(p.isRejected),
         rejectionReason: p.rejectionReason || "",
         changeRequest: p.changeRequest || "",
-        category: catObj ? {
+        category: catObj && typeof catObj === 'object' ? {
           id: catObj._id,
           _id: catObj._id,
           name: catName,
           slug: catObj.slug
-        } : { name: "Main Course" },
-        subcategory: subcatObj ? {
+        } : { name: catName },
+        subcategory: subcatObj && typeof subcatObj === 'object' ? {
           id: subcatObj._id,
           _id: subcatObj._id,
-          name: subcatObj.name?.en || subcatObj.name || "",
+          name: typeof subcatObj.name === 'object' ? (subcatObj.name?.en || Object.values(subcatObj.name)[0] || '') : (subcatObj.name || ''),
           slug: subcatObj.slug
         } : null,
         restaurant: {
           id: restaurant._id,
           _id: restaurant._id,
-          name: restaurant.name?.en || restaurant.name || ""
+          name: typeof restaurant.name === 'object' ? (restaurant.name?.en || Object.values(restaurant.name)[0] || '') : (restaurant.name || '')
         }
       };
 
@@ -857,14 +864,28 @@ exports.bulkUpdatePrices = async (req, res) => {
 exports.editProduct = async (req, res) => {
   try {
     const productId = req.params.id;
-    const restaurant = await Restaurant.findOne({ owner: req.user._id });
-    if (!restaurant)
-      return res.status(404).json({ message: "Restaurant not found" });
-    const product = await Product.findOne({
-      _id: productId,
-      restaurant: restaurant._id,
-    });
-    if (!product) return res.status(404).json({ message: "Product not found" });
+    let restaurant = null;
+    let product = null;
+
+    const isAdmin = req.user && req.user.role === 'admin';
+
+    if (isAdmin) {
+      product = await Product.findById(productId);
+      if (product && product.restaurant) {
+        restaurant = await Restaurant.findById(product.restaurant);
+      }
+    } else {
+      restaurant = await Restaurant.findOne({ owner: req.user._id });
+      if (restaurant) {
+        product = await Product.findOne({
+          _id: productId,
+          restaurant: restaurant._id,
+        });
+      }
+    }
+
+    if (!product) return res.status(404).json({ message: "Product or restaurant not found" });
+
     const file = req.files && req.files.image ? req.files.image[0] : null;
     const updates = { ...req.body };
     if (file) updates.image = getFileUrl(file);
@@ -881,8 +902,16 @@ exports.editProduct = async (req, res) => {
         }
       });
     }
+
     const allowed = [
       "basePrice",
+      "sellingPrice",
+      "mrp",
+      "b2cSellingPrice",
+      "b2cMrp",
+      "b2bPrice",
+      "foodType",
+      "isVeg",
       "name",
       "description",
       "image",
@@ -892,9 +921,61 @@ exports.editProduct = async (req, res) => {
       "seasonTag",
       "available",
       "category",
+      "preparationTime",
     ];
+
     let hasPendingUpdate = false;
-    if (product.isApproved) {
+
+    if (isAdmin || !product.isApproved) {
+      // Direct update for Admin or unapproved product
+      allowed.forEach((field) => {
+        if (updates[field] === undefined) return;
+        if (field === "name") {
+          const normalized = normalizeTranslation(updates.name);
+          if (normalized && normalized.en) product.name = normalized;
+        } else if (field === "description") {
+          product.description = normalizeTranslation(updates.description);
+        } else if (field === "variations") {
+          product.variations = normalizeNamedList(updates.variations);
+        } else if (field === "addOns") {
+          product.addOns = normalizeNamedList(updates.addOns);
+        } else if (field === "sellingPrice" || field === "basePrice" || field === "b2cSellingPrice") {
+          const val = Number(updates[field]);
+          product.basePrice = val;
+          product.sellingPrice = val;
+          if (!product.pricing) product.pricing = { b2c: {}, b2b: {} };
+          product.pricing.b2c.sellingPrice = val;
+        } else if (field === "mrp" || field === "b2cMrp") {
+          const val = Number(updates[field]);
+          product.mrp = val;
+          if (!product.pricing) product.pricing = { b2c: {}, b2b: {} };
+          product.pricing.b2c.mrp = val;
+        } else if (field === "b2bPrice") {
+          const val = Number(updates[field]);
+          if (!product.pricing) product.pricing = { b2c: {}, b2b: {} };
+          product.pricing.b2b.sellingPrice = val;
+        } else if (field === "foodType" || field === "isVeg") {
+          const rawFt = (updates.foodType || (updates.isVeg ? "veg" : "non-veg")).toString().toLowerCase();
+          const ft = rawFt.includes("egg") ? "egg" : (rawFt.includes("non") ? "non-veg" : "veg");
+          product.foodType = ft;
+          product.isVeg = ft === "veg";
+        } else if (field === "available") {
+          product.available = updates.available === "true" || updates.available === true;
+          product.isAvailable = product.available;
+        } else {
+          product[field] = updates[field];
+        }
+      });
+
+      if (isAdmin) {
+        product.isApproved = true;
+        product.approvalStatus = "approved";
+        product.isPublished = true;
+        product.isRejected = false;
+        product.pendingUpdate = undefined;
+      }
+    } else {
+      // Non-admin owner updating an approved item -> queue in pendingUpdate
       if (updates.available !== undefined) {
         product.available =
           updates.available === "true"
@@ -902,6 +983,7 @@ exports.editProduct = async (req, res) => {
             : updates.available === "false"
               ? false
               : !!updates.available;
+        product.isAvailable = product.available;
       }
       const pendingUpdate = { ...(product.pendingUpdate || {}) };
       const pendingFields = allowed.filter((field) => field !== "available");
@@ -931,25 +1013,28 @@ exports.editProduct = async (req, res) => {
         product.pendingUpdateAt = new Date();
         hasPendingUpdate = true;
       }
-    } else {
-      allowed.forEach((field) => {
-        if (updates[field] === undefined) return;
-        if (field === "name") {
-          const normalized = normalizeTranslation(updates.name);
-          if (!normalized || !normalized.en) return;
-          product.name = normalized;
-        } else if (field === "description") {
-          product.description = normalizeTranslation(updates.description);
-        } else if (field === "variations") {
-          product.variations = normalizeNamedList(updates.variations);
-        } else if (field === "addOns") {
-          product.addOns = normalizeNamedList(updates.addOns);
-        } else {
-          product[field] = updates[field];
-        }
-      });
     }
+
     await product.save();
+
+    // Sync to Restaurant embedded menu array if present
+    if (restaurant && Array.isArray(restaurant.menu)) {
+      const prodName = typeof product.name === 'object' ? (product.name.en || Object.values(product.name)[0] || '') : (product.name || '');
+      await Restaurant.updateOne(
+        { _id: restaurant._id, "menu.name": prodName },
+        {
+          $set: {
+            "menu.$.price": product.sellingPrice || product.basePrice,
+            "menu.$.basePrice": product.basePrice,
+            "menu.$.image": product.image,
+            "menu.$.isAvailable": product.available,
+            "menu.$.isApproved": product.isApproved,
+            "menu.$.approvalStatus": product.approvalStatus
+          }
+        }
+      ).catch(() => {});
+    }
+
     if (hasPendingUpdate) {
       return res.status(200).json({ 
         message: "Product updated and sent for admin approval. Current menu unaffected.",
@@ -957,7 +1042,7 @@ exports.editProduct = async (req, res) => {
         status: "pending_approval"
       });
     }
-    res.status(200).json({ message: "Product updated", product });
+    res.status(200).json({ message: "Product updated successfully", product });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1170,10 +1255,12 @@ exports.bulkUploadMenuItems = async (req, res) => {
         foodType: foodTypeStr,
         isVeg: foodTypeStr === 'veg',
         description: descStr,
-        image: item.image || "",
+        image: itemImgStr,
         variants: item.variations || item.variants || [],
         addOns: item.addOns || [],
-        isAvailable: item.outOfStock !== true && item.available !== false
+        isAvailable: item.outOfStock !== true && item.available !== false,
+        isApproved: shouldAutoApprove,
+        approvalStatus: shouldAutoApprove ? "approved" : "pending"
       });
     }
 

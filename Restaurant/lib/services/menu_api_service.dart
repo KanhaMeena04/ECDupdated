@@ -86,6 +86,12 @@ class MenuApiService {
             }
           }
 
+          String rawImg = (itemMap['image'] ?? '').toString().trim();
+          if (rawImg.isNotEmpty && !rawImg.startsWith('http') && !rawImg.startsWith('data:')) {
+            final baseOrigin = ApiConstants.baseUrl.replaceAll(RegExp(r'/api(/v1)?/?$'), '');
+            rawImg = rawImg.startsWith('/') ? '$baseOrigin$rawImg' : '$baseOrigin/$rawImg';
+          }
+
           return {
             '_id': itemMap['_id'] ?? itemMap['id'] ?? '',
             'name': itemMap['name'] is Map ? (itemMap['name']['en'] ?? (itemMap['name'].values.isNotEmpty ? itemMap['name'].values.first.toString() : '')) : (itemMap['name'] ?? ''),
@@ -112,7 +118,7 @@ class MenuApiService {
             'isRejected': itemMap['isRejected'] == true,
             'rejectionReason': itemMap['rejectionReason'] ?? '',
             'changeRequest': itemMap['changeRequest'] ?? '',
-            'image': itemMap['image'] ?? '',
+            'image': rawImg,
             'flavors': normalizedFlavors,
             'variants': normalizedFlavors,
             'variations': normalizedFlavors,
