@@ -45,18 +45,27 @@ android {
 
     signingConfigs {
         if (hasKeyProperties) {
-            create("upload") {
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
-                storeFile = file(keystoreProperties.getProperty("storeFile"))
-                storePassword = keystoreProperties.getProperty("storePassword")
+            val storeProp = keystoreProperties.getProperty("storeFile")
+            val kFile = if (storeProp != null) {
+                val f1 = rootProject.file(storeProp)
+                val f2 = file(storeProp)
+                if (f1.exists()) f1 else if (f2.exists()) f2 else null
+            } else null
+
+            if (kFile != null && kFile.exists()) {
+                create("upload") {
+                    keyAlias = keystoreProperties.getProperty("keyAlias")
+                    keyPassword = keystoreProperties.getProperty("keyPassword")
+                    storeFile = kFile
+                    storePassword = keystoreProperties.getProperty("storePassword")
+                }
             }
         }
     }
 
     buildTypes {
         release {
-            if (hasKeyProperties) {
+            if (signingConfigs.findByName("upload") != null) {
                 signingConfig = signingConfigs.getByName("upload")
             } else {
                 signingConfig = signingConfigs.getByName("debug")
