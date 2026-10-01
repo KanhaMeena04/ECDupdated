@@ -1711,6 +1711,7 @@ exports.updateOrderStatus = async (req, res) => {
     }
     const oldStatus = order.status;
     order.status = status;
+    order.deliveryStatus = status;
     const timelineLabels = {
       'placed': { label: 'Order Placed', description: 'Your order has been placed' },
       'accepted': { label: 'Restaurant Accepted', description: 'Restaurant has accepted your order' },

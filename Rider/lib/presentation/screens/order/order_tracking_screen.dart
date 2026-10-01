@@ -60,16 +60,24 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         final res = await ApiService.getOrderDetails(orderId);
         if (res['success'] == true && res['data'] != null && mounted) {
           final data = res['data'];
-          final status = (data['deliveryStatus'] ?? data['status'] ?? '').toString().toLowerCase();
-          final isDelivering = ['picked_up', 'out_for_delivery', 'reached_customer_location', 'delivered'].contains(status);
+          final Map<String, dynamic> rawObj = (data is Map && data['order'] is Map) ? Map<String, dynamic>.from(data['order']) : (data is Map ? Map<String, dynamic>.from(data) : {});
+          final status = (rawObj['deliveryStatus'] ?? rawObj['status'] ?? data['deliveryStatus'] ?? data['status'] ?? '').toString().toLowerCase();
+          final isDelivering = ['picked_up', 'out_for_delivery', 'on_the_way', 'reached_customer_location', 'delivered'].contains(status);
+
+          final bool isLocalOutForDelivery = _currentDeliveryStatus == 'out_for_delivery' || _currentDeliveryStatus == 'on_the_way';
+          final bool isFetchedPickedUp = status == 'picked_up' || status == 'partner_picked' || status == 'accepted' || status == 'assigned';
 
           if (isDelivering && _isToRestaurant) {
             setState(() {
               _isToRestaurant = false;
-              _currentDeliveryStatus = (status == 'assigned' || status == 'accepted') ? 'picked_up' : status;
-              if (data['customer'] != null) widget.order['customer'] = data['customer'];
-              if (data['deliveryAddress'] != null) widget.order['deliveryAddress'] = data['deliveryAddress'];
-              if (data['address'] != null) widget.order['address'] = data['address'];
+              if (isLocalOutForDelivery) {
+                _currentDeliveryStatus = 'out_for_delivery';
+              } else {
+                _currentDeliveryStatus = (status == 'assigned' || status == 'accepted') ? 'picked_up' : status;
+              }
+              if (rawObj['customer'] != null) widget.order['customer'] = rawObj['customer'];
+              if (rawObj['deliveryAddress'] != null) widget.order['deliveryAddress'] = rawObj['deliveryAddress'];
+              if (rawObj['address'] != null) widget.order['address'] = rawObj['address'];
             });
             _getPolyline();
             if (_driverLatLng != null) {
@@ -83,9 +91,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               ),
             );
           } else if (status.isNotEmpty && status != _currentDeliveryStatus.toLowerCase()) {
-            setState(() {
-              _currentDeliveryStatus = status;
-            });
+            if (!(isLocalOutForDelivery && isFetchedPickedUp)) {
+              setState(() {
+                _currentDeliveryStatus = status;
+              });
+            }
           }
         }
       } catch (_) {}
@@ -331,6 +341,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       if (mounted) {
         setState(() {
           _currentDeliveryStatus = 'out_for_delivery';
+          _isToRestaurant = false;
           _isLoading = false;
         });
         _getPolyline();
