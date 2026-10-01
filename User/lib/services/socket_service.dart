@@ -138,6 +138,19 @@ class SocketService {
     }
   }
 
+  static Future<void> on(String event, Function(dynamic) callback) async {
+    if (!_isInitialized) await init();
+    _socket?.on(event, (data) => callback(data));
+  }
+
+  static void off(String event, [Function(dynamic)? callback]) {
+    _socket?.off(event);
+  }
+
+  static void emit(String event, [dynamic data]) {
+    _socket?.emit(event, data);
+  }
+
   static void dispose() {
     _socket?.disconnect();
     _socket?.dispose();
