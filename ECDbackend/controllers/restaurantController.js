@@ -1088,7 +1088,11 @@ exports.updateRestaurant = async (req, res) => {
     if (updates.cuisine !== undefined) {
       updates.cuisine = normalizeCuisine(parseIfString(updates.cuisine));
     }
-    if (updates.location !== undefined) updates.location = normalizeGeoLocation(updates.location);
+    if (updates.location !== undefined) {
+      updates.location = normalizeGeoLocation(updates.location);
+    } else if (updates.latitude !== undefined || updates.longitude !== undefined || updates.lat !== undefined || updates.lng !== undefined) {
+      updates.location = normalizeGeoLocation({ latitude: updates.latitude || updates.lat, longitude: updates.longitude || updates.lng });
+    }
     if (updates.deliveryType !== undefined) {
       updates.deliveryType = normalizeDeliveryType(updates.deliveryType);
     }
@@ -1111,6 +1115,7 @@ exports.updateRestaurant = async (req, res) => {
       "city",
       "area",
       "location",
+      "geofenceRadius",
       "isOnline",
       "isActive",
       "isTemporarilyClosed",

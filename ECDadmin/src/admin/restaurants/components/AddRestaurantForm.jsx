@@ -44,33 +44,126 @@ import {
 } from "@mui/icons-material";
 
 import { API_BASE_URL } from "../../../utils/utils";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import GoogleServiceAreaMap, { parseGooglePlaceDetails } from "../../components/GoogleServiceAreaMap";
+import { Slider } from "@mui/material";
+import { useCities } from "../../api/city";
 
 const BRAND_MAIN = "#ed2026";
 const BRAND_HOVER = "#c8161b";
 const BRAND_LIGHT = "#FFF5F4";
 
-const greenMarkerIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+// Clean Form Section Card Component
+const FormSectionCard = ({ step, title, subtitle, icon: Icon, actionButton, children }) => (
+  <Paper
+    variant="outlined"
+    sx={{
+      p: { xs: 2.5, sm: 3.5 },
+      mb: 3.5,
+      borderRadius: 3.5,
+      borderColor: "#E2E8F0",
+      backgroundColor: "#FFFFFF",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 10px 25px -5px rgba(0,0,0,0.02)",
+    }}
+  >
+    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box
+          sx={{
+            width: 40,
+            height: 40,
+            borderRadius: 2.5,
+            bgcolor: BRAND_LIGHT,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: BRAND_MAIN,
+          }}
+        >
+          {Icon ? <Icon sx={{ fontSize: 22 }} /> : null}
+        </Box>
+        <Box>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#0F172A", lineHeight: 1.2 }}>
+            {title}
+          </Typography>
+          {subtitle && (
+            <Typography variant="caption" sx={{ color: "#64748B", display: "block", mt: 0.3 }}>
+              {subtitle}
+            </Typography>
+          )}
+        </Box>
+      </Box>
+      {actionButton}
+    </Box>
 
-function MapClickHandler({ onMapClick }) {
-  useMapEvents({
-    click(e) {
-      if (e && e.latlng) {
-        onMapClick(e.latlng.lat, e.latlng.lng);
-      }
-    },
-  });
-  return null;
-}
+    <Grid container spacing={2.5}>
+      {children}
+    </Grid>
+  </Paper>
+);
+
+// Clean Document Upload Box
+const DocumentUploadBox = ({ label, file, onUpload, onRemove, onFileRead }) => (
+  <Box
+    sx={{
+      p: 1.5,
+      border: "1px solid",
+      borderColor: file ? "#BBF7D0" : "#E2E8F0",
+      borderRadius: 2.5,
+      bgcolor: file ? "#F0FDF4" : "#F8FAFC",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      minHeight: 56,
+      transition: "all 0.2s ease",
+    }}
+  >
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, overflow: "hidden" }}>
+      {file ? (
+        <CheckCircle sx={{ color: "#16A34A", fontSize: 20 }} />
+      ) : (
+        <InsertDriveFile sx={{ color: "#94A3B8", fontSize: 20 }} />
+      )}
+      <Box sx={{ overflow: "hidden" }}>
+        <Typography variant="body2" fontWeight={600} color={file ? "#166534" : "#475569"} noWrap>
+          {label}
+        </Typography>
+        <Typography variant="caption" color={file ? "#15803D" : "#94A3B8"} display="block">
+          {file ? "Document Uploaded ✓" : "PDF or Image (Max 5MB)"}
+        </Typography>
+      </Box>
+    </Box>
+
+    {file ? (
+      <IconButton size="small" onClick={onRemove} sx={{ color: "#DC2626", "&:hover": { bgcolor: "#FEE2E2" } }}>
+        <Delete fontSize="small" />
+      </IconButton>
+    ) : (
+      <Button
+        component="label"
+        size="small"
+        variant="outlined"
+        startIcon={<CloudUpload fontSize="small" />}
+        sx={{
+          borderColor: "#CBD5E1",
+          color: "#334155",
+          textTransform: "none",
+          fontWeight: 600,
+          borderRadius: 2,
+          fontSize: "0.8rem",
+          "&:hover": { borderColor: BRAND_MAIN, color: BRAND_MAIN, bgcolor: BRAND_LIGHT },
+        }}
+      >
+        Upload
+        <input
+          type="file"
+          hidden
+          accept="image/*,application/pdf"
+          onChange={(e) => onFileRead(e.target.files[0], onUpload)}
+        />
+      </Button>
+    )}
+  </Box>
+);
 
 const AddRestaurantForm = () => {
   const navigate = useNavigate();
@@ -91,6 +184,7 @@ const AddRestaurantForm = () => {
   const [ownerPin, setOwnerPin] = useState("1234");
 
   // 3. Location & GPS (Step 3 of App)
+  const { cities = [] } = useCities();
   const [address, setAddress] = useState("");
   const [area, setArea] = useState("");
   const [city, setCity] = useState("");
@@ -738,89 +832,7 @@ const AddRestaurantForm = () => {
         title="Restaurant Location & GPS"
         subtitle="Exact physical address and coordinates for customer ordering & rider dispatch"
         icon={LocationOn}
-        actionButton={
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={isDetectingLocation ? <CircularProgress size={14} color="inherit" /> : <GpsFixed fontSize="small" />}
-            onClick={handleAutoDetectLocation}
-            disabled={isDetectingLocation}
-            sx={{
-              borderColor: "#CBD5E1",
-              color: "#334155",
-              textTransform: "none",
-              fontWeight: 600,
-              borderRadius: 2,
-              "&:hover": { borderColor: BRAND_MAIN, color: BRAND_MAIN, bgcolor: BRAND_LIGHT },
-            }}
-          >
-            {isDetectingLocation ? "Detecting..." : "Auto Detect GPS"}
-          </Button>
-        }
       >
-        {/* Search Map / Location Bar */}
-        <Grid item xs={12}>
-          <Box sx={{ position: "relative" }}>
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <TextField
-                label="Search Map / Location"
-                value={locationSearchQuery}
-                onChange={(e) => setLocationSearchQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleLocationSearch(); } }}
-                fullWidth
-                placeholder="Type city, area, street, or landmark to search on map..."
-                size="small"
-              />
-              <Button
-                variant="contained"
-                onClick={handleLocationSearch}
-                disabled={isSearchingLocation}
-                sx={{ bgcolor: BRAND_MAIN, "&:hover": { bgcolor: "#008a68" }, textTransform: "none", px: 3 }}
-              >
-                {isSearchingLocation ? <CircularProgress size={18} color="inherit" /> : "Search"}
-              </Button>
-            </Box>
-
-            {/* Location Search Dropdown Results */}
-            {showLocationResults && locationSearchResults.length > 0 && (
-              <Paper
-                elevation={6}
-                sx={{
-                  position: "absolute",
-                  top: "100%",
-                  left: 0,
-                  right: 0,
-                  zIndex: 1400,
-                  mt: 0.5,
-                  maxHeight: 220,
-                  overflowY: "auto",
-                  borderRadius: 2,
-                }}
-              >
-                {locationSearchResults.map((resItem, idx) => (
-                  <Box
-                    key={idx}
-                    onClick={() => handleSelectSearchResult(resItem)}
-                    sx={{
-                      p: 1.5,
-                      borderBottom: "1px solid #F1F5F9",
-                      cursor: "pointer",
-                      "&:hover": { bgcolor: BRAND_LIGHT },
-                    }}
-                  >
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: "#1E293B" }}>
-                      {resItem.display_name}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: "#64748B" }}>
-                      Lat: {parseFloat(resItem.lat).toFixed(4)}, Lng: {parseFloat(resItem.lon).toFixed(4)}
-                    </Typography>
-                  </Box>
-                ))}
-              </Paper>
-            )}
-          </Box>
-        </Grid>
-
         <Grid item xs={12}>
           <TextField
             label="Complete Street Address *"
@@ -829,6 +841,8 @@ const AddRestaurantForm = () => {
             fullWidth
             required
             placeholder="e.g. Shop No. 12, Main Market Road, Near Clock Tower"
+            multiline
+            rows={2}
           />
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -842,14 +856,35 @@ const AddRestaurantForm = () => {
           />
         </Grid>
         <Grid item xs={12} sm={6}>
-          <TextField
-            label="City *"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            fullWidth
-            required
-            placeholder="e.g. Gurugram / Delhi / Indore"
-          />
+          <FormControl fullWidth required>
+            <InputLabel>Operational City *</InputLabel>
+            <Select
+              label="Operational City *"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+            >
+              {cities && cities.map((cityItem, idx) => {
+                const cityName = typeof cityItem === 'object' ? cityItem.name : cityItem;
+                const isAvailable = typeof cityItem === 'object' ? (cityItem.isServiceAvailable || cityItem.hasService) : false;
+                return (
+                  <MenuItem key={cityItem._id || idx} value={cityName}>
+                    <Box sx={{ display: 'flex', items: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+                      <span className="font-medium text-gray-800">{cityName}</span>
+                      {isAvailable ? (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 rounded-full border border-emerald-300">
+                          📍 Services Available
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-500 rounded-full border border-gray-200">
+                          Haryana City
+                        </span>
+                      )}
+                    </Box>
+                  </MenuItem>
+                );
+              })}
+            </Select>
+          </FormControl>
         </Grid>
         <Grid item xs={12} sm={6}>
           <TextField
@@ -872,40 +907,54 @@ const AddRestaurantForm = () => {
           />
         </Grid>
 
-        {/* Interactive Leaflet Map for Location Selection */}
+        {/* Geofence Delivery Radius Selection & Edit */}
         <Grid item xs={12}>
-          <Box sx={{ mt: 1, borderRadius: 2, overflow: "hidden", border: "1px solid #CBD5E1" }}>
-            <Typography variant="caption" sx={{ p: 1, display: "block", bgcolor: "#F8FAFC", color: "#475569", fontWeight: 600 }}>
-              📍 Click Map or Drag Marker to Pin Exact Restaurant Coordinates
+          <Box sx={{ p: 2.5, bgcolor: "#F0FDF4", borderRadius: 2, border: "1px solid #BBF7D0" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#166534" }}>
+                📍 Service Area Delivery Radius (Geofence Radius)
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 800, color: "#00a67e" }}>
+                {geofenceRadius} KM
+              </Typography>
+            </Box>
+            <Slider
+              value={Number(geofenceRadius) || 5}
+              min={1}
+              max={50}
+              step={1}
+              onChange={(e, val) => setGeofenceRadius(String(val))}
+              sx={{ color: "#00a67e" }}
+            />
+            <Typography variant="caption" sx={{ color: "#475569" }}>
+              Drag slider to change delivery coverage circle on the Google Map below.
             </Typography>
-            <div style={{ height: "260px", width: "100%", position: "relative" }}>
-              <MapContainer
-                center={[parseFloat(latitude) || 28.6139, parseFloat(longitude) || 77.2090]}
-                zoom={latitude && longitude ? 15 : 5}
-                style={{ height: "100%", width: "100%" }}
-                scrollWheelZoom={true}
-              >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                />
-                <MapClickHandler onMapClick={handleReverseGeocode} />
-                {latitude && longitude && (
-                  <Marker
-                    position={[parseFloat(latitude), parseFloat(longitude)]}
-                    icon={greenMarkerIcon}
-                    draggable={true}
-                    eventHandlers={{
-                      dragend: (e) => {
-                        const marker = e.target;
-                        const pos = marker.getLatLng();
-                        handleReverseGeocode(pos.lat, pos.lng);
-                      },
-                    }}
-                  />
-                )}
-              </MapContainer>
-            </div>
+          </Box>
+        </Grid>
+
+        {/* REAL GOOGLE MAP CONTAINER WITH SEARCH & AUTO DETECT */}
+        <Grid item xs={12}>
+          <Box sx={{ mt: 1, borderRadius: 2, overflow: "hidden", border: "2px solid #00a67e" }}>
+            <Typography variant="caption" sx={{ p: 1.5, display: "block", bgcolor: "#00a67e", color: "#ffffff", fontWeight: 700 }}>
+              📍 Real Google Map: Search Nearby Location, Drag Marker or Auto-Detect Device GPS
+            </Typography>
+            <Box sx={{ p: 2, bgcolor: "#ffffff" }}>
+              <GoogleServiceAreaMap
+                lat={parseFloat(latitude) || 28.6139}
+                lng={parseFloat(longitude) || 77.2090}
+                radiusKm={Number(geofenceRadius) || 5}
+                onLocationSelect={(selLat, selLng, placeObj) => {
+                  setLatitude(String(Number(selLat).toFixed(6)));
+                  setLongitude(String(Number(selLng).toFixed(6)));
+                  if (placeObj) {
+                    const parsed = parseGooglePlaceDetails(placeObj);
+                    if (parsed.address) setAddress(parsed.address);
+                    if (parsed.city) setCity(parsed.city);
+                    if (parsed.area) setArea(parsed.area);
+                  }
+                }}
+              />
+            </Box>
           </Box>
         </Grid>
       </FormSectionCard>
@@ -1479,118 +1528,5 @@ const AddRestaurantForm = () => {
     </Box>
   );
 };
-
-// Clean Form Section Card Component
-const FormSectionCard = ({ step, title, subtitle, icon: Icon, actionButton, children }) => (
-  <Paper
-    variant="outlined"
-    sx={{
-      p: { xs: 2.5, sm: 3.5 },
-      mb: 3.5,
-      borderRadius: 3.5,
-      borderColor: "#E2E8F0",
-      backgroundColor: "#FFFFFF",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.02), 0 10px 25px -5px rgba(0,0,0,0.02)",
-    }}
-  >
-    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-        <Box
-          sx={{
-            width: 40,
-            height: 40,
-            borderRadius: 2.5,
-            bgcolor: BRAND_LIGHT,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: BRAND_MAIN,
-          }}
-        >
-          <Icon sx={{ fontSize: 22 }} />
-        </Box>
-        <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#0F172A", lineHeight: 1.2 }}>
-            {title}
-          </Typography>
-          {subtitle && (
-            <Typography variant="caption" sx={{ color: "#64748B", display: "block", mt: 0.3 }}>
-              {subtitle}
-            </Typography>
-          )}
-        </Box>
-      </Box>
-      {actionButton}
-    </Box>
-
-    <Grid container spacing={2.5}>
-      {children}
-    </Grid>
-  </Paper>
-);
-
-// Clean Document Upload Box
-const DocumentUploadBox = ({ label, file, onUpload, onRemove, onFileRead }) => (
-  <Box
-    sx={{
-      p: 1.5,
-      border: "1px solid",
-      borderColor: file ? "#BBF7D0" : "#E2E8F0",
-      borderRadius: 2.5,
-      bgcolor: file ? "#F0FDF4" : "#F8FAFC",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      minHeight: 56,
-      transition: "all 0.2s ease",
-    }}
-  >
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, overflow: "hidden" }}>
-      {file ? (
-        <CheckCircle sx={{ color: "#16A34A", fontSize: 20 }} />
-      ) : (
-        <InsertDriveFile sx={{ color: "#94A3B8", fontSize: 20 }} />
-      )}
-      <Box sx={{ overflow: "hidden" }}>
-        <Typography variant="body2" fontWeight={600} color={file ? "#166534" : "#475569"} noWrap>
-          {label}
-        </Typography>
-        <Typography variant="caption" color={file ? "#15803D" : "#94A3B8"} display="block">
-          {file ? "Document Uploaded ✓" : "PDF or Image (Max 5MB)"}
-        </Typography>
-      </Box>
-    </Box>
-
-    {file ? (
-      <IconButton size="small" onClick={onRemove} sx={{ color: "#DC2626", "&:hover": { bgcolor: "#FEE2E2" } }}>
-        <Delete fontSize="small" />
-      </IconButton>
-    ) : (
-      <Button
-        component="label"
-        size="small"
-        variant="outlined"
-        startIcon={<CloudUpload fontSize="small" />}
-        sx={{
-          borderColor: "#CBD5E1",
-          color: "#334155",
-          textTransform: "none",
-          fontWeight: 600,
-          borderRadius: 2,
-          fontSize: "0.8rem",
-          "&:hover": { borderColor: BRAND_MAIN, color: BRAND_MAIN, bgcolor: BRAND_LIGHT },
-        }}
-      >
-        Upload
-        <input
-          type="file"
-          hidden
-          accept="image/*,application/pdf"
-          onChange={(e) => onFileRead(e.target.files[0], onUpload)}
-        />
-      </Button>
-    )}
-  </Box>
-);
 
 export default AddRestaurantForm;

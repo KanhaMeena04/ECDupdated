@@ -32,19 +32,7 @@ import { Edit2, Trash2, MapPin, Navigation, Compass, Plus, RefreshCw, X } from '
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { API_BASE_URL } from '../../utils/utils';
-import { MapContainer, TileLayer, Marker, Circle } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-// Fix Leaflet green marker icon URL
-const greenMarkerIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+import GoogleServiceAreaMap from '../components/GoogleServiceAreaMap';
 
 export default function ServiceAreasPage() {
   const [areas, setAreas] = useState([]);
@@ -434,125 +422,16 @@ export default function ServiceAreasPage() {
 
         <DialogContent sx={{ pt: 3, pb: 2 }}>
           <Grid container spacing={2}>
-            {/* Search location bar */}
+            {/* Interactive Real Google Maps View with Live Search, Device GPS & Radius Geofencing */}
             <Grid item xs={12}>
-              <Box component="form" onSubmit={handleLocationSearch} sx={{ position: 'relative' }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Search Map Location / Landmark / Area / City"
-                  placeholder="Type area name or landmark e.g. Vijay Nagar, Sapna Sangeeta, Indore..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => { if (searchResults.length > 0) setShowSearchResults(true); }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <MapPin size={18} className="text-[#248C70]" />
-                      </InputAdornment>
-                    ),
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        {searchQuery && (
-                          <IconButton size="small" onClick={() => { setSearchQuery(''); setSearchResults([]); setShowSearchResults(false); }}>
-                            <X size={16} />
-                          </IconButton>
-                        )}
-                        <Button
-                          type="submit"
-                          variant="contained"
-                          size="small"
-                          disabled={isSearching}
-                          sx={{ bgcolor: '#248C70', '&:hover': { bgcolor: '#1e755d' }, textTransform: 'none', fontWeight: 700, ml: 1, px: 2 }}
-                        >
-                          {isSearching ? <CircularProgress size={16} color="inherit" /> : 'Search'}
-                        </Button>
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      bgcolor: '#ffffff',
-                      borderRadius: 2,
-                    }
-                  }}
-                />
-
-                {/* Floating Search Results Dropdown */}
-                {showSearchResults && searchResults.length > 0 && (
-                  <Paper
-                    elevation={8}
-                    sx={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      zIndex: 1400,
-                      mt: 1,
-                      maxHeight: 240,
-                      overflowY: 'auto',
-                      borderRadius: 2,
-                      border: '1px solid #e5e7eb',
-                    }}
-                  >
-                    <List size="small" disablePadding>
-                      {searchResults.map((item, idx) => (
-                        <ListItemButton
-                          key={idx}
-                          onClick={() => handleSelectSearchResult(item)}
-                          sx={{
-                            borderBottom: '1px solid #f3f4f6',
-                            '&:hover': { bgcolor: '#e8f5e9' },
-                            py: 1,
-                          }}
-                        >
-                          <ListItemIcon sx={{ minWidth: 32 }}>
-                            <MapPin size={18} className="text-[#248C70]" />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={item.displayName}
-                            secondary={`Zone: ${item.zone || item.city} | Lat: ${item.lat.toFixed(4)}, Lng: ${item.lng.toFixed(4)}`}
-                            primaryTypographyProps={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}
-                            secondaryTypographyProps={{ fontSize: '11px', color: '#6b7280' }}
-                          />
-                        </ListItemButton>
-                      ))}
-                    </List>
-                  </Paper>
-                )}
-              </Box>
-            </Grid>
-
-            {/* Interactive Leaflet Map View */}
-            <Grid item xs={12}>
-              <Box sx={{ width: '100%', height: 280, borderRadius: 2, overflow: 'hidden', border: '2px solid #248C70', position: 'relative' }}>
-                <MapContainer
-                  center={mapCenter}
-                  zoom={13}
-                  style={{ width: '100%', height: '100%' }}
-                  zoomControl={true}
-                  ref={mapRef}
-                >
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  />
-                  <Marker
-                    position={mapCenter}
-                    icon={greenMarkerIcon}
-                    draggable={true}
-                    eventHandlers={{ dragend: handleMarkerDragEnd }}
-                    ref={markerRef}
-                  />
-                  <Circle
-                    center={mapCenter}
-                    radius={(Number(formData.deliveryRadiusKm) || 25) * 1000}
-                    pathOptions={{ color: '#248C70', fillColor: '#248C70', fillOpacity: 0.18, weight: 2 }}
-                  />
-                </MapContainer>
-              </Box>
+              <GoogleServiceAreaMap
+                lat={formData.lat}
+                lng={formData.lng}
+                radiusKm={formData.deliveryRadiusKm}
+                onLocationSelect={(newLat, newLng) => handleReverseGeocode(newLat, newLng)}
+              />
               <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', fontStyle: 'italic', fontWeight: 500 }}>
-                * Click anywhere on map or drag green pin marker to set exact location center & radius.
+                * Real Google Maps: Search location, use device GPS, click/drag pin marker to set exact geofenced coverage radius.
               </Typography>
             </Grid>
 

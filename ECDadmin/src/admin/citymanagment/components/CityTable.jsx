@@ -59,9 +59,18 @@ export default function CityTable() {
                   <TableCell>{index + 1}</TableCell>
 
                   <TableCell>{row.area || "-"}</TableCell>
-                  <TableCell>{row.name}</TableCell>
-                  <TableCell>{row.state}</TableCell>
-                  <TableCell>{row.country}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-800">{row.name}</span>
+                      {row.isServiceAvailable && (
+                        <span className="bg-emerald-100 text-emerald-700 text-[11px] px-2.5 py-0.5 rounded-full border border-emerald-300 font-bold flex items-center gap-1">
+                          📍 Services Available
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>{row.state || "Haryana"}</TableCell>
+                  <TableCell>{row.country || "India"}</TableCell>
 
                   <TableCell>
                     {row.isActive ? (

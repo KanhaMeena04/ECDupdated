@@ -116,7 +116,7 @@ export const INITIAL_TODAY_ORDERS = {
   ],
 };
 
-const useOrderDashboard = () => {
+const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '' } = {}) => {
   const [stats, setStats] = useState(INITIAL_STATS);
   const [todayOrders, setTodayOrders] = useState(INITIAL_TODAY_ORDERS);
   const [recentOrders, setRecentOrders] = useState([]);
@@ -128,6 +128,7 @@ const useOrderDashboard = () => {
     setError(false);
     try {
       const res = await axios.get(`${API_BASE_URL}/api/admin/order-dashboard`, {
+        params: { period, startDate, endDate },
         withCredentials: true,
       });
       const data = res.data || {};
@@ -146,7 +147,7 @@ const useOrderDashboard = () => {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, []);
+  }, [period, startDate, endDate]);
 
   useEffect(() => {
     fetchDashboard(false);

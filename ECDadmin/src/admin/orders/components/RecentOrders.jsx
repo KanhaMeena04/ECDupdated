@@ -28,9 +28,10 @@ const formatName = (val, fallback = "") => {
   return String(val);
 };
 
-export default function RecentOrders() {
+export default function RecentOrders({ recentOrders: propRecentOrders }) {
   const navigate = useNavigate();
-  const { recentOrders } = useOrderDashboard();
+  const { recentOrders: apiRecentOrders } = useOrderDashboard();
+  const recentOrders = propRecentOrders || apiRecentOrders;
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-100 h-full flex flex-col">

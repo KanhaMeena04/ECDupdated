@@ -27,7 +27,11 @@ const AdminCreateRiderForm = ({
   const { cities: citiesData = [], loading: citiesLoading } = useCities();
   const { zones: zonesData = [], loading: zonesLoading } = useZones();
 
-  const cityOptions = citiesData.map((c) => ({ _id: c._id, name: c.name }));
+  const cityOptions = citiesData.map((c) => ({
+    _id: c._id || c.name,
+    name: c.name,
+    label: c.isServiceAvailable ? `${c.name} 📍 (Services Available)` : `${c.name} (Haryana)`
+  }));
   const zoneOptions = zonesData.map((z) => ({ _id: z._id, name: z.name }));
 
   const handleProfilePicUpload = async (e) => {
@@ -292,7 +296,7 @@ const AdminCreateRiderForm = ({
               <option value="">Select City</option>
               {cityOptions.map((c) => (
                 <option key={c._id} value={c.name}>
-                  {c.name}
+                  {c.label || c.name}
                 </option>
               ))}
             </select>

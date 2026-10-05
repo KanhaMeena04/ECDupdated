@@ -24,7 +24,8 @@ const zoneSchema = new mongoose.Schema({
 }, { timestamps: true });
 const citySchema = new mongoose.Schema({
   name: { type: String, required: true },
-  country: { type: String, default: '' }, // Optionally store country name or id later
+  state: { type: String, default: 'Haryana' },
+  country: { type: String, default: 'India' },
   isActive: { type: Boolean, default: true },
   isDefault: { type: Boolean, default: false },
   slug: { type: String },

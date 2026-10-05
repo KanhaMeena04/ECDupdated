@@ -199,4 +199,5 @@ orderSchema.index({ "deliveryAddress.coordinates": "2dsphere" });
 orderSchema.index({ restaurant: 1 });
 orderSchema.index({ paymentStatus: 1 });
 orderSchema.index({ status: 1, restaurant: 1 });
+orderSchema.index({ createdAt: -1, status: 1 });
 module.exports = mongoose.model("Order", orderSchema);

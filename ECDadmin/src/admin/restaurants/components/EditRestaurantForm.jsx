@@ -13,9 +13,11 @@ import {
   CircularProgress,
   Breadcrumbs,
   Typography,
+  Slider,
+  Box,
 } from "@mui/material";
 import { 
-  MapPin, Store, User, ShieldCheck, Globe, ListFilter, 
+  MapPin, Store, ShieldCheck, ListFilter, 
   AlertCircle, Save, ChevronRight, History 
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -23,18 +25,18 @@ import ImageUploadSection from "./ImageUploadSection";
 import { useEditRestaurantProfile} from "../../api/restaurant"; 
 import { useCuisine } from "../../api/cuisine";
 import { useCities } from "../../api/city";
+import GoogleServiceAreaMap, { parseGooglePlaceDetails } from "../../components/GoogleServiceAreaMap";
 
 const EditRestaurantForm = () => {
   const navigate = useNavigate();
   const { id } = useParams(); 
 
   const { data, handleChange, handleSubmit, loading, error } =
-    useEditRestaurantProfile(id, () => {
-      
-    });
+    useEditRestaurantProfile(id, () => {});
 
-  const { cuisines, loading: cuisinesLoading, error: cuisinesError } = useCuisine();
-  const {cities}=useCities()
+  const { cuisines, loading: cuisinesLoading } = useCuisine();
+  const { cities } = useCities();
+
   const toggleCuisine = (value) => {
     const currentList = Array.isArray(data?.cuisine) ? data.cuisine : [];
     handleChange({
@@ -60,6 +62,33 @@ const EditRestaurantForm = () => {
     : (data.name || "");
 
   const safeCuisines = Array.isArray(data.cuisine) ? data.cuisine : [];
+
+  const currentLat = data.latitude !== undefined && data.latitude !== ""
+    ? Number(data.latitude)
+    : (data.location?.coordinates?.[1] || 28.6139);
+
+  const currentLng = data.longitude !== undefined && data.longitude !== ""
+    ? Number(data.longitude)
+    : (data.location?.coordinates?.[0] || 77.2090);
+
+  const currentRadius = data.geofenceRadius !== undefined && data.geofenceRadius !== ""
+    ? Number(data.geofenceRadius)
+    : 10;
+
+  const handleMapLocationSelect = (selectedLat, selectedLng, placeObj) => {
+    const newLocation = { type: "Point", coordinates: [Number(selectedLng), Number(selectedLat)] };
+    
+    handleChange({ target: { name: "latitude", value: selectedLat } });
+    handleChange({ target: { name: "longitude", value: selectedLng } });
+    handleChange({ target: { name: "location", value: newLocation } });
+
+    if (placeObj) {
+      const parsed = parseGooglePlaceDetails(placeObj);
+      if (parsed.address) handleChange({ target: { name: "address", value: parsed.address } });
+      if (parsed.city) handleChange({ target: { name: "city", value: parsed.city } });
+      if (parsed.area) handleChange({ target: { name: "area", value: parsed.area } });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12 font-sans text-gray-700">
@@ -93,7 +122,7 @@ const EditRestaurantForm = () => {
                 🍽️ Manage / Add Menu
               </Button>
               <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg border border-white/30 text-white text-sm flex items-center gap-2">
-                <History size={16} /> Last Updated: Dec 31, 2025
+                <History size={16} /> Live DB Synced
               </div>
             </div>
           </div>
@@ -101,7 +130,6 @@ const EditRestaurantForm = () => {
       </div>
 
       <div className="-mt-12 max-w-7xl mx-auto px-4 md:px-10">
-        {/* Reuse your existing Image Section */}
         <ImageUploadSection className="bg-[#fe3f3f]" isEdit={true} />
 
         <Paper elevation={0} className="mt-8 rounded-2xl border border-gray-100 overflow-hidden shadow-xl">
@@ -166,47 +194,6 @@ const EditRestaurantForm = () => {
                   <TextField fullWidth label="Admin Comm (%)" name="adminCommission" value={data.adminCommission || ""} onChange={handleChange} size="small" />
                 </div>
               </section>
-            </div>
-
-            {/* RIGHT COLUMN: Operational Map & Settings */}
-            <div className="space-y-8">
-              <section>
-                <div className="flex items-center gap-2 text-gray-400 font-black text-[11px] uppercase tracking-[2px] mb-6">
-                   Global Logistics
-                </div>
-                <div className="grid gap-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Operational City</InputLabel>
-                      <Select label="Operational City" name="city" value={data.city || (cities[0] || "Sohna")} onChange={handleChange}>
-                        {cities && cities.map((cityItem, idx) => {
-                          const cityName = typeof cityItem === 'object' ? cityItem.name : cityItem;
-                          return (
-                            <MenuItem key={idx} value={cityName}>
-                              {cityName}
-                            </MenuItem>
-                          );
-                        })}
-                      </Select>
-                    </FormControl>
-                    <TextField fullWidth label="Zone Area" name="area" value={data.area || ""} onChange={handleChange} size="small" />
-                  </div>
-                  <TextField fullWidth label="Full Physical Address" name="address" value={data.address || ""} onChange={handleChange} size="small" />
-                </div>
-              </section>
-
-              <div className="group relative rounded-2xl overflow-hidden border-4 border-white shadow-lg h-[240px]">
-                <img
-                  src="https://maps.googleapis.com/maps/api/staticmap?center=40.712776,-74.005974&zoom=13&size=600x300&style=feature:all|element:labels|visibility:on"
-                  alt="Map"
-                  className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500"
-                />
-                <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-all"></div>
-                <MapPin className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-600 drop-shadow-md" size={40} />
-                <div className="absolute bottom-4 right-4 bg-white px-3 py-1.5 rounded-lg shadow-xl text-[10px] font-bold text-gray-600 border border-gray-100">
-                  CLICK MAP TO UPDATE COORDINATES
-                </div>
-              </div>
 
               <div className="p-5 bg-gray-50 rounded-2xl border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
@@ -234,20 +221,138 @@ const EditRestaurantForm = () => {
               </div>
 
               <div className="flex flex-wrap gap-x-8 gap-y-4 px-2">
-                    <FormControl fullWidth size="small">
-                     <InputLabel>Delivery Type</InputLabel>
-                     <Select
-                       name="deliveryType"
-                       value={data.deliveryType || ""}
-                       label="Delivery Type"
-                       onChange={handleChange}
-                     >
-                       <MenuItem value="Home Delivery">Home Delivery</MenuItem>
-                       <MenuItem value="Pickup">Pickup</MenuItem>
-                       <MenuItem value="Dining">Dining</MenuItem>
-                     </Select>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Delivery Type</InputLabel>
+                  <Select
+                    name="deliveryType"
+                    value={data.deliveryType || ""}
+                    label="Delivery Type"
+                    onChange={handleChange}
+                  >
+                    <MenuItem value="Home Delivery">Home Delivery</MenuItem>
+                    <MenuItem value="Pickup">Pickup</MenuItem>
+                    <MenuItem value="Dining">Dining</MenuItem>
+                  </Select>
                 </FormControl>
               </div>
+            </div>
+
+            {/* RIGHT COLUMN: Operational Map & Settings */}
+            <div className="space-y-8">
+              <section>
+                <div className="flex items-center gap-2 text-gray-400 font-black text-[11px] uppercase tracking-[2px] mb-6">
+                   Global Logistics & Service Radius
+                </div>
+                <div className="grid gap-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Operational City</InputLabel>
+                      <Select 
+                        label="Operational City" 
+                        name="city" 
+                        value={data.city || (typeof cities[0] === 'object' ? cities[0]?.name : cities[0]) || "Sohna"} 
+                        onChange={handleChange}
+                      >
+                        {data.city && !cities.some(c => (typeof c === 'object' ? c.name : c) === data.city) && (
+                          <MenuItem value={data.city}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+                              <span className="font-medium text-gray-800">{data.city}</span>
+                            </Box>
+                          </MenuItem>
+                        )}
+                        {cities && cities.map((cityItem, idx) => {
+                          const cityName = typeof cityItem === 'object' ? cityItem.name : cityItem;
+                          const isAvailable = typeof cityItem === 'object' ? (cityItem.isServiceAvailable || cityItem.hasService) : false;
+                          return (
+                            <MenuItem key={cityItem._id || idx} value={cityName}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+                                <span className="font-medium text-gray-800">{cityName}</span>
+                                {isAvailable ? (
+                                  <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 rounded-full border border-emerald-300 flex items-center gap-1">
+                                    📍 Services Available
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-500 rounded-full border border-gray-200">
+                                    Haryana City
+                                  </span>
+                                )}
+                              </Box>
+                            </MenuItem>
+                          );
+                        })}
+                      </Select>
+                    </FormControl>
+                    <TextField fullWidth label="Zone Area" name="area" value={data.area || ""} onChange={handleChange} size="small" />
+                  </div>
+                  <TextField fullWidth label="Full Physical Address" name="address" value={data.address || ""} onChange={handleChange} size="small" multiline rows={2} />
+                  
+                  {/* Coordinates & Custom Manual Location Input */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <TextField
+                      fullWidth
+                      label="Latitude (°N)"
+                      name="latitude"
+                      value={currentLat}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleChange({ target: { name: "latitude", value: val } });
+                        handleChange({ target: { name: "location", value: { type: "Point", coordinates: [Number(currentLng), Number(val) || 0] } } });
+                      }}
+                      size="small"
+                    />
+                    <TextField
+                      fullWidth
+                      label="Longitude (°E)"
+                      name="longitude"
+                      value={currentLng}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleChange({ target: { name: "longitude", value: val } });
+                        handleChange({ target: { name: "location", value: { type: "Point", coordinates: [Number(val) || 0, Number(currentLat)] } } });
+                      }}
+                      size="small"
+                    />
+                  </div>
+
+                  {/* Service Delivery Geofence Radius */}
+                  <Box className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                    <div className="flex justify-between items-center mb-2">
+                      <Typography className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                        📍 Service Area Delivery Radius
+                      </Typography>
+                      <Typography className="text-sm font-extrabold text-[#00a67e]">
+                        {currentRadius} KM
+                      </Typography>
+                    </div>
+                    <Slider
+                      value={currentRadius}
+                      min={1}
+                      max={50}
+                      step={1}
+                      onChange={(e, val) => handleChange({ target: { name: "geofenceRadius", value: val } })}
+                      sx={{ color: '#00a67e' }}
+                    />
+                    <Typography className="text-[11px] text-gray-500 font-medium">
+                      Drag slider to expand or reduce the delivery radius circle on the map.
+                    </Typography>
+                  </Box>
+                </div>
+              </section>
+
+              {/* REAL GOOGLE MAP CONTAINER WITH SEARCH & AUTO DETECT */}
+              <Box className="rounded-2xl overflow-hidden border-2 border-emerald-500 shadow-md">
+                <Typography className="p-2.5 bg-emerald-700 text-white text-xs font-bold flex items-center gap-2">
+                  <MapPin size={16} /> Drag Marker or Search to Pin Exact Restaurant Coordinates
+                </Typography>
+                <Box className="p-3 bg-white">
+                  <GoogleServiceAreaMap
+                    lat={currentLat}
+                    lng={currentLng}
+                    radiusKm={currentRadius}
+                    onLocationSelect={handleMapLocationSelect}
+                  />
+                </Box>
+              </Box>
             </div>
           </form>
 

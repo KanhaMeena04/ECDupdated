@@ -59,8 +59,6 @@ export const menuItems = [
       { text: 'Approved Restaurants', path: '/approve-restaurant' },
       { text: 'Restaurant Promocodes', path: '/promocodes' },
       { text: 'Add Promocode', path: '/add-promocodes' },
-      { text: 'Documents', path: '/documents' },
-      { text: 'Restaurant Controls', path: '/active-restaurants' },
     ]
   },
 
@@ -77,7 +75,6 @@ export const menuItems = [
   },
 
   { text: 'Orders', icon: <Assignment />, path: '/new-order' },
-  { text: 'Dispatch', icon: <LocalShipping />, path: '/driver-live-location/live' },
 
   {
     text: 'Menu',

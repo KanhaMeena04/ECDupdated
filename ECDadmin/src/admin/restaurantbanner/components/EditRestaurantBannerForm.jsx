@@ -150,7 +150,7 @@ const EditRestaurantBannerForm = () => {
               >
                 {cities.map(city => (
                   <MenuItem key={city._id} value={city._id}>
-                    {city.name}
+                    {city.name} {city.isServiceAvailable ? '📍 (Services Available)' : ''}
                   </MenuItem>
                 ))}
               </Select>

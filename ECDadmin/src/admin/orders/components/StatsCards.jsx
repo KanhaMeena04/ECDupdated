@@ -14,8 +14,9 @@ const iconMap = {
   processing: AccessTime,
 };
 
-export default function StatsCards() {
-  const { stats } = useOrderDashboard();
+export default function StatsCards({ stats: propStats }) {
+  const { stats: apiStats } = useOrderDashboard();
+  const stats = propStats || apiStats;
 
   return (
     <div className="stats-cards-wrapper sm:mt-12 md:mt-0 border bg-white rounded-lg">

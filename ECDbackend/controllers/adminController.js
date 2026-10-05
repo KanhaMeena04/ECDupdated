@@ -163,31 +163,77 @@ exports.getDashboard = async (req, res) => {
 };
 exports.getOrdersDashboard = async (req, res) => {
   try {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    const totalOrdersInDB = await Order.countDocuments({});
-    console.log('🗄️ Total orders in database:', totalOrdersInDB);
-    const totalToday = await Order.countDocuments({ createdAt: { $gte: start, $lte: end } });
-    const completedToday = await Order.countDocuments({
-      status: 'delivered',
-      createdAt: { $gte: start, $lte: end }
-    });
-    const cancelledToday = await Order.countDocuments({ status: 'cancelled', createdAt: { $gte: start, $lte: end } });
+    const { period = "today", startDate, endDate } = req.query;
+    const limit = parseInt(req.query.limit) || 10;
+
+    let matchQuery = {};
+    const now = new Date();
+
+    if (period === "today" || period === "daily") {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      matchQuery.createdAt = { $gte: start, $lte: end };
+    } else if (period === "weekly") {
+      const start = new Date();
+      start.setDate(start.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      matchQuery.createdAt = { $gte: start, $lte: now };
+    } else if (period === "monthly") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      start.setHours(0, 0, 0, 0);
+      matchQuery.createdAt = { $gte: start, $lte: now };
+    } else if (period === "yearly") {
+      const start = new Date(now.getFullYear(), 0, 1);
+      start.setHours(0, 0, 0, 0);
+      matchQuery.createdAt = { $gte: start, $lte: now };
+    } else if (period === "custom" && startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      matchQuery.createdAt = { $gte: start, $lte: end };
+    } else if (period === "all") {
+      matchQuery = {};
+    }
+
     const processingStatuses = [
+      'pending',
       'placed',
       'accepted',
+      'preparing',
       'accepted_by_rider',
       'preparation',
       'ready',
       'assigned',
+      'reached_restaurant',
       'picked_up',
+      'delivery_arrived',
       'arrived_restaurant',
       'arrived_customer',
     ];
-    const processingToday = await Order.countDocuments({ status: { $in: processingStatuses }, createdAt: { $gte: start, $lte: end } });
-    const limit = parseInt(req.query.limit) || 10;
+
+    let totalCount = await Order.countDocuments(matchQuery);
+    let activePeriodLabel = period;
+
+    // Fallback: If 'today' filter yields 0 orders, check if DB has any orders and fallback to 'all' time so dashboard displays real data instead of blank 0s
+    if (totalCount === 0 && (period === "today" || period === "daily")) {
+      const dbTotal = await Order.countDocuments({});
+      if (dbTotal > 0) {
+        matchQuery = {};
+        totalCount = dbTotal;
+        activePeriodLabel = "all";
+      }
+    }
+
+    const [completedCount, cancelledCount, processingCount, newCount] = await Promise.all([
+      Order.countDocuments({ ...matchQuery, status: { $in: ['delivered', 'completed'] } }),
+      Order.countDocuments({ ...matchQuery, status: { $in: ['cancelled', 'failed'] } }),
+      Order.countDocuments({ ...matchQuery, status: { $in: processingStatuses } }),
+      Order.countDocuments({ ...matchQuery, status: 'placed' })
+    ]);
+
     const recentOrders = await Order.find({})
       .populate('customer', 'name mobile')
       .populate('restaurant', 'name')
@@ -195,35 +241,46 @@ exports.getOrdersDashboard = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
-    const newOrdersToday = await Order.countDocuments({ status: 'placed', createdAt: { $gte: start, $lte: end } });
+
+    let periodTitle = "Today";
+    if (activePeriodLabel === "weekly") periodTitle = "Weekly";
+    else if (activePeriodLabel === "monthly") periodTitle = "Monthly";
+    else if (activePeriodLabel === "yearly") periodTitle = "Yearly";
+    else if (activePeriodLabel === "custom") periodTitle = "Selected Period";
+    else if (activePeriodLabel === "all") periodTitle = "All Time";
+
     const stats = [
-      { label: 'Today Orders', value: totalToday, type: 'today' },
-      { label: 'Today Completed Orders', value: completedToday, type: 'completed' },
-      { label: 'Today Cancelled Orders', value: cancelledToday, type: 'cancelled' },
-      { label: 'Today Processing Orders', value: processingToday, type: 'processing' }
+      { label: `${periodTitle} Orders`, value: totalCount, type: 'today' },
+      { label: `${periodTitle} Completed Orders`, value: completedCount, type: 'completed' },
+      { label: `${periodTitle} Cancelled Orders`, value: cancelledCount, type: 'cancelled' },
+      { label: `${periodTitle} Processing Orders`, value: processingCount, type: 'processing' }
     ];
+
     const todayOrders = {
-      total: totalToday,
-      completedPercent: totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0,
+      period: activePeriodLabel,
+      periodTitle: periodTitle,
+      total: totalCount,
+      completedPercent: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
       breakdown: [
-        { label: 'New Orders', value: newOrdersToday },
-        { label: 'Processing Orders', value: processingToday },
-        { label: 'Cancelled Orders', value: cancelledToday }
+        { label: 'New Orders', value: newCount },
+        { label: 'Processing Orders', value: processingCount },
+        { label: 'Cancelled Orders', value: cancelledCount }
       ]
     };
-function safeString(val, fallback = '') {
-  if (val === null || val === undefined) return fallback;
-  if (typeof val === 'string') return val;
-  if (typeof val === 'number') return String(val);
-  if (typeof val === 'object') {
-    return val.en || val.hi || val.name || val.title || (Object.values(val).find(v => typeof v === 'string') || fallback);
-  }
-  return String(val);
-}
+
+    function safeString(val, fallback = '') {
+      if (val === null || val === undefined) return fallback;
+      if (typeof val === 'string') return val;
+      if (typeof val === 'number') return String(val);
+      if (typeof val === 'object') {
+        return val.en || val.hi || val.name || val.title || (Object.values(val).find(v => typeof v === 'string') || fallback);
+      }
+      return String(val);
+    }
 
     const formattedRecentOrders = recentOrders.map(order => {
       const statusType = order.status === 'cancelled' ? 'failed' :
-        order.status === 'delivered' ? 'completed' : 'processing';
+        ['delivered', 'completed'].includes(order.status) ? 'completed' : 'processing';
       const color = statusType === 'failed' ? 'text-red-500' :
         statusType === 'completed' ? 'text-green-500' : 'text-yellow-500';
 
@@ -251,12 +308,13 @@ function safeString(val, fallback = '') {
         createdAt: order.createdAt
       };
     });
-    const response = {
+
+    res.status(200).json({
+      success: true,
       stats,
       todayOrders,
       recentOrders: formattedRecentOrders
-    };
-    res.status(200).json(response);
+    });
   } catch (error) {
     console.error('Orders Dashboard error:', error);
     res.status(500).json({ message: error.message });

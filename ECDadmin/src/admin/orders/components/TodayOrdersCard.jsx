@@ -2,16 +2,17 @@
 
 import {useOrderDashboard} from "../../api/order";
 
-export default function TodayOrdersCard() {
-  const { todayOrders } = useOrderDashboard();
+export default function TodayOrdersCard({ todayOrders: propTodayOrders }) {
+  const { todayOrders: apiTodayOrders } = useOrderDashboard();
+  const todayOrders = propTodayOrders || apiTodayOrders;
 
   if (!todayOrders) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-gray-500 h-full">
+    <div className="bg-white rounded-xl shadow-md border border-gray-200 h-full">
       <div className="p-6">
-        <h3 className="text-lg font-medium text-gray-700">
-          Today Orders
+        <h3 className="text-lg font-semibold text-gray-800">
+          {todayOrders.periodTitle ? `${todayOrders.periodTitle} Orders` : "Today Orders"}
         </h3>
 
         <div className="text-center mt-6">

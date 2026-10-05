@@ -141,6 +141,7 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
 
   const fetchLiveNotifications = React.useCallback(async () => {
     try {
+      const readIds: string[] = JSON.parse(localStorage.getItem('admin_read_notification_ids') || '[]');
       const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       const headers: Record<string, string> = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -151,26 +152,30 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
       });
 
       if (res.data?.success && Array.isArray(res.data.notifications)) {
-        const cleaned: NotificationItem[] = res.data.notifications.map((n: any) => ({
-          ...n,
-          id: String(n.id || n._id),
-          orderId: String(n.orderId || n._id),
-          orderCode: safeText(n.orderCode, 'Order'),
-          restaurantName: safeText(n.restaurantName, 'Restaurant'),
-          customerName: safeText(n.customerName, 'Customer'),
-          title: safeText(n.title, 'Order Notification'),
-          description: safeText(n.description, ''),
-        }));
+        const cleaned: NotificationItem[] = res.data.notifications.map((n: any) => {
+          const notifId = String(n.id || n._id);
+          const isRead = readIds.includes(notifId) || n.read === true;
+          return {
+            ...n,
+            id: notifId,
+            orderId: String(n.orderId || n._id),
+            orderCode: safeText(n.orderCode, 'Order'),
+            restaurantName: safeText(n.restaurantName, 'Restaurant'),
+            customerName: safeText(n.customerName, 'Customer'),
+            title: safeText(n.title, 'Order Notification'),
+            description: safeText(n.description, ''),
+            read: isRead,
+          };
+        });
         setNotifications(cleaned);
-        const unread = typeof res.data.unreadCount === 'number'
-          ? res.data.unreadCount
-          : cleaned.filter((n: NotificationItem) => !n.read).length;
+        const unread = cleaned.filter((n: NotificationItem) => !n.read).length;
         setUnreadCount(unread);
         return;
       }
     } catch (err) {
       // Fallback to order-dashboard
       try {
+        const readIds: string[] = JSON.parse(localStorage.getItem('admin_read_notification_ids') || '[]');
         const token = localStorage.getItem('token') || sessionStorage.getItem('token');
         const headers: Record<string, string> = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -182,11 +187,13 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
 
         if (fallback.data?.recentOrders && Array.isArray(fallback.data.recentOrders)) {
           const list: NotificationItem[] = fallback.data.recentOrders.map((o: any) => {
+            const notifId = String(o._id || o.id);
             const rName = safeText(o.restaurantName || o.restaurant?.name || o.restaurant, 'Restaurant');
             const cName = safeText(o.customerName || o.customer?.name || o.customer, 'Customer');
             const isPickup = o.orderType === 'self_pickup';
+            const isRead = readIds.includes(notifId) || ['delivered', 'cancelled'].includes(String(o.status).toLowerCase());
             return {
-              id: String(o._id || o.id),
+              id: notifId,
               orderId: String(o._id || (o.id ? o.id.replace('#', '') : '')),
               orderCode: String(o.orderCode || o.id),
               restaurantName: rName,
@@ -198,7 +205,7 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
               amount: Number(o.totalAmount || 0),
               amountFormatted: String(o.inrAmount || o.amount || '₹0.00'),
               createdAt: o.createdAt || new Date().toISOString(),
-              read: ['delivered', 'cancelled'].includes(String(o.status).toLowerCase()),
+              read: isRead,
             };
           });
           setNotifications(list);
@@ -235,6 +242,11 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
   };
 
   const handleMarkAllRead = () => {
+    const allIds = notifications.map(n => n.id);
+    const existingReadIds: string[] = JSON.parse(localStorage.getItem('admin_read_notification_ids') || '[]');
+    const updated = Array.from(new Set([...existingReadIds, ...allIds]));
+    localStorage.setItem('admin_read_notification_ids', JSON.stringify(updated));
+
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
   };
@@ -538,7 +550,13 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
                     <ListItem 
                       key={notif.id}
                       onClick={() => {
+                        const existingReadIds: string[] = JSON.parse(localStorage.getItem('admin_read_notification_ids') || '[]');
+                        if (!existingReadIds.includes(notif.id)) {
+                          existingReadIds.push(notif.id);
+                          localStorage.setItem('admin_read_notification_ids', JSON.stringify(existingReadIds));
+                        }
                         setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+                        setUnreadCount(prev => Math.max(0, prev - (notif.read ? 0 : 1)));
                         if (notif.orderId) {
                           navigate(`/view-order/${notif.orderId}`);
                           handleNotifClose();
