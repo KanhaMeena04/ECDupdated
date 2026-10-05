@@ -5,6 +5,12 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { sendOTP, verify2FactorOTP } = require("../utils/twilioService");
+
+// Fixed demo credentials for customer app (App Store / QA review)
+const DEMO_USER_PHONE = "1234567890";
+const DEMO_USER_OTP = "123456";
+const isDemoUserPhone = (last10) => last10 === DEMO_USER_PHONE;
+
 const generateToken = (res, user) => {
   const token = jwt.sign(
     { _id: user._id, role: user.role },
@@ -828,7 +834,10 @@ exports.userSendOtp = async (req, res) => {
     const last10Regex = new RegExp(`${last10}$`);
     const phoneVariations = [phoneNum, cleanDigits, last10, `+91${last10}`, `91${last10}`].filter(Boolean);
 
-    const generatedOtp = crypto.randomInt(100000, 999999).toString();
+    const isDemoUser = isDemoUserPhone(last10);
+    const generatedOtp = isDemoUser
+      ? DEMO_USER_OTP
+      : crypto.randomInt(100000, 999999).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     let user = await User.findOne({
@@ -844,7 +853,7 @@ exports.userSendOtp = async (req, res) => {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash("user123", salt);
       user = await User.create({
-        name: finalName || `User ${last10.slice(-4)}`,
+        name: finalName || (isDemoUser ? "Demo User" : `User ${last10.slice(-4)}`),
         firstName: providedFn || (finalName ? finalName.split(" ")[0] : ""),
         lastName: providedLn || (finalName ? finalName.split(" ").slice(1).join(" ") : ""),
         email: `user_${last10}@ecdkart.com`,
@@ -872,19 +881,25 @@ exports.userSendOtp = async (req, res) => {
     }
 
     let smsResult = null;
-    try {
-      smsResult = await sendOTP(last10, generatedOtp);
-      console.log(`📱 [User Send OTP] Sent SMS to +91${last10}: OTP = ${generatedOtp}, Result:`, smsResult);
-    } catch (smsErr) {
-      console.error("SMS Dispatch error (userSendOtp):", smsErr.message);
+    if (isDemoUser) {
+      console.log(`📱 [User Send OTP] Demo account +91${last10}: fixed OTP ${DEMO_USER_OTP} (SMS skipped)`);
+    } else {
+      try {
+        smsResult = await sendOTP(last10, generatedOtp);
+        console.log(`📱 [User Send OTP] Sent SMS to +91${last10}: OTP = ${generatedOtp}, Result:`, smsResult);
+      } catch (smsErr) {
+        console.error("SMS Dispatch error (userSendOtp):", smsErr.message);
+      }
     }
 
     return res.status(200).json({
       success: true,
-      message: `OTP sent successfully to +91${last10}`,
+      message: isDemoUser
+        ? `Demo OTP ready for +91${last10}`
+        : `OTP sent successfully to +91${last10}`,
       mobile: `+91${last10}`,
-      testOtp: process.env.NODE_ENV !== "production" ? generatedOtp : undefined,
-      smsDispatched: smsResult ? smsResult.success : false
+      testOtp: isDemoUser || process.env.NODE_ENV !== "production" ? generatedOtp : undefined,
+      smsDispatched: isDemoUser ? false : (smsResult ? smsResult.success : false)
     });
   } catch (error) {
     console.error("User Send OTP Error:", error);
@@ -916,6 +931,8 @@ exports.userVerifyOtp = async (req, res) => {
     const last10Regex = new RegExp(`${last10}$`);
     const phoneVariations = [phoneNum, cleanDigits, last10, `+91${last10}`, `91${last10}`].filter(Boolean);
 
+    const isDemoLogin = isDemoUserPhone(last10) && enteredOtp === DEMO_USER_OTP;
+
     let user = await User.findOne({
       $or: [
         { mobile: last10Regex },
@@ -925,11 +942,28 @@ exports.userVerifyOtp = async (req, res) => {
       ]
     }).sort({ createdAt: 1 });
 
+    if (!user && isDemoLogin) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash("user123", salt);
+      user = await User.create({
+        name: finalName || "Demo User",
+        firstName: providedFn || "Demo",
+        lastName: providedLn || "User",
+        email: `demo_${last10}@ecdkart.com`,
+        mobile: `+91${last10}`,
+        phone: `+91${last10}`,
+        password: hashedPassword,
+        role: "customer",
+        isVerified: true
+      });
+    }
+
     if (!user) {
       return res.status(404).json({ success: false, message: "User account not found. Please send OTP first." });
     }
 
-    const isValidUserOtp = user.otp && user.otp === enteredOtp && user.otpExpires > new Date();
+    const isValidUserOtp = isDemoLogin ||
+      (user.otp && user.otp === enteredOtp && user.otpExpires > new Date());
 
     if (!isValidUserOtp) {
       return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
