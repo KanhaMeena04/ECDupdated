@@ -107,15 +107,27 @@ import { useRiders } from "../../api/driver";
 import { useDeleteRider } from "../../api/driver";
 import ConfirmDeleteDialog from "../../components/ConfirmDeleteDialog";
 
-function DriverTable() {
+function DriverTable({ searchQuery = "" }) {
   const navigate = useNavigate();
 
-  const { riders, loading, error, refetch } = useRiders();
+  const { riders = [], loading, error, refetch } = useRiders();
   const { deleteRider, loading: deleting, error: deleteError } =
     useDeleteRider();
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedRiderId, setSelectedRiderId] = useState(null);
+
+  /* ---------------- Filter Logic ---------------- */
+  const filteredRiders = Array.isArray(riders) ? riders.filter((r) => {
+    if (!searchQuery || !searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const id = (r._id || "").toLowerCase();
+    const name = (r.user?.name || r.name || "").toLowerCase();
+    const phone = (r.user?.mobile || r.user?.phone || r.phone || r.mobile || "").toLowerCase();
+    const status = (r.verificationStatus || "").toLowerCase();
+    const city = (r.city || r.workCity || "").toLowerCase();
+    return id.includes(q) || name.includes(q) || phone.includes(q) || status.includes(q) || city.includes(q);
+  }) : [];
 
   /* ---------------- Handlers ---------------- */
 
@@ -160,7 +172,7 @@ function DriverTable() {
 
   /* ---------------- UI States ---------------- */
 
-  if (loading) return <p className="p-4">Loading...</p>;
+  if (loading) return <p className="p-4">Loading riders...</p>;
   if (error) return <p className="p-4 text-red-500">{error}</p>;
 
   return (
@@ -171,7 +183,7 @@ function DriverTable() {
             <tr>
               <th className="p-3 border w-10">#</th>
               {[
-                "Driver ID",
+                "Rider ID",
                 "Name",
                 "Phone Number",
                 "Status",
@@ -192,11 +204,11 @@ function DriverTable() {
           </thead>
 
           <tbody>
-            {riders.map((r, i) => (
+            {filteredRiders.map((r, i) => (
               <tr key={r._id} className="hover:bg-gray-50">
                 <td className="p-3 border text-center">{i + 1}</td>
                 <td className="p-3 border text-blue-600 font-mono text-xs">{r._id}</td>
-                <td className="p-3 border font-semibold">{r.user?.name || r.name || "Driver Partner"}</td>
+                <td className="p-3 border font-semibold">{r.user?.name || r.name || "Rider Partner"}</td>
                 <td className="p-3 border">{r.user?.mobile || r.user?.phone || r.phone || r.mobile || "-"}</td>
 
                 <td className="p-3 border">
@@ -249,6 +261,13 @@ function DriverTable() {
                 </td>
               </tr>
             ))}
+            {filteredRiders.length === 0 && (
+              <tr>
+                <td colSpan={7} className="text-center py-6 text-gray-500">
+                  {searchQuery ? `No riders found matching "${searchQuery}"` : "No riders found"}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

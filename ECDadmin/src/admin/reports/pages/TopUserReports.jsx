@@ -15,7 +15,7 @@ function TopUserReports() {
     user: r.name,
     phone: r.phone,
     orders: r.orders || 0,
-    amount: `RM ${r.amount?.toFixed(2) || '0.00'}`
+    amount: `₹${r.amount?.toFixed(2) || '0.00'}`
   }));
 
   return (

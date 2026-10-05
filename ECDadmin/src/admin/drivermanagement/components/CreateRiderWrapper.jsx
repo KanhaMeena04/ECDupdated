@@ -8,7 +8,7 @@ import RiderBankDetailsForm from "./RiderBankDetailsForm";
 import { useCreateRider } from "../../api/driver.js";
 
 const steps = [
-  { id: 0, label: "Driver & PIN", icon: User, desc: "Personal info & 4-Digit Security PIN" },
+  { id: 0, label: "Rider & PIN", icon: User, desc: "Personal info & 4-Digit Security PIN" },
   { id: 1, label: "Vehicle Info", icon: Bike, desc: "Vehicle type, plate & model" },
   { id: 2, label: "KYC Documents", icon: FileText, desc: "License, RC, Aadhaar & PAN" },
   { id: 3, label: "Bank & UPI", icon: Landmark, desc: "Payout account & UPI details" },

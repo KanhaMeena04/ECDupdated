@@ -40,12 +40,12 @@ export const useReports = () => {
   );
 
   // Specific report fetchers
-  const fetchRestaurantReport = (params) => fetchReport("restaurants", params);
-  const fetchRiderReport = (params) => fetchReport("riders", params);
-  const fetchOrderReport = (params) => fetchReport("orders", params);
-  const fetchTopUsersReport = (params) => fetchReport("top-users", params);
-  const fetchWalletReport = (params) => fetchReport("wallet", params);
-  const fetchProfitLossReport = (params) => fetchReport("profit-loss", params, true);
+  const fetchRestaurantReport = useCallback((params) => fetchReport("restaurants", params), [fetchReport]);
+  const fetchRiderReport = useCallback((params) => fetchReport("riders", params), [fetchReport]);
+  const fetchOrderReport = useCallback((params) => fetchReport("orders", params), [fetchReport]);
+  const fetchTopUsersReport = useCallback((params) => fetchReport("top-users", params), [fetchReport]);
+  const fetchWalletReport = useCallback((params) => fetchReport("wallet", params), [fetchReport]);
+  const fetchProfitLossReport = useCallback((params) => fetchReport("profit-loss", params, true), [fetchReport]);
 
   // Export report
   const exportReport = useCallback(

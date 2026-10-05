@@ -16,9 +16,9 @@ function DeliveryPeopleReports() {
     name: r.name,
     city: r.city,
     area: r.area || '-',
-    orders: `RM ${r.totalOrders?.toFixed(2) || '0.00'}`,
-    earnings: `RM ${r.totalEarnings?.toFixed(2) || '0.00'}`,
-    pending: `RM ${r.pendingPayouts?.toFixed(2) || '0.00'}`
+    orders: `₹${r.totalOrders?.toFixed(2) || '0.00'}`,
+    earnings: `₹${r.totalEarnings?.toFixed(2) || '0.00'}`,
+    pending: `₹${r.pendingPayouts?.toFixed(2) || '0.00'}`
   }));
 
   return (

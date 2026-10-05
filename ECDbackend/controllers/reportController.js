@@ -307,17 +307,30 @@ exports.getProfitLossReport = async (req, res) => {
         query.status = 'delivered';
         const total = await Order.countDocuments(query);
         const orders = await Order.find(query)
-            .populate('customer', 'name mobile')
+            .populate('customer', 'name mobile phone savedAddresses')
             .populate('restaurant', 'name')
             .skip(skip)
             .limit(limit)
             .sort({ createdAt: -1 });
-        const reportsData = orders.map(order => ({
-            _id: order._id,
-            orderId: order._id.toString().slice(-8).toUpperCase(),
-            date: order.createdAt,
-            customer: order.customer?.name || 'N/A',
-            restaurant: order.restaurant?.name || 'N/A',
+        const reportsData = orders.map(order => {
+            let custPhone = 'N/A';
+            if (order.customer && typeof order.customer === 'object') {
+                custPhone = order.customer.mobile || 
+                            order.customer.phone || 
+                            (order.customer.savedAddresses && order.customer.savedAddresses[0]?.phone) || 
+                            'N/A';
+            }
+            if (custPhone === 'N/A') {
+                custPhone = order.deliveryAddress?.phone || order.phone || 'N/A';
+            }
+
+            return {
+                _id: order._id,
+                orderId: order._id.toString().slice(-8).toUpperCase(),
+                date: order.createdAt,
+                customer: order.customer?.name || 'N/A',
+                phone: custPhone,
+                restaurant: order.restaurant?.name || 'N/A',
             billAmount: order.totalAmount || 0,
             itemTotal: order.itemTotal || 0,
             tax: order.tax || 0,
@@ -328,8 +341,9 @@ exports.getProfitLossReport = async (req, res) => {
             restaurantCommission: order.restaurantCommission || 0,
             riderCommission: getRiderEarning(order),
             tip: order.tip || 0,
-            isFreeDeli: order.deliveryFee === 0 ? 'Yes' : 'No'
-        }));
+                isFreeDeli: order.deliveryFee === 0 ? 'Yes' : 'No'
+            };
+        });
         const summary = {
             totalOrdersDelivered: total,
             totalBillAmount: reportsData.reduce((sum, o) => sum + (o.billAmount || 0), 0),

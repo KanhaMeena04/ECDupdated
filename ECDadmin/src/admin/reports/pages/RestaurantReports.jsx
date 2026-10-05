@@ -15,9 +15,9 @@ function RestaurantReports() {
     name: typeof r.name === 'object' ? r.name.en || '-' : r.name || '-', // pick .en if object
     rating: '⭐'.repeat(Math.round(r.rating || 0)),
     address: typeof r.address === 'object' ? r.address.en || '-' : r.address || '-',
-    orders: `RM ${Number(r.totalOrders || 0).toFixed(2)}`,
-    earnings: `RM ${Number(r.totalEarnings || 0).toFixed(2)}`,
-    payout: `RM ${Number(r.payoutsCompleted || 0).toFixed(2)}`
+    orders: `₹${Number(r.totalOrders || 0).toFixed(2)}`,
+    earnings: `₹${Number(r.totalEarnings || 0).toFixed(2)}`,
+    payout: `₹${Number(r.payoutsCompleted || 0).toFixed(2)}`
   }));
 
   return (

@@ -47,7 +47,7 @@ const AdminCreateRiderForm = ({
     setValidationError("");
 
     if (!formData.name?.trim()) {
-      setValidationError("Please enter Driver's Full Name");
+      setValidationError("Please enter Rider's Full Name");
       return;
     }
 
@@ -87,7 +87,7 @@ const AdminCreateRiderForm = ({
             <User size={20} />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-800">Driver Personal & Security Details</h2>
+            <h2 className="text-lg font-bold text-gray-800">Rider Personal & Security Details</h2>
             <p className="text-xs text-gray-500">
               Basic info, Mobile number, and 4-Digit PIN for instant Rider App Login
             </p>
@@ -134,7 +134,7 @@ const AdminCreateRiderForm = ({
           {/* Driver Name */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              Driver Full Name <span className="text-red-500">*</span>
+              Rider Full Name <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <User size={18} className="absolute left-3.5 top-3 text-gray-400" />
@@ -230,7 +230,7 @@ const AdminCreateRiderForm = ({
           {/* Profile Picture Upload */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              Driver Photo / Avatar
+              Rider Photo / Avatar
             </label>
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">

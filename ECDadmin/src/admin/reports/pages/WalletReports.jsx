@@ -13,7 +13,7 @@ function WalletReports() {
 
   const data = reports.map(r => ({
     user: r.name,
-    amount: `RM ${r.walletAmount?.toFixed(2) || '0.00'}`,
+    amount: `₹${r.walletAmount?.toFixed(2) || '0.00'}`,
     action: '👁️'
   }));
 

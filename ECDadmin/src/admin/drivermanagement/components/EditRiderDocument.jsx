@@ -6,11 +6,10 @@ const BRAND_MAIN = "#ed2026";
 const BRAND_BG_LIGHT = "#FFF5F2";
 
 const FILE_FIELDS = [
-  { key: 'gst', label: 'GST Registration' },
-  { key: 'insurance', label: 'Driver Insurance Policy' },
+  { key: 'insurance', label: 'Rider Insurance Policy' },
   { key: 'medicalCertificate', label: 'Medical Fitness Certificate' },
-  { key: 'licenseFront', label: 'Driver License (Front)' },
-  { key: 'licenseBack', label: 'Driver License (Back)' },
+  { key: 'licenseFront', label: 'Rider License (Front)' },
+  { key: 'licenseBack', label: 'Rider License (Back)' },
 ];
 
 const EditRiderDocumentForm = ({ prevStep, nextStep, loading, documents, handleNestedChange }) => {
@@ -134,7 +133,7 @@ const EditRiderDocumentForm = ({ prevStep, nextStep, loading, documents, handleN
         </Button>
 
         <Button 
-          onClick={()=>nextStep} // ✅ This now points to setActiveStep(2)
+          onClick={nextStep}
           variant="contained" 
           sx={{ 
             backgroundColor: BRAND_MAIN, 

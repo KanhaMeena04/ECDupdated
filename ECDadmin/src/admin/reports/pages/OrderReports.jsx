@@ -15,7 +15,7 @@ function OrderReports() {
     user: r.customerName,
     phone: r.customerPhone,
     orders: r.orderId,
-    amount: `RM ${r.amount?.toFixed(2) || '0.00'}`
+    amount: `₹${r.amount?.toFixed(2) || '0.00'}`
   }));
 
   return (

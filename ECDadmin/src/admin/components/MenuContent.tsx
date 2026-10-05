@@ -104,8 +104,7 @@ export const menuItems = [
     text: 'Marketing',
     icon: <Campaign />,
     children: [
-      { text: 'Coupons', path: '/promocodes' },
-      { text: 'Offers', path: '/add-promocodes' },
+      { text: 'Coupons & Offers', path: '/promocodes' },
       { text: 'Banners', path: '/restaurant-banner' },
       { text: 'Notifications', path: '/custom-push' },
     ]
@@ -127,8 +126,7 @@ export const menuItems = [
   { text: 'Self Pickup', icon: <Storefront />, path: '/self-pickup-control' },
   { text: 'Order Timings & Cancellation', icon: <Schedule />, path: '/order-timing-control' },
   { text: 'CMS', icon: <Article />, path: '/user-app-cms' },
-  { text: 'Analytics', icon: <BarChart />, path: '/profit-loss-report' },
-  { text: 'Reports', icon: <BarChart />, path: '/order-report' },
+  { text: 'Reports & Analytics', icon: <BarChart />, path: '/profit-loss-report' },
 
   { text: 'Rule Engine', icon: <Tune />, path: '/rule-engine' },
   { text: 'Feature Flags', icon: <Flag />, path: '/feature-flags' },
