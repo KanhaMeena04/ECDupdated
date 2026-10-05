@@ -32,7 +32,7 @@ import { Edit2, Trash2, MapPin, Navigation, Compass, Plus, RefreshCw, X } from '
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { API_BASE_URL } from '../../utils/utils';
-import GoogleServiceAreaMap from '../components/GoogleServiceAreaMap';
+import GoogleServiceAreaMap, { parseGooglePlaceDetails } from '../components/GoogleServiceAreaMap';
 
 export default function ServiceAreasPage() {
   const [areas, setAreas] = useState([]);
@@ -149,26 +149,79 @@ export default function ServiceAreasPage() {
     toast.success(`Selected location: ${item.zone || item.city}`);
   };
 
-  // Reverse Geocode (Lat/Lng -> Address Details) via Backend API Proxy
-  const handleReverseGeocode = async (lat, lng) => {
+  // Reverse Geocode (Lat/Lng -> Address Details) via Google Place / Geocoder & Backend Proxy Fallback
+  const handleReverseGeocode = async (lat, lng, placeObj = null) => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/service-areas/reverse-geocode`, {
-        params: { lat, lng },
-      });
-      if (res.data.success) {
-        setFormData((prev) => ({
-          ...prev,
-          lat: Number(lat.toFixed(6)),
-          lng: Number(lng.toFixed(6)),
-          state: res.data.state || prev.state,
-          district: res.data.district || prev.district,
-          city: res.data.city || prev.city,
-          zone: res.data.zone || prev.zone,
-          pincode: res.data.pincode || prev.pincode,
-        }));
-        if (res.data.displayName) {
-          setSearchQuery(res.data.displayName);
+      let details = {};
+
+      if (placeObj) {
+        details = parseGooglePlaceDetails(placeObj);
+      }
+
+      // If placeObj not provided or missing state/city/pincode, query Google Geocoder dynamically if available
+      if (!details.state || !details.city || !details.pincode) {
+        if (window.google && window.google.maps && window.google.maps.Geocoder) {
+          try {
+            const geocoder = new window.google.maps.Geocoder();
+            const geoRes = await new Promise((resolve) => {
+              geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+                if (status === 'OK' && results && results[0]) {
+                  resolve(results[0]);
+                } else {
+                  resolve(null);
+                }
+              });
+            });
+            if (geoRes) {
+              const geoParsed = parseGooglePlaceDetails(geoRes);
+              details = {
+                state: details.state || geoParsed.state,
+                district: details.district || geoParsed.district,
+                city: details.city || geoParsed.city,
+                zone: details.zone || geoParsed.zone || geoParsed.area,
+                pincode: details.pincode || geoParsed.pincode,
+                address: details.address || geoParsed.address,
+              };
+            }
+          } catch (gErr) {
+            console.log('Frontend geocoder error:', gErr);
+          }
         }
+      }
+
+      // Fallback to Backend API if still missing state or city or district
+      if (!details.state || !details.city || !details.district) {
+        try {
+          const res = await axios.get(`${API_BASE_URL}/api/service-areas/reverse-geocode`, {
+            params: { lat, lng },
+          });
+          if (res.data && res.data.success) {
+            if (!details.state) details.state = res.data.state;
+            if (!details.district) details.district = res.data.district;
+            if (!details.city) details.city = res.data.city;
+            if (!details.zone) details.zone = res.data.zone;
+            if (!details.pincode) details.pincode = res.data.pincode;
+            if (!details.address) details.address = res.data.displayName;
+          }
+        } catch (apiErr) {
+          console.log('Backend reverse geocode fallback error:', apiErr);
+        }
+      }
+
+      // Set state, district, city, zone, pincode, lat, lng in formData
+      setFormData((prev) => ({
+        ...prev,
+        lat: Number(lat.toFixed(6)),
+        lng: Number(lng.toFixed(6)),
+        state: details.state || prev.state,
+        district: details.district || details.city || prev.district,
+        city: details.city || details.district || prev.city,
+        zone: details.zone || details.area || prev.zone,
+        pincode: details.pincode || prev.pincode,
+      }));
+
+      if (details.address || details.zone) {
+        setSearchQuery(details.address || `${details.zone}, ${details.city}`);
       }
     } catch (err) {
       console.error('Reverse geocode error:', err);
@@ -428,7 +481,7 @@ export default function ServiceAreasPage() {
                 lat={formData.lat}
                 lng={formData.lng}
                 radiusKm={formData.deliveryRadiusKm}
-                onLocationSelect={(newLat, newLng) => handleReverseGeocode(newLat, newLng)}
+                onLocationSelect={(newLat, newLng, placeObj) => handleReverseGeocode(newLat, newLng, placeObj)}
               />
               <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', fontStyle: 'italic', fontWeight: 500 }}>
                 * Real Google Maps: Search location, use device GPS, click/drag pin marker to set exact geofenced coverage radius.

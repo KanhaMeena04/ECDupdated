@@ -56,11 +56,11 @@ router.get('/reverse-geocode', async (req, res) => {
     
     const item = response.data || {};
     const addr = item.address || {};
-    const state = addr.state || addr.region || '';
-    const district = addr.state_district || addr.county || addr.city_district || addr.city || '';
-    const city = addr.city || addr.town || addr.village || addr.suburb || addr.municipality || '';
-    const zone = addr.suburb || addr.neighbourhood || addr.residential || addr.road || addr.quarter || (item.display_name ? item.display_name.split(',')[0] : '');
-    const pincode = addr.postcode || '';
+    const state = addr.state || addr.region || addr.state_code || '';
+    const district = addr.state_district || addr.district || addr.county || addr.city_district || addr.city || '';
+    const city = addr.city || addr.town || addr.municipality || addr.village || addr.suburb || addr.county || addr.state_district || '';
+    const zone = addr.suburb || addr.neighbourhood || addr.residential || addr.subdistrict || addr.road || addr.quarter || (item.display_name ? item.display_name.split(',')[0] : '');
+    const pincode = addr.postcode || addr.postal_code || '';
 
     res.json({
       success: true,

@@ -14,32 +14,75 @@ import {
 } from '@mui/material';
 import { MapPin, Navigation, X, Store, Building, Compass } from 'lucide-react';
 
-// Helper to extract address, city, area, pincode from Google Place or Geocoder result
+// Helper to extract address, city, zone, district, state, pincode from Google Place or Geocoder result
 export const parseGooglePlaceDetails = (placeObj) => {
   if (!placeObj) return {};
   let address = placeObj.formatted_address || placeObj.name || "";
   let city = "";
   let area = "";
+  let zone = "";
+  let district = "";
+  let state = "";
   let pincode = "";
 
   if (Array.isArray(placeObj.address_components)) {
     for (const comp of placeObj.address_components) {
       const types = comp.types || [];
-      if (types.includes("sublocality_level_1") || types.includes("sublocality") || types.includes("neighborhood")) {
-        if (!area) area = comp.long_name;
+
+      // State (administrative_area_level_1)
+      if (types.includes("administrative_area_level_1")) {
+        state = comp.long_name;
       }
+
+      // District (administrative_area_level_2 or level_3)
+      if (types.includes("administrative_area_level_2")) {
+        district = comp.long_name;
+      } else if (!district && types.includes("administrative_area_level_3")) {
+        district = comp.long_name;
+      }
+
+      // City / Locality
       if (types.includes("locality")) {
+        city = comp.long_name;
+      } else if (!city && types.includes("administrative_area_level_3")) {
         city = comp.long_name;
       } else if (!city && types.includes("administrative_area_level_2")) {
         city = comp.long_name;
       }
+
+      // Sublocality / Zone / Neighborhood / Landmark
+      if (types.includes("sublocality_level_1") || types.includes("sublocality") || types.includes("neighborhood")) {
+        if (!area) area = comp.long_name;
+        if (!zone) zone = comp.long_name;
+      } else if (types.includes("sublocality_level_2") && !zone) {
+        zone = comp.long_name;
+      } else if ((types.includes("route") || types.includes("premise") || types.includes("point_of_interest")) && !zone) {
+        zone = comp.long_name;
+      }
+
+      // Pincode (postal_code)
       if (types.includes("postal_code")) {
         pincode = comp.long_name;
       }
     }
   }
 
-  return { address, city, area, pincode };
+  // Fallbacks if missing
+  if (!district && city) district = city;
+  if (!city && district) city = district;
+
+  if (!zone) {
+    if (placeObj.name && placeObj.name !== address && placeObj.name !== city) {
+      zone = placeObj.name;
+    } else if (area) {
+      zone = area;
+    } else if (city) {
+      zone = city;
+    }
+  }
+  if (!area && zone) area = zone;
+
+  return { address, city, area, zone, district, state, pincode };
 };
 
 export default function GoogleServiceAreaMap({
