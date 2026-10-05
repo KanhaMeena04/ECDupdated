@@ -50,7 +50,7 @@ const userSchema = new mongoose.Schema(
     password: { type: String },
     role: {
       type: String,
-      enum: ["customer", "admin", "restaurant_owner", "rider", "driver"],
+      enum: ["customer", "user", "admin", "restaurant_owner", "rider", "driver"],
       default: "customer",
     },
     profilePic: { type: String },

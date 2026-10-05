@@ -540,6 +540,9 @@ exports.driverSendOtp = async (req, res) => {
     } else {
       user.otp = generatedOtp;
       user.otpExpires = otpExpires;
+      if (user.role === "user") {
+        user.role = "rider";
+      }
       await user.save();
     }
     
@@ -632,6 +635,9 @@ exports.driverVerifyOtp = async (req, res) => {
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
+    if (user.role === "user") {
+      user.role = "rider";
+    }
     await user.save();
 
     let riderDoc = await Rider.findOne({
