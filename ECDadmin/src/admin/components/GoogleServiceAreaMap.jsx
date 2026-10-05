@@ -273,15 +273,10 @@ export default function GoogleServiceAreaMap({
     });
   };
 
-  // Handle selecting a suggestion item
-  const handleSelectPrediction = (prediction) => {
-    setSearchValue(prediction.description);
-    setShowDropdown(false);
-
+  const fallbackGeocoder = (placeId, description) => {
     if (!window.google || !window.google.maps) return;
-
     const geocoder = new window.google.maps.Geocoder();
-    geocoder.geocode({ placeId: prediction.place_id }, (results, status) => {
+    geocoder.geocode({ placeId: placeId }, (results, status) => {
       if (status === 'OK' && results && results[0]) {
         const location = results[0].geometry.location;
         const selLat = location.lat();
@@ -296,8 +291,63 @@ export default function GoogleServiceAreaMap({
         if (onLocationSelect) {
           onLocationSelect(selLat, selLng, results[0]);
         }
+      } else {
+        geocoder.geocode({ address: description }, (res2, stat2) => {
+          if (stat2 === 'OK' && res2 && res2[0]) {
+            const loc2 = res2[0].geometry.location;
+            const selLat2 = loc2.lat();
+            const selLng2 = loc2.lng();
+            if (googleMapObj.current && markerObj.current) {
+              googleMapObj.current.setCenter({ lat: selLat2, lng: selLng2 });
+              googleMapObj.current.setZoom(15);
+              markerObj.current.setPosition({ lat: selLat2, lng: selLng2 });
+            }
+            if (onLocationSelect) {
+              onLocationSelect(selLat2, selLng2, res2[0]);
+            }
+          }
+        });
       }
     });
+  };
+
+  // Handle selecting a suggestion item
+  const handleSelectPrediction = (prediction) => {
+    setSearchValue(prediction.description);
+    setShowDropdown(false);
+
+    if (!window.google || !window.google.maps) return;
+
+    const map = googleMapObj.current;
+    if (map && window.google.maps.places) {
+      const placesService = new window.google.maps.places.PlacesService(map);
+      placesService.getDetails(
+        {
+          placeId: prediction.place_id,
+          fields: ['name', 'formatted_address', 'geometry', 'address_components'],
+        },
+        (place, status) => {
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && place && place.geometry) {
+            const selLat = place.geometry.location.lat();
+            const selLng = place.geometry.location.lng();
+
+            if (googleMapObj.current && markerObj.current) {
+              googleMapObj.current.setCenter({ lat: selLat, lng: selLng });
+              googleMapObj.current.setZoom(15);
+              markerObj.current.setPosition({ lat: selLat, lng: selLng });
+            }
+
+            if (onLocationSelect) {
+              onLocationSelect(selLat, selLng, place);
+            }
+          } else {
+            fallbackGeocoder(prediction.place_id, prediction.description);
+          }
+        }
+      );
+    } else {
+      fallbackGeocoder(prediction.place_id, prediction.description);
+    }
   };
 
   // Sync Map position when lat/lng props change

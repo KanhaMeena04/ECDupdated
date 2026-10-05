@@ -47,12 +47,12 @@ export default function ServiceAreasPage() {
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   const [formData, setFormData] = useState({
-    state: 'Madhya Pradesh',
-    district: 'Indore',
-    city: 'Indore',
-    zone: 'Vijay Nagar',
+    state: '',
+    district: '',
+    city: '',
+    zone: '',
     village: '',
-    pincode: '452010',
+    pincode: '',
     deliveryRadiusKm: 25,
     baseDeliveryFee: 30,
     minimumOrderValue: 100,
@@ -213,11 +213,11 @@ export default function ServiceAreasPage() {
         ...prev,
         lat: Number(lat.toFixed(6)),
         lng: Number(lng.toFixed(6)),
-        state: details.state || prev.state,
-        district: details.district || details.city || prev.district,
-        city: details.city || details.district || prev.city,
-        zone: details.zone || details.area || prev.zone,
-        pincode: details.pincode || prev.pincode,
+        state: details.state || '',
+        district: details.district || details.city || '',
+        city: details.city || details.district || '',
+        zone: details.zone || details.area || '',
+        pincode: details.pincode || '',
       }));
 
       if (details.address || details.zone) {
@@ -296,12 +296,12 @@ export default function ServiceAreasPage() {
     setSearchResults([]);
     setShowSearchResults(false);
     setFormData({
-      state: 'Madhya Pradesh',
-      district: 'Indore',
-      city: 'Indore',
-      zone: 'Vijay Nagar',
+      state: '',
+      district: '',
+      city: '',
+      zone: '',
       village: '',
-      pincode: '452010',
+      pincode: '',
       deliveryRadiusKm: 25,
       baseDeliveryFee: 30,
       minimumOrderValue: 100,
