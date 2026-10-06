@@ -4452,7 +4452,37 @@ exports.getMyActiveOrder = async (req, res) => {
 
         const storeName = typeof order.restaurant?.name === 'object' ? (order.restaurant.name.en || JSON.stringify(order.restaurant.name)) : (order.restaurant?.name || 'Restaurant');
         const storeAddress = typeof order.restaurant?.address === 'object' ? (order.restaurant.address.addressLine || JSON.stringify(order.restaurant.address)) : (order.restaurant?.address || 'Restaurant Address');
-        const custAddress = typeof order.deliveryAddress?.addressLine === 'string' ? order.deliveryAddress.addressLine : (order.deliveryAddress ? JSON.stringify(order.deliveryAddress) : 'Customer Address');
+        const custAddressStr = typeof order.deliveryAddress?.addressLine === 'string' 
+          ? order.deliveryAddress.addressLine 
+          : (typeof order.deliveryAddress === 'string' ? order.deliveryAddress : (order.deliveryAddress ? JSON.stringify(order.deliveryAddress) : 'Customer Address'));
+
+        let customerLat = null;
+        let customerLng = null;
+        if (order.deliveryAddress && Array.isArray(order.deliveryAddress.coordinates) && order.deliveryAddress.coordinates.length >= 2) {
+          customerLng = Number(order.deliveryAddress.coordinates[0]);
+          customerLat = Number(order.deliveryAddress.coordinates[1]);
+        } else if (order.customer?.location?.coordinates && Array.isArray(order.customer.location.coordinates) && order.customer.location.coordinates.length >= 2) {
+          customerLng = Number(order.customer.location.coordinates[0]);
+          customerLat = Number(order.customer.location.coordinates[1]);
+        }
+
+        let restaurantLat = null;
+        let restaurantLng = null;
+        if (order.restaurant?.location?.coordinates && Array.isArray(order.restaurant.location.coordinates) && order.restaurant.location.coordinates.length >= 2) {
+          restaurantLng = Number(order.restaurant.location.coordinates[0]);
+          restaurantLat = Number(order.restaurant.location.coordinates[1]);
+        }
+
+        const deliveryAddrObj = {
+          addressLine: custAddressStr,
+          address: custAddressStr,
+          lat: customerLat,
+          lng: customerLng,
+          latitude: customerLat,
+          longitude: customerLng,
+          coordinates: [customerLng, customerLat],
+          location: customerLat && customerLng ? { type: 'Point', coordinates: [customerLng, customerLat] } : null
+        };
 
         return {
           _id: order._id,
@@ -4462,11 +4492,19 @@ exports.getMyActiveOrder = async (req, res) => {
           status: order.status,
           pickupOtp: order.pickupOtp,
           pickupOtpExpiry: order.pickupOtpExpiresAt,
+          customerLat,
+          customerLng,
+          restaurantLat,
+          restaurantLng,
           store: {
             _id: order.restaurant?._id,
             name: storeName,
             address: storeAddress,
             location: order.restaurant?.location,
+            lat: restaurantLat,
+            lng: restaurantLng,
+            latitude: restaurantLat,
+            longitude: restaurantLng,
             phone: order.restaurant?.contactNumber || order.restaurant?.phone || ''
           },
           restaurant: {
@@ -4475,6 +4513,10 @@ exports.getMyActiveOrder = async (req, res) => {
             address: storeAddress,
             phone: order.restaurant?.contactNumber || order.restaurant?.phone || '',
             location: order.restaurant?.location,
+            lat: restaurantLat,
+            lng: restaurantLng,
+            latitude: restaurantLat,
+            longitude: restaurantLng,
             pickupOtp: order.pickupOtp,
             pickupOtpExpiry: order.pickupOtpExpiresAt
           },
@@ -4482,12 +4524,15 @@ exports.getMyActiveOrder = async (req, res) => {
             _id: order.customer?._id,
             name: order.customer?.name || 'Customer',
             phone: order.customer?.phone || order.customer?.mobile || '',
-            address: custAddress,
-            deliveryAddress: custAddress,
+            address: deliveryAddrObj,
+            deliveryAddress: custAddressStr,
             deliveryOtp: order.deliveryOtp,
-            deliveryOtpExpiry: order.deliveryOtpExpiresAt
+            deliveryOtpExpiry: order.deliveryOtpExpiresAt,
+            lat: customerLat,
+            lng: customerLng
           },
-          deliveryAddress: custAddress,
+          deliveryAddress: deliveryAddrObj,
+          address: deliveryAddrObj,
           driverEarnings: order.riderEarning || ((order.deliveryFee || 30) * 0.7),
           deliveryCharge: order.deliveryFee || 30,
           payableAmount: order.totalAmount,

@@ -1754,9 +1754,15 @@ exports.updateOrderStatus = async (req, res) => {
         { new: true },
       );
     }
-    if (status === "delivered" && oldStatus !== "delivered") {
+    if ((status === "delivered" || status === "completed") && oldStatus !== "delivered" && oldStatus !== "completed") {
       order.deliveredAt = new Date();
       await order.save();
+      if (order.rider) {
+        const Rider = require('../models/Rider');
+        await Rider.findByIdAndUpdate(order.rider, { isAvailable: true }).catch(err =>
+          logger.error("Rider availability update failed on delivery", { riderId: order.rider, error: err.message })
+        );
+      }
       await Restaurant.findByIdAndUpdate(
         order.restaurant,
         {
@@ -2413,7 +2419,7 @@ exports.trackOrder = async (req, res) => {
       user: {
         lat: userLat,
         lng: userLng,
-        address: order.deliveryAddress?.address || order.deliveryAddress?.formattedAddress || ""
+        address: order.deliveryAddress?.addressLine || order.deliveryAddress?.address || order.deliveryAddress?.formattedAddress || ""
       },
       driver: effectiveRiderDetails ? {
         lat: driverLat || restLat,
@@ -2422,7 +2428,13 @@ exports.trackOrder = async (req, res) => {
       timeline: order.timeline || [],
       eta: order.estimatedDeliveryTime,
       rider: effectiveRiderDetails,
-      deliveryLocation: order.deliveryAddress,
+      deliveryLocation: {
+        address: order.deliveryAddress?.addressLine || order.deliveryAddress?.address || "",
+        addressLine: order.deliveryAddress?.addressLine || order.deliveryAddress?.address || "",
+        lat: userLat,
+        lng: userLng,
+        coordinates: [userLng, userLat]
+      },
       order: order,
       supportPhone: "+91-9876543210",
       ...(!isSelfPickup && distanceInfo && { distances: distanceInfo })

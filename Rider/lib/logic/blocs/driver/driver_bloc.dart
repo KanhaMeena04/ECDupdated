@@ -203,8 +203,8 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
         }
       }
 
-      if (historyResponse['success'] == true && historyResponse['data'] != null) {
-        final data = historyResponse['data'];
+      if (historyResponse['success'] == true) {
+        final data = historyResponse['data'] ?? historyResponse['orders'];
         List<dynamic> rawOrders = [];
         if (data is List) {
           rawOrders = data;

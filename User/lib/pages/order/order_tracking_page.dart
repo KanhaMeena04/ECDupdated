@@ -1654,11 +1654,25 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     final rName = (riderData?['name'] ?? _trackingData?['driverName'] ?? 'Rider').toString();
     final hasRider = riderData != null && (riderData['name'] != null || riderData['phone'] != null || _trackingData?['driverName'] != null);
 
-    final double? restLat = restData['lat'] != null ? double.tryParse(restData['lat'].toString()) : null;
-    final double? restLng = restData['lng'] != null ? double.tryParse(restData['lng'].toString()) : null;
-    final userObj = _trackingData?['user'] ?? _trackingData?['deliveryLocation'] ?? {};
-    final double? userLat = (userObj['lat'] ?? userObj['latitude']) != null ? double.tryParse((userObj['lat'] ?? userObj['latitude']).toString()) : null;
-    final double? userLng = (userObj['lng'] ?? userObj['longitude']) != null ? double.tryParse((userObj['lng'] ?? userObj['longitude']).toString()) : null;
+    double? restLat = restData['lat'] != null ? double.tryParse(restData['lat'].toString()) : null;
+    double? restLng = restData['lng'] != null ? double.tryParse(restData['lng'].toString()) : null;
+    if (restLat == null && restData['location']?['coordinates']?.length == 2) {
+      restLng = double.tryParse(restData['location']['coordinates'][0].toString());
+      restLat = double.tryParse(restData['location']['coordinates'][1].toString());
+    }
+
+    final userObj = _trackingData?['user'] ?? _trackingData?['deliveryLocation'] ?? _trackingData?['order']?['deliveryAddress'] ?? {};
+    double? userLat = (userObj['lat'] ?? userObj['latitude']) != null ? double.tryParse((userObj['lat'] ?? userObj['latitude']).toString()) : null;
+    double? userLng = (userObj['lng'] ?? userObj['longitude']) != null ? double.tryParse((userObj['lng'] ?? userObj['longitude']).toString()) : null;
+    if (userLat == null && userObj['coordinates'] is List && (userObj['coordinates'] as List).length >= 2) {
+      userLng = double.tryParse(userObj['coordinates'][0].toString());
+      userLat = double.tryParse(userObj['coordinates'][1].toString());
+    }
+    if (userLat == null && _trackingData?['order']?['deliveryAddress']?['coordinates'] is List && (_trackingData!['order']['deliveryAddress']['coordinates'] as List).length >= 2) {
+      final coords = _trackingData!['order']['deliveryAddress']['coordinates'] as List;
+      userLng = double.tryParse(coords[0].toString());
+      userLat = double.tryParse(coords[1].toString());
+    }
 
     double? riderLat;
     double? riderLng;

@@ -221,6 +221,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   LatLng _getRestaurantLatLng() {
     try {
+      if (widget.order['restaurantLat'] != null && widget.order['restaurantLng'] != null) {
+        final lat = (widget.order['restaurantLat'] as num).toDouble();
+        final lng = (widget.order['restaurantLng'] as num).toDouble();
+        if (lat != 0 && lng != 0) return LatLng(lat, lng);
+      }
+
       final store = widget.order['store'];
       final restaurant = widget.order['restaurant'];
       final targets = [restaurant, store, widget.order['restaurantLocation'], widget.order['location']];
@@ -246,22 +252,38 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               if (lat != 0 && lng != 0) return LatLng(lat, lng);
             }
           }
+          if (target['coordinates'] is List) {
+            final coords = target['coordinates'] as List;
+            if (coords.length >= 2) {
+              final lng = (coords[0] as num).toDouble();
+              final lat = (coords[1] as num).toDouble();
+              if (lat != 0 && lng != 0) return LatLng(lat, lng);
+            }
+          }
         }
       }
-
-      if (widget.order['restaurantLat'] != null && widget.order['restaurantLng'] != null) {
-        final lat = (widget.order['restaurantLat'] as num).toDouble();
-        final lng = (widget.order['restaurantLng'] as num).toDouble();
-        if (lat != 0 && lng != 0) return LatLng(lat, lng);
-      }
     } catch (_) {}
+    if (_driverLatLng != null) return _driverLatLng!;
     return const LatLng(22.7196, 75.8577);
   }
 
   LatLng _getCustomerLatLng() {
     try {
+      if (widget.order['customerLat'] != null && widget.order['customerLng'] != null) {
+        final lat = (widget.order['customerLat'] as num).toDouble();
+        final lng = (widget.order['customerLng'] as num).toDouble();
+        if (lat != 0 && lng != 0) return LatLng(lat, lng);
+      }
+
       final address = widget.order['address'] ?? widget.order['deliveryAddress'] ?? widget.order['customer']?['address'] ?? widget.order['user'];
-      final targets = [address, widget.order['deliveryAddress'], widget.order['address'], widget.order['customer'], widget.order['user']];
+      final targets = [
+        widget.order['deliveryAddress'],
+        widget.order['address'],
+        address,
+        widget.order['customer']?['address'],
+        widget.order['customer'],
+        widget.order['user']
+      ];
 
       for (final target in targets) {
         if (target is Map) {
@@ -284,15 +306,18 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               if (lat != 0 && lng != 0) return LatLng(lat, lng);
             }
           }
+          if (target['coordinates'] is List) {
+            final coords = target['coordinates'] as List;
+            if (coords.length >= 2) {
+              final lng = (coords[0] as num).toDouble();
+              final lat = (coords[1] as num).toDouble();
+              if (lat != 0 && lng != 0) return LatLng(lat, lng);
+            }
+          }
         }
       }
-
-      if (widget.order['customerLat'] != null && widget.order['customerLng'] != null) {
-        final lat = (widget.order['customerLat'] as num).toDouble();
-        final lng = (widget.order['customerLng'] as num).toDouble();
-        if (lat != 0 && lng != 0) return LatLng(lat, lng);
-      }
     } catch (_) {}
+    if (_driverLatLng != null) return _driverLatLng!;
     return const LatLng(22.7196, 75.8577);
   }
 
@@ -392,10 +417,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       }
     } else if (_currentDeliveryStatus == 'out_for_delivery' || _currentDeliveryStatus == 'on_the_way' || _currentDeliveryStatus == 'reached_customer_location' || _currentDeliveryStatus == 'delivery_arrived') {
       setState(() => _isLoading = true);
-      final res = await ApiService.updateOrderStatus(orderId: orderId, status: 'delivered');
+      context.read<DriverBloc>().add(UpdateOrderStatus(orderId: orderId, status: 'delivered'));
       if (mounted) {
         setState(() => _isLoading = false);
-        context.read<DriverBloc>().add(const LoadActiveOrders());
         _showOrderDeliveredDialog();
       }
     }
@@ -493,7 +517,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         ? null
                         : () async {
                             setDialogState(() => isSubmitting = true);
-                            await ApiService.updateOrderStatus(orderId: orderId, status: 'delivered');
+                            context.read<DriverBloc>().add(UpdateOrderStatus(orderId: orderId, status: 'delivered'));
                             await ApiService.rateCustomer(
                               orderId: orderId,
                               rating: selectedRating,
@@ -538,15 +562,22 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final address = widget.order['address'] ?? widget.order['deliveryAddress'] ?? {};
     final restaurant = widget.order['restaurant'] ?? {'name': 'Restaurant Store', 'address': 'Indore, MP'};
 
-    final targetLatLng = _isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
+    final restLatLng = _getRestaurantLatLng();
+    final custLatLng = _getCustomerLatLng();
+    final targetLatLng = _isToRestaurant ? restLatLng : custLatLng;
 
     final markers = <Marker>{
       Marker(
-        markerId: const MarkerId('target'),
-        position: targetLatLng,
-        icon: BitmapDescriptor.defaultMarkerWithHue(
-          _isToRestaurant ? BitmapDescriptor.hueOrange : BitmapDescriptor.hueGreen,
-        ),
+        markerId: const MarkerId('store'),
+        position: restLatLng,
+        infoWindow: InfoWindow(title: restaurant['name'] ?? 'Restaurant Store'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+      ),
+      Marker(
+        markerId: const MarkerId('customer'),
+        position: custLatLng,
+        infoWindow: InfoWindow(title: customer['name'] ?? 'Customer Location'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
       ),
     };
 
@@ -555,6 +586,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         Marker(
           markerId: const MarkerId('driver'),
           position: _driverLatLng!,
+          infoWindow: const InfoWindow(title: 'Your Location (Rider)'),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         ),
       );
