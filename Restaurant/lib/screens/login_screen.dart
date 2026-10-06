@@ -5148,7 +5148,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     GridPaper(
                                       color: AppTheme.primaryGreen.withValues(alpha: 0.1),
                                       divisions: 2,
-                                      subDivisions: 2,
+                                      subdivisions: 2,
                                     ),
                                   ],
                                 ),

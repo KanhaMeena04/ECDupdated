@@ -1897,13 +1897,37 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
 
               // Show orders if we have them in state (regardless of specific status)
               if (state.orders.isNotEmpty || state.completedOrders.isNotEmpty || state.cancelledOrders.isNotEmpty) {
-                final displayActiveOrders = state.orders.where((o) => o['deliveryStatus'] != 'driver_notified').toList();
+                final displayActiveOrders = state.orders.where((o) {
+                  final status = (o['status'] ?? o['deliveryStatus'] ?? '').toString().toLowerCase();
+                  final dStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
+                  return status != 'delivered' && status != 'completed' && status != 'cancelled' &&
+                         dStatus != 'delivered' && dStatus != 'completed' && dStatus != 'cancelled' &&
+                         dStatus != 'driver_notified';
+                }).toList();
+
+                final Map<String, dynamic> completedMap = {};
+                for (var o in state.completedOrders) {
+                  final id = (o['_id'] ?? o['orderId'] ?? '').toString();
+                  if (id.isNotEmpty) completedMap[id] = o;
+                }
+                for (var o in state.orders) {
+                  final status = (o['status'] ?? o['deliveryStatus'] ?? '').toString().toLowerCase();
+                  final dStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
+                  if (status == 'delivered' || status == 'completed' || dStatus == 'delivered' || dStatus == 'completed') {
+                    final id = (o['_id'] ?? o['orderId'] ?? '').toString();
+                    if (id.isNotEmpty && !completedMap.containsKey(id)) {
+                      completedMap[id] = o;
+                    }
+                  }
+                }
+                final displayCompletedOrders = completedMap.values.toList();
+
                 return SizedBox(
                   height: 400, // Fixed height for TabBarView
                   child: TabBarView(
                     children: [
                       _buildOrderList(displayActiveOrders, title: 'No active orders'),
-                      _buildOrderList(state.completedOrders, isHistorical: true, title: 'No completed orders yet'),
+                      _buildOrderList(displayCompletedOrders, isHistorical: true, title: 'No completed orders yet'),
                       _buildOrderList(state.cancelledOrders, isHistorical: true, title: 'No cancelled orders yet'),
                     ],
                   ),

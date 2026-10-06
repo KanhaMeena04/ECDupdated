@@ -1601,7 +1601,13 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       }
       return sum;
     });
-    final grandTotal = widget.order.totalAmount > 0 ? widget.order.totalAmount : subtotal;
+    final itemTotalVal = widget.order.itemTotal > 0 ? widget.order.itemTotal : subtotal;
+    final grandTotal = widget.order.totalAmount > 0 ? widget.order.totalAmount : itemTotalVal;
+    final packaging = widget.order.packagingFee;
+    final delivery = widget.order.deliveryFee;
+    final platformFee = widget.order.platformFee;
+    final tax = widget.order.tax;
+    final discount = widget.order.discount;
 
     return Container(
       width: double.infinity,
@@ -1615,13 +1621,27 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Bill Details', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+          Text('Bill Details Summary', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 12),
-          _buildBillRow('Subtotal', '₹${subtotal > 0 ? subtotal.toStringAsFixed(2) : grandTotal.toStringAsFixed(2)}'),
+          _buildBillRow('Item Total', '₹${itemTotalVal.toStringAsFixed(2)}'),
+          if (packaging > 0) ...[
+            const SizedBox(height: 8),
+            _buildBillRow('Packaging Fee', '₹${packaging.toStringAsFixed(2)}'),
+          ],
           const SizedBox(height: 8),
-          _buildBillRow('Delivery Charge', widget.order.isSelfPickup ? '₹0.00 (Self Pickup)' : 'Free', isAccent: widget.order.isSelfPickup),
-          const SizedBox(height: 8),
-          _buildBillRow('Service Fee', '₹0.00'),
+          _buildBillRow('Delivery Partner Fee', widget.order.isSelfPickup ? '₹0.00 (Self Pickup)' : (delivery > 0 ? '₹${delivery.toStringAsFixed(2)}' : 'Free'), isAccent: widget.order.isSelfPickup),
+          if (platformFee > 0) ...[
+            const SizedBox(height: 8),
+            _buildBillRow('Platform Fee', '₹${platformFee.toStringAsFixed(2)}'),
+          ],
+          if (tax > 0) ...[
+            const SizedBox(height: 8),
+            _buildBillRow('GST (Govt Taxes)', '₹${tax.toStringAsFixed(2)}'),
+          ],
+          if (discount > 0) ...[
+            const SizedBox(height: 8),
+            _buildBillRow('Discount', '-₹${discount.toStringAsFixed(2)}', isAccent: true),
+          ],
           const Divider(height: 20),
           _buildBillRow('Grand Total', '₹${grandTotal.toStringAsFixed(2)}', isBold: true),
         ],

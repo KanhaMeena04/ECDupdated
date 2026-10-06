@@ -295,16 +295,24 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     title: 'BILL DETAILS',
                     child: Column(
                       children: [
-                        _buildPriceRow('Items Subtotal', '₹${(_currentOrder['totalAmount'] ?? 0).toStringAsFixed(1)}'),
+                        _buildPriceRow('Items Subtotal', '₹${(_currentOrder['itemTotal'] ?? _currentOrder['subtotal'] ?? _currentOrder['totalAmount'] ?? 0).toDouble().toStringAsFixed(1)}'),
                         const SizedBox(height: 8),
-                        _buildPriceRow('Delivery Fee', '₹${(_currentOrder['deliveryCharge'] ?? 0).toStringAsFixed(1)}'),
+                        _buildPriceRow('Delivery Partner Fee', '₹${(_currentOrder['deliveryFee'] ?? _currentOrder['deliveryCharge'] ?? 0).toDouble().toStringAsFixed(1)}'),
+                        if ((_currentOrder['packagingFee'] ?? 0) > 0) ...[
+                          const SizedBox(height: 8),
+                          _buildPriceRow('Packaging Fee', '₹${(_currentOrder['packagingFee'] ?? 0).toDouble().toStringAsFixed(1)}'),
+                        ],
+                        if ((_currentOrder['platformFee'] ?? 0) > 0) ...[
+                          const SizedBox(height: 8),
+                          _buildPriceRow('Platform Fee', '₹${(_currentOrder['platformFee'] ?? 0).toDouble().toStringAsFixed(1)}'),
+                        ],
                         const SizedBox(height: 8),
-                        _buildPriceRow('Taxes & GST', '₹${(_currentOrder['gst'] ?? 0).toStringAsFixed(1)}'),
-                        if ((_currentOrder['totalDiscount'] ?? 0) > 0) ...[
+                        _buildPriceRow('Taxes & GST', '₹${(_currentOrder['tax'] ?? _currentOrder['gst'] ?? 0).toDouble().toStringAsFixed(1)}'),
+                        if ((_currentOrder['discount'] ?? _currentOrder['totalDiscount'] ?? 0) > 0) ...[
                           const SizedBox(height: 8),
                           _buildPriceRow(
                             'Coupon Discount',
-                            '- ₹${(_currentOrder['totalDiscount'] ?? 0).toStringAsFixed(1)}',
+                            '- ₹${(_currentOrder['discount'] ?? _currentOrder['totalDiscount'] ?? 0).toDouble().toStringAsFixed(1)}',
                             isDiscount: true,
                           ),
                         ],
@@ -320,10 +328,31 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                             Text(
-                              '₹${(_currentOrder['payableAmount'] ?? _currentOrder['totalAmount'] ?? 0).toStringAsFixed(1)}',
+                              '₹${(_currentOrder['payableAmount'] ?? _currentOrder['totalAmount'] ?? 0).toDouble().toStringAsFixed(1)}',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: primaryGreen),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: lightGreen,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                '🛵 Rider Earnings',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: primaryGreen),
+                              ),
+                              Text(
+                                '₹${(_currentOrder['driverEarnings'] ?? _currentOrder['riderEarning'] ?? _currentOrder['deliveryFee'] ?? 0).toDouble().toStringAsFixed(1)}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: primaryGreen),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),

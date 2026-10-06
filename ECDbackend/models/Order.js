@@ -48,6 +48,9 @@ const orderSchema = new mongoose.Schema(
     discount: { type: Number, default: 0 },
     couponCode: { type: String },
     totalAmount: { type: Number, required: true },
+    payableAmount: { type: Number },
+    roundOff: { type: Number, default: 0 },
+    driverEarnings: { type: Number, default: 0 },
     orderType: {
       type: String,
       enum: ["delivery", "self_pickup", "pickup"],

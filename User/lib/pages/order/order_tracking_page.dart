@@ -472,14 +472,24 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     );
   }
 
+  String get _effectiveStatus {
+    final s1 = _trackingData?['deliveryStatus']?.toString().toLowerCase();
+    final s2 = _trackingData?['status']?.toString().toLowerCase();
+    final s3 = _trackingData?['order']?['deliveryStatus']?.toString().toLowerCase();
+    final s4 = _trackingData?['order']?['status']?.toString().toLowerCase();
+
+    final candidates = [s1, s2, s3, s4].where((s) => s != null && s.isNotEmpty).toList();
+    if (candidates.contains('delivered') || candidates.contains('completed')) return 'delivered';
+    if (candidates.contains('out_for_delivery') || candidates.contains('on_the_way') || candidates.contains('reached_customer_location') || candidates.contains('delivery_arrived')) return 'out_for_delivery';
+    if (candidates.contains('picked_up') || candidates.contains('partner_picked')) return 'picked_up';
+    if (candidates.contains('ready') || candidates.contains('ready_for_pickup')) return 'ready';
+    if (candidates.contains('preparing') || candidates.contains('in_kitchen')) return 'preparing';
+    if (candidates.contains('confirmed') || candidates.contains('accepted') || candidates.contains('assigned') || candidates.contains('reached_restaurant') || candidates.contains('reached_store')) return 'accepted';
+    return candidates.isNotEmpty ? candidates.first! : 'pending';
+  }
+
   int get _stepFromStatus {
-    final status = (
-      _trackingData?['deliveryStatus'] ??
-      _trackingData?['status'] ??
-      _trackingData?['order']?['deliveryStatus'] ??
-      _trackingData?['order']?['status'] ??
-      'pending'
-    ).toString().toLowerCase();
+    final status = _effectiveStatus;
 
     if (_isSelfPickup) {
       if (status == 'delivered' || status == 'completed' || status == 'handovered' || status == 'handed_over') return 4;
@@ -532,7 +542,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   String get _statusTitle {
-    final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
+    final status = _effectiveStatus;
     if (status == 'delivered' || status == 'completed' || status == 'handovered') return 'Order Completed!';
     if (status == 'out_for_delivery' || status == 'on_the_way' || status == 'reached_customer_location' || status == 'delivery_arrived') return 'Order is on the way';
     if (status == 'picked_up' || status == 'partner_picked') return 'Partner Picked Order';
@@ -544,7 +554,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   String get _statusSubtitle {
-    final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
+    final status = _effectiveStatus;
     if (status == 'delivered' || status == 'completed') return 'Thank you! Enjoy your meal!';
     if (status == 'out_for_delivery' || status == 'on_the_way' || status == 'reached_customer_location' || status == 'delivery_arrived') {
       final etaStr = _formatETA(_trackingData?['estimatedDeliveryTime'] ?? _trackingData?['order']?['estimatedDeliveryTime']);
@@ -564,7 +574,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   Color get _statusBannerColor {
-    final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
+    final status = _effectiveStatus;
     if (status == 'delivered' || status == 'completed') return const Color(0xFF16A34A);
     if (status == 'picked_up' || status == 'out_for_delivery' || status == 'on_the_way' || status == 'reached_customer_location' || status == 'delivery_arrived') return AppColors.primary;
     if (status == 'cancelled') return Colors.red;
