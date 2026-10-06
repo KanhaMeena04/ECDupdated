@@ -473,7 +473,14 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   int get _stepFromStatus {
-    final status = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
+    final status = (
+      _trackingData?['deliveryStatus'] ??
+      _trackingData?['status'] ??
+      _trackingData?['order']?['deliveryStatus'] ??
+      _trackingData?['order']?['status'] ??
+      'pending'
+    ).toString().toLowerCase();
+
     if (_isSelfPickup) {
       if (status == 'delivered' || status == 'completed' || status == 'handovered' || status == 'handed_over') return 4;
       if (status == 'customer_arrived' || status == 'arrived' || _isArrivedNotified) return 3;
@@ -1670,9 +1677,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     final String activeStatus = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? 'pending').toString().toLowerCase();
     final bool isOnTheWay = activeStatus == 'out_for_delivery' || activeStatus == 'on_the_way' || activeStatus == 'reached_customer_location' || activeStatus == 'delivery_arrived';
 
-    // Rider location rule: Before "Order On The Way", rider is physically AT THE RESTAURANT.
-    final double activeRiderLat = (!isOnTheWay) ? defaultRestLat : (riderLat ?? defaultRestLat);
-    final double activeRiderLng = (!isOnTheWay) ? defaultRestLng : (riderLng ?? defaultRestLng);
+    // Real-time rider location tracking on Google Maps
+    final double activeRiderLat = (riderLat != null && riderLat != 0) ? riderLat : defaultRestLat;
+    final double activeRiderLng = (riderLng != null && riderLng != 0) ? riderLng : defaultRestLng;
 
     final Set<Marker> trackingMarkers = {
       Marker(

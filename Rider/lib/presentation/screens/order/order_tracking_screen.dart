@@ -166,39 +166,56 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   Future<void> _getPolyline() async {
-    if (_driverLatLng == null) return;
-    
+    final originLatLng = _driverLatLng ?? _getRestaurantLatLng();
     final targetLatLng = _isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
     
-    // ignore: deprecated_member_use
-    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+    try {
       // ignore: deprecated_member_use
-      request: PolylineRequest(
-        origin: PointLatLng(_driverLatLng!.latitude, _driverLatLng!.longitude),
-        destination: PointLatLng(targetLatLng.latitude, targetLatLng.longitude),
-        mode: TravelMode.driving,
-      ),
-    );
+      PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+        // ignore: deprecated_member_use
+        request: PolylineRequest(
+          origin: PointLatLng(originLatLng.latitude, originLatLng.longitude),
+          destination: PointLatLng(targetLatLng.latitude, targetLatLng.longitude),
+          mode: TravelMode.driving,
+        ),
+      );
 
-    if (result.points.isNotEmpty) {
-      List<LatLng> polylineCoordinates = [];
-      for (var point in result.points) {
-        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
-      }
+      if (result.points.isNotEmpty) {
+        List<LatLng> polylineCoordinates = [];
+        for (var point in result.points) {
+          polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+        }
 
-      if (mounted) {
-        setState(() {
-          _polylines.clear();
-          _polylines.add(
-            Polyline(
-              polylineId: const PolylineId('route'),
-              color: _isToRestaurant ? Colors.orange : primaryGreen,
-              points: polylineCoordinates,
-              width: 5,
-            ),
-          );
-        });
+        if (mounted) {
+          setState(() {
+            _polylines.clear();
+            _polylines.add(
+              Polyline(
+                polylineId: const PolylineId('route'),
+                color: _isToRestaurant ? Colors.orange : primaryGreen,
+                points: polylineCoordinates,
+                width: 5,
+              ),
+            );
+          });
+        }
+        return;
       }
+    } catch (_) {}
+
+    // Fallback direct line between origin and target if routing API is unavailable
+    if (mounted) {
+      setState(() {
+        _polylines.clear();
+        _polylines.add(
+          Polyline(
+            polylineId: const PolylineId('route'),
+            color: _isToRestaurant ? Colors.orange : primaryGreen,
+            points: [originLatLng, targetLatLng],
+            width: 4,
+          ),
+        );
+      });
     }
   }
 
@@ -206,68 +223,85 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     try {
       final store = widget.order['store'];
       final restaurant = widget.order['restaurant'];
-      final storeLoc = store?['location'] ?? restaurant?['location'] ?? widget.order['restaurantLocation'] ?? widget.order['location'];
-      if (storeLoc != null && storeLoc['coordinates'] != null) {
-        final coords = storeLoc['coordinates'] as List;
-        if (coords.length >= 2) {
-          final lat = (coords[1] as num).toDouble();
-          final lng = (coords[0] as num).toDouble();
-          if (lat != 0 && lng != 0) {
-            return LatLng(lat, lng);
+      final targets = [restaurant, store, widget.order['restaurantLocation'], widget.order['location']];
+
+      for (final target in targets) {
+        if (target is Map) {
+          if (target['lat'] != null && target['lng'] != null) {
+            final lat = (target['lat'] as num).toDouble();
+            final lng = (target['lng'] as num).toDouble();
+            if (lat != 0 && lng != 0) return LatLng(lat, lng);
+          }
+          if (target['latitude'] != null && target['longitude'] != null) {
+            final lat = (target['latitude'] as num).toDouble();
+            final lng = (target['longitude'] as num).toDouble();
+            if (lat != 0 && lng != 0) return LatLng(lat, lng);
+          }
+          final loc = target['location'];
+          if (loc is Map && loc['coordinates'] is List) {
+            final coords = loc['coordinates'] as List;
+            if (coords.length >= 2) {
+              final lng = (coords[0] as num).toDouble();
+              final lat = (coords[1] as num).toDouble();
+              if (lat != 0 && lng != 0) return LatLng(lat, lng);
+            }
           }
         }
       }
-      if (restaurant is Map && restaurant['latitude'] != null && restaurant['longitude'] != null) {
-        return LatLng((restaurant['latitude'] as num).toDouble(), (restaurant['longitude'] as num).toDouble());
+
+      if (widget.order['restaurantLat'] != null && widget.order['restaurantLng'] != null) {
+        final lat = (widget.order['restaurantLat'] as num).toDouble();
+        final lng = (widget.order['restaurantLng'] as num).toDouble();
+        if (lat != 0 && lng != 0) return LatLng(lat, lng);
       }
     } catch (_) {}
-    return const LatLng(22.7196, 75.8577); // Default Indore Coordinates
+    return const LatLng(22.7196, 75.8577);
   }
 
   LatLng _getCustomerLatLng() {
     try {
-      final address = widget.order['address'] ?? widget.order['deliveryAddress'] ?? widget.order['customer']?['address'];
-      if (address != null && address is Map) {
-        final loc = address['location'];
-        if (loc != null && loc['coordinates'] != null) {
-          final coords = loc['coordinates'] as List;
-          if (coords.length >= 2) {
-            final lat = (coords[1] as num).toDouble();
-            final lng = (coords[0] as num).toDouble();
-            if (lat != 0 && lng != 0) {
-              return LatLng(lat, lng);
+      final address = widget.order['address'] ?? widget.order['deliveryAddress'] ?? widget.order['customer']?['address'] ?? widget.order['user'];
+      final targets = [address, widget.order['deliveryAddress'], widget.order['address'], widget.order['customer'], widget.order['user']];
+
+      for (final target in targets) {
+        if (target is Map) {
+          if (target['lat'] != null && target['lng'] != null) {
+            final lat = (target['lat'] as num).toDouble();
+            final lng = (target['lng'] as num).toDouble();
+            if (lat != 0 && lng != 0) return LatLng(lat, lng);
+          }
+          if (target['latitude'] != null && target['longitude'] != null) {
+            final lat = (target['latitude'] as num).toDouble();
+            final lng = (target['longitude'] as num).toDouble();
+            if (lat != 0 && lng != 0) return LatLng(lat, lng);
+          }
+          final loc = target['location'];
+          if (loc is Map && loc['coordinates'] is List) {
+            final coords = loc['coordinates'] as List;
+            if (coords.length >= 2) {
+              final lng = (coords[0] as num).toDouble();
+              final lat = (coords[1] as num).toDouble();
+              if (lat != 0 && lng != 0) return LatLng(lat, lng);
             }
           }
         }
-        if (address['latitude'] != null && address['longitude'] != null) {
-          return LatLng((address['latitude'] as num).toDouble(), (address['longitude'] as num).toDouble());
-        }
       }
-      final directAddr = widget.order['deliveryAddress'] ?? widget.order['address'];
-      if (directAddr is Map && directAddr['coordinates'] != null) {
-        final coords = directAddr['coordinates'] as List;
-        if (coords.length >= 2) {
-          final lat = (coords[1] as num).toDouble();
-          final lng = (coords[0] as num).toDouble();
-          if (lat != 0 && lng != 0) return LatLng(lat, lng);
-        }
-      }
-      final custLoc = widget.order['customerLocation'] ?? widget.order['location'];
-      if (custLoc is Map && custLoc['coordinates'] != null) {
-        final coords = custLoc['coordinates'] as List;
-        if (coords.length >= 2) {
-          final lat = (coords[1] as num).toDouble();
-          final lng = (coords[0] as num).toDouble();
-          if (lat != 0 && lng != 0) return LatLng(lat, lng);
-        }
+
+      if (widget.order['customerLat'] != null && widget.order['customerLng'] != null) {
+        final lat = (widget.order['customerLat'] as num).toDouble();
+        final lng = (widget.order['customerLng'] as num).toDouble();
+        if (lat != 0 && lng != 0) return LatLng(lat, lng);
       }
     } catch (_) {}
-    return const LatLng(22.7196, 75.8577); // Default Indore Coordinates
+    return const LatLng(22.7196, 75.8577);
   }
 
   String _getLiveDistance() {
+    final restLatLng = _getRestaurantLatLng();
+    final custLatLng = _getCustomerLatLng();
+
     if (_driverLatLng != null) {
-      final targetLatLng = _isToRestaurant ? _getRestaurantLatLng() : _getCustomerLatLng();
+      final targetLatLng = _isToRestaurant ? restLatLng : custLatLng;
       try {
         final distanceInMeters = Geolocator.distanceBetween(
           _driverLatLng!.latitude,
@@ -276,22 +310,26 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           targetLatLng.longitude,
         );
         final distanceInKm = distanceInMeters / 1000;
-        return distanceInKm.toStringAsFixed(1);
+        if (distanceInKm > 0) return distanceInKm.toStringAsFixed(1);
       } catch (_) {}
     }
-    
+
     try {
-      if (_isToRestaurant) {
-        final rDist = widget.order['restaurant']?['distance_km'] ?? widget.order['store']?['distance_km'];
-        if (rDist != null) return rDist.toString();
-      } else {
-        final cDist = widget.order['customer']?['distance_km'];
-        if (cDist != null) return cDist.toString();
-      }
+      final distanceInMeters = Geolocator.distanceBetween(
+        restLatLng.latitude,
+        restLatLng.longitude,
+        custLatLng.latitude,
+        custLatLng.longitude,
+      );
+      final distanceInKm = distanceInMeters / 1000;
+      if (distanceInKm > 0) return distanceInKm.toStringAsFixed(1);
+    } catch (_) {}
+
+    try {
       final oDist = widget.order['distanceKm'] ?? widget.order['distance_km'];
       if (oDist != null) return oDist.toString();
     } catch (_) {}
-    
+
     return '1.2';
   }
 

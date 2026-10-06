@@ -291,6 +291,27 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
           message = result['data']['message'].toString();
         }
 
+        if (event.status == 'delivered' || event.status == 'completed') {
+          final targetId = event.orderId.toString();
+          final deliveredItems = _activeOrders.where((o) {
+            final id = (o['_id'] ?? o['orderId'] ?? '').toString();
+            return id == targetId;
+          }).toList();
+
+          _activeOrders = _activeOrders.where((o) {
+            final id = (o['_id'] ?? o['orderId'] ?? '').toString();
+            return id != targetId;
+          }).toList();
+
+          for (var item in deliveredItems) {
+            item['deliveryStatus'] = 'delivered';
+            item['status'] = 'delivered';
+            if (!_completedOrders.any((c) => (c['_id'] ?? c['orderId'] ?? '').toString() == targetId)) {
+              _completedOrders.insert(0, item);
+            }
+          }
+        }
+
         // Trigger active orders reload to refresh dashboard & details status!
         add(const LoadActiveOrders());
 

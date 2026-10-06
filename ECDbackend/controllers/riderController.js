@@ -2199,7 +2199,7 @@ exports.updateLocation = async (req, res) => {
       try {
         const activeOrders = await Order.find({
           rider: rider._id,
-          status: { $in: ['assigned', 'accepted_by_rider', 'reached_restaurant', 'arrived_restaurant', 'picked_up', 'delivery_arrived'] }
+          status: { $in: ['assigned', 'accepted', 'accepted_by_rider', 'reached_restaurant', 'reached_store', 'arrived_restaurant', 'picked_up', 'out_for_delivery', 'on_the_way', 'delivery_arrived'] }
         });
         for (const order of activeOrders) {
           try {

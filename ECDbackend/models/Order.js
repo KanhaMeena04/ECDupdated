@@ -89,12 +89,19 @@ const orderSchema = new mongoose.Schema(
         "accepted",            // 2. Restaurant accepted (started preparing)
         "preparing",           // 3. Kitchen is cooking
         "ready",               // 4. Food is ready, waiting for pickup/rider
+        "ready_for_pickup",
         "customer_arrived",    // Self pickup: Customer arrived at restaurant counter
         "assigned",            // 5. Rider assigned and heading to restaurant
+        "rider_assigned",
         "reached_restaurant",  // 6. Rider physically at restaurant, awaiting pickup OTP
+        "reached_store",
         "picked_up",           // 7. Rider picked up food (OUT FOR DELIVERY)
-        "delivery_arrived",    // 8. Rider at customer location
-        "delivered",           // 9. Order completed / delivered
+        "partner_picked",
+        "out_for_delivery",    // 8. Order out for delivery
+        "on_the_way",          // 8. Order on the way
+        "reached_customer_location",
+        "delivery_arrived",    // 9. Rider at customer location
+        "delivered",           // 10. Order completed / delivered
         "completed",           // Order completed
         "cancelled",           // Order cancelled
         "failed",              // Payment failed
@@ -102,6 +109,7 @@ const orderSchema = new mongoose.Schema(
       default: "pending",
       index: true,
     },
+    deliveryStatus: { type: String },
     pickupOtp: { type: String },
     pickupOtpExpiresAt: { type: Date },
     pickupOtpVerifiedAt: { type: Date },
