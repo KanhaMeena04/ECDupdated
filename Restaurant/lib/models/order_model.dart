@@ -7,6 +7,12 @@ class Order {
   final String notes;
   String status;
   final double totalAmount;
+  final double itemTotal;
+  final double packagingFee;
+  final double deliveryFee;
+  final double platformFee;
+  final double tax;
+  final double discount;
   final double? restaurantEarning;
   String? riderName;
   String? riderId;
@@ -43,6 +49,12 @@ class Order {
     this.notes = '',
     this.status = 'Pending',
     required this.totalAmount,
+    this.itemTotal = 0.0,
+    this.packagingFee = 0.0,
+    this.deliveryFee = 0.0,
+    this.platformFee = 0.0,
+    this.tax = 0.0,
+    this.discount = 0.0,
     this.restaurantEarning,
     this.riderName,
     this.riderId,
@@ -258,6 +270,13 @@ class Order {
       parsedPaymentMethod = json['paymentMethod'].toString();
     }
 
+    double parsedItemTotal = double.tryParse(json['itemTotal']?.toString() ?? '') ?? 0.0;
+    double parsedPackagingFee = double.tryParse(json['packagingFee']?.toString() ?? json['packaging']?.toString() ?? '') ?? 0.0;
+    double parsedDeliveryFee = double.tryParse(json['deliveryFee']?.toString() ?? json['deliveryCharge']?.toString() ?? '') ?? 0.0;
+    double parsedPlatformFee = double.tryParse(json['platformFee']?.toString() ?? '') ?? 0.0;
+    double parsedTax = double.tryParse(json['tax']?.toString() ?? json['gst']?.toString() ?? '') ?? 0.0;
+    double parsedDiscount = double.tryParse(json['discount']?.toString() ?? json['totalDiscount']?.toString() ?? '') ?? 0.0;
+
     return Order(
       id: json['orderNumber']?.toString() ?? json['_id']?.toString() ?? 'N/A',
       backendId: json['_id']?.toString() ?? '',
@@ -266,6 +285,12 @@ class Order {
       quantity: oQty > 0 ? oQty : 1,
       status: parsedStatus,
       totalAmount: parsedAmount,
+      itemTotal: parsedItemTotal,
+      packagingFee: parsedPackagingFee,
+      deliveryFee: parsedDeliveryFee,
+      platformFee: parsedPlatformFee,
+      tax: parsedTax,
+      discount: parsedDiscount,
       restaurantEarning: parsedEarnings,
       pickupOtp: json['pickupOtp']?.toString() ?? json['pickupOTP']?.toString() ?? json['selfPickupCode']?.toString(),
       riderName: parsedRiderName,
