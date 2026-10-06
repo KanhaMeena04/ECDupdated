@@ -845,7 +845,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final filteredOrders = _orders.where((o) {
       final bool matchesType = _selectedOrderType == 'pickup' ? _isOrderPickupType(o) : !_isOrderPickupType(o);
       if (!matchesType) return false;
-      if (_selectedStatusFilter == 'All') return true;
+      if (_selectedStatusFilter == 'All') {
+        final s = o.status.toLowerCase().trim();
+        final isHandedOver = s == 'picked_up' || s == 'picked up' || s == 'out_for_delivery' || s == 'out for delivery' || s == 'on_the_way' || s == 'on the way' || s == 'handed_over' || s == 'handed over' || s == 'handovered' || s == 'delivered' || s == 'completed';
+        return !isHandedOver;
+      }
       if (_selectedStatusFilter == 'Ready') return o.status == 'Ready' || o.status == 'Ready for Pickup';
       if (_selectedStatusFilter == 'Delivered') return o.status == 'Delivered' || o.status == 'Handed Over' || o.status == 'Picked Up' || o.status == 'Completed';
       return o.status == _selectedStatusFilter;

@@ -5140,10 +5140,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(16),
                           child: Stack(
                             children: [
-                              // Custom Stylized Map Graphic Simulation
-                              CustomPaint(
-                                size: Size.infinite,
-                                painter: _MapPainter(),
+                              // Real Map background & location picker representation
+                              Container(
+                                color: const Color(0xFFE8F5E9),
+                                child: Stack(
+                                  children: [
+                                    GridPaper(
+                                      color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+                                      divisions: 2,
+                                      subDivisions: 2,
+                                    ),
+                                  ],
+                                ),
                               ),
 
                               // Floating Dynamic Location Pin

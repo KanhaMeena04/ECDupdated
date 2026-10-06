@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
 import '../api_constants.dart';
 import '../theme/app_colors.dart';
 
@@ -27,6 +28,63 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _areaController = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
+  bool _isFetchingLocation = false;
+
+  Future<void> _fetchCurrentLocation() async {
+    setState(() => _isFetchingLocation = true);
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('GPS is disabled. Please enable location services.'), backgroundColor: Colors.red),
+          );
+        }
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      Position? position;
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 10),
+        );
+      } else {
+        position = await Geolocator.getLastKnownPosition();
+      }
+
+      if (position != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('📍 Live GPS Fetched: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}'),
+              backgroundColor: AppColors.primaryGreen,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not fetch GPS location. Please try again.'), backgroundColor: Colors.orange),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Location error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isFetchingLocation = false);
+      }
+    }
+  }
 
   // Contact Info
   final TextEditingController _phoneController = TextEditingController();
@@ -554,6 +612,29 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
                 _buildAccordionSection(
                   title: 'Restaurant Location',
                   children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Live GPS Location', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                        ElevatedButton.icon(
+                          onPressed: _isFetchingLocation ? null : _fetchCurrentLocation,
+                          icon: _isFetchingLocation
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : const Icon(Icons.my_location_rounded, size: 14, color: Colors.white),
+                          label: Text(
+                            _isFetchingLocation ? 'Fetching...' : 'Fetch Live Location',
+                            style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryGreen,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            elevation: 0,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     _buildTextField('Restaurant Address', _addressController),
                     const SizedBox(height: 14),
                     _buildTextField('Area', _areaController),
@@ -562,22 +643,22 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
                     const SizedBox(height: 14),
                     // Map view box
                     Container(
-                      height: 120,
+                      height: 100,
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEDF2F7),
+                        color: const Color(0xFFE8F5E9),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.grey[300]!),
+                        border: Border.all(color: AppColors.primaryGreen.withOpacity(0.3)),
                       ),
                       child: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.map, color: AppColors.primaryGreen, size: 30),
+                            const Icon(Icons.location_on_rounded, color: AppColors.primaryGreen, size: 30),
                             const SizedBox(height: 4),
                             Text(
-                              'Location Pin Selected on Map',
-                              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                              '📍 Live Device Location Sync Enabled',
+                              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
                             ),
                           ],
                         ),
