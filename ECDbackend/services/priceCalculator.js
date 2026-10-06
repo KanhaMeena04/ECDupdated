@@ -184,7 +184,7 @@ async function calculateOrderPrice({
         // Commission Breakdown
         appliedCommissionRate: commissionResult.rate,
         adminCommissionAmount: round(commissionResult.amount),
-        restaurantNetPayable: round(itemTotal - commissionResult.amount),
+        restaurantNetPayable: round((itemTotal + packaging) - commissionResult.amount),
       },
       sources: {
         deliveryRule: deliveryRuleApplied,
