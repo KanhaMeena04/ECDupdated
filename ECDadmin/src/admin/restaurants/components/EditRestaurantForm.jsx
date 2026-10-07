@@ -130,7 +130,19 @@ const EditRestaurantForm = () => {
       </div>
 
       <div className="-mt-12 max-w-7xl mx-auto px-4 md:px-10">
-        <ImageUploadSection className="bg-[#fe3f3f]" isEdit={true} />
+        <ImageUploadSection
+          coverImage={data?.bannerImage || data?.coverImage}
+          profileImage={data?.image || data?.logo || data?.profileImage || data?.profilePic}
+          onCoverChange={(base64) => {
+            handleChange({ target: { name: "bannerImage", value: base64 } });
+          }}
+          onProfileChange={(base64) => {
+            handleChange({ target: { name: "image", value: base64 } });
+            handleChange({ target: { name: "logo", value: base64 } });
+            handleChange({ target: { name: "profileImage", value: base64 } });
+          }}
+          isEdit={true}
+        />
 
         <Paper elevation={0} className="mt-8 rounded-2xl border border-gray-100 overflow-hidden shadow-xl">
           {error && (

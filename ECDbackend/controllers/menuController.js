@@ -5,6 +5,7 @@ const Restaurant = require("../models/Restaurant");
 const User = require("../models/User");
 const { formatProductForUser } = require("../utils/responseFormatter");
 const { getFileUrl } = require("../utils/upload");
+const { uploadToImageKit } = require("../utils/imagekit");
 const parseIfString = (value) => {
   if (typeof value !== "string") return value;
   try {
@@ -889,6 +890,14 @@ exports.editProduct = async (req, res) => {
     const file = req.files && req.files.image ? req.files.image[0] : null;
     const updates = { ...req.body };
     if (file) updates.image = getFileUrl(file);
+    if (updates.image && (updates.image.startsWith('data:') || updates.image.length > 200)) {
+      try {
+        const up = await uploadToImageKit(updates.image, `menu_${product._id}_${Date.now()}.jpg`, '/menu');
+        if (up) updates.image = up;
+      } catch (e) {
+        console.warn('[ImageKit Edit Product Notice]:', e.message);
+      }
+    }
     if (updates.variations !== undefined) {
       updates.variations = parseIfString(updates.variations);
     }
@@ -1199,7 +1208,15 @@ exports.bulkUploadMenuItems = async (req, res) => {
       const b2bNum = Number(item.b2bPrice || item.b2bSellingPrice || priceNum);
       const rawFoodType = (item.foodType || (item.isVeg !== false ? 'veg' : 'non-veg')).toString().toLowerCase();
       const foodTypeStr = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
-      const itemImgStr = (item.image && item.image.trim()) ? item.image.trim() : "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400";
+      let itemImgStr = (item.image && item.image.trim()) ? item.image.trim() : "";
+      if (itemImgStr && (itemImgStr.startsWith('data:') || itemImgStr.length > 200)) {
+        try {
+          const up = await uploadToImageKit(itemImgStr, `menu_${restaurant._id}_${Date.now()}_${idx}.jpg`, '/menu');
+          if (up) itemImgStr = up;
+        } catch (e) {
+          console.warn('[ImageKit Menu Upload Notice]:', e.message);
+        }
+      }
 
       let categoryObj = defaultCat;
       if (catNameStr) {

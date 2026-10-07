@@ -280,11 +280,13 @@ const useEditRestaurantProfile = (restaurantId) => {
       setLoading(true);
       setError("");
       try {
+        const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
         let res;
         try {
-          res = await axios.get(`${API_BASE_URL}/api/restaurants/admin/${restaurantId}`, { withCredentials: true });
+          res = await axios.get(`${API_BASE_URL}/api/restaurants/admin/${restaurantId}`, { headers, withCredentials: true });
         } catch {
-          res = await axios.get(`${API_BASE_URL}/api/restaurants/${restaurantId}`, { withCredentials: true });
+          res = await axios.get(`${API_BASE_URL}/api/restaurants/${restaurantId}`, { headers, withCredentials: true });
         }
 
         const rawData = res?.data?.restaurant || res?.data;
@@ -301,6 +303,9 @@ const useEditRestaurantProfile = (restaurantId) => {
             address: rawData.address || "Selected from map",
             city: rawData.city || "Sohna",
             brand: rawData.brand || (typeof rawData.name === 'object' ? rawData.name.en : rawData.name) || "Restaurant",
+            image: rawData.image || rawData.logo || rawData.profileImage || rawData.profilePic || "",
+            logo: rawData.logo || rawData.image || "",
+            bannerImage: rawData.bannerImage || rawData.coverImage || "",
             rating: typeof rawData.rating === 'object' ? (rawData.rating?.average ?? rawData.avgRating ?? rawData.adminRating ?? 0) : (rawData.rating ?? rawData.avgRating ?? 0),
             cuisine: Array.isArray(rawData.cuisine) ? rawData.cuisine : (Array.isArray(rawData.categories) ? rawData.categories : ["North Indian", "Fast Food"]),
             paymentMethods: rawData.paymentMethods || "Both",
@@ -341,17 +346,25 @@ const useEditRestaurantProfile = (restaurantId) => {
 
   const handleSubmit = async () => {
     setSaving(true);
+    setError("");
     try {
+      const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
+      const headers = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
       try {
-        await axios.put(`${API_BASE_URL}/api/restaurants/admin/${restaurantId}`, data, { withCredentials: true });
+        await axios.put(`${API_BASE_URL}/api/restaurants/admin/${restaurantId}`, data, { headers, withCredentials: true });
       } catch (adminPutErr) {
-        await axios.put(`${API_BASE_URL}/api/restaurants/${restaurantId}`, data, { withCredentials: true });
+        await axios.put(`${API_BASE_URL}/api/restaurants/${restaurantId}`, data, { headers, withCredentials: true });
       }
       toast.success("Restaurant Updated Successfully!");
       navigate("/restaurants");
     } catch (err) {
-      toast.success("Restaurant Updated Successfully!");
-      navigate("/restaurants");
+      console.error("Update restaurant error:", err);
+      const errMsg = err?.response?.data?.message || err?.message || "Failed to update restaurant";
+      setError(errMsg);
+      toast.error(`Update failed: ${errMsg}`);
     } finally {
       setSaving(false);
     }

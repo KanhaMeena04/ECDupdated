@@ -399,7 +399,7 @@ exports.adminCreateRestaurant = async (req, res) => {
           foodType: item.foodType || (item.isVeg ? 'Veg' : 'Non-Veg'),
           isVeg: item.isVeg !== undefined ? Boolean(item.isVeg) : true,
           description: item.description || "",
-          image: itemImg || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
+          image: itemImg || "",
           variants: item.variants || [],
           addOns: item.addOns || [],
           isAvailable: true,
@@ -504,7 +504,7 @@ exports.adminCreateRestaurant = async (req, res) => {
             categoryId: catObj._id,
             name: { en: menuItem.name },
             description: { en: menuItem.description },
-            image: menuItem.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
+            image: menuItem.image || itemImg || "",
             basePrice: menuItem.basePrice,
             sellingPrice: menuItem.basePrice,
             mrp: menuItem.basePrice,
@@ -1077,6 +1077,24 @@ exports.updateRestaurant = async (req, res) => {
     if (req.files?.images?.length) {
       req.body.restaurantImages = req.files.images.map((file) => getFileUrl(file));
     }
+
+    if (req.body.image && (req.body.image.startsWith('data:') || req.body.image.length > 200)) {
+      try {
+        const uploadedLogo = await uploadToImageKit(req.body.image, `rest_${restaurant._id}_logo_${Date.now()}.jpg`, '/restaurants');
+        if (uploadedLogo) req.body.image = uploadedLogo;
+      } catch (e) {
+        console.warn('[ImageKit Logo Notice]:', e.message);
+      }
+    }
+    if (req.body.bannerImage && (req.body.bannerImage.startsWith('data:') || req.body.bannerImage.length > 200)) {
+      try {
+        const uploadedBanner = await uploadToImageKit(req.body.bannerImage, `rest_${restaurant._id}_banner_${Date.now()}.jpg`, '/restaurants');
+        if (uploadedBanner) req.body.bannerImage = uploadedBanner;
+      } catch (e) {
+        console.warn('[ImageKit Banner Notice]:', e.message);
+      }
+    }
+
     const updates = { ...req.body };
     if (updates.name !== undefined) updates.name = normalizeTranslation(updates.name);
     if (updates.description !== undefined) {
@@ -1109,6 +1127,9 @@ exports.updateRestaurant = async (req, res) => {
       "cuisine",
       "brand",
       "image",
+      "logo",
+      "profileImage",
+      "profilePic",
       "bannerImage",
       "restaurantImages",
       "address",
@@ -1151,6 +1172,12 @@ exports.updateRestaurant = async (req, res) => {
     allowed.forEach((field) => {
       if (updates[field] !== undefined) sanitized[field] = updates[field];
     });
+
+    if (sanitized.image) {
+      sanitized.logo = sanitized.image;
+      sanitized.profileImage = sanitized.image;
+      sanitized.profilePic = sanitized.image;
+    }
 
     if (sanitized.isOnline !== undefined || sanitized.isActive !== undefined || sanitized.isTemporarilyClosed !== undefined) {
       const isOnlineVal = sanitized.isOnline !== undefined ? Boolean(sanitized.isOnline) : (sanitized.isActive !== undefined ? Boolean(sanitized.isActive) : !Boolean(sanitized.isTemporarilyClosed));
@@ -2913,6 +2940,16 @@ exports.vendorAddMenuItem = async (req, res) => {
       restaurantDoc.menuApprovalRequired === false
     );
 
+    let finalItemImg = (image && image.trim().length > 0) ? image.trim() : "";
+    if (finalItemImg && (finalItemImg.startsWith('data:') || finalItemImg.length > 200)) {
+      try {
+        const up = await uploadToImageKit(finalItemImg, `menu_${resolvedRestId}_${Date.now()}.jpg`, '/menu');
+        if (up) finalItemImg = up;
+      } catch (e) {
+        console.warn('[ImageKit Menu Upload Notice]:', e.message);
+      }
+    }
+
     const product = await Product.create({
       name: { en: (typeof name === 'string' ? name : (name?.en || 'New Item')) },
       description: { en: (typeof description === 'string' ? description : (description?.en || '')) },
@@ -2933,7 +2970,7 @@ exports.vendorAddMenuItem = async (req, res) => {
       categoryId: catObjId,
       subcategory: subcategory || (foundCat?.name?.en || foundCat?.name || ''),
       subcategoryId: subCatObjId,
-      image: (image && image.trim().length > 0) ? image.trim() : "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
+      image: finalItemImg,
       variations: normalizedVariations,
       addOns: normalizedAddOns,
       approvalStatus: shouldAutoApprove ? 'approved' : 'pending',
@@ -3047,7 +3084,15 @@ exports.vendorBulkImportMenuItems = async (req, res) => {
       const itemMrp = Number(item.mrp ?? item.b2cMrp ?? itemPrice);
       const rawFoodType = (item.foodType || (item.isVeg === false ? 'non-veg' : 'veg')).toString().toLowerCase();
       const foodType = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
-      const itemImg = (item.image && item.image.trim().length > 0) ? item.image.trim() : "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400";
+      let itemImg = (item.image && item.image.trim().length > 0) ? item.image.trim() : "";
+      if (itemImg && (itemImg.startsWith('data:') || itemImg.length > 200)) {
+        try {
+          const up = await uploadToImageKit(itemImg, `menu_${resolvedRestId}_${Date.now()}_${items.indexOf(item)}.jpg`, '/menu');
+          if (up) itemImg = up;
+        } catch (e) {
+          console.warn('[ImageKit Bulk Upload Notice]:', e.message);
+        }
+      }
 
       const product = await Product.create({
         restaurant: resolvedRestId,

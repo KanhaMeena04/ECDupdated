@@ -458,19 +458,27 @@ const AddRestaurantForm = () => {
       alert("Please enter Item Name and Price");
       return;
     }
+    if (!newItemImage) {
+      alert("Dish Photo is mandatory! Please upload a photo for this item.");
+      return;
+    }
     const itemObj = {
       name: newItemName.trim(),
       price: Number(newItemPrice.trim()),
       basePrice: Number(newItemPrice.trim()),
+      mrp: Number(newItemMrp ? newItemMrp.trim() : newItemPrice.trim()),
+      b2bPrice: Number(newItemB2bPrice ? newItemB2bPrice.trim() : newItemPrice.trim()),
       category: newItemCategory,
       foodType: newItemFoodType,
       isVeg: newItemFoodType === "Veg",
       description: newItemDesc.trim(),
-      image: newItemImage || "",
+      image: newItemImage,
     };
     setMenuItems([...menuItems, itemObj]);
     setNewItemName("");
     setNewItemPrice("");
+    setNewItemMrp("");
+    setNewItemB2bPrice("");
     setNewItemDesc("");
     setNewItemImage(null);
   };
@@ -1384,15 +1392,16 @@ const AddRestaurantForm = () => {
               size="small"
               variant="outlined"
               sx={{
-                borderColor: newItemImage ? "#22C55E" : "#CBD5E1",
-                color: newItemImage ? "#16A34A" : "#475569",
+                borderColor: newItemImage ? "#22C55E" : "#EF4444",
+                color: newItemImage ? "#16A34A" : "#DC2626",
                 textTransform: "none",
                 fontWeight: 600,
                 borderRadius: 2,
                 flex: 1,
+                bgcolor: newItemImage ? "#F0FDF4" : "#FEF2F2",
               }}
             >
-              {newItemImage ? "Photo ✓" : "Dish Photo"}
+              {newItemImage ? "Photo ✓ (Uploaded)" : "Dish Photo *"}
               <input
                 type="file"
                 hidden

@@ -237,6 +237,10 @@ const EditRestaurantMenuForm = () => {
       toast.error("Please provide Item Name and Selling Price");
       return;
     }
+    if (!itemImage || !itemImage.trim()) {
+      toast.error("Dish Photo is mandatory! Please upload or enter a photo.");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -753,7 +757,7 @@ const EditRestaurantMenuForm = () => {
             {/* Image Selection Section: Dual File Browse & URL */}
             <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
               <label className="block text-xs font-bold text-slate-700">
-                Dish Photo (Upload File or Enter URL)
+                Dish Photo <span className="text-red-500 font-extrabold">*</span> (Upload File or Enter URL)
               </label>
               
               <div className="flex items-center gap-3">
@@ -799,7 +803,6 @@ const EditRestaurantMenuForm = () => {
                     src={itemImage}
                     alt="Preview"
                     className="w-16 h-16 object-cover rounded-lg border border-emerald-300 shadow-sm"
-                    onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400"; }}
                   />
                   <div>
                     <p className="text-xs font-bold text-emerald-700">Image Loaded</p>

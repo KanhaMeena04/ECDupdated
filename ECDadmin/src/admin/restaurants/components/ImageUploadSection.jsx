@@ -1,18 +1,37 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Camera, Upload } from 'lucide-react';
 
-export default function ImageUploadSection() {
+export default function ImageUploadSection({
+  coverImage: propCover,
+  profileImage: propProfile,
+  onCoverChange,
+  onProfileChange,
+}) {
   const coverInputRef = useRef(null);
   const profileInputRef = useRef(null);
   
   // State to hold the preview URLs
-  const [coverImage, setCoverImage] = useState(null);
-  const [profileImage, setProfileImage] = useState(null);
+  const [coverImage, setCoverImage] = useState(propCover || null);
+  const [profileImage, setProfileImage] = useState(propProfile || null);
 
-  const handleFileChange = (event, setter) => {
-    const file = event.target.files[0];
+  useEffect(() => {
+    if (propCover) setCoverImage(propCover);
+  }, [propCover]);
+
+  useEffect(() => {
+    if (propProfile) setProfileImage(propProfile);
+  }, [propProfile]);
+
+  const handleFileChange = (event, setter, callback) => {
+    const file = event.target.files?.[0];
     if (file) {
-      setter(URL.createObjectURL(file)); // Create a local preview URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target.result;
+        setter(base64);
+        if (callback) callback(base64);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -21,20 +40,21 @@ export default function ImageUploadSection() {
       
       {/* 1. Cover Photo Section */}
       <div 
-        className="relative h-64 bg-gray-300 w-full flex items-end justify-end p-6 bg-cover bg-center"
-        style={{ backgroundImage: `url(${coverImage})` }}
+        className="relative h-64 bg-gray-300 w-full flex items-end justify-end p-6 bg-cover bg-center rounded-2xl shadow-inner border border-gray-200 overflow-hidden"
+        style={{ backgroundImage: coverImage ? `url(${coverImage})` : undefined }}
       >
         <input 
           type="file" 
           ref={coverInputRef} 
           className="hidden" 
           accept="image/*"
-          onChange={(e) => handleFileChange(e, setCoverImage)}
+          onChange={(e) => handleFileChange(e, setCoverImage, onCoverChange)}
         />
         
         <button 
+          type="button"
           onClick={() => coverInputRef.current.click()}
-          className="bg-[#00a67e] text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-[#008f6d] transition-colors shadow-md z-10"
+          className="bg-[#00a67e] text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-[#008f6d] transition-colors shadow-md z-10 cursor-pointer"
         >
           <Upload size={18} /> Update Cover Photo
         </button>
@@ -42,14 +62,14 @@ export default function ImageUploadSection() {
         {/* 2. Profile Photo (The Camera Box) */}
         <div 
           onClick={() => profileInputRef.current.click()}
-          className="absolute left-10 -bottom-12 w-32 h-32 bg-gray-200 border-4 border-white rounded-md shadow-sm flex items-center justify-center cursor-pointer overflow-hidden hover:opacity-90 transition-opacity"
+          className="absolute left-10 -bottom-12 w-32 h-32 bg-gray-200 border-4 border-white rounded-md shadow-md flex items-center justify-center cursor-pointer overflow-hidden hover:opacity-90 transition-opacity z-20"
         >
-           <input 
+          <input 
             type="file" 
             ref={profileInputRef} 
             className="hidden" 
             accept="image/*"
-            onChange={(e) => handleFileChange(e, setProfileImage)}
+            onChange={(e) => handleFileChange(e, setProfileImage, onProfileChange)}
           />
           
           {profileImage ? (
