@@ -36,6 +36,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   late String _currentDeliveryStatus;
   late bool _isToRestaurant;
   Timer? _statusPollTimer;
+  bool _hasShownDeliveredDialog = false;
 
   final Set<Polyline> _polylines = {};
   static const String googleApiKey = 'AIzaSyCN7XqyxOj5lgr2uaMNrTOg6PzHTOGa0xU';
@@ -418,14 +419,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     } else if (_currentDeliveryStatus == 'out_for_delivery' || _currentDeliveryStatus == 'on_the_way' || _currentDeliveryStatus == 'reached_customer_location' || _currentDeliveryStatus == 'delivery_arrived') {
       setState(() => _isLoading = true);
       context.read<DriverBloc>().add(UpdateOrderStatus(orderId: orderId, status: 'delivered'));
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _showOrderDeliveredDialog();
-      }
     }
   }
 
   void _showOrderDeliveredDialog() {
+    if (_hasShownDeliveredDialog || !mounted) return;
+    _hasShownDeliveredDialog = true;
     final orderNum = widget.order['orderNumber'] ?? widget.order['orderId'] ?? widget.order['_id'] ?? '';
     final custName = widget.order['customer']?['name'] ?? 'Customer';
     final orderId = (widget.order['_id'] ?? widget.order['orderId'] ?? '').toString();
@@ -517,12 +516,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         ? null
                         : () async {
                             setDialogState(() => isSubmitting = true);
-                            context.read<DriverBloc>().add(UpdateOrderStatus(orderId: orderId, status: 'delivered'));
-                            await ApiService.rateCustomer(
-                              orderId: orderId,
-                              rating: selectedRating,
-                              note: noteController.text.trim(),
-                            );
+                            try {
+                              await ApiService.rateCustomer(
+                                orderId: orderId,
+                                rating: selectedRating,
+                                note: noteController.text.trim(),
+                              );
+                            } catch (e) {
+                              debugPrint('Error rating customer: $e');
+                            }
                             if (mounted) {
                               context.read<DriverBloc>().add(const LoadActiveOrders());
                               Navigator.pop(ctx);
@@ -629,7 +631,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               behavior: SnackBarBehavior.floating,
             ),
           );
-          if (state.status == 'delivered') {
+          if (state.status == 'delivered' && !_hasShownDeliveredDialog) {
             _showOrderDeliveredDialog();
           }
         } else if (state is DriverError) {

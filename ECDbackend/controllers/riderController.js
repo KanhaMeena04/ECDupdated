@@ -783,7 +783,24 @@ exports.getCompletedOrdersForRider = async (req, res) => {
       return sendError(res, 404, "Rider profile not found");
     }
     const { page, limit, skip } = getPaginationParams(req, 20);
-    const query = { rider: riderProfile._id, status: "delivered" };
+    const riderIds = [riderProfile._id, req.user._id];
+    const query = {
+      $and: [
+        {
+          $or: [
+            { rider: { $in: riderIds } },
+            { 'assignedRider.riderId': { $in: riderIds } },
+            { driver: { $in: riderIds } }
+          ]
+        },
+        {
+          $or: [
+            { status: { $in: ["delivered", "completed"] } },
+            { deliveryStatus: { $in: ["delivered", "completed"] } }
+          ]
+        }
+      ]
+    };
     const [orders, total] = await Promise.all([
       Order.find(query)
         .populate("restaurant", "name image bannerImage address")

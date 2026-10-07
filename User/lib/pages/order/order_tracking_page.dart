@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/order_api_service.dart';
 import '../../services/restaurant_api_service.dart';
@@ -92,6 +93,16 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   void initState() {
     super.initState();
 
+    SharedPreferences.getInstance().then((prefs) {
+      if (prefs.getBool('rated_${widget.orderId}') == true) {
+        if (mounted) {
+          setState(() {
+            _hasShownRatingModal = true;
+          });
+        }
+      }
+    }).catchError((_) {});
+
     _getPulseController();
     _fetchTracking();
 
@@ -164,6 +175,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
               _pickupStage = 4;
               if (!_hasShownRatingModal && data['isRated'] != true && data['order']?['isRated'] != true) {
                 _hasShownRatingModal = true;
+                _markOrderAsRatedLocally();
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted) {
                     _showDualRatingModal();
@@ -186,6 +198,14 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     } catch (e) {
       debugPrint('Tracking fetch error: $e');
     }
+  }
+
+  Future<void> _markOrderAsRatedLocally() async {
+    _hasShownRatingModal = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('rated_${widget.orderId}', true);
+    } catch (_) {}
   }
 
   void _showDualRatingModal() {
@@ -427,6 +447,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
                                   if (mounted) {
                                     Navigator.pop(ctx);
+                                    await _markOrderAsRatedLocally();
                                     setState(() {
                                       _hasShownRatingModal = true;
                                       if (_trackingData != null) {

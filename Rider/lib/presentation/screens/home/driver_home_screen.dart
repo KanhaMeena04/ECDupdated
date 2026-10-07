@@ -2022,12 +2022,30 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildOrderCard(Map<String, dynamic> order, {bool isHistorical = false}) {
-    final storeName = order['store']?['name'] ?? order['restaurant']?['name'] ?? 'FreshNow Store';
+  Widget _buildOrderCard(dynamic rawOrder, {bool isHistorical = false}) {
+    if (rawOrder == null || rawOrder is! Map) return const SizedBox.shrink();
+    final order = Map<String, dynamic>.from(rawOrder);
+
+    final rawStoreName = order['store']?['name'] ?? order['restaurant']?['name'] ?? order['storeName'] ?? order['restaurantName'];
+    String storeName = 'Restaurant';
+    if (rawStoreName is String) {
+      storeName = rawStoreName;
+    } else if (rawStoreName is Map) {
+      storeName = (rawStoreName['en'] ?? rawStoreName['hi'] ?? (rawStoreName.values.isNotEmpty ? rawStoreName.values.first : 'Restaurant')).toString();
+    } else if (rawStoreName != null) {
+      storeName = rawStoreName.toString();
+    }
+
     final rawCustAddr = _parseAddressToString(
       order['deliveryAddress'] ?? order['address'] ?? order['customer']?['address']
     );
     final customerAddress = rawCustAddr.isNotEmpty ? rawCustAddr : 'Customer Address';
+
+    final rawEarn = order['driverEarnings'] ?? order['deliveryCharge'] ?? order['earning'] ?? 25.0;
+    final double earnVal = (rawEarn is num) ? rawEarn.toDouble() : (double.tryParse(rawEarn.toString()) ?? 25.0);
+
+    final rawTotal = order['payableAmount'] ?? order['totalAmount'] ?? '0.00';
+    final String totalStr = (rawTotal is num) ? rawTotal.toStringAsFixed(2) : rawTotal.toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -2096,7 +2114,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    "Total: ₹${order['payableAmount'] ?? order['totalAmount'] ?? '0.00'}",
+                    "Total: ₹$totalStr",
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
@@ -2104,7 +2122,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     ),
                   ),
                   Text(
-                    "Earn: ₹${(order['driverEarnings'] ?? order['deliveryCharge'] ?? 50.0).toStringAsFixed(2)}",
+                    "Earn: ₹${earnVal.toStringAsFixed(2)}",
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
@@ -2213,9 +2231,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildStatusBadge(String status) {
+  Widget _buildStatusBadge(dynamic rawStatus) {
     Color bgColor;
     Color textColor;
+    final status = (rawStatus ?? 'PENDING').toString();
 
     switch (status.toLowerCase()) {
       case 'delivered':

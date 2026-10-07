@@ -2408,6 +2408,7 @@ exports.trackOrder = async (req, res) => {
       isSelfPickup,
       pickupOtp: order.pickupOtp || order.selfPickupCode || '',
       selfPickupCode: order.selfPickupCode || order.pickupOtp || '',
+      isRated: Boolean(order.isRated),
       customerArrived: Boolean(order.customerArrived),
       customerArrivedAt: order.customerArrivedAt || null,
       prepTimeMinutes: order.prepTimeMinutes || 15,
