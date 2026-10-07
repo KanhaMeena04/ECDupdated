@@ -184,6 +184,20 @@ class CartProvider with ChangeNotifier {
             debugPrint('Synced RestaurantId from cart: $_restaurantId');
           }
         }
+
+        // Sync fees directly from backend bill object if returned
+        if (cartData['bill'] != null && cartData['bill'] is Map) {
+          final bill = cartData['bill'] as Map;
+          if (bill['deliveryFee'] != null) {
+            _deliveryFee = (bill['deliveryFee'] as num).toDouble();
+          }
+          if (bill['platformFee'] != null) {
+            _platformFee = (bill['platformFee'] as num).toDouble();
+          }
+          if (bill['packaging'] != null) {
+            _packagingFee = (bill['packaging'] as num).toDouble();
+          }
+        }
       }
     } catch (e) {
       debugPrint('Error syncing cart: $e');
@@ -214,6 +228,13 @@ class CartProvider with ChangeNotifier {
           _isDeliveryFeeEnabled = d['enabled'] != false;
           if (!_isDeliveryFeeEnabled) {
             _deliveryFee = 0.0;
+          } else if (d['slabs'] != null && (d['slabs'] as List).isNotEmpty) {
+            final slabsList = (d['slabs'] as List).where((s) => s['isActive'] != false).toList();
+            if (slabsList.isNotEmpty && slabsList.first['fee'] != null) {
+              _deliveryFee = (slabsList.first['fee'] as num).toDouble();
+            } else if (d['baseFee'] != null) {
+              _deliveryFee = (d['baseFee'] as num).toDouble();
+            }
           } else if (d['baseFee'] != null) {
             _deliveryFee = (d['baseFee'] as num).toDouble();
           }

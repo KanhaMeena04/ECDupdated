@@ -36,6 +36,16 @@ const normalizeNamedList = (list) => {
     return item;
   });
 };
+const safeString = (val, fallback = '') => {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number') return String(val);
+  if (typeof val === 'object') {
+    return val.en || val.hi || val.name || val.title || (Object.values(val).find(v => typeof v === 'string') || fallback);
+  }
+  return String(val);
+};
+
 exports.getDashboard = async (req, res) => {
   try {
     const totalOrders = await Order.countDocuments({});
@@ -267,17 +277,6 @@ exports.getOrdersDashboard = async (req, res) => {
         { label: 'Cancelled Orders', value: cancelledCount }
       ]
     };
-
-    function safeString(val, fallback = '') {
-      if (val === null || val === undefined) return fallback;
-      if (typeof val === 'string') return val;
-      if (typeof val === 'number') return String(val);
-      if (typeof val === 'object') {
-        return val.en || val.hi || val.name || val.title || (Object.values(val).find(v => typeof v === 'string') || fallback);
-      }
-      return String(val);
-    }
-
     const formattedRecentOrders = recentOrders.map(order => {
       const statusType = order.status === 'cancelled' ? 'failed' :
         ['delivered', 'completed'].includes(order.status) ? 'completed' : 'processing';

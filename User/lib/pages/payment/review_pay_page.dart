@@ -553,7 +553,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                 'quantity': item.quantity,
               }))
           .toList(),
-      'totalPrice': isSelf ? cart.finalAmount : (cart.finalAmount + _dynamicDeliveryFee + _selectedTip),
+      'totalPrice': cart.finalAmount,
       'tipAmount': isSelf ? 0 : _selectedTip,
       'leaveAtDoor': isSelf ? false : _leaveAtDoor,
       'selectedPaymentMethodName': _selectedPaymentMethod,

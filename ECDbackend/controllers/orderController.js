@@ -1666,7 +1666,11 @@ function getStatusIcon(status) {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const order = await Order.findById(req.params.id);
+    const orderId = req.params.id || req.body.orderId || req.body.id;
+    if (!orderId) {
+      return res.status(400).json({ message: "Order ID is required" });
+    }
+    const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: "Order not found" });
     if (status === "accepted" && req.user?.role === "restaurant_owner") {
       if (order.paymentMethod === "online" && order.paymentStatus !== "paid") {
