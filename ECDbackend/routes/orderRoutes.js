@@ -122,7 +122,14 @@ router.get("/restaurant/:id/details", protect, restaurantOwner, getRestaurantOrd
 router.get("/restaurant/:id", protect, getOrdersForRestaurantById);
 router.get("/restaurant/pending", protect, restaurantOwner, getPendingOrdersForRestaurant);
 router.get("/restaurant/completed", protect, restaurantOwner, getCompletedOrdersForRestaurant);
-router.put("/:id/status", protect, restaurantOwner, updateOrderStatus);
+const canUpdateOrderStatus = (req, res, next) => {
+  if (req.user && ['restaurant_owner', 'rider', 'driver', 'admin'].includes(req.user.role)) {
+    return next();
+  }
+  return res.status(403).json({ message: 'Access Denied: Only Restaurant Owners, Riders, or Admins can update order status' });
+};
+
+router.put("/:id/status", protect, canUpdateOrderStatus, updateOrderStatus);
 router.put("/:id/ready", protect, restaurantOwner, markOrderReady);
 router.post("/:id/pickup-otp", protect, restaurantOwner, resendPickupOTPByRestaurant);
 router.post("/:id/verify-self-pickup", protect, verifySelfPickupOTP);
@@ -132,7 +139,6 @@ router.put('/:id/reject', protect, restaurantOwner, ownerRejectOrder);
 router.put('/:id/owner-cancel', protect, restaurantOwner, ownerCancelOrder);
 router.put('/:id/delay', protect, restaurantOwner, ownerDelayOrder);
 router.get("/:id/rider", protect, rider, generalOrderLimiter, getOrderDetailsRider); // ✅ Explicit rider route
-router.put("/:id/status", protect, rider, updateOrderStatus); // Protected, typically for Rider/Rest/Admin
 router.get("/:id/track", protect, trackOrder);
 router.post("/:id/reorder", protect, reorder);
 router.post("/:id/report", protect, reportIssue);

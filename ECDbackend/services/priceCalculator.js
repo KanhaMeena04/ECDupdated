@@ -214,7 +214,12 @@ async function calculateOrderPrice({
  */
 function calculateSlabDeliveryFee(distance, deliveryFeeConfig) {
   if (!deliveryFeeConfig || !Array.isArray(deliveryFeeConfig.slabs) || deliveryFeeConfig.slabs.length === 0) {
-    return { fee: deliveryFeeConfig?.baseFee || 30, rule: 'Default Base Fee' };
+    return { fee: deliveryFeeConfig?.baseFee !== undefined ? deliveryFeeConfig.baseFee : 10, rule: 'Default Base Fee' };
+  }
+
+  const baseDistance = deliveryFeeConfig.baseDistanceKm || 3;
+  if (distance <= baseDistance && deliveryFeeConfig.baseFee !== undefined) {
+    return { fee: deliveryFeeConfig.baseFee, rule: `Base Delivery Fee (up to ${baseDistance} KM)` };
   }
 
   const activeSlabs = deliveryFeeConfig.slabs.filter(s => s.isActive !== false);

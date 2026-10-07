@@ -193,10 +193,13 @@ const calculateBill = async (
     }
 
     let deliveryDistance = 0;
-    if (deliveryAddress?.coordinates && Array.isArray(deliveryAddress.coordinates) && deliveryAddress.coordinates.length === 2 && restaurant.location?.coordinates) {
-      const [uLon, uLat] = deliveryAddress.coordinates;
+    const addressCoords = deliveryAddress?.coordinates || deliveryAddress?.location?.coordinates;
+    if (addressCoords && Array.isArray(addressCoords) && addressCoords.length === 2 && restaurant.location?.coordinates) {
+      const [uLon, uLat] = addressCoords;
       const [rLon, rLat] = restaurant.location.coordinates;
-      deliveryDistance = calculateDistanceInKm(rLat, rLon, uLat, uLon);
+      if (uLon !== undefined && uLat !== undefined && rLon !== undefined && rLat !== undefined) {
+        deliveryDistance = calculateDistanceInKm(rLat, rLon, uLat, uLon);
+      }
     }
 
     const tip = normalizeTip(cart?.tip);
@@ -346,7 +349,7 @@ exports.placeOrder = async (req, res) => {
       bill = await calculateBill(cart, req.user._id, deliveryAddress, orderType);
     } catch (billErr) {
       const subtotal = req.body.subtotal || cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const deliveryFee = isSelfPickup ? 0 : (req.body.deliveryFee !== undefined ? req.body.deliveryFee : 30);
+      const deliveryFee = isSelfPickup ? 0 : (req.body.deliveryFee !== undefined ? req.body.deliveryFee : 10);
       bill = {
         itemTotal: subtotal,
         tax: Math.round(subtotal * 0.05 * 100) / 100,
