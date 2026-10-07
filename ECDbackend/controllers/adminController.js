@@ -4,6 +4,9 @@ const Restaurant = require("../models/Restaurant");
 const Rider = require("../models/Rider");
 const Product = require("../models/Product");
 const WalletTransaction = require("../models/WalletTransaction");
+const Notification = require("../models/Notification");
+const { admin, isInitialized } = require("../config/firebaseConfig");
+const socketService = require("../services/socketService");
 const { sendNotification } = require("../utils/notificationService");
 const { getPaginationParams } = require('../utils/pagination');
 const normalizeTranslation = (value) => {
@@ -901,17 +904,88 @@ exports.getAllUsers = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req, 20);
     const role = req.query.role || "customer";
-    const search = req.query.search || "";
-    const query = { role };
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { firstName: { $regex: search, $options: "i" } },
-        { lastName: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-        { mobile: { $regex: search, $options: "i" } },
-      ];
+    const search = (req.query.search || "").trim();
+
+    const andConditions = [];
+
+    if (role === "customer" || role === "user") {
+      andConditions.push({
+        $or: [
+          { role: { $in: ["customer", "user"] } },
+          { role: { $exists: false } },
+          { role: null },
+          { role: "" }
+        ]
+      });
+    } else if (role && role !== "all") {
+      andConditions.push({ role });
     }
+
+    if (search) {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const cleanDigits = search.replace(/\D/g, "");
+
+      const searchConditions = [
+        { name: { $regex: escaped, $options: "i" } },
+        { firstName: { $regex: escaped, $options: "i" } },
+        { lastName: { $regex: escaped, $options: "i" } },
+        { email: { $regex: escaped, $options: "i" } },
+        { mobile: { $regex: escaped, $options: "i" } },
+        { phone: { $regex: escaped, $options: "i" } },
+      ];
+
+      // Support multi-word name search (e.g., "John Doe" matching firstName + lastName)
+      const parts = search.split(/\s+/).filter(Boolean);
+      if (parts.length > 1) {
+        searchConditions.push({
+          $and: parts.map(p => {
+            const pEsc = p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            return {
+              $or: [
+                { name: { $regex: pEsc, $options: "i" } },
+                { firstName: { $regex: pEsc, $options: "i" } },
+                { lastName: { $regex: pEsc, $options: "i" } },
+                { email: { $regex: pEsc, $options: "i" } }
+              ]
+            };
+          })
+        });
+      }
+
+      // Support phone numbers with/without country code, spaces, formatting, or stored as numbers
+      if (cleanDigits.length >= 4) {
+        const last10 = cleanDigits.slice(-10);
+        searchConditions.push(
+          { mobile: { $regex: last10 } },
+          { phone: { $regex: last10 } },
+          { mobile: cleanDigits },
+          { phone: cleanDigits },
+          { mobile: last10 },
+          { phone: last10 },
+          { mobile: `+91${last10}` },
+          { phone: `+91${last10}` },
+          { mobile: `+${cleanDigits}` },
+          { phone: `+${cleanDigits}` },
+          { mobile: `91${last10}` },
+          { phone: `91${last10}` },
+          { mobile: `0${last10}` },
+          { phone: `0${last10}` }
+        );
+
+        const numVal = Number(cleanDigits);
+        const last10Num = Number(last10);
+        if (!isNaN(numVal)) {
+          searchConditions.push({ mobile: numVal }, { phone: numVal });
+        }
+        if (!isNaN(last10Num)) {
+          searchConditions.push({ mobile: last10Num }, { phone: last10Num });
+        }
+      }
+
+      andConditions.push({ $or: searchConditions });
+    }
+
+    const query = andConditions.length > 0 ? { $and: andConditions } : {};
     const total = await User.countDocuments(query);
     const users = await User.find(query)
       .select("-password")
@@ -1707,5 +1781,134 @@ exports.processRiderPayout = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+exports.sendCustomPush = async (req, res) => {
+  try {
+    const { sendTo, title, message } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: 'Notification title is required' });
+    }
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: 'Notification message is required' });
+    }
+
+    const trimmedTitle = title.trim();
+    const trimmedMessage = message.trim();
+    const targetGroup = (sendTo || 'all').toLowerCase();
+
+    let userQuery = {};
+    if (targetGroup === 'customers' || targetGroup === 'users') {
+      userQuery = { role: { $in: ['customer', 'user'] } };
+    } else if (targetGroup === 'riders' || targetGroup === 'driver') {
+      userQuery = { role: { $in: ['rider', 'driver'] } };
+    } else if (targetGroup === 'restaurants' || targetGroup === 'vendor') {
+      userQuery = { role: { $in: ['restaurant_owner', 'vendor'] } };
+    } else if (targetGroup === 'android') {
+      userQuery = { $or: [{ platform: 'android' }, { deviceType: 'android' }, { role: { $in: ['customer', 'user'] } }] };
+    } else if (targetGroup === 'ios') {
+      userQuery = { $or: [{ platform: 'ios' }, { deviceType: 'ios' }, { role: { $in: ['customer', 'user'] } }] };
+    } else {
+      userQuery = {};
+    }
+
+    const users = await User.find(userQuery).select('_id fcmToken name role email mobile phone');
+
+    let successCount = 0;
+    const notificationDocs = [];
+    const fcmTokens = [];
+
+    for (const u of users) {
+      notificationDocs.push({
+        user: u._id,
+        title: trimmedTitle,
+        message: trimmedMessage,
+        type: 'general',
+        data: {
+          type: 'general',
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        },
+        isRead: false,
+      });
+
+      try {
+        socketService.emitToUser(u._id.toString(), 'notification:new', {
+          title: trimmedTitle,
+          message: trimmedMessage,
+          data: { type: 'general' },
+          isRead: false,
+          createdAt: new Date(),
+        });
+      } catch (err) {
+        // ignore socket emit error
+      }
+
+      if (u.fcmToken && typeof u.fcmToken === 'string' && u.fcmToken.trim().length > 10) {
+        fcmTokens.push(u.fcmToken.trim());
+      }
+      successCount++;
+    }
+
+    if (notificationDocs.length > 0) {
+      await Notification.insertMany(notificationDocs).catch(err => console.error('insertMany notifications notice:', err.message));
+    }
+
+    if (isInitialized && admin && fcmTokens.length > 0) {
+      const uniqueTokens = [...new Set(fcmTokens)];
+      const chunkSize = 500;
+      for (let i = 0; i < uniqueTokens.length; i += chunkSize) {
+        const batchTokens = uniqueTokens.slice(i, i + chunkSize);
+        try {
+          await admin.messaging().sendEachForMulticast({
+            tokens: batchTokens,
+            notification: {
+              title: trimmedTitle,
+              body: trimmedMessage,
+            },
+            data: {
+              title: trimmedTitle,
+              body: trimmedMessage,
+              type: 'general',
+              click_action: 'FLUTTER_NOTIFICATION_CLICK',
+            },
+            android: {
+              priority: 'high',
+              notification: {
+                title: trimmedTitle,
+                body: trimmedMessage,
+                channelId: 'high_importance_channel',
+                sound: 'default',
+                priority: 'high',
+              },
+            },
+            apns: {
+              payload: {
+                aps: {
+                  alert: {
+                    title: trimmedTitle,
+                    body: trimmedMessage,
+                  },
+                  sound: 'default',
+                  badge: 1,
+                },
+              },
+            },
+          });
+        } catch (fcmErr) {
+          console.warn('FCM multicast notice:', fcmErr.message);
+        }
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Push notification sent to ${successCount} users successfully!`,
+      count: successCount,
+      fcmCount: fcmTokens.length
+    });
+  } catch (error) {
+    console.error('Error in sendCustomPush:', error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

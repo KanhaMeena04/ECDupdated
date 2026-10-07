@@ -15,12 +15,18 @@ const CreateStaffForm = () => {
     password: ''
   });
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const headers = getAuthHeaders();
         const res = await axios.get(`${API_BASE_URL}/api/admin/roles`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers,
+          withCredentials: true
         });
         if (res.data.roles) {
           setRoles(res.data.roles);
@@ -44,9 +50,10 @@ const CreateStaffForm = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const headers = getAuthHeaders();
       const res = await axios.post(`${API_BASE_URL}/api/admin/staff`, formData, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers,
+        withCredentials: true
       });
       if (res.data.success) {
         toast.success('Staff user created successfully!');

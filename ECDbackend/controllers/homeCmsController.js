@@ -51,14 +51,23 @@ const ensureDefaultSectionsExist = async () => {
     if (mongoose.connection.readyState !== 1) {
       return; // Skip if database is currently disconnected or reconnecting
     }
-    for (const sec of DEFAULT_SECTIONS) {
-      const exists = await HomeScreenSection.findOne({ sectionKey: sec.sectionKey });
-      if (!exists) {
-        await HomeScreenSection.create(sec);
-      }
+    const count = await HomeScreenSection.countDocuments();
+    if (count === 0) {
+      await HomeScreenSection.insertMany(DEFAULT_SECTIONS);
     }
   } catch (err) {
     console.warn("Seeding default home sections skipped (DB reconnecting):", err.message);
+  }
+};
+
+const notifyLayoutUpdated = () => {
+  try {
+    const socketService = require('../services/socketService');
+    if (socketService && socketService.emitToAll) {
+      socketService.emitToAll('home_cms:updated', { timestamp: new Date() });
+    }
+  } catch (err) {
+    // ignore socket emit errors
   }
 };
 
@@ -68,8 +77,8 @@ exports.getPublicHomeScreenSections = async (req, res) => {
     await ensureDefaultSectionsExist();
     const now = new Date();
     
+    // Return all configured sections so client knows which are active vs inactive
     const sections = await HomeScreenSection.find({
-      isActive: true,
       $and: [
         { $or: [{ startDate: null }, { startDate: { $lte: now } }] },
         { $or: [{ endDate: null }, { endDate: { $gte: now } }] },
@@ -135,6 +144,7 @@ exports.createHomeScreenSection = async (req, res) => {
       metadata: metadata || {},
     });
 
+    notifyLayoutUpdated();
     res.status(201).json({ success: true, message: "Section created successfully", section });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -150,6 +160,7 @@ exports.updateHomeScreenSection = async (req, res) => {
       return res.status(404).json({ success: false, message: "Section not found" });
     }
 
+    notifyLayoutUpdated();
     res.status(200).json({ success: true, message: "Section updated successfully", section });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -167,6 +178,7 @@ exports.toggleHomeScreenSection = async (req, res) => {
     section.isActive = !section.isActive;
     await section.save();
 
+    notifyLayoutUpdated();
     res.status(200).json({ success: true, message: `Section ${section.isActive ? 'enabled' : 'disabled'} successfully`, section });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -190,6 +202,7 @@ exports.reorderHomeScreenSections = async (req, res) => {
     await HomeScreenSection.bulkWrite(bulkOps);
     const updatedSections = await HomeScreenSection.find().sort({ priority: 1 });
 
+    notifyLayoutUpdated();
     res.status(200).json({ success: true, message: "Sections reordered successfully", sections: updatedSections });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -204,6 +217,7 @@ exports.deleteHomeScreenSection = async (req, res) => {
       return res.status(404).json({ success: false, message: "Section not found" });
     }
 
+    notifyLayoutUpdated();
     res.status(200).json({ success: true, message: "Section deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

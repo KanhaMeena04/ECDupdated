@@ -106,8 +106,10 @@ const AddPromocodeForm = () => {
           onChange={(e) => handleChange("description", e.target.value)}
         />
         <FormControl fullWidth size="small">
-          <InputLabel>Offer Type*</InputLabel>
+          <InputLabel id="offer-type-label">Offer Type*</InputLabel>
           <Select
+            labelId="offer-type-label"
+            label="Offer Type*"
             value={form.offerType}
             onChange={(e) => handleChange("offerType", e.target.value)}
           >
@@ -144,8 +146,10 @@ const AddPromocodeForm = () => {
           slotProps={{ textField: { fullWidth: true, size: "small" } }}
         />
         <FormControl fullWidth size="small">
-          <InputLabel>Promocode Type</InputLabel>
+          <InputLabel id="promo-type-label">Promocode Type</InputLabel>
           <Select
+            labelId="promo-type-label"
+            label="Promocode Type"
             value={form.promoType}
             onChange={(e) => handleChange("promoType", e.target.value)}
           >
@@ -158,8 +162,9 @@ const AddPromocodeForm = () => {
       {/* Right Column */}
       <div className="space-y-6">
         <FormControl fullWidth size="small">
-          <InputLabel>Restaurant</InputLabel>
+          <InputLabel id="restaurant-select-label">Restaurant</InputLabel>
           <Select
+            labelId="restaurant-select-label"
             value={form.restaurant}
             label="Restaurant"
             onChange={(e) => handleChange("restaurant", e.target.value)}
@@ -212,8 +217,10 @@ const AddPromocodeForm = () => {
           slotProps={{ textField: { fullWidth: true, size: "small" } }}
         />
         <FormControl fullWidth size="small">
-          <InputLabel>Status</InputLabel>
+          <InputLabel id="status-select-label">Status</InputLabel>
           <Select
+            labelId="status-select-label"
+            label="Status"
             value={form.status}
             onChange={(e) => handleChange("status", e.target.value)}
           >
@@ -222,8 +229,10 @@ const AddPromocodeForm = () => {
           </Select>
         </FormControl>
         <FormControl fullWidth size="small">
-          <InputLabel>Payment Methods</InputLabel>
+          <InputLabel id="payment-methods-select-label">Payment Methods</InputLabel>
           <Select
+            labelId="payment-methods-select-label"
+            label="Payment Methods"
             value={form.paymentMethods}
             onChange={(e) => {
               const val = e.target.value;

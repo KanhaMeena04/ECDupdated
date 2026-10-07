@@ -3,6 +3,11 @@ import axios from 'axios';
 import { API_BASE_URL } from '../../utils/utils';
 import { useParams } from 'react-router-dom';
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 /* ================== USERS LIST ================== */
 const useUsers = (role = 'customer', page = 1, limit = 10, search = '') => {
   const [data, setData] = useState({ users: [], total: 0, page: 1, limit: 10 });
@@ -12,8 +17,10 @@ const useUsers = (role = 'customer', page = 1, limit = 10, search = '') => {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
+      const headers = getAuthHeaders();
       const res = await axios.get(`${API_BASE_URL}/api/admin/users`, {
         params: { role, page, limit, search },
+        headers,
         withCredentials: true
       });
       setData(res.data || { users: [], total: 0, page: 1, limit: 10 });
@@ -47,7 +54,9 @@ const useUserDetails = () => {
     const fetchUser = async () => {
       setLoading(true);
       try {
+        const headers = getAuthHeaders();
         const res = await axios.get(`${API_BASE_URL}/api/admin/users/${userId}`, {
+          headers,
           withCredentials: true,
         });
         if (!cancelled) {
@@ -94,6 +103,8 @@ const useAddMoneyToWallet = () => {
       throw new Error("Invalid topup amount");
     }
 
+    const headers = getAuthHeaders();
+
     try {
       // Primary admin wallet adjust endpoint
       const res = await axios.post(
@@ -104,7 +115,7 @@ const useAddMoneyToWallet = () => {
           note: 'Admin wallet topup',
           transactionId: `ADMIN_${Date.now()}`,
         },
-        { withCredentials: true }
+        { headers, withCredentials: true }
       );
 
       return res.data;
@@ -118,7 +129,7 @@ const useAddMoneyToWallet = () => {
             type: 'credit',
             transactionId: `ADMIN_${Date.now()}`,
           },
-          { withCredentials: true }
+          { headers, withCredentials: true }
         );
         return fallbackRes.data;
       } catch (fallbackError) {
@@ -144,7 +155,9 @@ const useWalletDetails = () => {
     setError("");
 
     try {
+      const headers = getAuthHeaders();
       const res = await axios.get(`${API_BASE_URL}/api/wallet/${id}`, {
+        headers,
         withCredentials: true,
       });
       setWallet(res.data || null);
@@ -167,6 +180,7 @@ const useWalletDetails = () => {
 const useCODBlockUnblock = () => {
   const toggleCodBlock = async (userId, isBlocked) => {
     try {
+      const headers = getAuthHeaders();
       const res = await axios.put(
         `${API_BASE_URL}/api/admin/users/${userId}/cod`,
         {
@@ -174,7 +188,7 @@ const useCODBlockUnblock = () => {
           active: !isBlocked,
           block: !!isBlocked
         },
-        { withCredentials: true }
+        { headers, withCredentials: true }
       );
       return res.data;
     } catch (error) {

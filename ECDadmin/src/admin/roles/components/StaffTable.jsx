@@ -9,12 +9,18 @@ const StaffTable = () => {
   const [staffData, setStaffData] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const fetchStaff = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const headers = getAuthHeaders();
       const res = await axios.get(`${API_BASE_URL}/api/admin/staff`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers,
+        withCredentials: true
       });
       if (res.data.staff) {
         setStaffData(res.data.staff);
@@ -33,9 +39,10 @@ const StaffTable = () => {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this staff member?')) return;
     try {
-      const token = localStorage.getItem('token');
+      const headers = getAuthHeaders();
       const res = await axios.delete(`${API_BASE_URL}/api/admin/staff/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers,
+        withCredentials: true
       });
       if (res.data.success) {
         toast.success('Staff member deleted');

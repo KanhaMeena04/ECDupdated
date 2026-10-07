@@ -47,10 +47,53 @@ const HomeScreenBuilder = () => {
     isActive: true,
   });
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const uploadFormData = new FormData();
+    uploadFormData.append("file", file);
+    uploadFormData.append("image", file);
+
+    try {
+      setUploadingImage(true);
+      const headers = getAuthHeaders();
+      const res = await axios.post(`${API_BASE_URL}/api/upload`, uploadFormData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          ...headers,
+        },
+        withCredentials: true,
+      });
+
+      const uploadedUrl = res.data?.url || res.data?.imageUrl || res.data?.secure_url || res.data?.data?.url;
+      if (uploadedUrl) {
+        setFormData((prev) => ({ ...prev, imageUrl: uploadedUrl }));
+        toast.success("Image uploaded successfully!");
+      } else {
+        toast.error("Upload succeeded but no URL returned. Enter URL manually.");
+      }
+    } catch (err) {
+      console.warn("Upload fallback error:", err);
+      toast.error("Could not upload file directly. You can paste the Image URL.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const fetchSections = async () => {
     try {
       setLoading(true);
+      const headers = getAuthHeaders();
       const res = await axios.get(`${API_BASE_URL}/api/home/admin/home-sections`, {
+        headers,
         withCredentials: true,
       });
       if (res.data.success) {
@@ -104,10 +147,11 @@ const HomeScreenBuilder = () => {
 
   const handleToggle = async (id) => {
     try {
+      const headers = getAuthHeaders();
       const res = await axios.patch(
         `${API_BASE_URL}/api/home/admin/home-sections/${id}/toggle`,
         {},
-        { withCredentials: true }
+        { headers, withCredentials: true }
       );
       if (res.data.success) {
         toast.success(res.data.message);
@@ -121,7 +165,9 @@ const HomeScreenBuilder = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this home section?")) return;
     try {
+      const headers = getAuthHeaders();
       const res = await axios.delete(`${API_BASE_URL}/api/home/admin/home-sections/${id}`, {
+        headers,
         withCredentials: true,
       });
       if (res.data.success) {
@@ -155,10 +201,11 @@ const HomeScreenBuilder = () => {
     setSections(newSections);
 
     try {
+      const headers = getAuthHeaders();
       await axios.put(
         `${API_BASE_URL}/api/home/admin/home-sections/reorder`,
         { items: itemsToUpdate },
-        { withCredentials: true }
+        { headers, withCredentials: true }
       );
       toast.success("Sections reordered");
     } catch (err) {
@@ -170,11 +217,12 @@ const HomeScreenBuilder = () => {
   const handleSubmitForm = async (e) => {
     e.preventDefault();
     try {
+      const headers = getAuthHeaders();
       if (editingSection) {
         const res = await axios.put(
           `${API_BASE_URL}/api/home/admin/home-sections/${editingSection._id}`,
           formData,
-          { withCredentials: true }
+          { headers, withCredentials: true }
         );
         if (res.data.success) {
           toast.success("Section updated successfully");
@@ -185,7 +233,7 @@ const HomeScreenBuilder = () => {
         const res = await axios.post(
           `${API_BASE_URL}/api/home/admin/home-sections`,
           formData,
-          { withCredentials: true }
+          { headers, withCredentials: true }
         );
         if (res.data.success) {
           toast.success("New section added successfully");
@@ -437,14 +485,31 @@ const HomeScreenBuilder = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Banner Image URL (Optional)</label>
-                <input
-                  type="text"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#248C70] focus:outline-none"
-                  placeholder="https://..."
-                />
+                <label className="block text-xs font-bold text-gray-700 mb-1">Banner Image URL / File (Optional)</label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={formData.imageUrl}
+                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                    className="flex-1 px-3 py-2 border rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#248C70] focus:outline-none"
+                    placeholder="https://... or upload file"
+                  />
+                  <label className={`cursor-pointer px-3 py-2 bg-gray-100 hover:bg-gray-200 border rounded-xl text-xs font-bold text-gray-700 whitespace-nowrap transition ${uploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    {uploadingImage ? "Uploading..." : "Upload File"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploadingImage}
+                      onChange={handleImageFileChange}
+                    />
+                  </label>
+                </div>
+                {formData.imageUrl && (
+                  <div className="mt-2 relative w-full h-24 rounded-xl overflow-hidden border bg-gray-50">
+                    <img src={formData.imageUrl} alt="Section Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2 pt-2">

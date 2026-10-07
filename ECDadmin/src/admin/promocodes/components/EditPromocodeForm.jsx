@@ -140,8 +140,10 @@ useEffect(() => {
           onChange={(e) => handleChange("description", e.target.value)}
         />
         <FormControl fullWidth size="small">
-          <InputLabel>Offer Type*</InputLabel>
+          <InputLabel id="edit-offer-type-label">Offer Type*</InputLabel>
           <Select
+            labelId="edit-offer-type-label"
+            label="Offer Type*"
             value={form.offerType}
             onChange={(e) => handleChange("offerType", e.target.value)}
           >
@@ -172,8 +174,10 @@ useEffect(() => {
       {/* RIGHT COLUMN */}
       <div className="space-y-6">
         <FormControl fullWidth size="small">
-          <InputLabel>Restaurant</InputLabel>
+          <InputLabel id="edit-restaurant-label">Restaurant</InputLabel>
           <Select
+            labelId="edit-restaurant-label"
+            label="Restaurant"
             value={form.restaurant}
             onChange={(e) => handleChange("restaurant", e.target.value)}
             disabled={rLoading}

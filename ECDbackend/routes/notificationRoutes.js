@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { protect, optionalAuth } = require('../middleware/authMiddleware');
+const { protect, optionalAuth, admin } = require('../middleware/authMiddleware');
 const { saveFCMToken } = require('../controllers/userController');
+const adminController = require('../controllers/adminController');
 const Notification = require('../models/Notification');
 
 // Device Token Registration
@@ -77,5 +78,8 @@ router.delete('/:id', protect, async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
+
+// Admin Custom Push Notification
+router.post('/custom-push', protect, admin, adminController.sendCustomPush);
 
 module.exports = router;

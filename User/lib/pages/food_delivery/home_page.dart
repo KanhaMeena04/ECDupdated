@@ -310,20 +310,81 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   bool _isSectionActive(String key) {
-    if (!_hasFetchedCms || _cmsSections.isEmpty) return true; // Default visible
+    if (!_hasFetchedCms || _cmsSections.isEmpty) return true; // Default visible before CMS loaded
     final sec = _cmsSections.firstWhere(
-      (s) => s['sectionKey'] == key || s['key'] == key,
+      (s) => s['sectionKey'] == key || s['key'] == key || s['sectionType'] == key,
       orElse: () => {},
     );
-    if (sec.isEmpty) return true; // Show by default if not specified in CMS
-    return sec['isActive'] != false && sec['status'] != 'inactive';
+    if (sec.isEmpty) return false; // If removed or not active in CMS, hide it!
+    return sec['isActive'] == true && sec['status'] != 'inactive';
   }
 
   String _getSectionTitle(String key, String defaultTitle) {
     if (_cmsSections.isEmpty) return defaultTitle;
-    final sec = _cmsSections.firstWhere((s) => s['sectionKey'] == key, orElse: () => {});
-    if (sec.isEmpty || sec['title'] == null || (sec['title'] as String).isEmpty) return defaultTitle;
-    return sec['title'] as String;
+    final sec = _cmsSections.firstWhere(
+      (s) => s['sectionKey'] == key || s['key'] == key || s['sectionType'] == key,
+      orElse: () => {},
+    );
+    if (sec.isEmpty || sec['title'] == null || (sec['title'] as String).trim().isEmpty) return defaultTitle;
+    return (sec['title'] as String).trim();
+  }
+
+  String? _getSectionSubtitle(String key, [String? defaultSubtitle]) {
+    if (_cmsSections.isEmpty) return defaultSubtitle;
+    final sec = _cmsSections.firstWhere(
+      (s) => s['sectionKey'] == key || s['key'] == key || s['sectionType'] == key,
+      orElse: () => {},
+    );
+    if (sec.isEmpty || sec['subtitle'] == null || (sec['subtitle'] as String).trim().isEmpty) return defaultSubtitle;
+    return (sec['subtitle'] as String).trim();
+  }
+
+  List<Map<String, dynamic>> get _orderedCmsSections {
+    if (_hasFetchedCms && _cmsSections.isNotEmpty) {
+      return _cmsSections;
+    }
+    return [
+      {
+        'sectionKey': 'banners_carousel',
+        'title': 'Special Offers & Discounts',
+        'subtitle': 'Top deals curated for you',
+        'sectionType': 'banner_carousel',
+        'priority': 10,
+        'isActive': true,
+      },
+      {
+        'sectionKey': 'food_categories',
+        'title': "What's on your mind?",
+        'subtitle': 'Explore by top food categories',
+        'sectionType': 'category_grid',
+        'priority': 20,
+        'isActive': true,
+      },
+      {
+        'sectionKey': 'ecdkart_comparison',
+        'title': 'ECDkart vs OTHER APPS',
+        'subtitle': '40-60% LOWER PRICES - Save on every delivery',
+        'sectionType': 'comparison_banner',
+        'priority': 30,
+        'isActive': true,
+      },
+      {
+        'sectionKey': 'recommended_dishes',
+        'title': 'Recommended for You',
+        'subtitle': 'Based on top ratings, offers & popular orders',
+        'sectionType': 'recommended_dishes',
+        'priority': 40,
+        'isActive': true,
+      },
+      {
+        'sectionKey': 'explore_restaurants',
+        'title': 'Explore Restaurants',
+        'subtitle': 'Delicious meals delivered fast from nearby kitchens',
+        'sectionType': 'restaurant_list',
+        'priority': 50,
+        'isActive': true,
+      },
+    ];
   }
 
   List<Category> _categories = [];
@@ -1125,494 +1186,22 @@ class _HomeTabState extends State<_HomeTab> {
               ),
             ),
 
-            // ── 3. Remaining Page Content: Filters, Recommended, Comparison Banner, Explore Restaurants ──
+            // ── 3. Dynamic CMS-Driven Page Content (Follows Exact Priority & Active Status) ──
             SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Sort By & Filter Sub-Header Bar
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        InkWell(
-                          onTap: () => _showSortOptionsSheet(context, isDark),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                            child: Row(
-                              children: [
-                                Text(
-                                  'Sort By ',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.grey.shade400 : const Color(0xFF6B7280),
-                                  ),
-                                ),
-                                Text(
-                                  _selectedSort,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFFE89D1E),
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  size: 18,
-                                  color: Color(0xFFE89D1E),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        InkWell(
-                          onTap: () async {
-                            final filters = await showModalBottomSheet<Map<String, String>>(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) => SizedBox(
-                                height: MediaQuery.of(context).size.height * 0.7,
-                                child: const FiltersBottomSheet(),
-                              ),
-                            );
-
-                            if (filters != null) {
-                              _fetchRestaurants(filters: filters);
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE89D1E),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFE89D1E).withValues(alpha: 0.35),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.tune_rounded,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Recommended For You
-                  if (_isSectionActive('recommended_dishes')) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(
-                          left: 16, top: 12, right: 16, bottom: 10),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _getSectionTitle('recommended_dishes', 'Recommended For You'),
-                            style: isDark
-                                ? const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                    height: 1.4,
-                                  )
-                                : const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.black87,
-                                    height: 1.4,
-                                  ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const RecommendedRestaurantsPage(),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                              'View All',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFFE89D1E),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    _isLoadingRestaurants
-                        ? const SizedBox(
-                            height: 240,
-                            child: Center(
-                              child: CircularProgressIndicator(color: AppColors.primary),
-                            ),
-                          )
-                        : _restaurants.isEmpty
-                            ? const SizedBox.shrink()
-                            : AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 600),
-                                switchInCurve: Curves.easeOutCubic,
-                                switchOutCurve: Curves.easeInCubic,
-                                transitionBuilder: (child, animation) {
-                                  return FadeTransition(
-                                    opacity: animation,
-                                    child: SlideTransition(
-                                      position: Tween<Offset>(
-                                        begin: const Offset(0.04, 0.0),
-                                        end: Offset.zero,
-                                      ).animate(animation),
-                                      child: child,
-                                    ),
-                                  );
-                                },
-                                child: SizedBox(
-                                  key: ValueKey('recommended_shuffle_$_shuffleSeed'),
-                                  height: 240,
-                                  child: ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    itemCount: _restaurants.length > 6 ? 6 : _restaurants.length,
-                                    itemBuilder: (context, index) {
-                                      return _RecommendedRestaurantCard(
-                                        restaurant: _restaurants[index],
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
+                  for (final sec in _orderedCmsSections) ...[
+                    if (sec['isActive'] == true &&
+                        sec['status'] != 'inactive' &&
+                        sec['sectionKey'] != 'banners_carousel' &&
+                        sec['sectionType'] != 'banner_carousel' &&
+                        sec['sectionKey'] != 'food_categories' &&
+                        sec['sectionType'] != 'category_grid')
+                      _buildSectionByCmsConfig(sec, isDark),
                   ],
 
-                  // Favourites Section
-                  if (_isSectionActive('favourites_section'))
-                    const _FavouritesSection(),
-
-                  // Recent Orders Section
-                  if (_isSectionActive('recent_orders_section'))
-                    const _RecentOrdersSection(),
-
-                  // ── ECDkart vs OTHER APPS Section ──
-                  if (_isSectionActive('ecdkart_comparison'))
-                    _EcdkartComparisonSection(
-                      restaurants: _displayRestaurants,
-                      isDark: isDark,
-                    ),
-
-                  // ── Explore Section Top Filter Bar (Matching Screenshots 1 & 2) ──
-                  if (_isSectionActive('explore_restaurants')) ...[
-                    Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Horizontal Swipable Filter Chips Bar
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              // 1. Round Filter Button
-                              GestureDetector(
-                                onTap: () async {
-                                  final filters = await showModalBottomSheet<Map<String, String>>(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    backgroundColor: Colors.transparent,
-                                    builder: (context) => SizedBox(
-                                      height: MediaQuery.of(context).size.height * 0.7,
-                                      child: const FiltersBottomSheet(),
-                                    ),
-                                  );
-                                  if (filters != null) {
-                                    _fetchRestaurants(filters: filters);
-                                  }
-                                },
-                                child: Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                                      width: 1,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.05),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Icon(
-                                    Icons.tune_rounded,
-                                    size: 18,
-                                    color: isDark ? Colors.white : const Color(0xFF374151),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-
-                              // 2. 40-60% Lower Prices Filter Chip
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _lowerPricesFilterActive = !_lowerPricesFilterActive;
-                                  });
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: _lowerPricesFilterActive
-                                        ? (isDark ? const Color(0xFF1E3A32) : const Color(0xFFE8F5E9))
-                                        : (isDark ? const Color(0xFF1E1E1E) : Colors.white),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: _lowerPricesFilterActive
-                                          ? AppColors.primary
-                                          : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
-                                      width: 1,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.04),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.discount_rounded,
-                                        size: 16,
-                                        color: AppColors.primary,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '40-60% Lower Prices',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: _lowerPricesFilterActive
-                                              ? AppColors.primary
-                                              : (isDark ? Colors.white : const Color(0xFF374151)),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-
-                              // 3. Veg / Non-Veg Dropdown Filter Chip
-                              PopupMenuButton<String>(
-                                initialValue: _dietaryFilter,
-                                onSelected: (val) {
-                                  setState(() {
-                                    _dietaryFilter = val;
-                                  });
-                                },
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(value: 'All', child: Text('All Foods')),
-                                  const PopupMenuItem(value: 'Veg', child: Text('Pure Veg Only')),
-                                  const PopupMenuItem(value: 'Non-Veg', child: Text('Non-Veg Only')),
-                                ],
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: _dietaryFilter != 'All'
-                                        ? (isDark ? const Color(0xFF1E3A32) : const Color(0xFFE8F5E9))
-                                        : (isDark ? const Color(0xFF1E1E1E) : Colors.white),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: _dietaryFilter != 'All'
-                                          ? AppColors.primary
-                                          : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
-                                      width: 1,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.04),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        _dietaryFilter == 'All' ? 'Veg / Non-Veg' : 'Dietary: $_dietaryFilter',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: _dietaryFilter != 'All'
-                                              ? AppColors.primary
-                                              : (isDark ? Colors.white : const Color(0xFF374151)),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        Icons.keyboard_arrow_down_rounded,
-                                        size: 18,
-                                        color: isDark ? Colors.white : const Color(0xFF374151),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-
-                              // 4. Sort Button Chip
-                              GestureDetector(
-                                onTap: () => _showSortOptionsSheet(context, isDark),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'Sort: $_selectedSort',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: isDark ? Colors.white : const Color(0xFF374151),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        Icons.keyboard_arrow_down_rounded,
-                                        size: 18,
-                                        color: isDark ? Colors.white : const Color(0xFF374151),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Section Title & Subtitle (Dynamic based on selected category)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _selectedCategoryIndex == 0
-                                      ? 'Explore all restaurants'
-                                      : '${_categoriesWithAll[_selectedCategoryIndex].title} Restaurants',
-                                  style: TextStyle(
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w900,
-                                    color: isDark ? Colors.white : const Color(0xFF1F2937),
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _selectedCategoryIndex == 0
-                                      ? 'Featured Restaurants'
-                                      : '${_displayRestaurants.length} top-rated restaurants nearby',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.grey.shade400 : const Color(0xFF6B7280),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Redesigned Restaurant List Cards or Service Unavailable Card
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: _isLoadingRestaurants
-                        ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                        : (!context.watch<LocationProvider>().isServiceable && _restaurants.isEmpty)
-                            ? _buildServiceUnavailableCard(context, isDark)
-                            : _displayRestaurants.isEmpty
-                                ? Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-                                    alignment: Alignment.center,
-                                    child: Column(
-                                      children: [
-                                        Icon(Icons.restaurant_rounded, size: 48, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
-                                        const SizedBox(height: 12),
-                                        Text(
-                                          'No restaurants found in this category',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark ? Colors.white : Colors.black87,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        ElevatedButton(
-                                          onPressed: () {
-                                            setState(() {
-                                              _selectedCategoryIndex = 0;
-                                            });
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.primary,
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                          ),
-                                          child: const Text('View All Restaurants', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    itemCount: _displayRestaurants.length,
-                                    physics: const NeverScrollableScrollPhysics(),
-                                    shrinkWrap: true,
-                                    padding: EdgeInsets.zero,
-                                    itemBuilder: (context, index) {
-                                      final r = _displayRestaurants[index];
-                                      return _RestaurantListCard(restaurant: r);
-                                    },
-                                  ),
-                  ),
-                ],
-
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   const RotatingThaliWidget(),
                   const SizedBox(height: 30),
                 ],
@@ -1620,6 +1209,548 @@ class _HomeTabState extends State<_HomeTab> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionByCmsConfig(Map<String, dynamic> sec, bool isDark) {
+    final sKey = (sec['sectionKey'] ?? sec['key'] ?? '').toString();
+    final sType = (sec['sectionType'] ?? '').toString();
+
+    if (sKey == 'ecdkart_comparison' || sType == 'comparison_banner') {
+      return _EcdkartComparisonSection(
+        restaurants: _displayRestaurants,
+        isDark: isDark,
+        title: sec['title']?.toString(),
+        subtitle: sec['subtitle']?.toString(),
+      );
+    }
+
+    if (sKey == 'recommended_dishes' || sType == 'recommended_dishes') {
+      return _buildRecommendedDishesSection(sec, isDark);
+    }
+
+    if (sKey == 'favourites_section') {
+      return const _FavouritesSection();
+    }
+
+    if (sKey == 'recent_orders_section') {
+      return const _RecentOrdersSection();
+    }
+
+    if (sKey == 'explore_restaurants' || sType == 'restaurant_list') {
+      return _buildExploreRestaurantsSection(sec, isDark);
+    }
+
+    // Dynamic custom section configured in Admin CMS
+    return _buildDynamicCmsSection(sec, isDark);
+  }
+
+  Widget _buildRecommendedDishesSection(Map<String, dynamic> sec, bool isDark) {
+    final title = (sec['title'] != null && (sec['title'] as String).trim().isNotEmpty)
+        ? (sec['title'] as String).trim()
+        : 'Recommended for You';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 16, top: 12, right: 16, bottom: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black87,
+                  height: 1.4,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RecommendedRestaurantsPage(),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'View All',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFE89D1E),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        _isLoadingRestaurants
+            ? const SizedBox(
+                height: 240,
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              )
+            : _restaurants.isEmpty
+                ? const SizedBox.shrink()
+                : AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 600),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.04, 0.0),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: SizedBox(
+                      key: ValueKey('recommended_shuffle_$_shuffleSeed'),
+                      height: 240,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _restaurants.length > 6 ? 6 : _restaurants.length,
+                        itemBuilder: (context, index) {
+                          return _RecommendedRestaurantCard(
+                            restaurant: _restaurants[index],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+      ],
+    );
+  }
+
+  Widget _buildExploreRestaurantsSection(Map<String, dynamic> sec, bool isDark) {
+    final title = (sec['title'] != null && (sec['title'] as String).trim().isNotEmpty)
+        ? (sec['title'] as String).trim()
+        : 'Explore Restaurants';
+    final subtitle = (sec['subtitle'] != null && (sec['subtitle'] as String).trim().isNotEmpty)
+        ? (sec['subtitle'] as String).trim()
+        : 'Delicious meals delivered fast from nearby kitchens';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Horizontal Swipable Filter Chips Bar
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    // 1. Round Filter Button
+                    GestureDetector(
+                      onTap: () async {
+                        final filters = await showModalBottomSheet<Map<String, String>>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.7,
+                            child: const FiltersBottomSheet(),
+                          ),
+                        );
+                        if (filters != null) {
+                          _fetchRestaurants(filters: filters);
+                        }
+                      },
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.tune_rounded,
+                          size: 18,
+                          color: isDark ? Colors.white : const Color(0xFF374151),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // 2. 40-60% Lower Prices Filter Chip
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _lowerPricesFilterActive = !_lowerPricesFilterActive;
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _lowerPricesFilterActive
+                              ? (isDark ? const Color(0xFF1E3A32) : const Color(0xFFE8F5E9))
+                              : (isDark ? const Color(0xFF1E1E1E) : Colors.white),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _lowerPricesFilterActive
+                                ? AppColors.primary
+                                : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.discount_rounded,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '40-60% Lower Prices',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: _lowerPricesFilterActive
+                                    ? AppColors.primary
+                                    : (isDark ? Colors.white : const Color(0xFF374151)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // 3. Veg / Non-Veg Dropdown Filter Chip
+                    PopupMenuButton<String>(
+                      initialValue: _dietaryFilter,
+                      onSelected: (val) {
+                        setState(() {
+                          _dietaryFilter = val;
+                        });
+                      },
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'All', child: Text('All Foods')),
+                        const PopupMenuItem(value: 'Veg', child: Text('Pure Veg Only')),
+                        const PopupMenuItem(value: 'Non-Veg', child: Text('Non-Veg Only')),
+                      ],
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _dietaryFilter != 'All'
+                              ? (isDark ? const Color(0xFF1E3A32) : const Color(0xFFE8F5E9))
+                              : (isDark ? const Color(0xFF1E1E1E) : Colors.white),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _dietaryFilter != 'All'
+                                ? AppColors.primary
+                                : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _dietaryFilter == 'All' ? 'Veg / Non-Veg' : 'Dietary: $_dietaryFilter',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: _dietaryFilter != 'All'
+                                    ? AppColors.primary
+                                    : (isDark ? Colors.white : const Color(0xFF374151)),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 18,
+                              color: isDark ? Colors.white : const Color(0xFF374151),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // 4. Sort Button Chip
+                    GestureDetector(
+                      onTap: () => _showSortOptionsSheet(context, isDark),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Sort: $_selectedSort',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : const Color(0xFF374151),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 18,
+                              color: isDark ? Colors.white : const Color(0xFF374151),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Section Title & Subtitle (Dynamic based on selected category or CMS)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _selectedCategoryIndex == 0
+                            ? title
+                            : '${_categoriesWithAll[_selectedCategoryIndex].title} Restaurants',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w900,
+                          color: isDark ? Colors.white : const Color(0xFF1F2937),
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _selectedCategoryIndex == 0
+                            ? subtitle
+                            : '${_displayRestaurants.length} top-rated restaurants nearby',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.grey.shade400 : const Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Restaurant List Cards or Service Unavailable Card
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: _isLoadingRestaurants
+              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              : (!context.watch<LocationProvider>().isServiceable && _restaurants.isEmpty)
+                  ? _buildServiceUnavailableCard(context, isDark)
+                  : _displayRestaurants.isEmpty
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                          alignment: Alignment.center,
+                          child: Column(
+                            children: [
+                              Icon(Icons.restaurant_rounded, size: 48, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No restaurants found in this category',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedCategoryIndex = 0;
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                child: const Text('View All Restaurants', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: _displayRestaurants.length,
+                          physics: const NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          itemBuilder: (context, index) {
+                            final r = _displayRestaurants[index];
+                            return _RestaurantListCard(restaurant: r);
+                          },
+                        ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDynamicCmsSection(Map<String, dynamic> sec, bool isDark) {
+    final title = sec['title']?.toString() ?? '';
+    final subtitle = sec['subtitle']?.toString() ?? '';
+    final imageUrl = sec['imageUrl']?.toString() ?? '';
+    final ctaText = sec['ctaText']?.toString() ?? '';
+    final ctaAction = sec['ctaAction']?.toString() ?? 'none';
+    final ctaTarget = sec['ctaTarget']?.toString() ?? '';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (imageUrl.isNotEmpty)
+            Image.network(
+              imageUrl,
+              width: double.infinity,
+              height: 160,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (title.isNotEmpty)
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF1F2937),
+                    ),
+                  ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? Colors.grey.shade400 : const Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+                if (ctaText.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (ctaAction == 'restaurant' && ctaTarget.isNotEmpty) {
+                        final found = _restaurants.firstWhere(
+                          (r) => r.id == ctaTarget,
+                          orElse: () => Restaurant(
+                            id: ctaTarget,
+                            name: title.isNotEmpty ? title : 'Restaurant',
+                            address: '',
+                            rating: 4.5,
+                            reviewCount: 100,
+                            deliveryTime: '25-30 min',
+                            distance: '1.5 km',
+                            deliveryCharge: 0,
+                            image: imageUrl,
+                            cuisines: const [],
+                            isVeg: false,
+                            isFeatured: false,
+                            tags: const [],
+                          ),
+                        );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RestaurantDetailScreen(restaurant: found),
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF248C70),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    ),
+                    child: Text(
+                      ctaText,
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1889,15 +2020,22 @@ class _RecommendedRestaurantCard extends StatelessWidget {
 class _EcdkartComparisonSection extends StatelessWidget {
   final List<Restaurant> restaurants;
   final bool isDark;
+  final String? title;
+  final String? subtitle;
 
   const _EcdkartComparisonSection({
     required this.restaurants,
     required this.isDark,
+    this.title,
+    this.subtitle,
   });
 
   @override
   Widget build(BuildContext context) {
     if (restaurants.isEmpty) return const SizedBox.shrink();
+
+    final heading = (title != null && title!.trim().isNotEmpty) ? title!.trim() : 'ECDkart vs OTHER APPS';
+    final sub = (subtitle != null && subtitle!.trim().isNotEmpty) ? subtitle!.trim() : '40-60% LOWER PRICES - Save on every delivery';
 
     return Container(
       margin: const EdgeInsets.fromLTRB(14, 16, 14, 12),
@@ -1926,7 +2064,7 @@ class _EcdkartComparisonSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header Section (Double Heart Logo + Brand Title) ──
+          // ── Header Section (Double Heart Logo + Dynamic Brand Title) ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
@@ -1949,33 +2087,28 @@ class _EcdkartComparisonSection extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'ECDKART',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'vs OTHER APPS',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.grey.shade300 : const Color(0xFF0F8A5F),
+                    Expanded(
+                      child: Text(
+                        heading,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                          letterSpacing: 0.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  '40-60% LOWER PRICES',
+                Text(
+                  sub,
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 16,
                     fontWeight: FontWeight.w900,
-                    color: AppColors.primary,
+                    color: isDark ? Colors.white : AppColors.primary,
                     letterSpacing: -0.2,
                   ),
                 ),

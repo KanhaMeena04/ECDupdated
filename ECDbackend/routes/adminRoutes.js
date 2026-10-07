@@ -496,5 +496,9 @@ router.put('/self-pickup-config', protect, admin, updateSelfPickupConfig);
 router.get('/order-timing-config', protect, admin, getOrderTimingConfig);
 router.put('/order-timing-config', protect, admin, updateOrderTimingConfig);
 
+// Custom Push Notification Routes
+router.post('/custom-push', protect, admin, adminController.sendCustomPush);
+router.post('/notifications/custom-push', protect, admin, adminController.sendCustomPush);
+
 module.exports = router;
 
