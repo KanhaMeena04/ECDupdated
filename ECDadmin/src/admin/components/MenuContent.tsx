@@ -43,6 +43,7 @@ import RateReview from "@mui/icons-material/RateReview";
 import Article from "@mui/icons-material/Article";
 import Security from "@mui/icons-material/Security";
 import BarChart from "@mui/icons-material/BarChart";
+import SupportAgent from "@mui/icons-material/SupportAgent";
 
 import { useAuth } from '../context/AuthContext';
 
@@ -59,6 +60,7 @@ export const menuItems: MenuItemType[] = [
   { text: 'Live Orders', icon: <Assignment />, path: '/order-dashboard', permission: 'Order' },
   { text: 'Live Map', icon: <Map />, path: '/eagles-view', permission: 'Order' },
   { text: 'Customers', icon: <People />, path: '/user-management', permission: 'User' },
+  { text: 'Live Support Chat', icon: <SupportAgent />, path: '/support-chat', permission: 'User' },
 
   {
     text: 'Restaurants',

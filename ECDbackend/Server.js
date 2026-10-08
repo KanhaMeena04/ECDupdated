@@ -250,6 +250,10 @@ const issueRoutes = require('./routes/issueRoutes');
 app.use('/api/issues', issueRoutes);
 app.use('/api/v1/issues', issueRoutes);
 
+const supportChatRoutes = require('./routes/supportChatRoutes');
+app.use('/api/support', supportChatRoutes);
+app.use('/api/v1/support', supportChatRoutes);
+
 const notificationRoutes = require('./routes/notificationRoutes');
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/v1/notifications', notificationRoutes);

@@ -55,6 +55,19 @@ module.exports = (io) => {
       socket.leave(`order:${orderId}`);
       console.log(`📦 User ${socket.userId} left order: ${orderId}`);
     });
+
+    socket.on('support:join', (conversationId) => {
+      if (conversationId) {
+        socket.join(`support:${conversationId}`);
+        console.log(`💬 Socket ${socket.id} joined support room: ${conversationId}`);
+      }
+    });
+    socket.on('support:leave', (conversationId) => {
+      if (conversationId) {
+        socket.leave(`support:${conversationId}`);
+        console.log(`💬 Socket ${socket.id} left support room: ${conversationId}`);
+      }
+    });
     socket.on('rider:status', async (status) => {
       if (socket.userRole === 'rider') {
         if (status === 'online' || status === 'busy') {

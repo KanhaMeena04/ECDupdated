@@ -5,6 +5,7 @@ const Rider = require("../models/Rider");
 const Product = require("../models/Product");
 const WalletTransaction = require("../models/WalletTransaction");
 const Notification = require("../models/Notification");
+const SupportChat = require("../models/SupportChat");
 const { admin, isInitialized } = require("../config/firebaseConfig");
 const socketService = require("../services/socketService");
 const { sendNotification } = require("../utils/notificationService");
@@ -333,7 +334,7 @@ exports.getAdminLiveNotifications = async (req, res) => {
       .limit(limit)
       .lean();
 
-    const notifications = orders.map((order) => {
+    const orderNotifications = orders.map((order) => {
       const restaurantName = safeString(order.restaurant?.name) || safeString(order.restaurantName) || 'Restaurant';
       const customerName = safeString(order.customer?.name) || safeString(order.customerName) || 'Customer';
 
@@ -356,8 +357,44 @@ exports.getAdminLiveNotifications = async (req, res) => {
         amountFormatted: amountStr,
         createdAt: order.createdAt,
         read: ['delivered', 'cancelled'].includes(order.status),
+        type: 'order',
       };
     });
+
+    // Unread support chats for real-time admin alert
+    let supportNotifications = [];
+    let totalSupportUnread = 0;
+    try {
+      const unreadChats = await SupportChat.find({ unreadCountAdmin: { $gt: 0 } })
+        .sort({ lastMessageAt: -1 })
+        .limit(5)
+        .lean();
+
+      totalSupportUnread = unreadChats.reduce((sum, c) => sum + (c.unreadCountAdmin || 0), 0);
+
+      supportNotifications = unreadChats.map((c) => ({
+        id: `support_${c._id}`,
+        orderId: c.orderId || '',
+        orderCode: 'SUPPORT',
+        restaurantName: 'ECDKart Support',
+        customerName: c.userName || 'Customer',
+        title: `💬 Support: ${c.userName || 'Customer'}`,
+        description: c.lastMessage || 'New message received',
+        status: 'support',
+        orderType: 'support',
+        amount: 0,
+        amountFormatted: '',
+        createdAt: c.lastMessageAt || c.updatedAt,
+        read: false,
+        type: 'support',
+        conversationId: c._id.toString(),
+        linkUrl: '/support-chat',
+      }));
+    } catch (_) {}
+
+    const combinedNotifications = [...supportNotifications, ...orderNotifications]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, limit);
 
     const activeOrdersCount = await Order.countDocuments({
       status: { $in: ['placed', 'accepted', 'preparation', 'ready', 'assigned', 'picked_up'] }
@@ -365,8 +402,9 @@ exports.getAdminLiveNotifications = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      unreadCount: activeOrdersCount,
-      notifications,
+      unreadCount: activeOrdersCount + totalSupportUnread,
+      supportUnreadCount: totalSupportUnread,
+      notifications: combinedNotifications,
     });
   } catch (error) {
     console.error('Admin live notifications error:', error);

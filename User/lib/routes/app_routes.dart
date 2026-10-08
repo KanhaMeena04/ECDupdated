@@ -19,10 +19,12 @@ import '../pages/search/search_page.dart';
 import '../pages/profile/location_setup_page.dart';
 import '../pages/profile/unserviceable_location_page.dart';
 import '../pages/checkout/map_address_picker_page.dart';
+import '../pages/order/contact_support_page.dart';
 
 class AppRoutes {
   static const String splash = '/';
   static const String onboarding = '/onboarding';
+  static const String contactSupport = '/contact-support';
   static const String locationSetup = '/location-setup';
   static const String mapAddressPicker = '/map-address-picker';
   static const String unserviceable = '/unserviceable';
@@ -173,6 +175,20 @@ class AppRoutes {
       GoRoute(
         path: location,
         builder: (context, state) => const MapAddressPickerPage(),
+      ),
+      GoRoute(
+        path: contactSupport,
+        builder: (context, state) {
+          final orderId = state.uri.queryParameters['orderId'];
+          return ContactSupportPage(orderId: orderId);
+        },
+      ),
+      GoRoute(
+        path: '/support',
+        builder: (context, state) {
+          final orderId = state.uri.queryParameters['orderId'];
+          return ContactSupportPage(orderId: orderId);
+        },
       ),
     ],
   );

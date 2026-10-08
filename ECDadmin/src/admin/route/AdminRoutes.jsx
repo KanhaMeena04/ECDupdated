@@ -46,6 +46,7 @@ const RiderPayoutRequests=lazy(()=>import("../drivermanagement/pages/RiderPayout
 const PromocodesList=lazy(()=>import("../promocodes/pages/PromoCodesList"))
 const AddPromoCodes=lazy(()=>import("../promocodes/pages/AddPromoCodes"))
 const UserManagement=lazy(()=>import("../userManagement/pages/UserManagement"))
+const LiveSupportChat = lazy(() => import("../support/pages/LiveSupportChat"));
 
 const CategoryList=lazy(()=>import("../categories/pages/CategoryList"))
 const AddCategory=lazy(()=>import("../categories/pages/AddCategory"))
@@ -229,6 +230,7 @@ const AdminRoutes = () => {
 				 <Route path="/admin-custom-push" element={<AdminCustomPush/>} />
 
 				 <Route path="/user-management" element={<UserManagement/>} />
+				 <Route path="/support-chat" element={<LiveSupportChat />} />
 
 				 <Route path="/category" element={<CategoryList/>} />
 				 <Route path="/add-category" element={<AddCategory/>} />

@@ -88,7 +88,9 @@ import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
+import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../../utils/utils';
 import NavbarBreadcrumbs from './NavbarBreadcrumbs';
 import { menuItems } from './MenuContent'; 
@@ -110,6 +112,9 @@ interface NotificationItem {
   amountFormatted: string;
   createdAt: string;
   read: boolean;
+  type?: string;
+  conversationId?: string;
+  linkUrl?: string;
 }
 
 const safeText = (val: any, fallback = ''): string => {
@@ -140,6 +145,25 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
   const isNotifOpen = Boolean(notifAnchorEl);
   const [notifications, setNotifications] = React.useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = React.useState<number>(0);
+  const [supportUnreadCount, setSupportUnreadCount] = React.useState<number>(0);
+  const prevSupportUnreadRef = React.useRef<number>(-1);
+
+  const playSupportAlertChime = React.useCallback(() => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+      gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.35);
+    } catch (_) {}
+  }, []);
 
   const fetchLiveNotifications = React.useCallback(async () => {
     try {
@@ -160,13 +184,16 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
           return {
             ...n,
             id: notifId,
-            orderId: String(n.orderId || n._id),
+            orderId: String(n.orderId || n._id || ''),
             orderCode: safeText(n.orderCode, 'Order'),
             restaurantName: safeText(n.restaurantName, 'Restaurant'),
             customerName: safeText(n.customerName, 'Customer'),
-            title: safeText(n.title, 'Order Notification'),
+            title: safeText(n.title, 'Notification'),
             description: safeText(n.description, ''),
             read: isRead,
+            type: n.type || 'order',
+            conversationId: n.conversationId || '',
+            linkUrl: n.linkUrl || '',
           };
         });
         setNotifications(cleaned);
@@ -217,11 +244,48 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
     }
   }, []);
 
+  const fetchSupportUnreadCount = React.useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await axios.get(`${API_BASE_URL}/api/support/admin/conversations?limit=1`, {
+        headers,
+        withCredentials: true,
+      });
+
+      if (res.data?.success && typeof res.data.totalUnread === 'number') {
+        const newCount = res.data.totalUnread;
+        if (prevSupportUnreadRef.current !== -1 && newCount > prevSupportUnreadRef.current) {
+          playSupportAlertChime();
+          toast('💬 New Customer Support Message Received!', {
+            icon: '💬',
+            duration: 5000,
+            style: {
+              borderRadius: '12px',
+              background: '#173F35',
+              color: '#ffffff',
+              fontSize: '13px',
+              fontWeight: 600,
+            },
+          });
+        }
+        prevSupportUnreadRef.current = newCount;
+        setSupportUnreadCount(newCount);
+      }
+    } catch (_) {}
+  }, [playSupportAlertChime]);
+
   React.useEffect(() => {
     fetchLiveNotifications();
-    const interval = setInterval(fetchLiveNotifications, 5000);
+    fetchSupportUnreadCount();
+    const interval = setInterval(() => {
+      fetchLiveNotifications();
+      fetchSupportUnreadCount();
+    }, 5000);
     return () => clearInterval(interval);
-  }, [fetchLiveNotifications]);
+  }, [fetchLiveNotifications, fetchSupportUnreadCount]);
 
   const getRelativeTime = (dateStr: string) => {
     if (!dateStr) return 'Just now';
@@ -480,6 +544,22 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
           </ClickAwayListener>
 
           <Stack direction="row" spacing={1} alignItems="center">
+            {/* Live Support Chat Trigger */}
+            <IconButton 
+              onClick={() => navigate('/support-chat')} 
+              size="small" 
+              sx={{ 
+                p: 0.5, 
+                bgcolor: supportUnreadCount > 0 ? 'rgba(36, 140, 112, 0.12)' : 'transparent',
+                '&:hover': { bgcolor: 'rgba(36, 140, 112, 0.2)' }
+              }}
+              title="Live Support Chat"
+            >
+              <Badge badgeContent={supportUnreadCount} color="error" max={99}>
+                <SupportAgentRoundedIcon sx={{ color: supportUnreadCount > 0 ? '#248C70' : '#4b5563' }} />
+              </Badge>
+            </IconButton>
+
             {/* Notifications Trigger */}
             <IconButton onClick={handleNotifClick} size="small" sx={{ p: 0.5 }}>
               <Badge badgeContent={unreadCount} color="error">
@@ -559,7 +639,10 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
                         }
                         setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
                         setUnreadCount(prev => Math.max(0, prev - (notif.read ? 0 : 1)));
-                        if (notif.orderId) {
+                        if (notif.type === 'support' || notif.linkUrl === '/support-chat') {
+                          navigate('/support-chat', { state: { conversationId: notif.conversationId } });
+                          handleNotifClose();
+                        } else if (notif.orderId) {
                           navigate(`/view-order/${notif.orderId}`);
                           handleNotifClose();
                         }
@@ -581,7 +664,15 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <Box sx={{ pr: 1, flex: 1 }}>
                           <Typography variant="body2" sx={{ fontWeight: notif.read ? 600 : 800, color: '#1f2937', fontSize: '0.86rem' }}>
-                            {safeText(notif.orderCode, 'Order')} • <span style={{ color: '#047857' }}>{safeText(notif.restaurantName, 'Restaurant')}</span>
+                            {notif.type === 'support' ? (
+                              <span style={{ color: '#248C70', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                💬 Support • {safeText(notif.customerName, 'Customer')}
+                              </span>
+                            ) : (
+                              <>
+                                {safeText(notif.orderCode, 'Order')} • <span style={{ color: '#047857' }}>{safeText(notif.restaurantName, 'Restaurant')}</span>
+                              </>
+                            )}
                           </Typography>
                           <Typography variant="caption" sx={{ color: '#4b5563', display: 'block', mt: 0.3, fontSize: '0.76rem' }}>
                             {safeText(notif.description)}
