@@ -2093,30 +2093,41 @@ exports.verifyRiderVehicle = async (req, res) => {
     }
     const rider = await Rider.findById(req.params.id).populate('user', 'name');
     if (!rider) return res.status(404).json({ message: 'Rider not found' });
+    rider.vehicle = rider.vehicle || {};
     rider.vehicle.vehicleApproval = rider.vehicle.vehicleApproval || {};
     rider.vehicle.vehicleApproval.status = status;
     rider.vehicle.vehicleApproval.reason = normalizeString(reason) || undefined;
     if (status === 'approved') {
       rider.vehicle.vehicleApproval.approvedAt = new Date();
-      rider.vehicle.vehicleApproval.approvedBy = req.user._id;
+      rider.vehicle.vehicleApproval.approvedBy = req.user ? req.user._id : undefined;
       rider.vehicle.vehicleVerified = true;
+      rider.vehicleVerified = true;
     } else if (status === 'rejected') {
       rider.vehicle.vehicleApproval.approvedAt = undefined;
       rider.vehicle.vehicleApproval.approvedBy = undefined;
       rider.vehicle.vehicleVerified = false;
+      rider.vehicleVerified = false;
       rider.verificationStatus = 'rejected';
     } else {
       rider.vehicle.vehicleApproval.approvedAt = undefined;
       rider.vehicle.vehicleApproval.approvedBy = undefined;
       rider.vehicle.vehicleVerified = false;
+      rider.vehicleVerified = false;
     }
-    if (rider.riderVerified && rider.vehicle.vehicleVerified) {
+    if (rider.riderVerified && (rider.vehicleVerified || rider.vehicle?.vehicleVerified)) {
       rider.verificationStatus = 'approved';
     } else if (status !== 'rejected') {
       rider.verificationStatus = 'pending';
     }
+    rider.markModified('vehicle');
+    rider.markModified('vehicleApproval');
     await rider.save();
-    try { await sendNotification(rider.user._id || rider.user, 'Vehicle Verification Update', `Your vehicle verification status: ${status}`); } catch (e) { }
+    try {
+      const recipientId = rider.user?._id || rider.user;
+      if (recipientId) {
+        await sendNotification(recipientId, 'Vehicle Verification Update', `Your vehicle verification status: ${status}`);
+      }
+    } catch (e) { }
     res.status(200).json({
       message: status === 'approved'
         ? (rider.verificationStatus === 'approved'

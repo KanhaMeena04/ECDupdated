@@ -544,7 +544,7 @@ exports.getBanners = async (req, res) => {
 
     // Helper: resolve relative /uploads/ paths to full URL
     const baseOrigin = process.env.BACKEND_URL ||
-      `http://localhost:${process.env.PORT || 5000}`;
+      (req.get && req.get('host') ? `${req.protocol || 'https'}://${req.get('host')}` : 'https://ecd-kart-backend.onrender.com');
 
     const resolveImageUrl = (img) => {
       if (!img) return '';
@@ -563,9 +563,11 @@ exports.getBanners = async (req, res) => {
         title: b.title || 'Promo Banner',
         image: resolvedImage,
         imageUrl: resolvedImage,
-        type: b.type || 'static',
-        targetId: b.targetId,
-        targetModel: b.targetModel,
+        type: b.type || (b.restaurant ? 'restaurant' : 'static'),
+        targetId: b.targetId || b.restaurant,
+        targetModel: b.targetModel || (b.restaurant ? 'Restaurant' : undefined),
+        restaurant: b.restaurant,
+        city: b.city,
         isActive: b.isActive !== false && b.isActive !== 'false'
       };
     });

@@ -333,16 +333,18 @@ const useVerifyRider = () => {
     setError(null);
 
     try {
-      const res = await axios.put(`${API_BASE_URL}/api/riders/admin/verify/${riderId}`, {
-        status,
-        reason,
-      },{
-              withCredentials:"true",
+      const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
+      const headers = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+      const res = await axios.put(
+        `${API_BASE_URL}/api/riders/admin/verify/${riderId}`,
+        { status, reason },
+        { headers, withCredentials: true }
+      );
 
-      }
-    );
-
-      return res.data; // caller decides what to do
+      return res.data;
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
       setError(msg);
@@ -364,7 +366,7 @@ const useVerifyRider = () => {
   const [error, setError] = useState(null);
 
   const verifyVehicle = useCallback(
-    async ({ riderId, status, reason = "" }) => {
+    async ({ riderId, status = "approved", reason = "" }) => {
       if (!riderId) throw new Error("riderId is required");
       if (!["pending", "approved", "rejected"].includes(status)) {
         throw new Error("Invalid vehicle status");
@@ -374,12 +376,15 @@ const useVerifyRider = () => {
       setError(null);
 
       try {
+        const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
+        const headers = {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
         const res = await axios.put(
           `${API_BASE_URL}/api/riders/admin/vehicle-verify/${riderId}`,
-          { status, reason },{
-                  withCredentials:"true",
-
-          }
+          { status, reason },
+          { headers, withCredentials: true }
         );
 
         return res.data;

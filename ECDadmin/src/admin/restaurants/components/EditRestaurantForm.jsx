@@ -218,8 +218,30 @@ const EditRestaurantForm = () => {
                 <div className="grid gap-6">
                   <TextField fullWidth label="Owner Full Name" name="ownerName" value={data.ownerName || ""} onChange={handleChange} size="small" />
                   <div className="grid grid-cols-2 gap-4">
-                    <TextField fullWidth label="Email Address" name="ownerEmail" value={data.ownerEmail || data.email || ""} onChange={handleChange} size="small" />
-                    <TextField fullWidth label="Mobile Number" name="ownerMobile" value={data.ownerMobile || data.contactNumber || ""} onChange={handleChange} size="small" />
+                    <TextField
+                      fullWidth
+                      label="Email Address"
+                      name="ownerEmail"
+                      value={data.ownerEmail || data.email || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleChange({ target: { name: "ownerEmail", value: val } });
+                        handleChange({ target: { name: "email", value: val } });
+                      }}
+                      size="small"
+                    />
+                    <TextField
+                      fullWidth
+                      label="Mobile Number"
+                      name="ownerMobile"
+                      value={data.ownerMobile || data.contactNumber || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleChange({ target: { name: "ownerMobile", value: val } });
+                        handleChange({ target: { name: "contactNumber", value: val } });
+                      }}
+                      size="small"
+                    />
                   </div>
                   <TextField fullWidth label="Update Password" type="password" name="ownerPassword" value={data.ownerPassword || ""} onChange={handleChange} size="small" placeholder="Leave blank to keep current" />
                 </div>

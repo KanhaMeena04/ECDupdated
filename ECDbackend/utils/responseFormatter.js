@@ -108,9 +108,9 @@ exports.formatRestaurantForAdmin = (restaurant) => {
   const realImage = restaurant.logo || restaurant.image || restaurant.bannerImage || '';
   const realPhone = restaurant.phone || restaurant.contactNumber || (restaurant.owner && typeof restaurant.owner === 'object' ? restaurant.owner.mobile : '');
   const realCuisine = (restaurant.categories && restaurant.categories.length > 0) ? restaurant.categories : (restaurant.cuisine || []);
-  const realPin = restaurant.restaurantKey || restaurant.pin || (restaurant.owner && typeof restaurant.owner === 'object' ? restaurant.owner.pin : '1234') || '1234';
-  const ownerName = (restaurant.owner && typeof restaurant.owner === 'object' && restaurant.owner.name) ? restaurant.owner.name : (restaurant.ownerName || `${realName} Owner`);
-  const ownerEmail = (restaurant.owner && typeof restaurant.owner === 'object' && restaurant.owner.email) ? restaurant.owner.email : (restaurant.email || (realPhone ? `${realPhone.replace(/[^0-9]/g, '')}@ecdkart.com` : ''));
+  const ownerName = restaurant.ownerName || ((restaurant.owner && typeof restaurant.owner === 'object' && restaurant.owner.name) ? restaurant.owner.name : `${realName} Owner`);
+  const ownerEmail = restaurant.ownerEmail || ((restaurant.owner && typeof restaurant.owner === 'object' && restaurant.owner.email) ? restaurant.owner.email : (restaurant.email || (realPhone ? `${realPhone.replace(/[^0-9]/g, '')}@ecdkart.com` : '')));
+  const ownerMobile = restaurant.ownerMobile || ((restaurant.owner && typeof restaurant.owner === 'object' && restaurant.owner.mobile) ? restaurant.owner.mobile : realPhone);
 
   return {
     _id: restaurant._id,

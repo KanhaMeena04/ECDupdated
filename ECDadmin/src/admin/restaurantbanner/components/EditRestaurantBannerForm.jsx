@@ -3,7 +3,8 @@ import {
   MenuItem,
   Select,
   Button,
-  Paper
+  Paper,
+  TextField
 } from '@mui/material';
 import { PhotoSizeSelectActual } from '@mui/icons-material';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -21,9 +22,10 @@ const EditRestaurantBannerForm = () => {
   const { cities, loading: cityLoading } = useCities();
 
   const [formData, setFormData] = useState({
+    title: '',
     restaurant: '',
     city: '',
-    status: 'inactive',
+    status: 'active',
     bannerImage: null
   });
 
@@ -46,9 +48,10 @@ const EditRestaurantBannerForm = () => {
         }
 
         setFormData({
-          restaurant: banner.restaurant?._id || '',
-          city: banner.city?._id || '',
-          status: banner.isActive ? 'active' : 'inactive',
+          title: banner.title || '',
+          restaurant: banner.restaurant?._id || banner.restaurant || '',
+          city: banner.city?._id || banner.city || '',
+          status: banner.isActive !== false ? 'active' : 'inactive',
           bannerImage: null
         });
 
@@ -79,8 +82,9 @@ const EditRestaurantBannerForm = () => {
     e.preventDefault();
 
     const payload = new FormData();
-    payload.append('restaurant', formData.restaurant);
-    payload.append('city', formData.city);
+    payload.append('title', formData.title || 'Promo Banner');
+    if (formData.restaurant) payload.append('restaurant', formData.restaurant);
+    if (formData.city) payload.append('city', formData.city);
     payload.append('isActive', formData.status === 'active');
 
     if (formData.bannerImage) {
@@ -104,6 +108,18 @@ const EditRestaurantBannerForm = () => {
           {/* LEFT */}
           <div className="space-y-6">
             <div className="flex flex-col gap-2">
+              <label className="text-sm text-gray-500 font-medium">Banner Title</label>
+              <TextField
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                size="small"
+                placeholder="e.g. 50% Off Special Feast"
+                className="bg-white"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
               <label className="text-sm text-gray-500 font-medium">Restaurant</label>
               <Select
                 name="restaurant"
@@ -113,6 +129,9 @@ const EditRestaurantBannerForm = () => {
                 className="bg-white"
                 disabled={restaurantLoading}
               >
+                <MenuItem value="">
+                  <em>All Restaurants (Universal Banner)</em>
+                </MenuItem>
                 {restaurants.map(rest => (
                   <MenuItem key={rest._id} value={rest._id}>
                     {rest.name}

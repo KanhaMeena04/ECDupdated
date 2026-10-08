@@ -616,23 +616,29 @@ exports.addBanner = async (req, res) => {
         if (req.file) {
             imageVal = await getFileUrl(req.file);
         } else if (req.body.image) {
-            imageVal = await Promise.resolve(req.body.image);
+            imageVal = await getFileUrl(req.body.image);
+        } else if (req.body.imageUrl) {
+            imageVal = req.body.imageUrl;
         }
         if (imageVal && typeof imageVal.then === 'function') {
             imageVal = await imageVal;
         }
         const finalImageStr = String(imageVal || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800');
 
+        const isAct = isActive === true || isActive === 'true' || isActive === 1 || isActive === '1';
+        const targetModelVal = targetModel || (restaurant && restaurant !== 'all' ? 'Restaurant' : undefined);
+        const targetIdVal = targetId || (restaurant && restaurant !== 'all' ? restaurant : undefined);
+
         const banner = await Banner.create({ 
             title: title || 'Promo Banner', 
             image: finalImageStr, 
-            type: type || 'static', 
-            targetId, 
-            targetModel, 
-            position: position || 1,
-            restaurant: restaurant || undefined,
-            city: city || undefined,
-            isActive: isActive === true || isActive === 'true' || isActive === 1 || isActive === '1' || (isActive !== false && isActive !== 'false' && isActive !== 0 && isActive !== '0'),
+            type: type || (restaurant && restaurant !== 'all' ? 'restaurant' : 'static'), 
+            targetId: targetIdVal, 
+            targetModel: targetModelVal, 
+            position: Number(position) || 1,
+            restaurant: restaurant && restaurant !== 'all' ? restaurant : undefined,
+            city: city && city !== 'all' ? city : undefined,
+            isActive: isActive !== undefined ? isAct : true,
         });
         res.status(201).json({ message: "Banner created", data: banner });
     } catch (error) {
@@ -679,12 +685,29 @@ exports.updateBanner = async (req, res) => {
             let img = await getFileUrl(req.file);
             if (img && typeof img.then === 'function') img = await img;
             updateData.image = String(img || '');
+        } else if (req.body.image && (req.body.image.startsWith('data:') || req.body.image.length > 300)) {
+            let img = await getFileUrl(req.body.image);
+            if (img && typeof img.then === 'function') img = await img;
+            if (img) updateData.image = String(img);
         }
+
+        if (updateData.isActive !== undefined) {
+            updateData.isActive = updateData.isActive === true || updateData.isActive === 'true' || updateData.isActive === 1 || updateData.isActive === '1';
+        }
+
+        if (updateData.restaurant && updateData.restaurant !== 'all' && !updateData.targetId) {
+            updateData.targetId = updateData.restaurant;
+            updateData.targetModel = 'Restaurant';
+        }
+
         const updatedBanner = await Banner.findByIdAndUpdate(
             req.params.id, 
             updateData, 
             { new: true }
         );
+        if (!updatedBanner) {
+            return res.status(404).json({ message: "Banner not found" });
+        }
         res.status(200).json({ message: "Banner updated", data: updatedBanner });
     } catch (error) {
         res.status(500).json({ message: error.message });

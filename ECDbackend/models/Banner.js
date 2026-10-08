@@ -13,9 +13,11 @@ const bannerSchema = new mongoose.Schema(
       type: String,
       enum: ["Restaurant", "Product", "Category"],
     },
+    restaurant: { type: mongoose.Schema.Types.Mixed },
+    city: { type: String },
     isActive: { type: Boolean, default: true },
     position: { type: Number, default: 0 }, // For sorting order
   },
-  { timestamps: true }
+  { timestamps: true, strict: false }
 );
 module.exports = mongoose.model("Banner", bannerSchema);

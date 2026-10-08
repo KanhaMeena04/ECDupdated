@@ -1170,12 +1170,90 @@ exports.updateRestaurant = async (req, res) => {
       "adminRating",
       "ratingAverage",
       "avgRating",
+      "autoApproveMenu",
+      "ownerName",
+      "ownerEmail",
+      "ownerMobile",
+      "ownerPassword",
+      "ownerPin",
+      "pin"
     ]);
     const allowed = isAdminUser ? adminAllowed : ownerAllowed;
     const sanitized = {};
     allowed.forEach((field) => {
       if (updates[field] !== undefined) sanitized[field] = updates[field];
     });
+
+    if (updates.autoApproveMenu !== undefined) {
+      sanitized.autoApproveMenu = updates.autoApproveMenu === true || updates.autoApproveMenu === "true";
+    }
+
+    // Handle Owner Details (Name, Email, Mobile, Password, Pin) updates
+    if (isAdminUser && (updates.ownerName || updates.ownerEmail || updates.ownerMobile || updates.ownerPassword || updates.ownerPin)) {
+      if (updates.ownerName && typeof updates.ownerName === 'string') {
+        sanitized.ownerName = updates.ownerName.trim();
+      }
+      if (updates.ownerEmail && typeof updates.ownerEmail === 'string') {
+        sanitized.ownerEmail = updates.ownerEmail.trim().toLowerCase();
+      }
+      if (updates.ownerMobile && typeof updates.ownerMobile === 'string') {
+        sanitized.ownerMobile = updates.ownerMobile.trim();
+      }
+      if (updates.ownerPin) {
+        sanitized.ownerPin = String(updates.ownerPin).trim();
+        sanitized.pin = String(updates.ownerPin).trim();
+      }
+
+      try {
+        let ownerUser = null;
+        if (restaurant.owner) {
+          const ownerId = typeof restaurant.owner === 'object' ? (restaurant.owner._id || restaurant.owner.id) : restaurant.owner;
+          if (ownerId && mongoose.Types.ObjectId.isValid(ownerId)) {
+            ownerUser = await User.findById(ownerId);
+          }
+        }
+        if (!ownerUser && (sanitized.ownerEmail || restaurant.ownerEmail || restaurant.email)) {
+          ownerUser = await User.findOne({
+            email: sanitized.ownerEmail || restaurant.ownerEmail || restaurant.email
+          });
+        }
+        if (!ownerUser && (sanitized.ownerMobile || restaurant.ownerMobile || restaurant.contactNumber)) {
+          ownerUser = await User.findOne({
+            mobile: sanitized.ownerMobile || restaurant.ownerMobile || restaurant.contactNumber
+          });
+        }
+
+        if (ownerUser) {
+          if (sanitized.ownerName) ownerUser.name = sanitized.ownerName;
+          if (sanitized.ownerEmail) ownerUser.email = sanitized.ownerEmail;
+          if (sanitized.ownerMobile) ownerUser.mobile = sanitized.ownerMobile;
+          if (sanitized.ownerPin) ownerUser.pin = sanitized.ownerPin;
+          if (updates.ownerPassword && String(updates.ownerPassword).trim()) {
+            const salt = await bcrypt.genSalt(10);
+            ownerUser.password = await bcrypt.hash(String(updates.ownerPassword).trim(), salt);
+          }
+          await ownerUser.save();
+          sanitized.owner = ownerUser._id;
+        } else if (sanitized.ownerEmail || sanitized.ownerMobile) {
+          // Create owner user if none exists
+          const ownerPinVal = sanitized.ownerPin || "1234";
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash(updates.ownerPassword || ownerPinVal, salt);
+          const newOwner = await User.create({
+            name: sanitized.ownerName || `${restaurant.name?.en || restaurant.name || 'Restaurant'} Owner`,
+            email: sanitized.ownerEmail || `${Date.now()}@ecdkart.com`,
+            mobile: sanitized.ownerMobile || restaurant.contactNumber || `+91${Date.now().toString().slice(-10)}`,
+            password: hashedPassword,
+            pin: ownerPinVal,
+            role: "restaurant_owner",
+            isVerified: true
+          });
+          sanitized.owner = newOwner._id;
+        }
+      } catch (ownerUpdateErr) {
+        console.warn("[Owner Update Warning]:", ownerUpdateErr.message);
+      }
+    }
 
     if (sanitized.image) {
       sanitized.logo = sanitized.image;

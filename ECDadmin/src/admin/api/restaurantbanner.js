@@ -14,12 +14,18 @@ const useRestaurantBanner = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   /* ================= FETCH ================= */
   const fetchBanners = async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await axios.get(`${API_BASE_URL}/api/admin/banner`, {
+        headers: getAuthHeaders(),
         withCredentials: true
       });
 
@@ -40,10 +46,13 @@ const useRestaurantBanner = () => {
       const response = await axios.post(
         `${API_BASE_URL}/api/admin/banner`,
         payload,
-        { withCredentials: true }
+        {
+          headers: getAuthHeaders(),
+          withCredentials: true
+        }
       );
 
-      const newBanner = response?.data?.data;
+      const newBanner = response?.data?.data || response?.data;
       if (!newBanner) throw new Error('Invalid banner response');
 
       setBanners((prev) => (Array.isArray(prev) ? [...prev, newBanner] : [newBanner]));
@@ -65,10 +74,13 @@ const useRestaurantBanner = () => {
       const response = await axios.put(
         `${API_BASE_URL}/api/admin/banner/${id}`,
         payload,
-        { withCredentials: true }
+        {
+          headers: getAuthHeaders(),
+          withCredentials: true
+        }
       );
 
-      const updatedBanner = response?.data?.data;
+      const updatedBanner = response?.data?.data || response?.data;
       if (!updatedBanner) throw new Error('Invalid banner response');
 
       setBanners((prev) =>
@@ -93,6 +105,7 @@ const useRestaurantBanner = () => {
     setError(null);
     try {
       await axios.delete(`${API_BASE_URL}/api/admin/banner/${id}`, {
+        headers: getAuthHeaders(),
         withCredentials: true
       });
 
@@ -107,30 +120,33 @@ const useRestaurantBanner = () => {
       setLoading(false);
     }
   };
+
   /* ================= GET BY ID ================= */
-const getBannerById = async (id) => {
-  if (!id) throw new Error("Banner ID is required");
+  const getBannerById = async (id) => {
+    if (!id) throw new Error("Banner ID is required");
 
-  setLoading(true);
-  setError(null);
+    setLoading(true);
+    setError(null);
 
-  try {
-    const response = await axios.get(
-      `${API_BASE_URL}/api/admin/banner/${id}`,
-      { withCredentials: true }
-    );
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/api/admin/banner/${id}`,
+        {
+          headers: getAuthHeaders(),
+          withCredentials: true
+        }
+      );
 
-    setBanners(response.data);
-    return response.data;
-  } catch (err) {
-    const message =
-      err?.response?.data?.message || err.message || "Failed to fetch banner";
-    setError(message);
-    throw err;
-  } finally {
-    setLoading(false);
-  }
-};
+      return response.data?.data || response.data;
+    } catch (err) {
+      const message =
+        err?.response?.data?.message || err.message || "Failed to fetch banner";
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   useEffect(() => {

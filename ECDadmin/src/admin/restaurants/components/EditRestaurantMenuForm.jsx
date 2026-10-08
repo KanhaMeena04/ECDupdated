@@ -118,10 +118,11 @@ const EditRestaurantMenuForm = () => {
 
   // Toggle Auto-Approve Menu for Restaurant
   const handleToggleAutoApprove = async () => {
+    const prevVal = autoApproveMenu;
+    const nextVal = !prevVal;
     try {
-      const nextVal = !autoApproveMenu;
       setAutoApproveMenu(nextVal);
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
       await axios.put(
         `${API_BASE_URL}/api/restaurants/admin/${restaurantId}`,
         { autoApproveMenu: nextVal },
@@ -129,7 +130,9 @@ const EditRestaurantMenuForm = () => {
       );
       toast.success(nextVal ? "Auto-Approve Menu enabled for this restaurant!" : "Auto-Approve disabled (Requires Admin Review)");
     } catch (err) {
-      toast.error("Failed to update auto-approve setting");
+      console.error("Auto-approve error:", err);
+      setAutoApproveMenu(prevVal);
+      toast.error(err?.response?.data?.message || "Failed to update auto-approve setting");
     }
   };
 
@@ -339,14 +342,57 @@ const EditRestaurantMenuForm = () => {
     reader.readAsText(bulkFile);
   };
 
+  // Helper to extract clean category string from any format
+  const getCategoryString = (item) => {
+    const cat = item.category || item.categoryId;
+    if (!cat) return "Main Course";
+    if (typeof cat === "string") return cat;
+    if (typeof cat.name === "string") return cat.name;
+    if (cat.name && typeof cat.name === "object") return cat.name.en || Object.values(cat.name)[0] || "Main Course";
+    if (typeof cat.slug === "string") return cat.slug;
+    return "Main Course";
+  };
+
+  // Dynamically extract all available categories present in the menu
+  const availableCategories = useMemo(() => {
+    const catMap = new Map();
+    menu.forEach((item) => {
+      const catName = getCategoryString(item);
+      if (catName && catName.trim()) {
+        const trimmed = catName.trim();
+        const key = trimmed.toLowerCase();
+        if (!catMap.has(key)) {
+          catMap.set(key, trimmed);
+        }
+      }
+    });
+
+    // Standard preset categories
+    const defaults = ["Main Course", "Starters & Snacks", "Breads & Rice", "Beverages & Shakes", "Desserts"];
+    defaults.forEach((d) => {
+      if (!catMap.has(d.toLowerCase())) {
+        catMap.set(d.toLowerCase(), d);
+      }
+    });
+
+    return Array.from(catMap.values());
+  }, [menu]);
+
   // Filtered Menu Items
   const filteredMenu = menu.filter((item) => {
     const nameStr = (item.name?.en || item.name || "").toLowerCase();
-    const catStr = (item.category?.name || item.category || "").toLowerCase();
+    const itemCat = getCategoryString(item).trim().toLowerCase();
     const query = searchQuery.toLowerCase();
 
-    const matchesSearch = nameStr.includes(query) || catStr.includes(query);
-    const matchesCategory = categoryFilter === "all" || catStr === categoryFilter.toLowerCase();
+    const matchesSearch = nameStr.includes(query) || itemCat.includes(query);
+    const filterCat = categoryFilter.trim().toLowerCase();
+    const matchesCategory =
+      filterCat === "all" ||
+      itemCat === filterCat ||
+      itemCat.replace(/[^a-z0-9]/g, "") === filterCat.replace(/[^a-z0-9]/g, "") ||
+      itemCat.includes(filterCat) ||
+      filterCat.includes(itemCat);
+
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "approved" && (item.isApproved || item.approvalStatus === "approved")) ||
@@ -486,14 +532,21 @@ const EditRestaurantMenuForm = () => {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none"
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
           >
-            <option value="all">All Categories</option>
-            <option value="main course">Main Course</option>
-            <option value="starters & snacks">Starters & Snacks</option>
-            <option value="breads & rice">Breads & Rice</option>
-            <option value="beverages & shakes">Beverages & Shakes</option>
-            <option value="desserts">Desserts</option>
+            <option value="all">All Categories ({menu.length})</option>
+            {availableCategories.map((cat) => {
+              const count = menu.filter((i) => {
+                const c = getCategoryString(i).trim().toLowerCase();
+                const target = cat.trim().toLowerCase();
+                return c === target || c.replace(/[^a-z0-9]/g, "") === target.replace(/[^a-z0-9]/g, "");
+              }).length;
+              return (
+                <option key={cat} value={cat.toLowerCase()}>
+                  {cat} {count > 0 ? `(${count})` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
       </div>
@@ -567,7 +620,7 @@ const EditRestaurantMenuForm = () => {
                     {/* Category */}
                     <td className="py-3.5 px-4">
                       <span className="font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg">
-                        {item.category?.name?.en || item.category?.name || item.category || "Main Course"}
+                        {getCategoryString(item)}
                       </span>
                     </td>
 

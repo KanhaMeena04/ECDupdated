@@ -3,14 +3,28 @@ const Category = require("../models/Category");
 const Restaurant = require("../models/Restaurant");
 const AuditLog = require("../models/AuditLog");
 
-const syncRestaurantMenuToProducts = async () => {
+let lastSyncTimestamp = 0;
+const SYNC_DEBOUNCE_MS = 10 * 60 * 1000; // 10 minutes
+
+const syncRestaurantMenuToProducts = async (force = false) => {
+  const now = Date.now();
+  if (!force && (now - lastSyncTimestamp < SYNC_DEBOUNCE_MS)) {
+    return;
+  }
+  lastSyncTimestamp = now;
+
   try {
+    const totalExistingProducts = await Product.countDocuments({});
+    if (!force && totalExistingProducts > 20) {
+      return;
+    }
+
     const restaurantsWithMenu = await Restaurant.find({
       $or: [
         { "menu.0": { $exists: true } },
         { menu: { $exists: true, $not: { $size: 0 } } }
       ]
-    });
+    }).limit(30);
 
     if (restaurantsWithMenu.length > 0) {
       let defaultCat = await Category.findOne({ isMaster: true });
@@ -90,6 +104,40 @@ const syncRestaurantMenuToProducts = async () => {
   }
 };
 
+const getGlobalMenuCounts = async () => {
+  try {
+    const [pendingCount, approvedCount, rejectedCount, changesCount, totalCount] = await Promise.all([
+      Product.countDocuments({
+        $or: [
+          { approvalStatus: "pending" },
+          { approvalStatus: { $exists: false } },
+          { isApproved: false, isRejected: { $ne: true } },
+          { isApproved: { $exists: false } },
+          { pendingUpdate: { $exists: true, $ne: null } }
+        ]
+      }),
+      Product.countDocuments({
+        $or: [{ isApproved: true }, { approvalStatus: "approved" }]
+      }),
+      Product.countDocuments({
+        $or: [{ approvalStatus: "rejected" }, { isRejected: true }]
+      }),
+      Product.countDocuments({ approvalStatus: "changes_requested" }),
+      Product.countDocuments({}),
+    ]);
+
+    return {
+      pending: pendingCount,
+      approved: approvedCount,
+      rejected: rejectedCount,
+      changes_requested: changesCount,
+      all: totalCount,
+    };
+  } catch (e) {
+    return { pending: 0, approved: 0, rejected: 0, changes_requested: 0, all: 0 };
+  }
+};
+
 /**
  * GET /api/admin/menu/pending
  * Retrieve all menu items pending admin review
@@ -120,13 +168,16 @@ exports.getPendingMenuItems = async (req, res) => {
       ];
     }
 
-    const items = await Product.find(filter)
-      .populate("restaurant", "name email contactNumber restaurantApproved isActive menuApproved")
-      .populate("category", "name slug")
-      .populate("categoryId", "name slug")
-      .populate("subcategoryId", "name slug")
-      .sort({ createdAt: -1 })
-      .lean();
+    const [items, counts] = await Promise.all([
+      Product.find(filter)
+        .populate("restaurant", "name email contactNumber restaurantApproved isActive menuApproved")
+        .populate("category", "name slug")
+        .populate("categoryId", "name slug")
+        .populate("subcategoryId", "name slug")
+        .sort({ createdAt: -1 })
+        .lean(),
+      getGlobalMenuCounts()
+    ]);
 
     const formatted = items.map(item => {
       const b2cSelling = Number(item.pricing?.b2c?.sellingPrice ?? item.sellingPrice ?? item.basePrice ?? item.price ?? 0);
@@ -198,6 +249,7 @@ exports.getPendingMenuItems = async (req, res) => {
     return res.status(200).json({
       success: true,
       count: formatted.length,
+      counts: counts,
       data: formatted
     });
   } catch (error) {
@@ -249,13 +301,16 @@ exports.getAllMenuItemsAdmin = async (req, res) => {
       ];
     }
 
-    const items = await Product.find(filter)
-      .populate("restaurant", "name email contactNumber restaurantApproved isActive menuApproved")
-      .populate("category", "name slug")
-      .populate("categoryId", "name slug")
-      .populate("subcategoryId", "name slug")
-      .sort({ createdAt: -1 })
-      .lean();
+    const [items, counts] = await Promise.all([
+      Product.find(filter)
+        .populate("restaurant", "name email contactNumber restaurantApproved isActive menuApproved")
+        .populate("category", "name slug")
+        .populate("categoryId", "name slug")
+        .populate("subcategoryId", "name slug")
+        .sort({ createdAt: -1 })
+        .lean(),
+      getGlobalMenuCounts()
+    ]);
 
     const formatted = items.map(item => {
       const b2cSelling = Number(item.pricing?.b2c?.sellingPrice ?? item.sellingPrice ?? item.basePrice ?? item.price ?? 0);
@@ -327,6 +382,7 @@ exports.getAllMenuItemsAdmin = async (req, res) => {
     return res.status(200).json({
       success: true,
       count: formatted.length,
+      counts: counts,
       data: formatted
     });
   } catch (error) {

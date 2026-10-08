@@ -88,13 +88,15 @@ export default function PendingMenuApprovals() {
   const fetchItems = React.useCallback(async (status: string) => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || '';
       const endpoint = status === 'pending'
         ? `${API_BASE_URL}/api/admin/menu/pending`
         : `${API_BASE_URL}/api/admin/menu/all?status=${status}`;
 
       const res = await fetch(endpoint, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
       const data = await res.json();
@@ -111,27 +113,52 @@ export default function PendingMenuApprovals() {
 
       setItems(rawList);
 
-      // Also fetch all items count to update badge numbers across tabs
-      try {
-        const allRes = await fetch(`${API_BASE_URL}/api/admin/menu/all?status=all`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+      // Instantly update counts from API response if provided
+      if (data?.counts) {
+        setCounts(data.counts);
+      } else if (status === 'all' && rawList.length > 0) {
+        const pendingCount = rawList.filter(i => (i.approvalStatus === 'pending' || (!i.isApproved && !i.isRejected))).length;
+        const approvedCount = rawList.filter(i => (i.approvalStatus === 'approved' || i.isApproved)).length;
+        const rejectedCount = rawList.filter(i => (i.approvalStatus === 'rejected' || i.isRejected)).length;
+        const changesCount = rawList.filter(i => i.approvalStatus === 'changes_requested').length;
+        setCounts({
+          pending: pendingCount,
+          approved: approvedCount,
+          rejected: rejectedCount,
+          changes_requested: changesCount,
+          all: rawList.length,
         });
-        const allData = await allRes.json();
-        const allList: any[] = Array.isArray(allData) ? allData : (allData.data || allData.items || []);
-        if (allList.length > 0) {
-          const pendingCount = allList.filter(i => (i.approvalStatus === 'pending' || (!i.isApproved && !i.isRejected))).length;
-          const approvedCount = allList.filter(i => (i.approvalStatus === 'approved' || i.isApproved)).length;
-          const rejectedCount = allList.filter(i => (i.approvalStatus === 'rejected' || i.isRejected)).length;
-          const changesCount = allList.filter(i => i.approvalStatus === 'changes_requested').length;
-          setCounts({
-            pending: pendingCount,
-            approved: approvedCount,
-            rejected: rejectedCount,
-            changes_requested: changesCount,
-            all: allList.length,
-          });
-        }
-      } catch (_) {}
+      } else {
+        // Asynchronously fetch counts without blocking UI or hanging
+        fetch(`${API_BASE_URL}/api/admin/menu/all?status=all`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+        })
+          .then(r => r.json())
+          .then(allData => {
+            if (allData?.counts) {
+              setCounts(allData.counts);
+            } else {
+              const allList: any[] = Array.isArray(allData) ? allData : (allData.data || allData.items || []);
+              if (allList.length > 0) {
+                const pendingCount = allList.filter(i => (i.approvalStatus === 'pending' || (!i.isApproved && !i.isRejected))).length;
+                const approvedCount = allList.filter(i => (i.approvalStatus === 'approved' || i.isApproved)).length;
+                const rejectedCount = allList.filter(i => (i.approvalStatus === 'rejected' || i.isRejected)).length;
+                const changesCount = allList.filter(i => i.approvalStatus === 'changes_requested').length;
+                setCounts({
+                  pending: pendingCount,
+                  approved: approvedCount,
+                  rejected: rejectedCount,
+                  changes_requested: changesCount,
+                  all: allList.length,
+                });
+              }
+            }
+          })
+          .catch(() => {});
+      }
     } catch (err: any) {
       console.error(err);
       toast.error('Network error fetching menu items');
@@ -146,11 +173,12 @@ export default function PendingMenuApprovals() {
 
   const handleApprove = async (id: string) => {
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || '';
       const res = await fetch(`${API_BASE_URL}/api/admin/menu/${id}/approve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ notes: 'Approved via Admin Panel' }),
       });
@@ -173,11 +201,12 @@ export default function PendingMenuApprovals() {
       return;
     }
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || '';
       const res = await fetch(`${API_BASE_URL}/api/admin/menu/${selectedItem._id}/reject`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ rejectionReason }),
       });
@@ -202,11 +231,12 @@ export default function PendingMenuApprovals() {
       return;
     }
     try {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || '';
       const res = await fetch(`${API_BASE_URL}/api/admin/menu/${selectedItem._id}/request-changes`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ changeRequest }),
       });
