@@ -1880,6 +1880,13 @@ exports.updateOrderStatus = async (req, res) => {
       } catch (payErr) {
         logger.error("Failed to trigger payment processing on delivery", { orderId: order._id, error: payErr.message });
       }
+
+      try {
+        const { creditOrderRewards } = require('../services/rewardService');
+        await creditOrderRewards(order);
+      } catch (rewardErr) {
+        logger.error("Failed to credit order rewards on delivery", { orderId: order._id, error: rewardErr.message });
+      }
     }
     if (status === "accepted" && oldStatus !== "accepted") {
       logger.info("Restaurant accepted order. Waiting for food prep before rider dispatch.", { orderId: order._id });
@@ -2485,6 +2492,9 @@ exports.trackOrder = async (req, res) => {
       orderId: order._id.toString(),
       status: order.status,
       isRated: Boolean(order.isRated),
+      rewardPoints: order.rewardPoints || 0,
+      rewardAmount: order.rewardAmount || 0,
+      rewardPointsCredited: Boolean(order.rewardPointsCredited),
       restaurantId: order.restaurant?._id?.toString() || (typeof order.restaurant === 'string' ? order.restaurant : '') || '',
       riderId: order.rider?._id?.toString() || (typeof order.rider === 'string' ? order.rider : '') || '',
       items: order.items || [],
@@ -3586,6 +3596,11 @@ exports.verifySelfPickup = async (req, res) => {
       await processOnlineDelivery(order._id);
     } catch (_) {}
 
+    try {
+      const { creditOrderRewards } = require('../services/rewardService');
+      await creditOrderRewards(order);
+    } catch (_) {}
+
     return res.status(200).json({
       success: true,
       message: 'Self-pickup verified successfully! Order completed.',
@@ -3824,6 +3839,12 @@ exports.verifyPickupVendor = async (req, res) => {
           { orderId: order._id.toString(), status: newStatus, type: "order_status" }
         );
       } catch (_) {}
+      if (isSelfPickup) {
+        try {
+          const { creditOrderRewards } = require('../services/rewardService');
+          await creditOrderRewards(order);
+        } catch (_) {}
+      }
     }
 
     if (order.rider) {

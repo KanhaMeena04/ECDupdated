@@ -68,7 +68,7 @@ class RestaurantApiService {
     }
   }
 
-  static Future<bool> submitDualReview({
+  static Future<Map<String, dynamic>> submitDualReview({
     required String orderId,
     required String restaurantId,
     required double restaurantRating,
@@ -76,7 +76,7 @@ class RestaurantApiService {
     String? comment,
     String? riderComment,
   }) async {
-    if (kFrontendPreviewMode) return true;
+    if (kFrontendPreviewMode) return {'success': true, 'bonusPoints': 5};
     try {
       final combinedComment = [
         if (comment != null && comment.trim().isNotEmpty) 'Restaurant: ${comment.trim()}',
@@ -94,10 +94,19 @@ class RestaurantApiService {
           'comment': combinedComment.isNotEmpty ? combinedComment : (comment ?? ''),
         }),
       );
-      return response.statusCode == 201 || response.statusCode == 200;
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final bonus = decoded is Map ? (decoded['bonusPoints'] ?? 5) : 5;
+        return {
+          'success': true,
+          'bonusPoints': bonus,
+          'message': decoded is Map ? (decoded['message'] ?? 'Review submitted successfully!') : 'Review submitted successfully!',
+        };
+      }
+      return {'success': false, 'bonusPoints': 0};
     } catch (e) {
       debugPrint('Error submitting dual review: $e');
-      return false;
+      return {'success': false, 'bonusPoints': 0};
     }
   }
 

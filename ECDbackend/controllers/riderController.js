@@ -3556,6 +3556,12 @@ exports.verifyDelivery = async (req, res) => {
     } catch (payErr) {
       console.error('Failed to trigger earnings on delivery:', payErr.message);
     }
+    try {
+      const { creditOrderRewards } = require('../services/rewardService');
+      await creditOrderRewards(order);
+    } catch (rewErr) {
+      console.error('Failed to credit customer rewards on rider delivery:', rewErr.message);
+    }
     await Rider.findOneAndUpdate({ user: req.user._id }, { isAvailable: true });
     const RideRequest = require('../models/RideRequest');
     await RideRequest.updateMany(

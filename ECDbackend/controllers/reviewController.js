@@ -400,11 +400,15 @@ exports.createReview = async (req, res) => {
         let targetRiderId = null;
         let order = null;
 
-        if (orderId && mongoose.Types.ObjectId.isValid(orderId)) {
-            order = await Order.findById(orderId);
+        if (orderId) {
+            const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+            const filter = isObjectId
+                ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
+                : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+            order = await Order.findOne(filter);
             if (order) {
-                targetRestaurantId = order.restaurant;
-                targetRiderId = order.rider;
+                targetRestaurantId = targetRestaurantId || order.restaurant;
+                targetRiderId = targetRiderId || order.rider;
             }
         }
 
@@ -448,9 +452,31 @@ exports.createReview = async (req, res) => {
             await order.save();
         }
 
+        let bonusAwarded = 0;
+        try {
+            const userDoc = await User.findById(userId);
+            if (userDoc) {
+                bonusAwarded = 5;
+                userDoc.rewardPoints = (userDoc.rewardPoints || 0) + bonusAwarded;
+                userDoc.walletBalance = Number(((userDoc.walletBalance || 0) + bonusAwarded).toFixed(2));
+                await userDoc.save();
+                const WalletTransaction = require('../models/WalletTransaction');
+                await WalletTransaction.create({
+                    user: userDoc._id,
+                    amount: bonusAwarded,
+                    type: 'credit',
+                    description: `Bonus Reward for Reviewing Order #${order?.orderNumber || orderId}`,
+                    orderId: order ? order._id : undefined,
+                }).catch(() => {});
+            }
+        } catch (_) {}
+
         return res.status(201).json({
             success: true,
-            message: 'Review submitted successfully',
+            message: bonusAwarded > 0 
+                ? `Review submitted! You earned ${bonusAwarded} bonus reward points.`
+                : 'Review submitted successfully',
+            bonusPoints: bonusAwarded,
             review
         });
     } catch (error) {

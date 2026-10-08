@@ -24,6 +24,8 @@ class UserProvider extends ChangeNotifier {
   String get avatar => _avatar;
   String get token => _token;
   String get customerId => _customerId;
+  int _rewardPoints = 0;
+  int get rewardPoints => _rewardPoints;
   double get walletBalance => _walletBalance;
   bool get isCodBlocked => _isCodBlocked;
   bool get codActive => _codActive;
@@ -46,6 +48,7 @@ class UserProvider extends ChangeNotifier {
       final savedEmail = prefs.getString('saved_user_email') ?? '';
       final savedAvatar = prefs.getString('saved_user_avatar') ?? '';
       final savedCustomerId = prefs.getString('saved_user_customer_id') ?? '';
+      final savedRewardPoints = prefs.getInt('saved_user_reward_points') ?? 0;
       final savedWallet = prefs.getDouble('saved_user_wallet');
       final savedCodBlocked = prefs.getBool('saved_user_cod_blocked');
 
@@ -57,6 +60,7 @@ class UserProvider extends ChangeNotifier {
         'email': savedEmail,
         'avatar': savedAvatar,
         'customerId': savedCustomerId,
+        'rewardPoints': savedRewardPoints,
         'wallet': savedWallet,
         'codBlocked': savedCodBlocked,
       };
@@ -82,6 +86,7 @@ class UserProvider extends ChangeNotifier {
       _isLoggedIn = true;
       _phone = savedPhone;
       _customerId = savedCustomerId;
+      _rewardPoints = (data['rewardPoints'] as int?) ?? 0;
       _name = (savedName.isNotEmpty && savedName != 'Guest User')
           ? savedName
           : (savedPhone.isNotEmpty ? 'User $savedPhone' : 'User');
@@ -112,6 +117,7 @@ class UserProvider extends ChangeNotifier {
       final savedEmail = prefs.getString('saved_user_email') ?? '';
       final savedAvatar = prefs.getString('saved_user_avatar') ?? '';
       final savedCustomerId = prefs.getString('saved_user_customer_id') ?? '';
+      final savedRewardPoints = prefs.getInt('saved_user_reward_points') ?? 0;
       final savedWallet = prefs.getDouble('saved_user_wallet');
       final savedCodBlocked = prefs.getBool('saved_user_cod_blocked');
 
@@ -120,6 +126,7 @@ class UserProvider extends ChangeNotifier {
         _isLoggedIn = true;
         _phone = savedPhone;
         if (savedCustomerId.isNotEmpty) _customerId = savedCustomerId;
+        _rewardPoints = savedRewardPoints;
         _name = (savedName.isNotEmpty && savedName != 'Guest User')
             ? savedName
             : (savedPhone.isNotEmpty ? 'User $savedPhone' : 'User');
@@ -138,6 +145,7 @@ class UserProvider extends ChangeNotifier {
           'email': _email,
           'avatar': _avatar,
           'customerId': _customerId,
+          'rewardPoints': _rewardPoints,
           'wallet': _walletBalance,
           'codBlocked': _isCodBlocked,
         };
@@ -157,6 +165,7 @@ class UserProvider extends ChangeNotifier {
       if (_email.isNotEmpty) await prefs.setString('saved_user_email', _email);
       if (_avatar.isNotEmpty) await prefs.setString('saved_user_avatar', _avatar);
       if (_customerId.isNotEmpty) await prefs.setString('saved_user_customer_id', _customerId);
+      await prefs.setInt('saved_user_reward_points', _rewardPoints);
       await prefs.setDouble('saved_user_wallet', _walletBalance);
       await prefs.setBool('saved_user_cod_blocked', _isCodBlocked);
       if (_isLoggedIn || _token.isNotEmpty || _phone.isNotEmpty) {
@@ -170,6 +179,7 @@ class UserProvider extends ChangeNotifier {
         'email': _email,
         'avatar': _avatar,
         'customerId': _customerId,
+        'rewardPoints': _rewardPoints,
         'wallet': _walletBalance,
         'codBlocked': _isCodBlocked,
       };
@@ -217,6 +227,7 @@ class UserProvider extends ChangeNotifier {
     _avatar = '';
     _token = '';
     _customerId = '';
+    _rewardPoints = 0;
     _walletBalance = 0.0;
     _isCodBlocked = false;
     _codActive = true;
@@ -230,6 +241,7 @@ class UserProvider extends ChangeNotifier {
       await prefs.remove('saved_user_email');
       await prefs.remove('saved_user_avatar');
       await prefs.remove('saved_user_customer_id');
+      await prefs.remove('saved_user_reward_points');
       await prefs.remove('saved_user_wallet');
       await prefs.remove('saved_user_cod_blocked');
       await prefs.setBool('is_logged_in', false);
@@ -287,6 +299,12 @@ class UserProvider extends ChangeNotifier {
           _avatar = userData['avatar'].toString();
         } else if (userData['profilePic'] != null) {
           _avatar = userData['profilePic'].toString();
+        }
+
+        if (userData['rewardPoints'] != null) {
+          _rewardPoints = (userData['rewardPoints'] as num).toInt();
+        } else if (userData['loyaltyPoints'] != null) {
+          _rewardPoints = (userData['loyaltyPoints'] as num).toInt();
         }
 
         // Live wallet balance from backend

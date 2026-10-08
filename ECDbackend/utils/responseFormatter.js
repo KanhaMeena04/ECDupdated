@@ -250,6 +250,9 @@ exports.formatOrderForCustomer = (order) => {
     riderName: order.riderName,
     riderPhone: order.riderPhone,
     isRated: order.isRated,
+    rewardPoints: order.rewardPoints || 0,
+    rewardAmount: order.rewardAmount || 0,
+    rewardPointsCredited: Boolean(order.rewardPointsCredited),
   };
 };
 exports.formatWalletTransaction = (transaction) => {

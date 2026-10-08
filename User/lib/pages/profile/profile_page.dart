@@ -277,6 +277,7 @@ class ProfileTab extends StatelessWidget {
                     context: context,
                     isDark: isDark,
                     walletBalance: userProvider.walletBalance,
+                    rewardPoints: userProvider.rewardPoints,
                     onTap: () => _showWalletSheet(context, isDark, userProvider.walletBalance),
                   ),
 
@@ -462,6 +463,7 @@ class ProfileTab extends StatelessWidget {
     required BuildContext context,
     required bool isDark,
     required double walletBalance,
+    int rewardPoints = 0,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -503,13 +505,37 @@ class ProfileTab extends StatelessWidget {
                 ),
               ],
             ),
-            Text(
-              '₹${walletBalance.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: walletBalance > 0 ? const Color(0xFF10B981) : (isDark ? Colors.white70 : const Color(0xFF4B5563)),
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (rewardPoints > 0) ...[
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFF59E0B), width: 0.8),
+                    ),
+                    child: Text(
+                      '⭐ $rewardPoints Pts',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFB45309),
+                      ),
+                    ),
+                  ),
+                ],
+                Text(
+                  '₹${walletBalance.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: walletBalance > 0 ? const Color(0xFF10B981) : (isDark ? Colors.white70 : const Color(0xFF4B5563)),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -655,6 +681,25 @@ class ProfileTab extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                         color: AppColors.primary),
                   ),
+                  if (userProvider.rewardPoints > 0) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFF59E0B), width: 0.8),
+                      ),
+                      child: Text(
+                        '⭐ ${userProvider.rewardPoints} Reward Points Earned',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFB45309),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

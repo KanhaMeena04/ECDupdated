@@ -90,6 +90,8 @@ const userSchema = new mongoose.Schema(
       },
     ],
     walletBalance: { type: Number, default: 0 },
+    rewardPoints: { type: Number, default: 0 },
+    loyaltyPoints: { type: Number, default: 0 },
     totalOrders: { type: Number, default: 0 },
     totalAmountSpent: { type: Number, default: 0 },
     totalEarnings: { type: Number, default: 0 }, 

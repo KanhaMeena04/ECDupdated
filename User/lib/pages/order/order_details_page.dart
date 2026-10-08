@@ -240,6 +240,22 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                 ],
                 const Divider(height: 20),
                 _buildBillRow('Total Amount', '₹${totalAmount.toStringAsFixed(2)}', isDark, isBold: true),
+                if (status == 'delivered' || status == 'completed') ...[
+                  const Divider(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.stars_rounded, color: Colors.amber, size: 18),
+                          const SizedBox(width: 6),
+                          Text('Reward Points Credited', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.amber[300] : const Color(0xFFB45309))),
+                        ],
+                      ),
+                      Text('+${order['rewardPoints'] ?? (totalAmount * 0.05).round().clamp(5, 200)} Pts', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.amber[300] : const Color(0xFFB45309))),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

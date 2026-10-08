@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../providers/user_provider.dart';
 import '../../services/order_api_service.dart';
 import '../../services/restaurant_api_service.dart';
 import '../../services/socket_service.dart';
@@ -190,6 +192,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
             if (status == 'delivered' || status == 'completed' || status == 'handovered' || status == 'handed_over') {
               _pickupStage = 4;
+              try {
+                Provider.of<UserProvider>(context, listen: false).fetchProfile();
+              } catch (_) {}
               if (!_hasShownRatingModal && data['isRated'] != true && data['order']?['isRated'] != true) {
                 _hasShownRatingModal = true;
                 _markOrderAsRatedLocally();
@@ -235,6 +240,16 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     final restName = _cleanRestaurantName(_trackingData?['restaurant']?['name'] ?? widget.restaurantName);
     final riderName = (_trackingData?['driverName'] ?? _trackingData?['rider']?['name'] ?? 'Delivery Partner').toString();
     final bool isDeliveryOrder = !_isSelfPickup;
+
+    final rawPts = _trackingData?['rewardPoints'] ?? _trackingData?['order']?['rewardPoints'];
+    final rawAmt = _trackingData?['rewardAmount'] ?? _trackingData?['order']?['rewardAmount'];
+    final totalAmt = double.tryParse((_trackingData?['totalAmount'] ?? _trackingData?['order']?['totalAmount'] ?? 0).toString()) ?? 0.0;
+    final earnedPoints = rawPts != null && int.tryParse(rawPts.toString()) != null && int.parse(rawPts.toString()) > 0
+        ? int.parse(rawPts.toString())
+        : (totalAmt > 0 ? (totalAmt * 0.05).round().clamp(5, 200) : 10);
+    final earnedCashback = rawAmt != null && double.tryParse(rawAmt.toString()) != null && double.parse(rawAmt.toString()) > 0
+        ? double.parse(rawAmt.toString())
+        : earnedPoints.toDouble();
 
     showModalBottomSheet(
       context: context,
@@ -286,7 +301,56 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
-                      const SizedBox(height: 20),
+                      Container(
+                        margin: const EdgeInsets.only(top: 14, bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF59E0B).withOpacity(0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFF59E0B),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.stars_rounded, color: Colors.white, size: 24),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '🎉 +$earnedPoints Reward Points Credited!',
+                                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF92400E)),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '₹${earnedCashback.toStringAsFixed(0)} cashback added to your ECD Wallet. Rate now to claim +5 extra bonus points!',
+                                    style: const TextStyle(fontSize: 11.5, color: Color(0xFF78350F), fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
                       // Section 1: Restaurant Rating
                       Container(
@@ -453,7 +517,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                                           _trackingData?['restaurant']?['id'] ??
                                           '')
                                       .toString();
-                                  final success = await RestaurantApiService.submitDualReview(
+                                  final res = await RestaurantApiService.submitDualReview(
                                     orderId: widget.orderId,
                                     restaurantId: restId,
                                     restaurantRating: restaurantRating,
@@ -465,18 +529,32 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                                   if (mounted) {
                                     Navigator.pop(ctx);
                                     await _markOrderAsRatedLocally();
+                                    try {
+                                      Provider.of<UserProvider>(context, listen: false).fetchProfile();
+                                    } catch (_) {}
                                     setState(() {
                                       _hasShownRatingModal = true;
                                       if (_trackingData != null) {
                                         _trackingData!['isRated'] = true;
                                       }
                                     });
+                                    final bool isSuccess = res['success'] == true;
+                                    final int bonusPts = res['bonusPoints'] is int ? res['bonusPoints'] : 5;
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text(success
-                                            ? '🌟 Thank you for your rating & review!'
-                                            : 'Review submitted successfully!'),
+                                        content: Row(
+                                          children: [
+                                            const Icon(Icons.stars_rounded, color: Colors.amber, size: 24),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(isSuccess
+                                                  ? '🌟 Thank you! +$bonusPts Bonus Reward Points credited to your wallet!'
+                                                  : 'Review submitted successfully!'),
+                                            ),
+                                          ],
+                                        ),
                                         backgroundColor: const Color(0xFF16A34A),
+                                        duration: const Duration(seconds: 4),
                                       ),
                                     );
                                   }
@@ -1894,58 +1972,73 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                 if ((_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? '').toString().toLowerCase() == 'delivered' ||
                     (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? '').toString().toLowerCase() == 'completed') ...[
                   const SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0FDF4),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFBBF7D0)),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
+                  Builder(
+                    builder: (context) {
+                      final rawPts = _trackingData?['rewardPoints'] ?? _trackingData?['order']?['rewardPoints'];
+                      final rawAmt = _trackingData?['rewardAmount'] ?? _trackingData?['order']?['rewardAmount'];
+                      final totalAmt = double.tryParse((_trackingData?['totalAmount'] ?? _trackingData?['order']?['totalAmount'] ?? 0).toString()) ?? 0.0;
+                      final earnedPoints = rawPts != null && int.tryParse(rawPts.toString()) != null && int.parse(rawPts.toString()) > 0
+                          ? int.parse(rawPts.toString())
+                          : (totalAmt > 0 ? (totalAmt * 0.05).round().clamp(5, 200) : 10);
+                      final earnedCashback = rawAmt != null && double.tryParse(rawAmt.toString()) != null && double.parse(rawAmt.toString()) > 0
+                          ? double.parse(rawAmt.toString())
+                          : earnedPoints.toDouble();
+
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFBBF7D0)),
+                        ),
+                        child: Column(
                           children: [
-                            const Icon(Icons.stars_rounded, color: Color(0xFF16A34A), size: 28),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _trackingData?['isRated'] == true ? 'Order Rated & Reviewed' : 'Rate Your Delivery Experience',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF14532D)),
+                            Row(
+                              children: [
+                                const Icon(Icons.stars_rounded, color: Color(0xFF16A34A), size: 30),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '🎉 +$earnedPoints Points Credited (₹${earnedCashback.toStringAsFixed(0)} Cashback)',
+                                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5, color: Color(0xFF14532D)),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _trackingData?['isRated'] == true
+                                            ? 'Thank you! Your feedback has been recorded and bonus points credited.'
+                                            : 'Cashback added to wallet! Rate restaurant & rider to earn +5 extra bonus points.',
+                                        style: const TextStyle(fontSize: 12, color: Color(0xFF15803D)),
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    _trackingData?['isRated'] == true
-                                        ? 'Thank you! Your feedback helps us serve you better.'
-                                        : 'Help us improve by rating restaurant & delivery partner.',
-                                    style: const TextStyle(fontSize: 12, color: Color(0xFF15803D)),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
+                            if (_trackingData?['isRated'] != true) ...[
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _showDualRatingModal,
+                                  icon: const Icon(Icons.rate_review_outlined, color: Colors.white, size: 18),
+                                  label: const Text('Rate Now & Get +5 Points', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF16A34A),
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
-                        if (_trackingData?['isRated'] != true) ...[
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: _showDualRatingModal,
-                              icon: const Icon(Icons.rate_review_outlined, color: Colors.white, size: 18),
-                              label: const Text('Give Rating & Review', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF16A34A),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 ],
               ],

@@ -143,8 +143,9 @@ const validateRestaurantAcceptance = (order) => {
   return { valid: true, error: null };
 };
 const validateRestaurantMarkReady = (order) => {
-  if (order.status !== ORDER_STATES.PREPARING) {
-    return { valid: false, error: `Order must be 'preparing' to mark ready.` };
+  const allowed = [ORDER_STATES.PREPARING, ORDER_STATES.ACCEPTED, ORDER_STATES.PLACED, 'in_kitchen'];
+  if (!allowed.includes(order.status)) {
+    return { valid: false, error: `Order must be active to mark ready. Current: ${order.status}` };
   }
   return { valid: true, error: null };
 };
@@ -152,7 +153,7 @@ const validateRiderPickup = (order, riderId) => {
   if (!order.rider || order.rider.toString() !== riderId.toString()) {
     return { valid: false, error: 'Order not assigned to you' };
   }
-  const pickupAllowedStatuses = ['assigned', 'reached_restaurant', 'ready'];
+  const pickupAllowedStatuses = ['assigned', 'reached_restaurant', 'ready', 'preparing', 'accepted'];
   if (!pickupAllowedStatuses.includes(order.status)) {
     return { valid: false, error: `Order must be in assigned or reached_restaurant status to pick up. Current: ${order.status}` };
   }
@@ -162,8 +163,9 @@ const validateRiderDelivery = (order, riderId) => {
   if (!order.rider || order.rider.toString() !== riderId.toString()) {
     return { valid: false, error: 'Order not assigned to you' };
   }
-  if (order.status !== "delivery_arrived") {
-    return { valid: false, error: `You must arrive at customer location first.` };
+  const allowed = ["delivery_arrived", "out_for_delivery", "picked_up", "on_the_way", "reached_customer_location", "assigned"];
+  if (!allowed.includes(order.status)) {
+    return { valid: false, error: `Cannot deliver order from status: ${order.status}` };
   }
   return { valid: true, error: null };
 };

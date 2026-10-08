@@ -22,6 +22,9 @@ exports.getProfile = async (req, res) => {
         userObj.mobile = user.mobile || user.phone || "";
         userObj.avatar = user.profilePic || user.avatar || "";
         userObj.profilePic = user.profilePic || user.avatar || "";
+        userObj.rewardPoints = user.rewardPoints || 0;
+        userObj.loyaltyPoints = user.loyaltyPoints || 0;
+        userObj.walletBalance = user.walletBalance || 0;
 
         res.status(200).json({
             success: true,

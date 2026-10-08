@@ -132,6 +132,15 @@ const AdminSettingSchema = new mongoose.Schema(
     settlementConfig: {
       defaultCycle: { type: String, enum: ['T+1', 'T+2', 'T+3', 'Weekly', 'Custom'], default: 'T+2' },
       autoPayoutDay: { type: String, default: 'Sunday' }
+    },
+
+    // Customer Reward & Points Configuration (Requirement 8)
+    rewardConfig: {
+      enabled: { type: Boolean, default: true },
+      rewardPercentage: { type: Number, default: 5 }, // 5% of order value
+      minOrderAmountForReward: { type: Number, default: 0 },
+      maxRewardPerOrder: { type: Number, default: 200 },
+      creditToWallet: { type: Boolean, default: true } // Credit cashback to user wallet
     }
   },
   { timestamps: true }

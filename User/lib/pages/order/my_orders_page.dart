@@ -9,6 +9,7 @@ import 'order_tracking_page.dart';
 import 'order_cancellation_page.dart';
 import '../../services/socket_service.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/user_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../profile/policy_page.dart';
 import '../../services/restaurant_api_service.dart';
@@ -779,7 +780,26 @@ class _OrderCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('Rate your Food', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.stars_rounded, color: Colors.amber, size: 16),
+                        SizedBox(width: 6),
+                        Text(
+                          '+5 Reward Points Bonus on Review',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (index) {
@@ -827,7 +847,10 @@ class _OrderCard extends StatelessWidget {
                         setModalState(() => isSubmitting = false);
                         Navigator.pop(ctx);
                         if (success) {
-                          _showSnack(context, 'Thank you for your feedback!');
+                          try {
+                            context.read<UserProvider>().fetchProfile();
+                          } catch (_) {}
+                          _showSnack(context, '🌟 Thank you! +5 Bonus Reward Points added to your wallet!');
                         } else {
                           _showSnack(context, 'Failed to submit review.');
                         }
