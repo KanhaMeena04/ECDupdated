@@ -543,22 +543,50 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
             </Box>
           </ClickAwayListener>
 
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1.5} alignItems="center">
             {/* Live Support Chat Trigger */}
-            <IconButton 
-              onClick={() => navigate('/support-chat')} 
-              size="small" 
+            <Box 
+              onClick={() => navigate('/support-chat')}
               sx={{ 
-                p: 0.5, 
-                bgcolor: supportUnreadCount > 0 ? 'rgba(36, 140, 112, 0.12)' : 'transparent',
-                '&:hover': { bgcolor: 'rgba(36, 140, 112, 0.2)' }
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.8,
+                px: 1.6,
+                py: 0.6,
+                borderRadius: '12px',
+                bgcolor: supportUnreadCount > 0 ? '#10B981' : '#248C70',
+                color: '#ffffff',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                boxShadow: supportUnreadCount > 0 
+                  ? '0 0 15px rgba(16, 185, 129, 0.5)' 
+                  : '0 2px 8px rgba(36, 140, 112, 0.25)',
+                '&:hover': {
+                  bgcolor: supportUnreadCount > 0 ? '#059669' : '#1c6d57',
+                  transform: 'translateY(-1px)',
+                },
               }}
-              title="Live Support Chat"
+              title="Live Customer Support Chat"
             >
-              <Badge badgeContent={supportUnreadCount} color="error" max={99}>
-                <SupportAgentRoundedIcon sx={{ color: supportUnreadCount > 0 ? '#248C70' : '#4b5563' }} />
-              </Badge>
-            </IconButton>
+              <SupportAgentRoundedIcon sx={{ fontSize: 20 }} />
+              <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, display: { xs: 'none', sm: 'block' } }}>
+                Support Chat
+              </Typography>
+              {supportUnreadCount > 0 && (
+                <span style={{
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  fontSize: '11px',
+                  fontWeight: 900,
+                  borderRadius: '10px',
+                  padding: '1px 6px',
+                  minWidth: '18px',
+                  textAlign: 'center',
+                }}>
+                  {supportUnreadCount}
+                </span>
+              )}
+            </Box>
 
             {/* Notifications Trigger */}
             <IconButton onClick={handleNotifClick} size="small" sx={{ p: 0.5 }}>

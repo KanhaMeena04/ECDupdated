@@ -4,7 +4,7 @@ import {
 } from '@mui/material';
 import { 
   People, LocalShipping, Storefront, AttachMoney, 
-  TrendingUp, CardGiftcard, DeliveryDining, Payments, Restaurant
+  TrendingUp, CardGiftcard, DeliveryDining, Payments, Restaurant, SupportAgent
 } from '@mui/icons-material';
 import { Doughnut, Line } from 'react-chartjs-2';
 import {
@@ -176,6 +176,81 @@ const MainGrid = () => {
               );
             })}
           </div>
+        </div>
+
+        {/* Quick Action: Live Customer Support Desk Banner */}
+        <div 
+          onClick={() => navigate('/support-chat')}
+          style={{
+            cursor: 'pointer',
+            borderRadius: '16px',
+            background: 'linear-gradient(135deg, #173F35 0%, #1E5D4E 50%, #248C70 100%)',
+            color: '#ffffff',
+            padding: '16px 20px',
+            marginBottom: '24px',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+            boxShadow: '0 4px 16px rgba(36, 140, 112, 0.25)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '14px',
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <SupportAgent sx={{ fontSize: 28, color: '#A7F3D0' }} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#ffffff' }}>
+                  Live Customer Support Desk
+                </h3>
+                <span style={{
+                  backgroundColor: '#34d399',
+                  color: '#064e3b',
+                  fontSize: '10px',
+                  fontWeight: 900,
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}>
+                  Live
+                </span>
+              </div>
+              <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: 'rgba(255, 255, 255, 0.85)', fontWeight: 500 }}>
+                Customer messages from the User App appear here in real time. Click to reply, assist with orders, or resolve queries.
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={(e) => { e.stopPropagation(); navigate('/support-chat'); }}
+            style={{
+              padding: '10px 18px',
+              backgroundColor: '#ffffff',
+              color: '#173F35',
+              fontWeight: 800,
+              fontSize: '0.82rem',
+              borderRadius: '12px',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            Open Live Support 💬 →
+          </button>
         </div>
 
         {/* Full-Width Order Report Chart */}

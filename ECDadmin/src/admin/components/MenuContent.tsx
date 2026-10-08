@@ -52,15 +52,16 @@ export interface MenuItemType {
   icon?: React.ReactNode;
   path?: string;
   permission?: string;
+  badge?: string;
   children?: { text: string; path: string; permission?: string }[];
 }
 
 export const menuItems: MenuItemType[] = [
   { text: 'Dashboard', icon: <HomeRounded />, path: '/dashboard', permission: 'Dashboard' },
   { text: 'Live Orders', icon: <Assignment />, path: '/order-dashboard', permission: 'Order' },
+  { text: 'Live Support Chat', icon: <SupportAgent sx={{ color: '#248C70' }} />, path: '/support-chat', badge: 'LIVE' },
   { text: 'Live Map', icon: <Map />, path: '/eagles-view', permission: 'Order' },
   { text: 'Customers', icon: <People />, path: '/user-management', permission: 'User' },
-  { text: 'Live Support Chat', icon: <SupportAgent />, path: '/support-chat', permission: 'User' },
 
   {
     text: 'Restaurants',
@@ -177,24 +178,29 @@ export default function MenuContent() {
 
   const userPerms: string[] | undefined = (user as any)?.permissions;
   const isSuperAdmin = !userPerms ||
+    userPerms.length === 0 ||
     userPerms.includes('all') ||
+    user?.role === 'admin' ||
+    (user as any)?.role === 'admin' ||
     user?.email === 'admin@gmail.com' ||
     user?.email === 'admin@ecdkart.com' ||
-    (user as any)?.roleName === 'Super Admin';
+    (user as any)?.roleName === 'Super Admin' ||
+    (user as any)?.name === 'Super Admin';
 
   const visibleMenuItems = React.useMemo(() => {
     if (isSuperAdmin || !Array.isArray(userPerms)) {
       return menuItems;
     }
     return menuItems.filter(item => {
-      if (item.permission && userPerms.includes(item.permission)) return true;
+      if (!item.permission) return true;
+      if (userPerms.includes(item.permission)) return true;
       if (item.children && item.children.length > 0) {
         return item.children.some(child => {
           const perm = child.permission || item.permission;
           return !perm || userPerms.includes(perm);
         });
       }
-      return !item.permission;
+      return false;
     }).map(item => {
       if (!item.children) return item;
       const filteredChildren = item.children.filter(child => {
@@ -247,6 +253,20 @@ export default function MenuContent() {
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText primary={item.text} primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: location.pathname === item.path ? 600 : 500 }} />
+                {item.badge && (
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: 800,
+                    backgroundColor: '#d1fae5',
+                    color: '#065f46',
+                    padding: '2px 7px',
+                    borderRadius: '10px',
+                    letterSpacing: '0.5px',
+                    marginRight: '4px'
+                  }}>
+                    {item.badge}
+                  </span>
+                )}
                 {item.children && (
                   <Box
                     sx={{
