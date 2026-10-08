@@ -42,14 +42,18 @@ exports.registerInitiate = async (req, res) => {
     if (!finalName && (finalFirstName || finalLastName)) {
       finalName = `${finalFirstName} ${finalLastName}`.trim();
     }
-    if ((!finalName && !finalFirstName) || !email || !password || !mobile) {
-      return res.status(400).json({ message: "All fields are required" });
+    if ((!finalName && !finalFirstName) || !password || !mobile) {
+      return res.status(400).json({ message: "Name, mobile, and password are required" });
     }
     const allowedRoles = ["customer", "restaurant_owner", "rider"];
     if (role && !allowedRoles.includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
     }
-    const existingUser = await User.findOne({ $or: [{ email }, { mobile }] });
+    const searchOr = [{ mobile }];
+    if (email && email.trim()) {
+      searchOr.push({ email: email.trim().toLowerCase() });
+    }
+    const existingUser = await User.findOne({ $or: searchOr });
     if (existingUser && !existingUser.isDeleted) {
       return res
         .status(400)
@@ -81,7 +85,7 @@ exports.registerInitiate = async (req, res) => {
         name: finalName,
         firstName: finalFirstName,
         lastName: finalLastName,
-        email,
+        email: email && email.trim() ? email.trim().toLowerCase() : undefined,
         mobile,
         password: hashedPassword,
         role: role || "customer",
@@ -227,12 +231,12 @@ exports.resendOTP = async (req, res) => {
 };
 exports.loginUser = async (req, res) => {
   try {
-    const { email, mobile, password, pin, loginId } = req.body;
-    const rawIdentifier = (loginId || email || mobile || "").trim();
+    const { email, mobile, password, pin, loginId, username, userName, name } = req.body;
+    const rawIdentifier = (loginId || username || userName || name || email || mobile || "").trim();
     const secret = (password || pin || "").trim();
 
     if (!rawIdentifier || !secret) {
-      return res.status(400).json({ message: "Login credentials (Email/Mobile and Password/PIN) are required" });
+      return res.status(400).json({ message: "Login credentials (Username/Mobile and Password/PIN) are required" });
     }
 
     // Auto-heal default admin account for local development if logging in with admin credentials
@@ -295,6 +299,11 @@ exports.loginUser = async (req, res) => {
       { mobile: rawIdentifier },
       { phone: rawIdentifier }
     ];
+
+    // Support Login using Username / Full Name / First Name
+    const escapedIdentifier = rawIdentifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    searchConditions.push({ name: { $regex: new RegExp(`^${escapedIdentifier}$`, 'i') } });
+    searchConditions.push({ firstName: { $regex: new RegExp(`^${escapedIdentifier}$`, 'i') } });
 
     if (/^\d{10}$/.test(cleanDigits)) {
       searchConditions.push({ mobile: cleanDigits });

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart' as geo;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
@@ -109,56 +110,92 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
     });
   }
 
+  static const String _googleApiKey = 'AIzaSyCN7XqyxOj5lgr2uaMNrTOg6PzHTOGa0xU';
+
   Future<void> _searchOnlineIndia(String query) async {
     try {
-      final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&countrycodes=in&format=json&addressdetails=1&limit=12',
+      // 1. Direct Official Google Places API Autocomplete
+      final googleUrl = Uri.parse(
+        'https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${Uri.encodeComponent(query)}&components=country:in&key=$_googleApiKey',
       );
-      final response = await http.get(url, headers: {'User-Agent': 'EcdkartUserApp/1.0'});
+      final response = await http.get(googleUrl).timeout(const Duration(seconds: 4));
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        final onlineResults = data.map<Map<String, dynamic>>((item) {
-          final displayName = item['display_name'] ?? '';
-          final lat = double.tryParse(item['lat']?.toString() ?? '') ?? 0.0;
-          final lng = double.tryParse(item['lon']?.toString() ?? '') ?? 0.0;
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'OK' && data['predictions'] != null) {
+          final List<dynamic> preds = data['predictions'];
+          final results = preds.map<Map<String, dynamic>>((p) {
+            final desc = p['description']?.toString() ?? '';
+            final structured = p['structured_formatting'] as Map<String, dynamic>? ?? {};
+            final main = structured['main_text']?.toString() ?? desc.split(',').first;
+            final secondary = structured['secondary_text']?.toString() ?? desc;
+            return {
+              'place_id': p['place_id']?.toString() ?? '',
+              'title': main,
+              'sub': secondary,
+              'description': desc,
+            };
+          }).toList();
 
-          final address = item['address'] ?? {};
-          final namePart = address['road'] ??
-              address['suburb'] ??
-              address['neighbourhood'] ??
-              address['city'] ??
-              address['town'] ??
-              address['village'] ??
-              address['county'] ??
-              displayName.split(',').first;
+          if (mounted) {
+            setState(() {
+              _searchResults = results;
+              _isSearching = false;
+            });
+            return;
+          }
+        }
+      }
+    } catch (_) {}
 
-          final statePart = [
-            address['city'] ?? address['town'] ?? address['suburb'] ?? address['county'],
-            address['state'],
-            address['postcode'],
-            'India'
-          ].where((s) => s != null && s.toString().isNotEmpty).toSet().join(', ');
-
+    // 2. Fallback to native geocoding
+    try {
+      final locs = await geo.locationFromAddress(query).timeout(const Duration(seconds: 3));
+      if (locs.isNotEmpty && mounted) {
+        final results = locs.take(6).map((item) {
           return {
-            'title': namePart.toString(),
-            'sub': statePart.isNotEmpty ? statePart : displayName.toString(),
-            'lat': lat,
-            'lng': lng,
+            'title': query,
+            'sub': 'Lat: ${item.latitude.toStringAsFixed(4)}, Lng: ${item.longitude.toStringAsFixed(4)}',
+            'lat': item.latitude,
+            'lng': item.longitude,
           };
         }).toList();
 
-        if (mounted) {
-          setState(() {
-            _searchResults = onlineResults;
-            _isSearching = false;
-          });
-        }
-      } else {
-        if (mounted) setState(() => _isSearching = false);
+        setState(() {
+          _searchResults = results;
+          _isSearching = false;
+        });
+        return;
       }
-    } catch (e) {
-      if (mounted) setState(() => _isSearching = false);
+    } catch (_) {}
+
+    if (mounted) setState(() => _isSearching = false);
+  }
+
+  Future<void> _handleSearchResultTap(Map<String, dynamic> item) async {
+    final placeId = item['place_id']?.toString() ?? '';
+    double? lat = item['lat'] != null ? (item['lat'] as num).toDouble() : null;
+    double? lng = item['lng'] != null ? (item['lng'] as num).toDouble() : null;
+    final title = item['title']?.toString() ?? '';
+    final sub = item['sub']?.toString() ?? '';
+
+    if (placeId.isNotEmpty && (lat == null || lng == null)) {
+      try {
+        final detailsUrl = Uri.parse(
+          'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&fields=geometry,formatted_address&key=$_googleApiKey',
+        );
+        final res = await http.get(detailsUrl).timeout(const Duration(seconds: 4));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          final geom = data['result']?['geometry']?['location'];
+          if (geom != null) {
+            lat = double.tryParse(geom['lat']?.toString() ?? '');
+            lng = double.tryParse(geom['lng']?.toString() ?? '');
+          }
+        }
+      } catch (_) {}
     }
+
+    _handleLocationSelected(title, sub, lat: lat, lng: lng);
   }
 
   // ── Fetch Current Device GPS Location ──────────────────────────────────────
@@ -174,12 +211,53 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
         if (perm == LocationPermission.whileInUse || perm == LocationPermission.always) {
           pos = await Geolocator.getCurrentPosition(
             desiredAccuracy: LocationAccuracy.high,
-            timeLimit: const Duration(seconds: 6),
+            timeLimit: const Duration(seconds: 8),
           );
+        } else {
+          pos = await Geolocator.getLastKnownPosition();
         }
       } catch (_) {}
 
-      String realLoc = await getCurrentLocationName();
+      String realTitle = 'Current Location';
+      String realSub = 'Live GPS Location, India';
+
+      if (pos != null) {
+        // Direct Google Maps Reverse Geocoding
+        try {
+          final googleUrl = Uri.parse(
+            'https://maps.googleapis.com/maps/api/geocode/json?latlng=${pos.latitude},${pos.longitude}&key=$_googleApiKey',
+          );
+          final res = await http.get(googleUrl).timeout(const Duration(seconds: 4));
+          if (res.statusCode == 200) {
+            final data = jsonDecode(res.body);
+            if (data['status'] == 'OK' && data['results'] != null && (data['results'] as List).isNotEmpty) {
+              final formatted = data['results'][0]['formatted_address']?.toString() ?? '';
+              if (formatted.isNotEmpty) {
+                realSub = formatted;
+                realTitle = formatted.split(',').first;
+              }
+            }
+          }
+        } catch (_) {}
+
+        // Fallback to device placemark
+        if (realSub == 'Live GPS Location, India') {
+          try {
+            final placemarks = await geo.placemarkFromCoordinates(pos.latitude, pos.longitude);
+            if (placemarks.isNotEmpty) {
+              final p = placemarks.first;
+              realTitle = p.subLocality?.isNotEmpty == true
+                  ? p.subLocality!
+                  : (p.street?.isNotEmpty == true ? p.street! : (p.name ?? 'Current Location'));
+              realSub = [p.name, p.street, p.subLocality, p.locality, p.administrativeArea, p.postalCode]
+                  .where((e) => e != null && e.isNotEmpty)
+                  .toSet()
+                  .join(', ');
+            }
+          } catch (_) {}
+        }
+      }
+
       if (!mounted) return;
       setState(() => _isLoading = false);
 
@@ -190,8 +268,8 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
       }
 
       _handleLocationSelected(
-        realLoc.isNotEmpty ? realLoc : 'Current Location',
-        'Live GPS Location, India',
+        realTitle,
+        realSub,
         lat: pos?.latitude,
         lng: pos?.longitude,
       );
@@ -301,9 +379,9 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Use Current GPS Location Button -> Opens Pin Delivery Location Map
+                  // Option 1: Use Current Location (GPS)
                   InkWell(
-                    onTap: () => context.push(AppRoutes.mapAddressPicker),
+                    onTap: _isLoading ? null : _useDeviceLocation,
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -320,7 +398,16 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
                               color: Color(0xFF248C70),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.my_location_rounded, color: Colors.white, size: 16),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : const Icon(Icons.my_location_rounded, color: Colors.white, size: 16),
                           ),
                           const SizedBox(width: 12),
                           const Expanded(
@@ -328,7 +415,7 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Use Current Device Location',
+                                  'Use Current Location',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
@@ -337,13 +424,63 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
                                 ),
                                 SizedBox(height: 2),
                                 Text(
-                                  'Pin exact location on real-time Google Map',
+                                  'Auto-detect address via real-time GPS',
                                   style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
                                 ),
                               ],
                             ),
                           ),
                           const Icon(Icons.chevron_right_rounded, color: Color(0xFF248C70)),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Option 2: Add / Select an Address (Map Picker & Saved Addresses)
+                  InkWell(
+                    onTap: () => context.push(AppRoutes.mapAddressPicker),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF3F4F6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.add_location_alt_rounded, color: Color(0xFF1F2937), size: 16),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Add / Select an Address',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF1F2937),
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Pin exact delivery location on Google Maps',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded, color: Color(0xFF9CA3AF)),
                         ],
                       ),
                     ),
@@ -397,12 +534,7 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
               style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
             ),
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: Color(0xFF9CA3AF)),
-            onTap: () => _handleLocationSelected(
-              item['title']!,
-              item['sub']!,
-              lat: item['lat'],
-              lng: item['lng'],
-            ),
+            onTap: () => _handleSearchResultTap(item),
           );
         },
       );

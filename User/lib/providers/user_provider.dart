@@ -23,7 +23,7 @@ class UserProvider extends ChangeNotifier {
   bool get isCodBlocked => _isCodBlocked;
   bool get codActive => _codActive;
   bool get isLoading => _isLoading;
-  bool get isGuest => _phone.isEmpty && (_name == 'Guest User' || _name == 'User Name');
+  bool get isGuest => _phone.isEmpty && _email.isEmpty && (_name == 'Guest User' || _name.isEmpty);
 
   bool _hasFetchedProfile = false;
   bool get hasFetchedProfile => _hasFetchedProfile;
@@ -43,8 +43,8 @@ class UserProvider extends ChangeNotifier {
       final savedWallet = prefs.getDouble('saved_user_wallet');
       final savedCodBlocked = prefs.getBool('saved_user_cod_blocked');
 
-      if (token != null && token.isNotEmpty && savedPhone != null && savedPhone.isNotEmpty) {
-        _phone = savedPhone;
+      if (token != null && token.isNotEmpty) {
+        _phone = savedPhone ?? '';
         _name = (savedName != null && savedName.isNotEmpty) ? savedName : 'User';
         _email = savedEmail ?? '';
         _avatar = savedAvatar ?? '';
@@ -63,14 +63,12 @@ class UserProvider extends ChangeNotifier {
   Future<void> _saveSessionToPrefs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (_phone.isNotEmpty) {
-        await prefs.setString('saved_user_phone', _phone);
-        await prefs.setString('saved_user_name', _name);
-        await prefs.setString('saved_user_email', _email);
-        await prefs.setString('saved_user_avatar', _avatar);
-        await prefs.setDouble('saved_user_wallet', _walletBalance);
-        await prefs.setBool('saved_user_cod_blocked', _isCodBlocked);
-      }
+      await prefs.setString('saved_user_phone', _phone);
+      await prefs.setString('saved_user_name', _name);
+      await prefs.setString('saved_user_email', _email);
+      await prefs.setString('saved_user_avatar', _avatar);
+      await prefs.setDouble('saved_user_wallet', _walletBalance);
+      await prefs.setBool('saved_user_cod_blocked', _isCodBlocked);
     } catch (e) {
       debugPrint('Error saving user session to prefs: $e');
     }
@@ -131,16 +129,22 @@ class UserProvider extends ChangeNotifier {
         return;
       }
 
-      final profileData = await UserApiService.getProfile();
-      if (profileData != null && (profileData['user'] != null || profileData['phone'] != null || profileData['mobile'] != null)) {
+      final profileRes = await UserApiService.getProfileDetailed();
+      final profileData = profileRes.data;
+
+      if (profileRes.isSuccess && profileData != null && (profileData['user'] != null || profileData['phone'] != null || profileData['mobile'] != null)) {
         final userData = (profileData['user'] as Map<String, dynamic>?) ?? profileData;
         final fetchedName = userData['name']?.toString().trim();
-        _name = (fetchedName != null && fetchedName.isNotEmpty) ? fetchedName : 'User';
-        _email = userData['email']?.toString() ?? '';
+        _name = (fetchedName != null && fetchedName.isNotEmpty) ? fetchedName : (_name.isNotEmpty && _name != 'Guest User' ? _name : 'User');
+        _email = userData['email']?.toString() ?? _email;
         
         final fetchedPhone = userData['phone']?.toString().trim() ?? '';
         final fetchedMobile = userData['mobile']?.toString().trim() ?? '';
-        _phone = fetchedPhone.isNotEmpty ? fetchedPhone : fetchedMobile;
+        if (fetchedPhone.isNotEmpty) {
+          _phone = fetchedPhone;
+        } else if (fetchedMobile.isNotEmpty) {
+          _phone = fetchedMobile;
+        }
 
         if (userData['avatar'] != null) {
           _avatar = userData['avatar'].toString();
@@ -161,10 +165,15 @@ class UserProvider extends ChangeNotifier {
         _codActive = userData['codActive'] != false && userData['isCodBlocked'] != true;
 
         await _saveSessionToPrefs();
-      } else {
-        // Token invalid or expired — clear token and reset guest user
+      } else if (profileRes.statusCode == 401) {
+        // Token genuinely invalid or expired (HTTP 401) — clear token and reset guest user
+        debugPrint('Session expired or unauthorized (401), logging out.');
         await AuthService.removeToken();
         clearUser();
+      } else {
+        // Temporary network glitch, backend cold start, or offline launch:
+        // RETAIN THE CACHED LOCAL SESSION so the user is NOT logged out!
+        debugPrint('Profile fetch returned status ${profileRes.statusCode}; retaining cached session.');
       }
 
       // Register FCM device token regardless of profile fetch success

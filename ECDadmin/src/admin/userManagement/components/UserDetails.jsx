@@ -117,6 +117,51 @@ const UserDetail = () => {
                 {userData.createdAt ? new Date(userData.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit', hour: 'numeric', minute: '2-digit', hour12: true }) : (userData.registeredAt || 'N/A')}
               </Typography>
             </Box>
+
+            {/* Saved Addresses Section */}
+            {userData.savedAddresses && userData.savedAddresses.length > 0 && (
+              <Box className="col-span-2 mt-4 pt-6 border-t border-gray-100">
+                <Typography className="text-gray-800 text-sm font-bold uppercase tracking-wider mb-3">
+                  Saved Delivery Addresses ({userData.savedAddresses.length})
+                </Typography>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {userData.savedAddresses.map((addr, idx) => (
+                    <div
+                      key={addr._id || idx}
+                      className="p-3.5 rounded-lg border border-gray-200 bg-gray-50 flex flex-col gap-1.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold px-2 py-0.5 rounded bg-teal-100 text-teal-800 uppercase">
+                          {addr.label || 'Home'}
+                        </span>
+                        {addr.isDefault && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-600 text-white uppercase">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      {(addr.flatNo || addr.apartment || addr.floor || addr.buildingName) && (
+                        <p className="text-xs font-semibold text-gray-800">
+                          {[
+                            (addr.flatNo || addr.apartment) && `Flat/House: ${addr.flatNo || addr.apartment}`,
+                            addr.floor && `Floor: ${addr.floor}`,
+                            addr.buildingName && addr.buildingName,
+                          ].filter(Boolean).join(', ')}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-600">
+                        {addr.fullAddress || addr.addressLine || 'No address text'}
+                      </p>
+                      {addr.landmark && (
+                        <p className="text-[11px] text-gray-500 italic">
+                          Landmark: {addr.landmark}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Box>
+            )}
           </div>
         </div>
       </div>

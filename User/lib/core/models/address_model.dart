@@ -3,9 +3,11 @@ import 'package:flutter/foundation.dart';
 @immutable
 class Address {
   final String id;
-  final String label; // e.g., 'Home', 'Work'
+  final String label; // e.g., 'Home', 'Work', 'Other'
   final String fullAddress;
   final String? flatNo;
+  final String? floor;
+  final String? buildingName;
   final String? landmark;
   final String? city;
   final String? state;
@@ -20,6 +22,8 @@ class Address {
     required this.label,
     required this.fullAddress,
     this.flatNo,
+    this.floor,
+    this.buildingName,
     this.landmark,
     this.city,
     this.state,
@@ -47,13 +51,15 @@ class Address {
 
     return Address(
       id: json['_id'] ?? json['id'] ?? '',
-      label: json['label'] ?? json['type'] ?? 'Other',
-      fullAddress: json['address'] ?? json['fullAddress'] ?? '',
+      label: json['label'] ?? json['type'] ?? 'Home',
+      fullAddress: json['address'] ?? json['fullAddress'] ?? json['addressLine'] ?? '',
       flatNo: json['flatNo'] ?? json['apartment'],
+      floor: json['floor']?.toString(),
+      buildingName: json['buildingName']?.toString() ?? json['apartment']?.toString(),
       landmark: json['landmark'],
       city: json['city'],
       state: json['state'],
-      pincode: json['pincode'],
+      pincode: json['pincode'] ?? json['zipCode'],
       isDefault: json['isDefault'] ?? false,
       latitude: lat,
       longitude: lng,
@@ -61,15 +67,38 @@ class Address {
     );
   }
 
+  String get formattedDisplay {
+    final prefixParts = <String>[];
+    if (flatNo != null && flatNo!.trim().isNotEmpty) {
+      prefixParts.add('Flat/House: ${flatNo!.trim()}');
+    }
+    if (floor != null && floor!.trim().isNotEmpty) {
+      prefixParts.add('Floor: ${floor!.trim()}');
+    }
+    if (buildingName != null && buildingName!.trim().isNotEmpty) {
+      prefixParts.add(buildingName!.trim());
+    }
+    if (prefixParts.isNotEmpty) {
+      return '${prefixParts.join(', ')}, $fullAddress';
+    }
+    return fullAddress;
+  }
+
   Map<String, dynamic> toJson() {
     final map = {
       'label': label,
       'fullAddress': fullAddress,
+      'addressLine': fullAddress,
+      'address': fullAddress,
+      'flatNo': flatNo,
       'apartment': flatNo,
+      'floor': floor,
+      'buildingName': buildingName,
       'landmark': landmark,
       'city': city,
       'state': state,
       'pincode': pincode,
+      'zipCode': pincode,
       'isDefault': isDefault,
       'latitude': latitude ?? 0.0,
       'longitude': longitude ?? 0.0,

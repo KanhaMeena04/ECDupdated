@@ -31,6 +31,7 @@ router.post('/register/verify', registerVerify);
 router.post('/check-verification-status', checkVerificationStatus);
 router.post('/resend-otp', resendOTP);
 router.post('/login', loginUser);
+router.post('/user/login', loginUser);
 router.post('/logout', logoutUser);
 router.post('/forgot-password', forgotPasswordInitiate);
 router.post('/forgot-password/resend-otp', resendForgotPasswordOTP);

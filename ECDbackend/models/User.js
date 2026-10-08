@@ -5,6 +5,8 @@ const addressSchema = new mongoose.Schema({
   fullAddress: { type: String, default: "" },
   apartment: { type: String, default: "" },
   flatNo: { type: String, default: "" },
+  floor: { type: String, default: "" },
+  buildingName: { type: String, default: "" },
   landmark: { type: String, default: "" },
   city: { type: String, default: "" },
   state: { type: String, default: "" },

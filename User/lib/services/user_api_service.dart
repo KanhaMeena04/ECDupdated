@@ -17,32 +17,53 @@ class UserApiService {
     };
   }
 
-  static Future<Map<String, dynamic>?> getProfile() async {
+  static Future<ProfileResponse> getProfileDetailed() async {
     if (kFrontendPreviewMode) {
-      return {
-        'user': {
-          'id': 'preview_user_1',
-          'name': 'Rahul Sharma',
-          'email': 'rahul.sharma@example.com',
-          'phone': '9876543210',
-          'avatar': '',
-        }
-      };
+      return const ProfileResponse(
+        statusCode: 200,
+        isSuccess: true,
+        data: {
+          'user': {
+            'id': 'preview_user_1',
+            'name': 'Rahul Sharma',
+            'email': 'rahul.sharma@example.com',
+            'phone': '9876543210',
+            'avatar': '',
+          }
+        },
+      );
     }
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/me'),
         headers: await _getHeaders(),
-      );
-      debugPrint('API Response [getProfile]: ${response.statusCode}');
+      ).timeout(const Duration(seconds: 10));
+      debugPrint('API Response [getProfileDetailed]: ${response.statusCode}');
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        return ProfileResponse(
+          statusCode: 200,
+          isSuccess: true,
+          data: jsonDecode(response.body) as Map<String, dynamic>?,
+        );
       }
-      return null;
+      return ProfileResponse(
+        statusCode: response.statusCode,
+        isSuccess: false,
+        data: null,
+      );
     } catch (e) {
       debugPrint('Error fetching profile: $e');
-      return null;
+      return const ProfileResponse(
+        statusCode: 0,
+        isSuccess: false,
+        data: null,
+      );
     }
+  }
+
+  static Future<Map<String, dynamic>?> getProfile() async {
+    final res = await getProfileDetailed();
+    return res.data;
   }
 
   static Future<bool> updateProfile(String name, {String? email, String? phone, String? avatar}) async {
@@ -112,4 +133,16 @@ class UserApiService {
       return null;
     }
   }
+}
+
+class ProfileResponse {
+  final int statusCode;
+  final bool isSuccess;
+  final Map<String, dynamic>? data;
+
+  const ProfileResponse({
+    required this.statusCode,
+    required this.isSuccess,
+    this.data,
+  });
 }

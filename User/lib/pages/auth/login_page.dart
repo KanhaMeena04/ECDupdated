@@ -26,6 +26,10 @@ class _LoginPageState extends State<LoginPage>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isPasswordLogin = false;
+  bool _obscurePassword = true;
 
   // 6 OTP digit controllers + focus nodes
   final List<TextEditingController> _otpControllers =
@@ -64,6 +68,8 @@ class _LoginPageState extends State<LoginPage>
   @override
   void dispose() {
     _phoneController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
     for (final c in _otpControllers) {
       c.dispose();
     }
@@ -306,7 +312,68 @@ class _LoginPageState extends State<LoginPage>
     }
   }
 
-  // â”€â”€ Google Login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Username / Password Login ─────────────────────────────────────────────
+  void _loginWithUsernamePassword() async {
+    if (_isLoading) return;
+    final user = _usernameController.text.trim();
+    final pass = _passwordController.text.trim();
+
+    if (user.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your User Name, Mobile or Email')),
+      );
+      return;
+    }
+    if (pass.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your Password')),
+      );
+      return;
+    }
+    if (!_hasAcceptedTerms) {
+      _showTermsDialog();
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() => _isLoading = true);
+
+    final result = await AuthService.loginWithPassword(username: user, password: pass);
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result.success) {
+      debugPrint('✅ Login successful via username/password! Token: ${result.token}');
+      if (mounted) {
+        context.read<UserProvider>().setUserInfo(name: user);
+        context.read<UserProvider>().fetchProfile();
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message)),
+      );
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context, true);
+      } else {
+        context.go(AppRoutes.home);
+      }
+    } else {
+      debugPrint('❌ Login failed: ${result.message}');
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  // ── Google Login ───────────────────────────────────────────────────────────
   void _handleGoogleLogin() async {
     if (!_hasAcceptedTerms) {
       _showTermsDialog();
@@ -546,16 +613,113 @@ class _LoginPageState extends State<LoginPage>
               ),
             ),
             
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
+
+            // Mode Selector Pill (Mobile OTP vs Username/Password)
+            if (!_showOtp) ...[
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(() => _isPasswordLogin = false),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: !_isPasswordLogin ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: !_isPasswordLogin
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.06),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ]
+                                : null,
+                          ),
+                          child: Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.phone_android_rounded, size: 16, color: !_isPasswordLogin ? const Color(0xFF248C70) : Colors.grey.shade600),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Mobile OTP',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: !_isPasswordLogin ? const Color(0xFF248C70) : Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(() => _isPasswordLogin = true),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _isPasswordLogin ? Colors.white : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: _isPasswordLogin
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.06),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ]
+                                : null,
+                          ),
+                          child: Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.person_rounded, size: 16, color: _isPasswordLogin ? const Color(0xFF248C70) : Colors.grey.shade600),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'User Name',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: _isPasswordLogin ? const Color(0xFF248C70) : Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             
-            // Form Section (Phone or OTP)
+            // Form Section (Phone OTP or Username/Password or OTP verification)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 350),
                 child: _showOtp
                     ? _buildOtpSection(maskedPhone)
-                    : _buildPhoneSection(),
+                    : (_isPasswordLogin
+                        ? _buildUsernamePasswordSection()
+                        : _buildPhoneSection()),
               ),
             ),
             
@@ -758,6 +922,129 @@ class _LoginPageState extends State<LoginPage>
           ),
         ],
       ),
+    );
+  }
+
+  // ── Username Password section ───────────────────────────────────────────
+  Widget _buildUsernamePasswordSection() {
+    return Column(
+      key: const ValueKey('username_password'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Login using your user name or mobile number',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // User Name / Identifier field
+        TextFormField(
+          controller: _usernameController,
+          cursorColor: const Color(0xFF248C70),
+          keyboardType: TextInputType.text,
+          style: const TextStyle(
+            fontSize: 15,
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Enter User Name, Mobile or Email',
+            hintStyle: const TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
+            prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFF248C70)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFF248C70), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // Password field
+        TextFormField(
+          controller: _passwordController,
+          obscureText: _obscurePassword,
+          cursorColor: const Color(0xFF248C70),
+          style: const TextStyle(
+            fontSize: 15,
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Enter Password',
+            hintStyle: const TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
+            prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF248C70)),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                color: Colors.grey,
+              ),
+              onPressed: () {
+                setState(() => _obscurePassword = !_obscurePassword);
+              },
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFF248C70), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // Log In Button
+        SizedBox(
+          height: 52,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _loginWithUsernamePassword,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF248C70),
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: const Color(0xFF248C70).withValues(alpha: 0.6),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Text(
+                    'Log In with User Name',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 

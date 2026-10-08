@@ -224,6 +224,8 @@ const formatAddress = (a) => {
         addressLine: fullAddr,
         flatNo: a.apartment || a.flatNo || "",
         apartment: a.apartment || a.flatNo || "",
+        floor: a.floor || "",
+        buildingName: a.buildingName || "",
         landmark: a.landmark || "",
         city: a.city || "",
         state: a.state || "",
@@ -242,7 +244,7 @@ exports.addAddress = async (req, res) => {
         const { 
             label, fullAddress, addressLine, address, 
             city, state, pincode, zipCode, 
-            flatNo, apartment, landmark, phone,
+            flatNo, apartment, floor, buildingName, landmark, phone,
             latitude, longitude, location, isDefault 
         } = req.body;
 
@@ -252,6 +254,8 @@ exports.addAddress = async (req, res) => {
         const resolvedAddressLine = fullAddress || addressLine || address || "";
         const resolvedZip = pincode || zipCode || "";
         const resolvedFlat = flatNo || apartment || "";
+        const resolvedFloor = floor || "";
+        const resolvedBuilding = buildingName || "";
         const lat = Number(latitude ?? (location?.coordinates?.[1] ?? 0.0));
         const lng = Number(longitude ?? (location?.coordinates?.[0] ?? 0.0));
 
@@ -261,6 +265,69 @@ exports.addAddress = async (req, res) => {
             user.savedAddresses.forEach(a => a.isDefault = false);
         }
 
+        if (!user.savedAddresses) user.savedAddresses = [];
+
+        // Check for existing duplicate address
+        const existingIndex = user.savedAddresses.findIndex(a => {
+            const aLat = Number(a.location?.coordinates?.[1] ?? 0.0);
+            const aLng = Number(a.location?.coordinates?.[0] ?? 0.0);
+            const coordsClose = (lat !== 0 && lng !== 0 && aLat !== 0 && aLng !== 0) &&
+                (Math.abs(aLat - lat) < 0.0002 && Math.abs(aLng - lng) < 0.0002);
+
+            const aFlat = (a.apartment || a.flatNo || "").trim().toLowerCase();
+            const thisFlat = resolvedFlat.trim().toLowerCase();
+            const flatMatches = aFlat === thisFlat;
+
+            const aLine = (a.addressLine || a.fullAddress || "").trim().toLowerCase();
+            const thisLine = resolvedAddressLine.trim().toLowerCase();
+            const addressMatches = aLine === thisLine;
+
+            const aLabel = (a.label || "").trim().toLowerCase();
+            const thisLabel = (label || "Home").trim().toLowerCase();
+            const labelMatches = aLabel === thisLabel;
+
+            if (coordsClose && (flatMatches || labelMatches || addressMatches)) {
+                return true;
+            }
+            if (thisLine && addressMatches && (flatMatches || !thisFlat)) {
+                return true;
+            }
+            return false;
+        });
+
+        if (existingIndex !== -1) {
+            // Update existing address in place to avoid duplicate
+            const existingAddr = user.savedAddresses[existingIndex];
+            existingAddr.label = label || existingAddr.label || "Home";
+            existingAddr.addressLine = resolvedAddressLine || existingAddr.addressLine;
+            existingAddr.fullAddress = resolvedAddressLine || existingAddr.fullAddress;
+            existingAddr.city = city || existingAddr.city;
+            existingAddr.state = state || existingAddr.state;
+            existingAddr.zipCode = resolvedZip || existingAddr.zipCode;
+            existingAddr.apartment = resolvedFlat || existingAddr.apartment;
+            existingAddr.flatNo = resolvedFlat || existingAddr.flatNo;
+            if (resolvedFloor) existingAddr.floor = resolvedFloor;
+            if (resolvedBuilding) existingAddr.buildingName = resolvedBuilding;
+            if (landmark !== undefined) existingAddr.landmark = landmark;
+            if (phone) existingAddr.phone = phone;
+            if (lat !== 0 || lng !== 0) {
+                existingAddr.location = { type: 'Point', coordinates: [lng, lat] };
+            }
+            if (shouldBeDefault) {
+                user.savedAddresses.forEach(a => a.isDefault = false);
+                existingAddr.isDefault = true;
+            }
+            await user.save();
+
+            const formatted = user.savedAddresses.map(formatAddress);
+            return res.status(200).json({ 
+                success: true, 
+                message: "Address updated successfully (duplicate avoided)", 
+                address: formatAddress(existingAddr),
+                addresses: formatted 
+            });
+        }
+
         const newAddr = {
             label: label || "Home",
             addressLine: resolvedAddressLine,
@@ -268,6 +335,9 @@ exports.addAddress = async (req, res) => {
             state: state || "",
             zipCode: resolvedZip,
             apartment: resolvedFlat,
+            flatNo: resolvedFlat,
+            floor: resolvedFloor,
+            buildingName: resolvedBuilding,
             landmark: landmark || "",
             phone: phone || "",
             location: {
@@ -277,7 +347,6 @@ exports.addAddress = async (req, res) => {
             isDefault: shouldBeDefault
         };
 
-        if (!user.savedAddresses) user.savedAddresses = [];
         user.savedAddresses.push(newAddr);
         await user.save();
 
@@ -319,7 +388,12 @@ exports.updateAddress = async (req, res) => {
         if (updates.city !== undefined) address.city = updates.city;
         if (updates.state !== undefined) address.state = updates.state;
         if (updates.pincode || updates.zipCode) address.zipCode = updates.pincode || updates.zipCode;
-        if (updates.flatNo || updates.apartment) address.apartment = updates.flatNo || updates.apartment;
+        if (updates.flatNo || updates.apartment) {
+            address.apartment = updates.flatNo || updates.apartment;
+            address.flatNo = updates.flatNo || updates.apartment;
+        }
+        if (updates.floor !== undefined) address.floor = updates.floor;
+        if (updates.buildingName !== undefined) address.buildingName = updates.buildingName;
         if (updates.landmark !== undefined) address.landmark = updates.landmark;
         if (updates.phone !== undefined) address.phone = updates.phone;
         if (updates.latitude !== undefined || updates.longitude !== undefined) {

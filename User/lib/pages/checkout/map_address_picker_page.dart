@@ -36,7 +36,11 @@ class _MapAddressPickerPageState extends State<MapAddressPickerPage> {
   Timer? _debounceSearchTimer;
 
   final TextEditingController _searchCtrl = TextEditingController();
+  final TextEditingController _flatCtrl = TextEditingController();
+  final TextEditingController _floorCtrl = TextEditingController();
+  final TextEditingController _buildingCtrl = TextEditingController();
   final TextEditingController _landmarkCtrl = TextEditingController();
+  String _selectedTag = 'Home';
   List<dynamic> _placePredictions = [];
 
   String _currentAddress = 'Detecting exact location...';
@@ -59,6 +63,9 @@ class _MapAddressPickerPageState extends State<MapAddressPickerPage> {
     _debounceGeocodeTimer?.cancel();
     _debounceSearchTimer?.cancel();
     _searchCtrl.dispose();
+    _flatCtrl.dispose();
+    _floorCtrl.dispose();
+    _buildingCtrl.dispose();
     _landmarkCtrl.dispose();
     super.dispose();
   }
@@ -246,63 +253,6 @@ class _MapAddressPickerPageState extends State<MapAddressPickerPage> {
       }
     } catch (_) {}
 
-    // 4. Clean Intelligent OpenStreetMap Fallback (Filters out Tahsil, District, duplicates)
-    try {
-      final nominatimUrl = Uri.parse(
-        'https://nominatim.openstreetmap.org/reverse?lat=${location.latitude}&lon=${location.longitude}&format=json&addressdetails=1',
-      );
-      final response = await http.get(nominatimUrl, headers: {'User-Agent': 'EcdkartUserApp/1.0'}).timeout(
-        const Duration(seconds: 4),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final addr = data['address'] as Map<String, dynamic>? ?? {};
-
-        final building = addr['amenity'] ?? addr['building'] ?? addr['shop'] ?? addr['office'];
-        final road = addr['road'] ?? addr['pedestrian'] ?? addr['street'];
-        final neighbourhood = addr['neighbourhood'] ?? addr['suburb'] ?? addr['residential'] ?? addr['commercial'];
-        final city = addr['city'] ?? addr['town'] ?? addr['village'] ?? addr['city_district'];
-        final state = addr['state'];
-        final postcode = addr['postcode'];
-
-        final cleanParts = <String>[];
-        void addIfClean(dynamic val) {
-          if (val == null) return;
-          final s = val.toString().trim();
-          if (s.isEmpty) return;
-          if (s.toLowerCase().contains('tahsil') || s.toLowerCase().contains('tehsil') || s.toLowerCase().endsWith('district')) {
-            return;
-          }
-          if (!cleanParts.any((existing) => existing.toLowerCase() == s.toLowerCase())) {
-            cleanParts.add(s);
-          }
-        }
-
-        addIfClean(building);
-        addIfClean(road);
-        addIfClean(neighbourhood);
-        addIfClean(city);
-        addIfClean(state);
-        addIfClean(postcode);
-
-        final landmark = (neighbourhood ?? road ?? building ?? '').toString();
-        final formatted = cleanParts.isNotEmpty ? cleanParts.join(', ') : (data['display_name'] ?? '');
-
-        if (mounted) {
-          setState(() {
-            _currentAddress = formatted;
-            _subAddress = landmark;
-            if (landmark.isNotEmpty && _landmarkCtrl.text.isEmpty) {
-              _landmarkCtrl.text = landmark;
-            }
-            _isLocatingAddress = false;
-          });
-          return;
-        }
-      }
-    } catch (_) {}
-
     if (mounted) {
       setState(() {
         _currentAddress = 'Pin Location (${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)})';
@@ -360,23 +310,18 @@ class _MapAddressPickerPageState extends State<MapAddressPickerPage> {
         }
       } catch (_) {}
 
-      // 3. Direct India Search Fallback
+      // 3. Native Geocoding Search Fallback
       try {
-        final url = Uri.parse('https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(q)}&countrycodes=in&format=json&addressdetails=1&limit=8');
-        final response = await http.get(url, headers: {'User-Agent': 'EcdkartUserApp/1.0'}).timeout(const Duration(seconds: 4));
-        if (response.statusCode == 200 && mounted) {
-          final List<dynamic> data = jsonDecode(response.body);
-          final mapped = data.map((item) {
-            final addr = item['address'] ?? {};
-            final main = addr['road'] ?? addr['suburb'] ?? addr['amenity'] ?? item['display_name']?.toString().split(',').first ?? '';
-            final secondary = [addr['city'] ?? addr['town'], addr['state'], addr['postcode']].where((s) => s != null && s.toString().isNotEmpty).join(', ');
+        final locations = await geo.locationFromAddress(q).timeout(const Duration(seconds: 3));
+        if (locations.isNotEmpty && mounted) {
+          final mapped = locations.take(5).map((item) {
             return {
-              'description': item['display_name'] ?? '',
-              'lat': double.tryParse(item['lat']?.toString() ?? '') ?? 0.0,
-              'lng': double.tryParse(item['lon']?.toString() ?? '') ?? 0.0,
+              'description': q,
+              'lat': item.latitude,
+              'lng': item.longitude,
               'structured_formatting': {
-                'main_text': main,
-                'secondary_text': secondary.isNotEmpty ? secondary : item['display_name']?.toString() ?? '',
+                'main_text': q,
+                'secondary_text': 'India',
               }
             };
           }).toList();
@@ -501,20 +446,38 @@ class _MapAddressPickerPageState extends State<MapAddressPickerPage> {
 
     try {
       final locProvider = context.read<LocationProvider>();
+      final houseFlat = _flatCtrl.text.trim();
+      final floor = _floorCtrl.text.trim();
+      final building = _buildingCtrl.text.trim();
+      final landmark = _landmarkCtrl.text.trim();
+      final tag = _selectedTag;
+
       final validAddress = _currentAddress.isNotEmpty && !_currentAddress.startsWith('Detecting')
           ? _currentAddress
-          : (_landmarkCtrl.text.trim().isNotEmpty
-              ? _landmarkCtrl.text.trim()
+          : (landmark.isNotEmpty
+              ? landmark
               : 'Delivery Location (${_center.latitude.toStringAsFixed(4)}, ${_center.longitude.toStringAsFixed(4)})');
 
-      final title = _landmarkCtrl.text.trim().isNotEmpty
-          ? _landmarkCtrl.text.trim()
-          : (validAddress.split(',').take(2).join(',').trim());
+      // Compose complete address description
+      final addressParts = <String>[];
+      if (houseFlat.isNotEmpty) addressParts.add('Flat/House: $houseFlat');
+      if (floor.isNotEmpty) addressParts.add('Floor: $floor');
+      if (building.isNotEmpty) addressParts.add(building);
+      if (landmark.isNotEmpty) addressParts.add('Near $landmark');
+      if (validAddress.isNotEmpty) addressParts.add(validAddress);
+
+      final combinedAddress = addressParts.join(', ');
+
+      final title = landmark.isNotEmpty
+          ? landmark
+          : (building.isNotEmpty
+              ? building
+              : (validAddress.split(',').take(2).join(',').trim()));
 
       // 1. Update global LocationProvider state immediately
       await locProvider.updateLocation(
         title,
-        subAddress: validAddress,
+        subAddress: combinedAddress.isNotEmpty ? combinedAddress : validAddress,
         latitude: _center.latitude,
         longitude: _center.longitude,
       );
@@ -529,7 +492,7 @@ class _MapAddressPickerPageState extends State<MapAddressPickerPage> {
         }
         final newEntry = {
           'title': title,
-          'sub': validAddress,
+          'sub': combinedAddress.isNotEmpty ? combinedAddress : validAddress,
           'lat': _center.latitude,
           'lng': _center.longitude,
         };
@@ -540,26 +503,31 @@ class _MapAddressPickerPageState extends State<MapAddressPickerPage> {
         await prefs.setString('recent_selected_locations', jsonEncode(updated));
       } catch (_) {}
 
-      // 3. Save structured Address for user profile asynchronously
+      // 3. Save structured Address for user profile (Backend handles deduplication)
       try {
         final newAddr = Address(
           id: '',
-          label: _landmarkCtrl.text.trim().isNotEmpty ? _landmarkCtrl.text.trim() : 'Delivery Location',
-          fullAddress: validAddress,
-          landmark: _landmarkCtrl.text.trim(),
+          label: tag,
+          fullAddress: combinedAddress.isNotEmpty ? combinedAddress : validAddress,
+          flatNo: houseFlat,
+          floor: floor,
+          buildingName: building,
+          landmark: landmark,
           latitude: _center.latitude,
           longitude: _center.longitude,
+          isDefault: true,
         );
-        context.read<AddressProvider>().addAddress(newAddr);
-      } catch (_) {}
-
-      // 4. Navigate back or go to home screen
-      if (mounted) {
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context, true);
-        } else {
-          context.go(AppRoutes.home);
+        await AddressApiService.addAddress(newAddr);
+        if (mounted) {
+          context.read<AddressProvider>().fetchAddresses();
         }
+      } catch (addrErr) {
+        debugPrint('Address save note: $addrErr');
+      }
+
+      // 4. Navigate directly to home screen
+      if (mounted) {
+        context.go(AppRoutes.home);
       }
     } catch (e) {
       debugPrint('Error saving confirmed location: $e');
@@ -789,7 +757,7 @@ class _MapAddressPickerPageState extends State<MapAddressPickerPage> {
           // 4. Floating GPS Target Button (Bottom Right)
           Positioned(
             right: 18,
-            bottom: 270,
+            bottom: 390,
             child: Material(
               color: Colors.transparent,
               elevation: 4,
@@ -825,11 +793,14 @@ class _MapAddressPickerPageState extends State<MapAddressPickerPage> {
             ),
           ),
 
-          // 5. Bottom Delivery Location Card (Matching Reference Screenshot)
+          // 5. Bottom Delivery Location Card (Captures Complete Address Details)
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.60,
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -841,139 +812,300 @@ class _MapAddressPickerPageState extends State<MapAddressPickerPage> {
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title Row: Pin Icon + "Delivery Location"
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Drag Handle Indicator
+                    Center(
+                      child: Container(
+                        width: 38,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF248C70).withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.location_on_rounded,
-                          color: Color(0xFF248C70),
-                          size: 18,
+                          color: const Color(0xFFE5E7EB),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Delivery Location',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF1F2937),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Formatted Address Display Box
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9FAFB),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
                     ),
-                    child: _isLocatingAddress
-                        ? const Row(
-                            children: [
-                              SizedBox(
-                                width: 14,
-                                height: 14,
+
+                    // Title Row: Pin Icon + "Delivery Location"
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF248C70).withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.location_on_rounded,
+                            color: Color(0xFF248C70),
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            'Delivery Location',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF248C70).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Google Maps API',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF248C70),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Formatted Address Display Box
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: _isLocatingAddress
+                          ? const Row(
+                              children: [
+                                SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF248C70)),
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Detecting exact address from Google Maps...',
+                                  style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              _currentAddress,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1F2937),
+                                height: 1.35,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Flat / House No & Floor in 2 Columns
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFE5E7EB)),
+                            ),
+                            child: TextField(
+                              controller: _flatCtrl,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                              decoration: const InputDecoration(
+                                hintText: 'House / Flat No.*',
+                                hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                                prefixIcon: Icon(Icons.meeting_room_outlined, color: Color(0xFF248C70), size: 18),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFE5E7EB)),
+                            ),
+                            child: TextField(
+                              controller: _floorCtrl,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                              decoration: const InputDecoration(
+                                hintText: 'Floor No.',
+                                hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                                prefixIcon: Icon(Icons.layers_outlined, color: Color(0xFF248C70), size: 18),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Building / Apartment / Society Name
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: TextField(
+                        controller: _buildingCtrl,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        decoration: const InputDecoration(
+                          hintText: 'Building / Apartment / Society Name',
+                          hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                          prefixIcon: Icon(Icons.apartment_rounded, color: Color(0xFF248C70), size: 18),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Landmark Input Box
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: TextField(
+                        controller: _landmarkCtrl,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        decoration: const InputDecoration(
+                          hintText: 'Landmark / Nearby Place (Optional)',
+                          hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                          prefixIcon: Icon(Icons.outlined_flag_rounded, color: Color(0xFF9CA3AF), size: 18),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Save Address As: Home, Work, Other Chips
+                    const Text(
+                      'Save Address As',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF374151),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _buildTagChip('Home', Icons.home_rounded),
+                        const SizedBox(width: 8),
+                        _buildTagChip('Work', Icons.work_rounded),
+                        const SizedBox(width: 8),
+                        _buildTagChip('Other', Icons.location_on_rounded),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Confirm & Save Location Black Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _isSavingLocation ? null : _confirmAndSaveLocation,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.black87,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isSavingLocation
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF248C70)),
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Text(
+                                'Confirm & Save Location',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.2,
                                 ),
                               ),
-                              SizedBox(width: 10),
-                              Text(
-                                'Detecting exact address from Google Maps...',
-                                style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-                              ),
-                            ],
-                          )
-                        : Text(
-                            _currentAddress,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF1F2937),
-                              height: 1.35,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Landmark / House Area Input Box
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                    ),
-                    child: TextField(
-                      controller: _landmarkCtrl,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                      decoration: const InputDecoration(
-                        hintText: 'Landmark / Flat / Area',
-                        hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-                        prefixIcon: Icon(Icons.outlined_flag_rounded, color: Color(0xFF9CA3AF), size: 18),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Confirm & Save Location Black Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isSavingLocation ? null : _confirmAndSaveLocation,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.black87,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isSavingLocation
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : const Text(
-                              'Confirm & Save Location',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTagChip(String tag, IconData icon) {
+    final isSelected = _selectedTag == tag;
+    return InkWell(
+      onTap: () => setState(() => _selectedTag = tag),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF248C70) : const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF248C70) : const Color(0xFFE5E7EB),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? Colors.white : const Color(0xFF6B7280),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              tag,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? Colors.white : const Color(0xFF374151),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

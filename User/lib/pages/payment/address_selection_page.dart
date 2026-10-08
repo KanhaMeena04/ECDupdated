@@ -105,6 +105,20 @@ class _AddressSelectionPageState extends State<AddressSelectionPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                if ((addr.flatNo != null && addr.flatNo!.isNotEmpty) ||
+                                    (addr.floor != null && addr.floor!.isNotEmpty) ||
+                                    (addr.buildingName != null && addr.buildingName!.isNotEmpty))
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 2),
+                                    child: Text(
+                                      [
+                                        if (addr.flatNo != null && addr.flatNo!.isNotEmpty) 'Flat/House: ${addr.flatNo}',
+                                        if (addr.floor != null && addr.floor!.isNotEmpty) 'Floor: ${addr.floor}',
+                                        if (addr.buildingName != null && addr.buildingName!.isNotEmpty) addr.buildingName!,
+                                      ].join(', '),
+                                      style: const TextStyle(color: Color(0xFF1F2937), fontSize: 13, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
                                 Text(addr.fullAddress, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
                                 if (addr.landmark != null && addr.landmark!.isNotEmpty)
                                   Padding(

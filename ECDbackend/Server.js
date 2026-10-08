@@ -296,6 +296,11 @@ app.use('/api/v1/settlements', settlementRoutes);
 
 app.use('/api/training', trainingRoutes);
 app.use('/api/v1/training', trainingRoutes);
+
+const locationRoutes = require('./routes/locationRoutes');
+app.use('/api/location', locationRoutes);
+app.use('/api/v1/location', locationRoutes);
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/', (req, res) => {
   res.send('Food Delivery API is running...');

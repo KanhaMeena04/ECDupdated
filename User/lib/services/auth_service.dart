@@ -136,6 +136,70 @@ class AuthService {
     }
   }
 
+  // ── Login with Username / Mobile and Password ────────────────────────────
+  static Future<AuthResult> loginWithPassword({
+    required String username,
+    required String password,
+  }) async {
+    if (kFrontendPreviewMode) {
+      await saveToken('preview_user_token_123');
+      return AuthResult.success(
+        message: 'Login successful (Preview Mode)',
+        token: 'preview_user_token_123',
+        userId: 'preview_user_1',
+      );
+    }
+    try {
+      final trimmedUser = username.trim();
+      final trimmedPass = password.trim();
+      debugPrint('📤 [loginWithPassword] identifier: $trimmedUser');
+
+      final url = Uri.parse('${AppConstants.baseUrl}/auth/login');
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'loginId': trimmedUser,
+              'username': trimmedUser,
+              'password': trimmedPass,
+            }),
+          )
+          .timeout(_timeout);
+
+      debugPrint('📥 [loginWithPassword] ${response.statusCode} — ${response.body}');
+      final data = _decodeBody(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final token = data['token']?.toString();
+        if (token != null && token.isNotEmpty) {
+          await saveToken(token);
+          debugPrint('✅ [loginWithPassword] Token saved');
+        }
+
+        final userMap = data['user'] as Map<String, dynamic>?;
+
+        return AuthResult.success(
+          message: data['message']?.toString() ?? 'Login successful',
+          token: token,
+          userId: data['userId']?.toString() ?? userMap?['_id']?.toString() ?? userMap?['id']?.toString(),
+        );
+      } else {
+        return AuthResult.failure(
+          error: data['message']?.toString() ??
+              data['error']?.toString() ??
+              'Invalid credentials (${response.statusCode})',
+        );
+      }
+    } on Exception catch (e) {
+      debugPrint('❌ [loginWithPassword] $e');
+      return AuthResult.failure(error: _friendlyError(e.toString()));
+    }
+  }
+
   // ── Google Login ───────────────────────────────────────────────────────────
   static Future<AuthResult> googleLogin(String idToken) async {
     if (kFrontendPreviewMode) {

@@ -5,6 +5,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/address_provider.dart';
 import '../../core/models/address_model.dart';
+import '../checkout/map_address_picker_page.dart';
 
 class LocationPage extends StatefulWidget {
   const LocationPage({super.key});
@@ -46,12 +47,40 @@ class _LocationPageState extends State<LocationPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: ListTile(
+                      tileColor: const Color(0xFF248C70),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      leading: const Icon(Icons.map_rounded, color: Colors.white),
+                      title: const Text('Pick Location on Google Map',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Pin exact location with GPS and Google Maps',
+                          style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MapAddressPickerPage()),
+                        );
+                        if (context.mounted) {
+                          context.read<AddressProvider>().fetchAddresses();
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
                       tileColor: const Color(0xFF2C2C2C),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       leading: const Icon(Icons.add_circle_outline, color: Color(0xFF9EF01A)),
-                      title: Text('Add New Address',
+                      title: Text('Add Address Manually',
                           style: AppTextStyles.h4.copyWith(color: const Color(0xFF9EF01A))),
                       onTap: () => _openAddEditAddress(context),
                     ),
@@ -142,14 +171,35 @@ class _LocationPageState extends State<LocationPage> {
                                   ],
                                 ),
                                 const SizedBox(height: 8),
+                                if (address.flatNo != null && address.flatNo!.isNotEmpty ||
+                                    address.floor != null && address.floor!.isNotEmpty ||
+                                    address.buildingName != null && address.buildingName!.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(
+                                      [
+                                        if (address.flatNo != null && address.flatNo!.isNotEmpty) 'Flat/House: ${address.flatNo}',
+                                        if (address.floor != null && address.floor!.isNotEmpty) 'Floor: ${address.floor}',
+                                        if (address.buildingName != null && address.buildingName!.isNotEmpty) address.buildingName!,
+                                      ].join(', '),
+                                      style: TextStyle(
+                                        color: isDark ? Colors.grey[300] : const Color(0xFF1F2937),
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
                                 Text(
-                                  '${address.flatNo != null ? "${address.flatNo}, " : ""}${address.fullAddress}',
+                                  address.fullAddress,
                                   style: AppTextStyles.bodyMedium.copyWith(color: Colors.grey[600]),
                                 ),
                                 if (address.landmark != null && address.landmark!.isNotEmpty)
-                                  Text(
-                                    'Landmark: ${address.landmark}',
-                                    style: AppTextStyles.bodySmall.copyWith(color: Colors.grey[500]),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      'Landmark: ${address.landmark}',
+                                      style: AppTextStyles.bodySmall.copyWith(color: Colors.grey[500]),
+                                    ),
                                   ),
                                 if (!address.isDefault)
                                   TextButton(
@@ -211,17 +261,35 @@ class _AddEditAddressPageState extends State<AddEditAddressPage> {
   late TextEditingController _labelCtrl;
   late TextEditingController _addressCtrl;
   late TextEditingController _flatCtrl;
+  late TextEditingController _floorCtrl;
+  late TextEditingController _buildingCtrl;
   late TextEditingController _landmarkCtrl;
+  String _selectedLabel = 'Home';
   bool _isDefault = false;
 
   @override
   void initState() {
     super.initState();
-    _labelCtrl = TextEditingController(text: widget.address?.label ?? '');
+    final addrLabel = widget.address?.label ?? 'Home';
+    _selectedLabel = ['Home', 'Work', 'Other'].contains(addrLabel) ? addrLabel : 'Other';
+    _labelCtrl = TextEditingController(text: addrLabel);
     _addressCtrl = TextEditingController(text: widget.address?.fullAddress ?? '');
     _flatCtrl = TextEditingController(text: widget.address?.flatNo ?? '');
+    _floorCtrl = TextEditingController(text: widget.address?.floor ?? '');
+    _buildingCtrl = TextEditingController(text: widget.address?.buildingName ?? '');
     _landmarkCtrl = TextEditingController(text: widget.address?.landmark ?? '');
     _isDefault = widget.address?.isDefault ?? false;
+  }
+
+  @override
+  void dispose() {
+    _labelCtrl.dispose();
+    _addressCtrl.dispose();
+    _flatCtrl.dispose();
+    _floorCtrl.dispose();
+    _buildingCtrl.dispose();
+    _landmarkCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -229,8 +297,8 @@ class _AddEditAddressPageState extends State<AddEditAddressPage> {
     final isEdit = widget.address != null;
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEdit ? 'Edit Address' : 'Add Address'),
-        backgroundColor: AppColors.primary,
+        title: Text(isEdit ? 'Edit Address' : 'Add Complete Address'),
+        backgroundColor: const Color(0xFF248C70),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
@@ -238,33 +306,64 @@ class _AddEditAddressPageState extends State<AddEditAddressPage> {
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildTextField(_labelCtrl, 'Label (e.g. Home, Work)', Icons.label_outline),
-              const SizedBox(height: 16),
-              _buildTextField(_addressCtrl, 'Full Address', Icons.location_on_outlined, maxLines: 3),
-              const SizedBox(height: 16),
-              _buildTextField(_flatCtrl, 'Flat / House No', Icons.home_work_outlined),
-              const SizedBox(height: 16),
-              _buildTextField(_landmarkCtrl, 'Landmark', Icons.near_me_outlined),
-              const SizedBox(height: 16),
+              const Text(
+                'Save address as',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1F2937)),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _buildLabelChip('Home', Icons.home_rounded),
+                  const SizedBox(width: 8),
+                  _buildLabelChip('Work', Icons.work_rounded),
+                  const SizedBox(width: 8),
+                  _buildLabelChip('Other', Icons.location_on_rounded),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _buildTextField(_flatCtrl, 'House / Flat / Block No *', Icons.apartment_rounded, isRequired: true),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTextField(_floorCtrl, 'Floor (e.g. 2nd Floor)', Icons.layers_outlined),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildTextField(_buildingCtrl, 'Building / Apartment', Icons.business_outlined),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _buildTextField(_addressCtrl, 'Complete Street Address *', Icons.location_on_outlined, maxLines: 2, isRequired: true),
+              const SizedBox(height: 14),
+              _buildTextField(_landmarkCtrl, 'Nearby Landmark (optional)', Icons.near_me_outlined),
+              const SizedBox(height: 14),
               CheckboxListTile(
-                title: const Text('Set as Default Address'),
+                title: const Text('Set as Default Delivery Address', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 value: _isDefault,
-                activeColor: AppColors.primary,
+                activeColor: const Color(0xFF248C70),
+                contentPadding: EdgeInsets.zero,
                 onChanged: (val) => setState(() => _isDefault = val ?? false),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 52,
                 child: ElevatedButton(
                   onPressed: () => _save(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
+                    backgroundColor: const Color(0xFF248C70),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
                   ),
-                  child: Text(isEdit ? 'Update Address' : 'Save Address'),
+                  child: Text(
+                    isEdit ? 'Update Address' : 'Save Address',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
             ],
@@ -274,16 +373,64 @@ class _AddEditAddressPageState extends State<AddEditAddressPage> {
     );
   }
 
-  Widget _buildTextField(TextEditingController ctrl, String label, IconData icon, {int maxLines = 1}) {
+  Widget _buildLabelChip(String label, IconData icon) {
+    final isSelected = _selectedLabel == label;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedLabel = label;
+          _labelCtrl.text = label;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF248C70) : const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF248C70) : const Color(0xFFE5E7EB),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: isSelected ? Colors.white : const Color(0xFF6B7280)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? Colors.white : const Color(0xFF374151),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController ctrl, String label, IconData icon, {int maxLines = 1, bool isRequired = false}) {
     return TextFormField(
       controller: ctrl,
       maxLines: maxLines,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: AppColors.primary),
+        labelStyle: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+        prefixIcon: Icon(icon, color: const Color(0xFF248C70), size: 20),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF248C70), width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
-      validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+      validator: (val) {
+        if (isRequired && (val == null || val.trim().isEmpty)) {
+          return 'This field is required';
+        }
+        return null;
+      },
     );
   }
 
@@ -291,15 +438,17 @@ class _AddEditAddressPageState extends State<AddEditAddressPage> {
     if (_formKey.currentState!.validate()) {
       final address = Address(
         id: widget.address?.id ?? '',
-        label: _labelCtrl.text.trim(),
+        label: _selectedLabel,
         fullAddress: _addressCtrl.text.trim(),
         flatNo: _flatCtrl.text.trim(),
+        floor: _floorCtrl.text.trim(),
+        buildingName: _buildingCtrl.text.trim(),
         landmark: _landmarkCtrl.text.trim(),
         isDefault: _isDefault,
       );
 
       bool success;
-      if (widget.address != null) {
+      if (widget.address != null && widget.address!.id.isNotEmpty) {
         success = await context.read<AddressProvider>().updateAddress(widget.address!.id, address);
       } else {
         success = await context.read<AddressProvider>().addAddress(address);
@@ -308,7 +457,10 @@ class _AddEditAddressPageState extends State<AddEditAddressPage> {
       if (success && mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(widget.address != null ? 'Address updated' : 'Address added')),
+          SnackBar(
+            content: Text(widget.address != null ? 'Address updated' : 'Address saved successfully'),
+            backgroundColor: const Color(0xFF248C70),
+          ),
         );
       }
     }
