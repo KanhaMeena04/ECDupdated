@@ -1,7 +1,16 @@
 const SupportChat = require('../models/SupportChat');
 const User = require('../models/User');
+const Restaurant = require('../models/Restaurant');
+const Rider = require('../models/Rider');
 const socketService = require('../services/socketService');
 const notificationService = require('../utils/notificationService');
+
+const getCleanName = (val, fallback = '') => {
+  if (!val) return fallback;
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') return val.en || val.hi || val.name || Object.values(val)[0] || fallback;
+  return String(val);
+};
 
 /**
  * GET /api/support/chat/messages
@@ -33,10 +42,24 @@ exports.getUserChatMessages = async (req, res) => {
 
     if (!chat) {
       const u = userId ? await User.findById(userId).lean() : null;
-      const userName = (u && u.name) ? u.name : (req.query.userName || 'Customer');
+      let userName = (u && u.name) ? u.name : (req.query.userName || 'Customer');
+      let userType = (u && u.role) ? u.role : 'customer';
+      if (userId && (u?.role === 'restaurant_owner' || u?.role === 'restaurant')) {
+        const rest = await Restaurant.findOne({ owner: userId }).select('name').lean();
+        if (rest && rest.name) {
+          const rName = getCleanName(rest.name);
+          userName = `${rName} (Restaurant)`;
+          userType = 'restaurant_owner';
+        }
+      } else if (userId && (u?.role === 'rider' || u?.role === 'driver')) {
+        const rider = await Rider.findOne({ user: userId }).select('name').lean();
+        if (rider && rider.name) {
+          userName = `${rider.name} (Rider)`;
+          userType = 'rider';
+        }
+      }
       const userPhone = (u && (u.mobile || u.phone)) ? (u.mobile || u.phone) : (req.query.userPhone || '');
       const userEmail = (u && u.email) ? u.email : '';
-      const userType = (u && u.role) ? u.role : 'customer';
 
       chat = await SupportChat.create({
         user: userId || null,
@@ -353,7 +376,9 @@ exports.sendAdminReply = async (req, res) => {
     if (targetUserId) {
       socketService.emitToUser(targetUserId, 'support:admin_reply', userEventPayload);
       socketService.emitToCustomer(targetUserId, 'support:admin_reply', userEventPayload);
-      // Trigger in-app & FCM push notification for the customer
+      socketService.emitToRiderByUserId(targetUserId, 'support:admin_reply', userEventPayload);
+      socketService.emitToRestaurant(targetUserId, 'support:admin_reply', userEventPayload);
+      // Trigger in-app & FCM push notification for the customer / user
       notificationService.sendNotification(
         targetUserId,
         'ECDKart Support Reply',
@@ -446,6 +471,237 @@ exports.updateConversationStatus = async (req, res) => {
     });
   } catch (error) {
     console.error('updateConversationStatus error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * GET /api/support/admin/search-entities
+ * Search all Users, Restaurants, and Riders across the system for initiating/linking chat
+ */
+exports.searchEntitiesForSupport = async (req, res) => {
+  try {
+    const q = (req.query.query || req.query.q || req.query.search || '').trim();
+    if (!q || q.length < 1) {
+      return res.status(200).json({ success: true, results: [] });
+    }
+
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(escaped, 'i');
+
+    // 1. Search Users (Customers, riders, etc.)
+    const users = await User.find({
+      $or: [
+        { name: regex },
+        { firstName: regex },
+        { lastName: regex },
+        { mobile: regex },
+        { phone: regex },
+        { email: regex },
+      ],
+    })
+      .select('_id name firstName lastName mobile phone email role avatar')
+      .limit(20)
+      .lean();
+
+    // 2. Search Restaurants
+    const restaurants = await Restaurant.find({
+      $or: [
+        { name: regex },
+        { 'name.en': regex },
+        { ownerName: regex },
+        { contactNumber: regex },
+        { phone: regex },
+        { email: regex },
+      ],
+    })
+      .select('_id name owner ownerName contactNumber phone email logo avatar profilePic')
+      .limit(20)
+      .lean();
+
+    // 3. Search Riders
+    const riders = await Rider.find({
+      $or: [
+        { name: regex },
+        { mobile: regex },
+        { phone: regex },
+        { email: regex },
+      ],
+    })
+      .select('_id name user mobile phone email profilePic avatar vehicle')
+      .limit(20)
+      .lean();
+
+    // Collect all candidate user IDs to cross-reference with existing SupportChats
+    const candidateUserIds = [];
+    users.forEach((u) => candidateUserIds.push(u._id));
+    riders.forEach((r) => { if (r.user) candidateUserIds.push(r.user); });
+    restaurants.forEach((rest) => { if (rest.owner) candidateUserIds.push(rest.owner); });
+
+    const existingChats = await SupportChat.find({
+      $or: [
+        { user: { $in: candidateUserIds } },
+        { userName: regex },
+        { userPhone: regex },
+      ],
+    })
+      .select('_id user userName userPhone status lastMessage lastMessageAt unreadCountAdmin')
+      .lean();
+
+    const chatMapByUser = new Map();
+    const chatMapByPhone = new Map();
+    existingChats.forEach((chat) => {
+      if (chat.user) chatMapByUser.set(String(chat.user), chat);
+      if (chat.userPhone) chatMapByPhone.set(chat.userPhone, chat);
+    });
+
+    const results = [];
+
+    // Format Restaurants
+    restaurants.forEach((rest) => {
+      const restName = getCleanName(rest.name, 'Restaurant');
+      const ownerUserId = rest.owner ? String(rest.owner) : null;
+      const phone = rest.contactNumber || rest.phone || '';
+      const existingChat = (ownerUserId && chatMapByUser.get(ownerUserId)) || (phone && chatMapByPhone.get(phone));
+
+      results.push({
+        id: rest._id,
+        entityType: 'restaurant',
+        displayType: 'Restaurant',
+        name: restName,
+        subtext: rest.ownerName ? `Owner: ${rest.ownerName}` : 'Restaurant Partner',
+        phone,
+        email: rest.email || '',
+        userId: ownerUserId,
+        conversationId: existingChat ? existingChat._id : null,
+        hasExistingChat: Boolean(existingChat),
+        status: existingChat ? existingChat.status : null,
+        lastMessage: existingChat ? existingChat.lastMessage : '',
+      });
+    });
+
+    // Format Riders
+    riders.forEach((rider) => {
+      const riderUserId = rider.user ? String(rider.user) : null;
+      const phone = rider.mobile || rider.phone || '';
+      const existingChat = (riderUserId && chatMapByUser.get(riderUserId)) || (phone && chatMapByPhone.get(phone));
+
+      results.push({
+        id: rider._id,
+        entityType: 'rider',
+        displayType: 'Rider',
+        name: rider.name || 'Delivery Partner',
+        subtext: rider.vehicle?.plateNumber ? `Vehicle: ${rider.vehicle.plateNumber}` : 'Delivery Partner',
+        phone,
+        email: rider.email || '',
+        userId: riderUserId,
+        conversationId: existingChat ? existingChat._id : null,
+        hasExistingChat: Boolean(existingChat),
+        status: existingChat ? existingChat.status : null,
+        lastMessage: existingChat ? existingChat.lastMessage : '',
+      });
+    });
+
+    // Format Users / Customers
+    users.forEach((u) => {
+      if (u.role === 'admin') return; // Don't list admins
+      const uid = String(u._id);
+      const phone = u.mobile || u.phone || '';
+      const existingChat = chatMapByUser.get(uid) || (phone && chatMapByPhone.get(phone));
+      const roleDisplay = u.role === 'rider' ? 'Rider' : (u.role === 'restaurant_owner' ? 'Restaurant Owner' : 'Customer');
+
+      results.push({
+        id: u._id,
+        entityType: u.role === 'rider' ? 'rider' : (u.role === 'restaurant_owner' ? 'restaurant' : 'customer'),
+        displayType: roleDisplay,
+        name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Customer',
+        subtext: u.email || 'Registered User',
+        phone,
+        email: u.email || '',
+        userId: uid,
+        conversationId: existingChat ? existingChat._id : null,
+        hasExistingChat: Boolean(existingChat),
+        status: existingChat ? existingChat.status : null,
+        lastMessage: existingChat ? existingChat.lastMessage : '',
+      });
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: results.length,
+      results,
+    });
+  } catch (error) {
+    console.error('searchEntitiesForSupport error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * POST /api/support/admin/conversations/initiate
+ * Admin initiates or opens a support conversation with a User, Restaurant, or Rider
+ */
+exports.initiateSupportConversation = async (req, res) => {
+  try {
+    const { entityType, entityId, userId, name, phone, email } = req.body;
+
+    let chat = null;
+    if (userId) {
+      chat = await SupportChat.findOne({ user: userId });
+    }
+    if (!chat && phone) {
+      chat = await SupportChat.findOne({ userPhone: phone });
+    }
+
+    if (chat) {
+      if (chat.status === 'resolved' || chat.status === 'closed') {
+        chat.status = 'active';
+        await chat.save();
+      }
+      return res.status(200).json({
+        success: true,
+        conversation: chat,
+        isNew: false,
+      });
+    }
+
+    // Determine mapped user type
+    let mappedType = 'customer';
+    if (entityType === 'restaurant') mappedType = 'restaurant_owner';
+    else if (entityType === 'rider') mappedType = 'rider';
+    else mappedType = 'customer';
+
+    const displayName = name || (mappedType === 'restaurant_owner' ? 'Restaurant Partner' : (mappedType === 'rider' ? 'Delivery Partner' : 'Customer'));
+
+    chat = await SupportChat.create({
+      user: userId || null,
+      userName: displayName,
+      userPhone: phone || '',
+      userEmail: email || '',
+      userType: mappedType,
+      status: 'active',
+      lastMessage: `Support channel opened with ${displayName}`,
+      lastMessageAt: new Date(),
+      unreadCountAdmin: 0,
+      unreadCountUser: 0,
+      messages: [
+        {
+          sender: 'system',
+          senderName: 'ECDKart Support',
+          message: `Live support session opened with ${displayName}. Type your message below to start chatting.`,
+          createdAt: new Date(),
+          read: true,
+        },
+      ],
+    });
+
+    return res.status(200).json({
+      success: true,
+      conversation: chat,
+      isNew: true,
+    });
+  } catch (error) {
+    console.error('initiateSupportConversation error:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };

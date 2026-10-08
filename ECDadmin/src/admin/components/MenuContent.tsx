@@ -59,7 +59,6 @@ export interface MenuItemType {
 export const menuItems: MenuItemType[] = [
   { text: 'Dashboard', icon: <HomeRounded />, path: '/dashboard', permission: 'Dashboard' },
   { text: 'Live Orders', icon: <Assignment />, path: '/order-dashboard', permission: 'Order' },
-  { text: 'Live Support Chat', icon: <SupportAgent sx={{ color: '#248C70' }} />, path: '/support-chat', badge: 'LIVE' },
   { text: 'Live Map', icon: <Map />, path: '/eagles-view', permission: 'Order' },
   { text: 'Customers', icon: <People />, path: '/user-management', permission: 'User' },
 
@@ -166,6 +165,7 @@ export const menuItems: MenuItemType[] = [
 
   { text: 'Roles & Permissions', icon: <Security />, path: '/role', permission: 'RuleEngine' },
   { text: 'Audit Logs', icon: <ReceiptLong />, path: '/audit-logs', permission: 'SiteSettings' },
+  { text: 'Chat Support', icon: <SupportAgent sx={{ color: '#248C70' }} />, path: '/support-chat', badge: 'LIVE' },
   { text: 'Emergency Controls', icon: <Warning />, path: '/emergency-controls', permission: 'RuleEngine' },
   { text: 'System Health', icon: <HealthAndSafety />, path: '/dashboard', permission: 'Dashboard' },
 ];

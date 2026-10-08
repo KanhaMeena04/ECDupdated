@@ -55,7 +55,7 @@ const supportChatSchema = new mongoose.Schema(
     },
     userType: {
       type: String,
-      enum: ['customer', 'rider', 'restaurant_owner', 'user'],
+      enum: ['customer', 'rider', 'restaurant_owner', 'restaurant', 'driver', 'user'],
       default: 'customer',
     },
     orderId: {

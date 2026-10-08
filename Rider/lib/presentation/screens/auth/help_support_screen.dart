@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'rider_support_chat_screen.dart';
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -36,39 +37,104 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // â”€â”€ Header card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // ── Header card ──
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
             decoration: BoxDecoration(
               color: const Color(0xFF248C70),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               children: [
-                const Text(
-                  'ðŸŽ§',
-                  style: TextStyle(fontSize: 48),
-                ),
-                const SizedBox(height: 12),
+                const Icon(Icons.two_wheeler_rounded, size: 48, color: Colors.white),
+                const SizedBox(height: 10),
                 Text(
-                  'Help & Support',
+                  'Rider Partner Support',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
-                  'Last updated: June 2025',
+                  '24/7 Route, Delivery & Payout Assistance',
                   style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.85),
                   ),
                 ),
               ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── Live Chat Support Action Button ──
+          Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            elevation: 1,
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RiderSupportChatScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF248C70).withOpacity(0.3), width: 1.5),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF248C70).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(Icons.chat_bubble_rounded, color: Color(0xFF248C70), size: 26),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'Chat with Support',
+                                style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: const Color(0xFF1E293B)),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text('LIVE', style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Instant two-way chat with Admin Support Desk',
+                            style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF248C70), size: 16),
+                  ],
+                ),
+              ),
             ),
           ),
 
