@@ -55,8 +55,11 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _placeOrder(CartProvider cart) async {
+    final userProvider = context.read<UserProvider>();
     String? token = await AuthService.getToken();
-    if (token == null || token.isEmpty) {
+    final isLoggedIn = (token != null && token.isNotEmpty) || userProvider.isLoggedIn;
+
+    if (!isLoggedIn) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -70,21 +73,8 @@ class _CartPageState extends State<CartPage> {
       );
 
       token = await AuthService.getToken();
-      if (token == null || token.isEmpty) {
+      if ((token == null || token.isEmpty) && !context.read<UserProvider>().isLoggedIn) {
         return; // Login wasn't completed
-      }
-    }
-
-    // Check if user is a guest user
-    if (mounted) {
-      final userProvider = context.read<UserProvider>();
-      if (userProvider.isGuest) {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => RegisterPage(initialMobile: userProvider.phone),
-          ),
-        );
       }
     }
 

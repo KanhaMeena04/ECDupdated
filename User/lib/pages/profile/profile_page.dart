@@ -168,20 +168,29 @@ class ProfileTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                if (userProvider.phone.isNotEmpty)
+                if (userProvider.isLoggedIn)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('🇮🇳 ', style: TextStyle(fontSize: 14)),
-                      Text(
-                        userProvider.phone,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color:
-                              isDark ? Colors.grey[400] : const Color(0xFF6B7280),
+                      if (userProvider.phone.isNotEmpty) ...[
+                        const Text('🇮🇳 ', style: TextStyle(fontSize: 14)),
+                        Text(
+                          userProvider.phone,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.grey[400] : const Color(0xFF6B7280),
+                          ),
                         ),
-                      ),
+                      ] else if (userProvider.email.isNotEmpty)
+                        Text(
+                          userProvider.email,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.grey[400] : const Color(0xFF6B7280),
+                          ),
+                        ),
                     ],
                   )
                 else

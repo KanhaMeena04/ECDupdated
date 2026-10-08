@@ -285,7 +285,10 @@ class _LoginPageState extends State<LoginPage>
 
       // Update UserProvider with the logged-in phone number & fetch profile from backend
       if (mounted) {
-        context.read<UserProvider>().setUserInfo(phone: phone);
+        context.read<UserProvider>().setUserInfo(
+          phone: phone,
+          token: result.token,
+        );
         context.read<UserProvider>().fetchProfile();
       }
 
@@ -346,7 +349,10 @@ class _LoginPageState extends State<LoginPage>
     if (result.success) {
       debugPrint('✅ Login successful via username/password! Token: ${result.token}');
       if (mounted) {
-        context.read<UserProvider>().setUserInfo(name: user);
+        context.read<UserProvider>().setUserInfo(
+          name: user,
+          token: result.token,
+        );
         context.read<UserProvider>().fetchProfile();
       }
 
@@ -429,7 +435,15 @@ class _LoginPageState extends State<LoginPage>
           debugPrint('ðŸš€ Navigate to Verify Phone Screen: ${result.googleUser}');
           context.push(AppRoutes.verifyGooglePhone, extra: result.googleUser);
         } else {
-          debugPrint('âœ… Google Login successful! Token: ${result.token}');
+          debugPrint('✅ Google Login successful! Token: ${result.token}');
+          if (mounted) {
+            context.read<UserProvider>().setUserInfo(
+              name: result.googleUser?['name']?.toString() ?? 'User',
+              email: result.googleUser?['email']?.toString(),
+              token: result.token,
+            );
+            context.read<UserProvider>().fetchProfile();
+          }
           if (Navigator.canPop(context)) {
             Navigator.pop(context, true);
           } else {

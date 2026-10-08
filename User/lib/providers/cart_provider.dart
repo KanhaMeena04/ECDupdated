@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:ecdkart_app/core/models/cart_item.dart';
 import 'package:ecdkart_app/core/models/product.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/cart_api_service.dart';
 import '../services/coupon_api_service.dart';
 import '../services/order_api_service.dart';
@@ -34,12 +36,14 @@ class CartProvider with ChangeNotifier {
   void setOrderType(String type) {
     _orderType = type;
     notifyListeners();
+    _saveCartToPrefs();
   }
 
   void setPickupTime(String? time) {
     if (time != null) _pickupTimeSlot = time;
     _pickupTime = time;
     notifyListeners();
+    _saveCartToPrefs();
   }
 
   void setPickupDetails({required String date, required String timeSlot}) {
@@ -48,6 +52,7 @@ class CartProvider with ChangeNotifier {
     _pickupTime = timeSlot;
     _orderType = 'pickup';
     notifyListeners();
+    _saveCartToPrefs();
   }
 
   void setPaymentMethod(String method) {
@@ -62,6 +67,7 @@ class CartProvider with ChangeNotifier {
   void setOrderNote(String? note) {
     _orderNote = note;
     notifyListeners();
+    _saveCartToPrefs();
   }
 
   Map<String, dynamic>? _appliedCoupon;
@@ -147,6 +153,140 @@ class CartProvider with ChangeNotifier {
 
   bool get isEmpty => _items.isEmpty;
 
+  // ── Persistent Cart Cache & Initialization ─────────────────────────────────
+  static Map<String, dynamic> _cachedCart = {};
+
+  static Future<void> preheatCart() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final itemsJson = prefs.getString('saved_cart_items');
+      if (itemsJson != null && itemsJson.isNotEmpty) {
+        _cachedCart = {
+          'itemsJson': itemsJson,
+          'restaurantId': prefs.getString('saved_cart_restaurant_id'),
+          'restaurantName': prefs.getString('saved_cart_restaurant_name'),
+          'restaurantImage': prefs.getString('saved_cart_restaurant_image'),
+          'restaurantAddress': prefs.getString('saved_cart_restaurant_address'),
+          'deliveryTime': prefs.getInt('saved_cart_delivery_time') ?? 25,
+          'orderType': prefs.getString('saved_cart_order_type') ?? 'delivery',
+          'pickupDate': prefs.getString('saved_cart_pickup_date') ?? '',
+          'pickupTimeSlot': prefs.getString('saved_cart_pickup_time_slot') ?? 'ASAP (~15-20 mins prep time)',
+          'orderNote': prefs.getString('saved_cart_order_note'),
+        };
+        debugPrint('🔥 [CartProvider] Preheated cart from storage');
+      }
+    } catch (e) {
+      debugPrint('Error preheating cart: $e');
+    }
+  }
+
+  void _applyCachedCart(Map<String, dynamic> data) {
+    try {
+      final itemsJson = data['itemsJson'] as String?;
+      if (itemsJson != null && itemsJson.isNotEmpty) {
+        final List<dynamic> decoded = jsonDecode(itemsJson);
+        _items = decoded.map((e) => CartItem.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+        _restaurantId = data['restaurantId'] as String?;
+        _restaurantName = data['restaurantName'] as String?;
+        _restaurantImageUrl = data['restaurantImage'] as String?;
+        _restaurantAddress = data['restaurantAddress'] as String?;
+        _restaurantDeliveryTimeMin = (data['deliveryTime'] as int?) ?? 25;
+        _orderType = (data['orderType'] as String?) ?? 'delivery';
+        _pickupDate = (data['pickupDate'] as String?) ?? '';
+        _pickupTimeSlot = (data['pickupTimeSlot'] as String?) ?? 'ASAP (~15-20 mins prep time)';
+        _orderNote = data['orderNote'] as String?;
+      }
+    } catch (e) {
+      debugPrint('Error applying cached cart: $e');
+    }
+  }
+
+  CartProvider() {
+    if (_cachedCart.isNotEmpty) {
+      _applyCachedCart(_cachedCart);
+    }
+    _loadSavedCart();
+    fetchCart();
+  }
+
+  Future<void> _loadSavedCart() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final itemsJson = prefs.getString('saved_cart_items');
+      if (itemsJson != null && itemsJson.isNotEmpty) {
+        final List<dynamic> decoded = jsonDecode(itemsJson);
+        _items = decoded.map((e) => CartItem.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+        _restaurantId = prefs.getString('saved_cart_restaurant_id');
+        _restaurantName = prefs.getString('saved_cart_restaurant_name');
+        _restaurantImageUrl = prefs.getString('saved_cart_restaurant_image');
+        _restaurantAddress = prefs.getString('saved_cart_restaurant_address');
+        _restaurantDeliveryTimeMin = prefs.getInt('saved_cart_delivery_time') ?? 25;
+        _orderType = prefs.getString('saved_cart_order_type') ?? 'delivery';
+        _pickupDate = prefs.getString('saved_cart_pickup_date') ?? '';
+        _pickupTimeSlot = prefs.getString('saved_cart_pickup_time_slot') ?? 'ASAP (~15-20 mins prep time)';
+        _orderNote = prefs.getString('saved_cart_order_note');
+        notifyListeners();
+        debugPrint('🛒 Restored ${_items.length} items from saved local cart!');
+      }
+    } catch (e) {
+      debugPrint('Error loading saved cart from prefs: $e');
+    }
+  }
+
+  Future<void> _saveCartToPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_items.isEmpty) {
+        await prefs.remove('saved_cart_items');
+        await prefs.remove('saved_cart_restaurant_id');
+        await prefs.remove('saved_cart_restaurant_name');
+        await prefs.remove('saved_cart_restaurant_image');
+        await prefs.remove('saved_cart_restaurant_address');
+        await prefs.remove('saved_cart_delivery_time');
+        await prefs.remove('saved_cart_order_type');
+        await prefs.remove('saved_cart_pickup_date');
+        await prefs.remove('saved_cart_pickup_time_slot');
+        await prefs.remove('saved_cart_order_note');
+        _cachedCart.clear();
+      } else {
+        final itemsJson = jsonEncode(_items.map((e) => e.toJson()).toList());
+        await prefs.setString('saved_cart_items', itemsJson);
+        if (_restaurantId != null) await prefs.setString('saved_cart_restaurant_id', _restaurantId!);
+        if (_restaurantName != null) await prefs.setString('saved_cart_restaurant_name', _restaurantName!);
+        if (_restaurantImageUrl != null) await prefs.setString('saved_cart_restaurant_image', _restaurantImageUrl!);
+        if (_restaurantAddress != null) await prefs.setString('saved_cart_restaurant_address', _restaurantAddress!);
+        await prefs.setInt('saved_cart_delivery_time', _restaurantDeliveryTimeMin);
+        await prefs.setString('saved_cart_order_type', _orderType);
+        await prefs.setString('saved_cart_pickup_date', _pickupDate);
+        await prefs.setString('saved_cart_pickup_time_slot', _pickupTimeSlot);
+        if (_orderNote != null) await prefs.setString('saved_cart_order_note', _orderNote!);
+
+        _cachedCart = {
+          'itemsJson': itemsJson,
+          'restaurantId': _restaurantId,
+          'restaurantName': _restaurantName,
+          'restaurantImage': _restaurantImageUrl,
+          'restaurantAddress': _restaurantAddress,
+          'deliveryTime': _restaurantDeliveryTimeMin,
+          'orderType': _orderType,
+          'pickupDate': _pickupDate,
+          'pickupTimeSlot': _pickupTimeSlot,
+          'orderNote': _orderNote,
+        };
+      }
+    } catch (e) {
+      debugPrint('Error saving cart to prefs: $e');
+    }
+  }
+
+  Future<void> _syncLocalItemsToBackend() async {
+    for (final item in _items) {
+      try {
+        await CartApiService.addToCart(item.product.id, item.quantity);
+      } catch (_) {}
+    }
+  }
+
   /// Fetch cart from backend
   Future<void> fetchCart() async {
     _isLoading = true;
@@ -156,47 +296,54 @@ class CartProvider with ChangeNotifier {
       final cartData = await CartApiService.getCart();
       if (cartData != null && cartData['items'] != null) {
         final List<dynamic> itemsList = cartData['items'];
-        _items = itemsList.map((item) {
-          final productData = item['productId'];
-          return CartItem(
-            product: Product(
-              id: productData['_id']?.toString() ?? productData['id']?.toString() ?? '',
-              name: productData['name']?.toString() ?? 'Unknown Item',
-              description: productData['description']?.toString() ?? '',
-              price: (productData['price'] as num?)?.toDouble() ?? 0.0,
-              image: productData['image']?.toString() ?? '',
-              category: productData['category']?.toString() ?? '',
-              rating: (productData['rating'] as num?)?.toDouble() ?? 4.0,
-              isVeg: productData['isVeg'] == true,
-            ),
-            quantity: item['quantity'] ?? 1,
-            imageUrl: productData['image']?.toString() ?? '',
-          );
-        }).toList();
-        
-        debugPrint('Cart synced with backend: ${_items.length} items');
-        
-        // Sync restaurantId from first product's store field if available
-        if (_items.isNotEmpty && itemsList.first['productId'] != null) {
-          final storeId = itemsList.first['productId']['store'];
-          if (storeId != null) {
-            _restaurantId = storeId.toString();
-            debugPrint('Synced RestaurantId from cart: $_restaurantId');
+        if (itemsList.isNotEmpty) {
+          _items = itemsList.map((item) {
+            final productData = item['productId'];
+            return CartItem(
+              product: Product(
+                id: productData['_id']?.toString() ?? productData['id']?.toString() ?? '',
+                name: productData['name']?.toString() ?? 'Unknown Item',
+                description: productData['description']?.toString() ?? '',
+                price: (productData['price'] as num?)?.toDouble() ?? 0.0,
+                image: productData['image']?.toString() ?? '',
+                category: productData['category']?.toString() ?? '',
+                rating: (productData['rating'] as num?)?.toDouble() ?? 4.0,
+                isVeg: productData['isVeg'] == true,
+              ),
+              quantity: item['quantity'] ?? 1,
+              imageUrl: productData['image']?.toString() ?? '',
+            );
+          }).toList();
+          
+          debugPrint('Cart synced with backend: ${_items.length} items');
+          
+          // Sync restaurantId from first product's store field if available
+          if (_items.isNotEmpty && itemsList.first['productId'] != null) {
+            final storeId = itemsList.first['productId']['store'];
+            if (storeId != null) {
+              _restaurantId = storeId.toString();
+              debugPrint('Synced RestaurantId from cart: $_restaurantId');
+            }
           }
-        }
 
-        // Sync fees directly from backend bill object if returned
-        if (cartData['bill'] != null && cartData['bill'] is Map) {
-          final bill = cartData['bill'] as Map;
-          if (bill['deliveryFee'] != null) {
-            _deliveryFee = (bill['deliveryFee'] as num).toDouble();
+          // Sync fees directly from backend bill object if returned
+          if (cartData['bill'] != null && cartData['bill'] is Map) {
+            final bill = cartData['bill'] as Map;
+            if (bill['deliveryFee'] != null) {
+              _deliveryFee = (bill['deliveryFee'] as num).toDouble();
+            }
+            if (bill['platformFee'] != null) {
+              _platformFee = (bill['platformFee'] as num).toDouble();
+            }
+            if (bill['packaging'] != null) {
+              _packagingFee = (bill['packaging'] as num).toDouble();
+            }
           }
-          if (bill['platformFee'] != null) {
-            _platformFee = (bill['platformFee'] as num).toDouble();
-          }
-          if (bill['packaging'] != null) {
-            _packagingFee = (bill['packaging'] as num).toDouble();
-          }
+
+          await _saveCartToPrefs();
+        } else if (_items.isNotEmpty) {
+          // Push local items to backend (e.g. after login)
+          _syncLocalItemsToBackend();
         }
       }
     } catch (e) {
@@ -288,6 +435,7 @@ class CartProvider with ChangeNotifier {
     if (existingIndex >= 0) {
       _items[existingIndex].quantity++;
       notifyListeners();
+      await _saveCartToPrefs();
       await CartApiService.updateCart(product.id, _items[existingIndex].quantity);
     } else {
       _items.add(CartItem(
@@ -295,6 +443,7 @@ class CartProvider with ChangeNotifier {
         imageUrl: imageUrl,
       ));
       notifyListeners();
+      await _saveCartToPrefs();
       await CartApiService.addToCart(product.id, 1);
     }
   }
@@ -320,6 +469,7 @@ class CartProvider with ChangeNotifier {
     
     _items.add(CartItem(product: product, imageUrl: imageUrl));
     notifyListeners();
+    await _saveCartToPrefs();
 
     await CartApiService.clearCart();
     await CartApiService.addToCart(product.id, 1);
@@ -329,6 +479,7 @@ class CartProvider with ChangeNotifier {
     _items.removeWhere((item) => item.product.id == productId);
     if (_items.isEmpty) _clearRestaurantInfo();
     notifyListeners();
+    await _saveCartToPrefs();
 
     await CartApiService.removeFromCart(productId);
   }
@@ -339,11 +490,13 @@ class CartProvider with ChangeNotifier {
       if (quantity > 0) {
         _items[index].quantity = quantity;
         notifyListeners();
+        await _saveCartToPrefs();
         await CartApiService.updateCart(productId, quantity);
       } else {
         _items.removeAt(index);
         if (_items.isEmpty) _clearRestaurantInfo();
         notifyListeners();
+        await _saveCartToPrefs();
         await CartApiService.removeFromCart(productId);
       }
     }
@@ -354,6 +507,7 @@ class CartProvider with ChangeNotifier {
     _clearRestaurantInfo();
     resetSchedule();
     notifyListeners();
+    await _saveCartToPrefs();
     
     await CartApiService.clearCart();
   }

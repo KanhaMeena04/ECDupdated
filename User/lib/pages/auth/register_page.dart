@@ -391,7 +391,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                     name: fullName,
                                     email: email,
                                     phone: mobile,
+                                    token: authRes.token,
                                   );
+                              context.read<UserProvider>().fetchProfile();
                             }
 
                             Navigator.pop(ctx);

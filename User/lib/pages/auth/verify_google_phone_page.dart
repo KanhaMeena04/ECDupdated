@@ -145,9 +145,15 @@ class _VerifyGooglePhonePageState extends State<VerifyGooglePhonePage>
     setState(() => _isLoading = false);
 
     if (result.success) {
-      // Update UserProvider with the logged-in phone number
+      // Update UserProvider with the logged-in phone number and token
       if (mounted) {
-        context.read<UserProvider>().setUserInfo(phone: phone);
+        context.read<UserProvider>().setUserInfo(
+          phone: phone,
+          token: result.token,
+          email: widget.googleUser['email']?.toString(),
+          name: widget.googleUser['name']?.toString(),
+        );
+        context.read<UserProvider>().fetchProfile();
       }
 
       ScaffoldMessenger.of(context).clearSnackBars();

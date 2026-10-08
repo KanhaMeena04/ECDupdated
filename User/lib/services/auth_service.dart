@@ -15,15 +15,42 @@ class AuthService {
   static const Duration _timeout = Duration(seconds: 60);
   static const String _tokenKey = 'auth_token';
 
-  // ── Token helpers ──────────────────────────────────────────────────────────
-  static Future<void> saveToken(String token) async {
+  // ── Token & Session helpers ───────────────────────────────────────────────
+  static Future<void> saveToken(
+    String token, {
+    String? phone,
+    String? name,
+    String? email,
+    String? userId,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
+    await prefs.setBool('is_logged_in', true);
+    if (phone != null && phone.isNotEmpty) {
+      await prefs.setString('saved_user_phone', phone);
+    }
+    if (name != null && name.isNotEmpty && name != 'Guest User') {
+      await prefs.setString('saved_user_name', name);
+    }
+    if (email != null && email.isNotEmpty) {
+      await prefs.setString('saved_user_email', email);
+    }
+    if (userId != null && userId.isNotEmpty) {
+      await prefs.setString('saved_user_id', userId);
+    }
   }
 
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.setBool('is_logged_in', false);
+    await prefs.remove('saved_user_phone');
+    await prefs.remove('saved_user_name');
+    await prefs.remove('saved_user_email');
+    await prefs.remove('saved_user_id');
+    await prefs.remove('saved_user_avatar');
+    await prefs.remove('saved_user_wallet');
+    await prefs.remove('saved_user_cod_blocked');
   }
 
   static Future<String?> getToken() async {
@@ -31,9 +58,17 @@ class AuthService {
     return prefs.getString(_tokenKey);
   }
 
+  static Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_tokenKey);
+    final isLogged = prefs.getBool('is_logged_in') ?? false;
+    return (token != null && token.isNotEmpty) || isLogged;
+  }
+
   static Future<void> removeToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.setBool('is_logged_in', false);
   }
 
   // ── Send OTP ───────────────────────────────────────────────────────────────
@@ -111,16 +146,27 @@ class AuthService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final token = data['token']?.toString();
+        final userMap = data['user'] as Map<String, dynamic>?;
+        final resPhone = userMap?['phone']?.toString() ?? userMap?['mobile']?.toString() ?? phoneStr;
+        final resName = userMap?['name']?.toString() ?? '';
+        final resEmail = userMap?['email']?.toString() ?? '';
+        final resId = data['userId']?.toString() ?? userMap?['id']?.toString() ?? userMap?['_id']?.toString() ?? '';
+
         if (token != null && token.isNotEmpty) {
-          await saveToken(token);
-          debugPrint('✅ [verifyOtp] Token saved');
+          await saveToken(
+            token,
+            phone: resPhone,
+            name: resName,
+            email: resEmail,
+            userId: resId,
+          );
+          debugPrint('✅ [verifyOtp] Token & User Session saved: $resPhone');
         }
 
         return AuthResult.success(
           message: data['message']?.toString() ?? 'Login successful',
           token: token,
-          userId: data['userId']?.toString() ??
-              (data['user'] as Map<String, dynamic>?)?['id']?.toString(),
+          userId: resId.isNotEmpty ? resId : null,
           isNewUser: data['isNewUser'] as bool? ?? false,
         );
       } else {
@@ -175,17 +221,27 @@ class AuthService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final token = data['token']?.toString();
-        if (token != null && token.isNotEmpty) {
-          await saveToken(token);
-          debugPrint('✅ [loginWithPassword] Token saved');
-        }
-
         final userMap = data['user'] as Map<String, dynamic>?;
+        final resPhone = userMap?['phone']?.toString() ?? userMap?['mobile']?.toString() ?? '';
+        final resName = userMap?['name']?.toString() ?? trimmedUser;
+        final resEmail = userMap?['email']?.toString() ?? '';
+        final resId = data['userId']?.toString() ?? userMap?['id']?.toString() ?? userMap?['_id']?.toString() ?? '';
+
+        if (token != null && token.isNotEmpty) {
+          await saveToken(
+            token,
+            phone: resPhone,
+            name: resName,
+            email: resEmail,
+            userId: resId,
+          );
+          debugPrint('✅ [loginWithPassword] Token & User Session saved');
+        }
 
         return AuthResult.success(
           message: data['message']?.toString() ?? 'Login successful',
           token: token,
-          userId: data['userId']?.toString() ?? userMap?['_id']?.toString() ?? userMap?['id']?.toString(),
+          userId: resId.isNotEmpty ? resId : null,
         );
       } else {
         return AuthResult.failure(
@@ -203,7 +259,7 @@ class AuthService {
   // ── Google Login ───────────────────────────────────────────────────────────
   static Future<AuthResult> googleLogin(String idToken) async {
     if (kFrontendPreviewMode) {
-      await saveToken('preview_google_token_123');
+      await saveToken('preview_google_token_123', name: 'Preview User');
       return AuthResult.success(
         message: 'Google login successful (Preview Mode)',
         token: 'preview_google_token_123',
@@ -239,16 +295,27 @@ class AuthService {
 
         // Existing user flow
         final token = data['token']?.toString();
+        final userMap = data['user'] as Map<String, dynamic>?;
+        final resPhone = userMap?['phone']?.toString() ?? userMap?['mobile']?.toString() ?? '';
+        final resName = userMap?['name']?.toString() ?? '';
+        final resEmail = userMap?['email']?.toString() ?? '';
+        final resId = data['userId']?.toString() ?? userMap?['id']?.toString() ?? userMap?['_id']?.toString() ?? '';
+
         if (token != null && token.isNotEmpty) {
-          await saveToken(token);
-          debugPrint('✅ [googleLogin] Token saved');
+          await saveToken(
+            token,
+            phone: resPhone,
+            name: resName,
+            email: resEmail,
+            userId: resId,
+          );
+          debugPrint('✅ [googleLogin] Token & User Session saved');
         }
 
         return AuthResult.success(
           message: data['message']?.toString() ?? 'Google Login successful',
           token: token,
-          userId: data['userId']?.toString() ??
-              (data['user'] as Map<String, dynamic>?)?['id']?.toString(),
+          userId: resId.isNotEmpty ? resId : null,
         );
       } else {
         return AuthResult.failure(
@@ -301,16 +368,27 @@ class AuthService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Successfully verified and created account
         final token = data['token']?.toString();
+        final userMap = data['user'] as Map<String, dynamic>?;
+        final resPhone = userMap?['phone']?.toString() ?? userMap?['mobile']?.toString() ?? phoneStr;
+        final resName = userMap?['name']?.toString() ?? googleUser['name']?.toString() ?? '';
+        final resEmail = userMap?['email']?.toString() ?? googleUser['email']?.toString() ?? '';
+        final resId = data['userId']?.toString() ?? userMap?['id']?.toString() ?? userMap?['_id']?.toString() ?? '';
+
         if (token != null && token.isNotEmpty) {
-          await saveToken(token);
-          debugPrint('✅ [verifyGooglePhone] Token saved');
+          await saveToken(
+            token,
+            phone: resPhone,
+            name: resName,
+            email: resEmail,
+            userId: resId,
+          );
+          debugPrint('✅ [verifyGooglePhone] Token & User Session saved: $resPhone');
         }
 
         return AuthResult.success(
           message: data['message']?.toString() ?? 'Account created successfully',
           token: token,
-          userId: data['userId']?.toString() ??
-              (data['user'] as Map<String, dynamic>?)?['id']?.toString(),
+          userId: resId.isNotEmpty ? resId : null,
           isNewUser: true,
         );
       } else {

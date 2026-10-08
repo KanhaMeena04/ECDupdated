@@ -22,6 +22,12 @@ import 'providers/order_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
+    await UserProvider.preheatSession();
+    await CartProvider.preheatCart();
+  } catch (e) {
+    debugPrint('Preheat error: $e');
+  }
+  try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     await NotificationService.initialize();
 
