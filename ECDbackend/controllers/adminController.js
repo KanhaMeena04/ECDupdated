@@ -177,8 +177,8 @@ exports.getDashboard = async (req, res) => {
 };
 exports.getOrdersDashboard = async (req, res) => {
   try {
-    const { period = "today", startDate, endDate } = req.query;
-    const limit = parseInt(req.query.limit) || 10;
+    const { period = "today", startDate, endDate, status: filterStatus } = req.query;
+    const limit = parseInt(req.query.limit) || 100;
 
     let matchQuery = {};
     const now = new Date();
@@ -212,20 +212,24 @@ exports.getOrdersDashboard = async (req, res) => {
       matchQuery = {};
     }
 
+    const statusMap = {
+      pending: ['pending', 'placed'],
+      accepted: ['accepted'],
+      preparing: ['preparing', 'preparation'],
+      assigned: ['assigned', 'rider_assigned'],
+      ready: ['ready', 'ready_for_pickup'],
+      picked_up: ['picked_up', 'partner_picked', 'out_for_delivery', 'on_the_way', 'reached_restaurant', 'reached_store', 'delivery_arrived'],
+      cancelled: ['cancelled', 'failed'],
+      delivered: ['delivered', 'completed'],
+    };
+
     const processingStatuses = [
-      'pending',
-      'placed',
-      'accepted',
-      'preparing',
-      'accepted_by_rider',
-      'preparation',
-      'ready',
-      'assigned',
-      'reached_restaurant',
-      'picked_up',
-      'delivery_arrived',
-      'arrived_restaurant',
-      'arrived_customer',
+      ...statusMap.pending,
+      ...statusMap.accepted,
+      ...statusMap.preparing,
+      ...statusMap.assigned,
+      ...statusMap.ready,
+      ...statusMap.picked_up,
     ];
 
     let totalCount = await Order.countDocuments(matchQuery);
@@ -241,17 +245,54 @@ exports.getOrdersDashboard = async (req, res) => {
       }
     }
 
-    const [completedCount, cancelledCount, processingCount, newCount] = await Promise.all([
-      Order.countDocuments({ ...matchQuery, status: { $in: ['delivered', 'completed'] } }),
-      Order.countDocuments({ ...matchQuery, status: { $in: ['cancelled', 'failed'] } }),
+    const [
+      completedCount,
+      cancelledCount,
+      processingCount,
+      newCount,
+      pendingCount,
+      acceptedCount,
+      preparingCount,
+      assignedCount,
+      readyCount,
+      pickedUpCount,
+      deliveredCount
+    ] = await Promise.all([
+      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.delivered } }),
+      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.cancelled } }),
       Order.countDocuments({ ...matchQuery, status: { $in: processingStatuses } }),
-      Order.countDocuments({ ...matchQuery, status: 'placed' })
+      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.pending } }),
+      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.pending } }),
+      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.accepted } }),
+      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.preparing } }),
+      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.assigned } }),
+      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.ready } }),
+      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.picked_up } }),
+      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.delivered } }),
     ]);
 
-    const recentOrders = await Order.find({})
-      .populate('customer', 'name mobile')
-      .populate('restaurant', 'name')
-      .populate('rider', 'name mobile')
+    const statusCounts = {
+      all: totalCount,
+      pending: pendingCount,
+      accepted: acceptedCount,
+      preparing: preparingCount,
+      assigned: assignedCount,
+      ready: readyCount,
+      picked_up: pickedUpCount,
+      cancelled: cancelledCount,
+      delivered: deliveredCount,
+    };
+
+    let orderFilter = { ...matchQuery };
+    if (filterStatus && filterStatus !== 'all' && statusMap[filterStatus]) {
+      orderFilter.status = { $in: statusMap[filterStatus] };
+    }
+
+    const recentOrders = await Order.find(orderFilter)
+      .populate('customer', 'name mobile email customerId address')
+      .populate('restaurant', 'name phone contactNumber address city restaurantId')
+      .populate('rider', 'name mobile phone riderId vehicle')
+      .populate({ path: 'rider', populate: { path: 'user', select: 'name mobile' } })
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
@@ -281,34 +322,95 @@ exports.getOrdersDashboard = async (req, res) => {
         { label: 'Cancelled Orders', value: cancelledCount }
       ]
     };
+
     const formattedRecentOrders = recentOrders.map(order => {
-      const statusType = order.status === 'cancelled' ? 'failed' :
-        ['delivered', 'completed'].includes(order.status) ? 'completed' : 'processing';
-      const color = statusType === 'failed' ? 'text-red-500' :
-        statusType === 'completed' ? 'text-green-500' : 'text-yellow-500';
+      const rawStatus = (order.status || '').toLowerCase();
+      let normalizedStatus = 'pending';
+      if (statusMap.cancelled.includes(rawStatus)) normalizedStatus = 'cancelled';
+      else if (statusMap.delivered.includes(rawStatus)) normalizedStatus = 'delivered';
+      else if (statusMap.picked_up.includes(rawStatus)) normalizedStatus = 'picked_up';
+      else if (statusMap.ready.includes(rawStatus)) normalizedStatus = 'ready';
+      else if (statusMap.assigned.includes(rawStatus)) normalizedStatus = 'assigned';
+      else if (statusMap.preparing.includes(rawStatus)) normalizedStatus = 'preparing';
+      else if (statusMap.accepted.includes(rawStatus)) normalizedStatus = 'accepted';
+      else if (statusMap.pending.includes(rawStatus)) normalizedStatus = 'pending';
+
+      const statusType = normalizedStatus === 'cancelled' ? 'failed' :
+        normalizedStatus === 'delivered' ? 'completed' :
+        normalizedStatus === 'picked_up' ? 'picked_up' :
+        normalizedStatus === 'ready' ? 'ready' :
+        normalizedStatus === 'assigned' ? 'assigned' :
+        normalizedStatus === 'preparing' ? 'preparing' :
+        normalizedStatus === 'accepted' ? 'accepted' : 'processing';
+
+      const color = normalizedStatus === 'cancelled' ? 'text-rose-600' :
+        normalizedStatus === 'delivered' ? 'text-emerald-600' :
+        normalizedStatus === 'picked_up' ? 'text-indigo-600' :
+        normalizedStatus === 'ready' ? 'text-teal-600' :
+        normalizedStatus === 'assigned' ? 'text-blue-600' :
+        normalizedStatus === 'preparing' ? 'text-purple-600' :
+        normalizedStatus === 'accepted' ? 'text-sky-600' : 'text-amber-600';
+
+      const statusLabel = normalizedStatus === 'picked_up' ? 'Picked Up' :
+        normalizedStatus === 'pending' ? 'Pending' :
+        normalizedStatus === 'accepted' ? 'Accepted' :
+        normalizedStatus === 'preparing' ? 'Preparing' :
+        normalizedStatus === 'assigned' ? 'Assigned' :
+        normalizedStatus === 'ready' ? 'Ready' :
+        normalizedStatus === 'cancelled' ? 'Cancelled' :
+        normalizedStatus === 'delivered' ? 'Delivered' :
+        (order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1).replace(/_/g, ' ') : 'Pending');
 
       const restName = safeString(order.restaurant?.name) || safeString(order.restaurantName) || 'Restaurant';
       const customerName = safeString(order.customer?.name) || safeString(order.customerName) || 'Customer';
 
+      const cleanRestId = order.restaurantId || (order.restaurant?.restaurantId ? String(order.restaurant.restaurantId).replace(/^REST_\d+_\d+/, 'RNT001') : 'RNT001');
+      const cleanCustId = order.customerId || order.customer?.customerId || 'C001';
+      const cleanRiderId = order.riderId || order.rider?.riderId || (order.rider ? 'RDR001' : null);
+
+      const riderName = order.rider?.name || order.rider?.user?.name || order.riderName || null;
+      const riderPhone = order.rider?.mobile || order.rider?.phone || order.rider?.user?.mobile || order.riderPhone || null;
+
+      const orderCode = order.orderNumber || `#${order._id.toString().slice(-6).toUpperCase()}`;
+
       return {
         _id: order._id,
-        id: `#${order._id.toString().slice(-6).toUpperCase()}`,
-        orderCode: `#${order._id.toString().slice(-6).toUpperCase()}`,
-        status: order.status.charAt(0).toUpperCase() + order.status.slice(1).replace(/_/g, ' '),
+        id: orderCode,
+        orderCode: orderCode,
+        orderNumber: order.orderNumber || orderCode,
+        status: statusLabel,
+        normalizedStatus,
         rawStatus: order.status,
         statusType,
         color,
-        amount: `$${Number(order.totalAmount || 0).toFixed(2)}`,
+        amount: `₹${Number(order.totalAmount || 0).toFixed(2)}`,
         inrAmount: `₹${Number(order.totalAmount || 0).toFixed(2)}`,
         totalAmount: Number(order.totalAmount || 0),
-        customer: order.customer ? { ...order.customer, name: customerName } : null,
+        customer: order.customer ? { ...order.customer, name: customerName, customerId: cleanCustId } : null,
         customerName,
-        restaurant: order.restaurant ? { ...order.restaurant, name: restName } : null,
+        customerId: cleanCustId,
+        customerPhone: order.customer?.mobile || order.customer?.phone || '',
+        restaurant: order.restaurant ? { ...order.restaurant, name: restName, restaurantId: cleanRestId } : null,
         restaurantName: restName,
-        rider: order.rider,
+        restaurantId: cleanRestId,
+        restaurantPhone: order.restaurant?.phone || order.restaurant?.contactNumber || '',
+        rider: riderName ? {
+          name: riderName,
+          riderId: cleanRiderId || 'RDR001',
+          mobile: riderPhone || '',
+          vehicle: order.rider?.vehicle || null
+        } : null,
+        riderName,
+        riderId: cleanRiderId,
+        riderPhone,
         orderType: order.orderType || 'delivery',
+        paymentMethod: order.paymentMethod || 'COD',
+        paymentStatus: order.paymentStatus || 'pending',
+        deliveryAddress: order.deliveryAddress || null,
         itemCount: Array.isArray(order.items) ? order.items.length : 1,
-        createdAt: order.createdAt
+        items: order.items || [],
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
       };
     });
 
@@ -316,6 +418,7 @@ exports.getOrdersDashboard = async (req, res) => {
       success: true,
       stats,
       todayOrders,
+      statusCounts,
       recentOrders: formattedRecentOrders
     });
   } catch (error) {
@@ -1057,6 +1160,7 @@ exports.getAllUsers = async (req, res) => {
 
       return {
         ...userObj,
+        customerId: userObj.customerId || 'C001',
         isCodBlocked,
         codActive: !isCodBlocked,
         firstName: fName,

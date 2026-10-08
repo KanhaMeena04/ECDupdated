@@ -133,6 +133,13 @@ userSchema.pre("save", function (next) {
       this.lastName = parts.slice(1).join(" ") || "";
     }
   }
+  // Ensure Customer ID format (C001, C002...)
+  if (!this.customerId || !/^C\d+/i.test(this.customerId)) {
+    try {
+      const { getNextCustomerId } = require("../utils/idGenerator");
+      this.customerId = await getNextCustomerId();
+    } catch (_) {}
+  }
   if (typeof next === 'function') next();
 });
 

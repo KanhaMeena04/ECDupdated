@@ -293,7 +293,12 @@ const UserManagement = () => {
 
                     {/* Name */}
                     <TableCell className="border-r border-gray-200 text-gray-800 text-xs font-medium py-3">
-                      <div className="font-semibold text-gray-900">{displayName}</div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-gray-900">{displayName}</span>
+                        <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          #{user.customerId || (user._id ? `C${String(user._id).slice(-3).toUpperCase()}` : 'C001')}
+                        </span>
+                      </div>
                       {hasRealFirstLast && (
                         <div className="text-[10px] text-gray-500 font-normal mt-0.5">
                           First: <span className="font-medium text-gray-700">{user.firstName || '-'}</span> | Last: <span className="font-medium text-gray-700">{user.lastName || '-'}</span>

@@ -96,6 +96,16 @@ const riderSchema = new mongoose.Schema({
     averageRating: { type: Number, default: 4.8 }
 }, { timestamps: true, strict: false });
 
+riderSchema.pre("save", async function (next) {
+  if (!this.riderId || !/^RDR\d+/i.test(this.riderId)) {
+    try {
+      const { getNextRiderId } = require("../utils/idGenerator");
+      this.riderId = await getNextRiderId();
+    } catch (_) {}
+  }
+  if (typeof next === "function") next();
+});
+
 riderSchema.index({ "currentLocation": "2dsphere" });
 riderSchema.index({ isOnline: 1 });
 riderSchema.index({ isAvailable: 1 });

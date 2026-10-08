@@ -9,11 +9,13 @@ export default function Dashboard() {
   const [period, setPeriod] = useState("today");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const { stats, todayOrders, recentOrders, loading, refetch } = useOrderDashboard({
+  const { stats, todayOrders, recentOrders, statusCounts, loading, refetch } = useOrderDashboard({
     period,
     startDate,
     endDate,
+    status: statusFilter,
   });
 
   const periodOptions = [
@@ -100,7 +102,14 @@ export default function Dashboard() {
       {/* Main Breakdown & Recent Orders Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TodayOrdersCard todayOrders={todayOrders} />
-        <RecentOrders recentOrders={recentOrders} />
+        <RecentOrders
+          recentOrders={recentOrders}
+          statusCounts={statusCounts}
+          statusFilter={statusFilter}
+          onStatusChange={setStatusFilter}
+          loading={loading}
+          onRefresh={refetch}
+        />
       </div>
     </div>
   );

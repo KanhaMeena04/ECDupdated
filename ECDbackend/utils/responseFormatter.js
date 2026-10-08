@@ -115,6 +115,7 @@ exports.formatRestaurantForAdmin = (restaurant) => {
   return {
     _id: restaurant._id,
     id: restaurant._id,
+    restaurantId: restaurant.restaurantId || 'RNT001',
     name: realName,
     description: restaurant.description || '',
     restaurantType: restaurant.storeType || restaurant.restaurantType || 'restaurant',
@@ -270,6 +271,7 @@ exports.formatRiderForAdmin = (rider) => {
   if (!rider) return null;
   return {
     _id: rider._id,
+    riderId: rider.riderId || 'RDR001',
     user: rider.user,
     rating: rider.rating,
     address: rider.address,

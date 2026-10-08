@@ -6,6 +6,7 @@ const Product = require("../models/Product"); // Required for Menu
 const Category = require("../models/Category");
 const Rider = require("../models/Rider");
 const { getPaginationParams } = require("../utils/pagination");
+const { getNextRestaurantId } = require("../utils/idGenerator");
 const { formatRestaurantForUser, formatRestaurantForAdmin, formatProductForUser } = require("../utils/responseFormatter");
 const { getFileUrl } = require("../utils/upload");
 const { uploadToImageKit } = require("../utils/imagekit");
@@ -427,7 +428,7 @@ exports.adminCreateRestaurant = async (req, res) => {
       city: city || "Sohna",
       area: area || "Subhash Chowk",
       slug: `${((typeof finalName === 'object' ? finalName.en : finalName) || 'restaurant').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`,
-      restaurantId: `REST_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      restaurantId: await getNextRestaurantId(),
       location: normalizeGeoLocation(parsedLocation || location),
       deliveryTime: finalDeliveryTime,
       geofenceRadius: Number(geofenceRadius) || 10,
@@ -813,7 +814,7 @@ exports.applyForRestaurant = async (req, res) => {
       city,
       area,
       slug: `${((typeof parsedName === 'object' ? parsedName.en : parsedName) || (typeof name === 'object' ? name.en : name) || 'restaurant').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`,
-      restaurantId: `REST_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      restaurantId: await getNextRestaurantId(),
       location: normalizeGeoLocation(parsedLocation || location),
       deliveryTime,
       deliveryType: parsedDeliveryType || ["Home Delivery"],
@@ -2507,6 +2508,7 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
       return {
         _id: rest._id,
         id: rest._id,
+        restaurantId: rest.restaurantId || 'RNT001',
         name: restName,
         email: emailVal,
         address: `${rest.address || ''}${rest.city ? (rest.address ? ', ' : '') + rest.city : ''}${rest.state ? ', ' + rest.state : ''}`,

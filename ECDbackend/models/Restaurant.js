@@ -175,5 +175,16 @@ const restaurantSchema = new mongoose.Schema(
   },
   { timestamps: true, strict: false }
 );
+
+restaurantSchema.pre("save", async function (next) {
+  if (!this.restaurantId || !/^RNT\d+/i.test(this.restaurantId)) {
+    try {
+      const { getNextRestaurantId } = require("../utils/idGenerator");
+      this.restaurantId = await getNextRestaurantId();
+    } catch (_) {}
+  }
+  if (typeof next === "function") next();
+});
+
 module.exports = mongoose.model("Restaurant", restaurantSchema);
 

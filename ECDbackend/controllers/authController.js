@@ -412,11 +412,14 @@ exports.loginUser = async (req, res) => {
       Rider.findOne({ user: user._id }).select("_id"),
     ]);
 
+    const customerIdCode = await ensureCustomerId(user);
     const token = generateToken(res, user);
     res.status(200).json({
       token,
       user: {
         _id: user._id,
+        id: user._id,
+        customerId: customerIdCode || user.customerId || "C001",
         name: user.name,
         email: user.email,
         mobile: user.mobile || user.phone,

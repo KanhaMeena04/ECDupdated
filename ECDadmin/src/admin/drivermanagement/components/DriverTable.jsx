@@ -207,7 +207,11 @@ function DriverTable({ searchQuery = "" }) {
             {filteredRiders.map((r, i) => (
               <tr key={r._id} className="hover:bg-gray-50">
                 <td className="p-3 border text-center">{i + 1}</td>
-                <td className="p-3 border text-blue-600 font-mono text-xs">{r._id}</td>
+                <td className="p-3 border font-mono text-xs">
+                  <span className="px-2 py-0.5 rounded font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                    {r.riderId || (r._id ? `RDR${String(r._id).slice(-4).toUpperCase()}` : "RDR001")}
+                  </span>
+                </td>
                 <td className="p-3 border font-semibold">{r.user?.name || r.name || "Rider Partner"}</td>
                 <td className="p-3 border">{r.user?.mobile || r.user?.phone || r.phone || r.mobile || "-"}</td>
 

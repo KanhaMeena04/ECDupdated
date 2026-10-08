@@ -116,10 +116,23 @@ export const INITIAL_TODAY_ORDERS = {
   ],
 };
 
-const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '' } = {}) => {
+export const INITIAL_STATUS_COUNTS = {
+  all: 0,
+  pending: 0,
+  accepted: 0,
+  preparing: 0,
+  assigned: 0,
+  ready: 0,
+  picked_up: 0,
+  cancelled: 0,
+  delivered: 0,
+};
+
+const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', status = 'all' } = {}) => {
   const [stats, setStats] = useState(INITIAL_STATS);
   const [todayOrders, setTodayOrders] = useState(INITIAL_TODAY_ORDERS);
   const [recentOrders, setRecentOrders] = useState([]);
+  const [statusCounts, setStatusCounts] = useState(INITIAL_STATUS_COUNTS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
@@ -128,7 +141,7 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '' } = 
     setError(false);
     try {
       const res = await axios.get(`${API_BASE_URL}/api/admin/order-dashboard`, {
-        params: { period, startDate, endDate },
+        params: { period, startDate, endDate, status, limit: 100 },
         withCredentials: true,
       });
       const data = res.data || {};
@@ -136,6 +149,9 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '' } = 
       setStats(Array.isArray(data.stats) ? data.stats : INITIAL_STATS);
       setTodayOrders(data.todayOrders || INITIAL_TODAY_ORDERS);
       setRecentOrders(Array.isArray(data.recentOrders) ? data.recentOrders : []);
+      if (data.statusCounts) {
+        setStatusCounts(data.statusCounts);
+      }
     } catch (err) {
       console.error("Dashboard fetch failed:", err);
       if (!silent) {
@@ -147,7 +163,7 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '' } = 
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [period, startDate, endDate]);
+  }, [period, startDate, endDate, status]);
 
   useEffect(() => {
     fetchDashboard(false);
@@ -157,7 +173,8 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '' } = 
     return () => clearInterval(interval);
   }, [fetchDashboard]);
 
-  return { stats, todayOrders, recentOrders, loading, error, refetch: () => fetchDashboard(false) };
+  return { stats, todayOrders, recentOrders, statusCounts, loading, error, refetch: () => fetchDashboard(false) };
 };
 
 export { useAdminOrders, useAdminOrderDetails, useOrderDashboard };
+

@@ -97,13 +97,33 @@ export const getRestaurantColumns = ({
     { key: "index", label: "" },
 
     {
+      key: "restaurantId",
+      label: "Restaurant ID",
+      render: (row) => {
+        const idVal = row.restaurantId || "RNT001";
+        return (
+          <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            {idVal}
+          </span>
+        );
+      }
+    },
+
+    {
       key: "name",
       label: "Name",
       render: (row) => {
         const n = typeof row.name === 'object' && row.name !== null
           ? (row.name.en || Object.values(row.name).find(v => typeof v === 'string' && v.trim()) || '-')
           : (row.name || '-');
-        return <span className="font-semibold text-gray-900">{n}</span>;
+        return (
+          <div className="flex flex-col">
+            <span className="font-semibold text-gray-900">{n}</span>
+            {row.restaurantId && (
+              <span className="text-[10px] font-mono text-emerald-600 font-semibold">{row.restaurantId}</span>
+            )}
+          </div>
+        );
       }
     },
     

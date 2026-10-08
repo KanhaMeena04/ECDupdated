@@ -322,6 +322,8 @@ const InitializeConnection = async () => {
     console.log("DB connect");
     initCronJobs();
     initPaymentCronJobs();
+    const { backfillMissingIds } = require("./utils/idGenerator");
+    backfillMissingIds().catch(e => console.error("[idGenerator] Backfill error:", e.message));
   }
   catch (err) {
     console.log("error occured " + err);

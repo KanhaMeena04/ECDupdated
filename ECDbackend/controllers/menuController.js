@@ -3,6 +3,7 @@ const Category = require("../models/Category");
 const Product = require("../models/Product");
 const Restaurant = require("../models/Restaurant");
 const User = require("../models/User");
+const { getNextRestaurantId } = require("../utils/idGenerator");
 const { formatProductForUser } = require("../utils/responseFormatter");
 const { getFileUrl } = require("../utils/upload");
 const { uploadToImageKit } = require("../utils/imagekit");
@@ -307,7 +308,7 @@ exports.getMenu = async (req, res) => {
       // If still no restaurant, create a default active one
       restaurant = await Restaurant.create({
         name: { en: "Gyani Ji dhabha" },
-        restaurantId: "REST_" + Date.now(),
+        restaurantId: await getNextRestaurantId(),
         contactNumber: "8085270415",
         phone: "8085270415",
         restaurantApproved: true,

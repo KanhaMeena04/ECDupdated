@@ -2852,6 +2852,7 @@ exports.getAllRiders = async (req, res) => {
 
       return {
         ...obj,
+        riderId: obj.riderId || 'RDR001',
         name: resolvedName,
         phone: obj.phone || obj.mobile || obj.user?.phone || obj.user?.mobile || '',
         mobile: obj.mobile || obj.phone || obj.user?.mobile || obj.user?.phone || '',

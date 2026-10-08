@@ -2914,14 +2914,167 @@ exports.getOrderDetailsAdmin = async (req, res) => {
       .populate("timeline");
     if (!order) return res.status(404).json({ message: "Order not found" });
     const orderObj = order.toObject();
+
+    // 1. Order ID formatting
     const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
     orderObj.orderNumber = ordNumber;
     orderObj.orderId = ordNumber;
-    orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
-    orderObj.restaurantId = orderObj.restaurantId || orderObj.restaurant?.restaurantId || "RNT001";
-    if (orderObj.rider) {
-      orderObj.riderId = orderObj.riderId || orderObj.rider?.riderId || "RDR001";
+
+    // 2. Customer ID & details
+    let custId = orderObj.customerId || orderObj.customer?.customerId;
+    if (!custId || !/^C\d+/i.test(custId)) {
+      if (order.customer) {
+        custId = await ensureCustomerId(order.customer);
+      } else {
+        custId = "C001";
+      }
     }
+    orderObj.customerId = custId;
+    if (orderObj.customer) {
+      orderObj.customer.customerId = custId;
+    }
+
+    // 3. Restaurant ID & details
+    let restId = orderObj.restaurantId || orderObj.restaurant?.restaurantId;
+    if (!restId || !/^RNT\d+/i.test(restId)) {
+      if (order.restaurant) {
+        restId = await ensureRestaurantId(order.restaurant);
+      } else {
+        restId = "RNT001";
+      }
+    }
+    orderObj.restaurantId = restId;
+    if (orderObj.restaurant) {
+      orderObj.restaurant.restaurantId = restId;
+    }
+
+    // 4. Rider details & ID
+    if (orderObj.rider) {
+      let rdrId = orderObj.riderId || orderObj.rider?.riderId;
+      if (!rdrId || !/^RDR\d+/i.test(rdrId)) {
+        if (order.rider) {
+          rdrId = await ensureRiderId(order.rider);
+        } else {
+          rdrId = "RDR001";
+        }
+      }
+      orderObj.riderId = rdrId;
+      orderObj.rider.riderId = rdrId;
+      orderObj.rider.name = orderObj.rider.name || orderObj.rider.user?.name || orderObj.riderName || "Assigned Rider";
+      orderObj.rider.mobile = orderObj.rider.mobile || orderObj.rider.phone || orderObj.rider.user?.mobile || orderObj.riderPhone || "";
+      orderObj.rider.phone = orderObj.rider.mobile;
+    } else if (orderObj.riderName || orderObj.riderPhone || orderObj.riderId) {
+      orderObj.rider = {
+        name: orderObj.riderName || "Assigned Rider",
+        riderId: orderObj.riderId || "RDR001",
+        mobile: orderObj.riderPhone || "",
+        phone: orderObj.riderPhone || "",
+      };
+      orderObj.riderId = orderObj.rider.riderId;
+    }
+
+    // 5. Contact numbers verification
+    const contacts = buildOrderCallContacts(orderObj);
+    if (orderObj.customer) {
+      orderObj.customer.mobile = contacts.customerPhone || orderObj.customer.mobile || orderObj.customer.phone || "";
+    }
+    if (orderObj.restaurant) {
+      orderObj.restaurant.phone = contacts.restaurantPhone || orderObj.restaurant.phone || orderObj.restaurant.contactNumber || "";
+    }
+    if (orderObj.rider) {
+      orderObj.rider.mobile = contacts.riderPhone || orderObj.rider.mobile || orderObj.rider.phone || "";
+      orderObj.rider.phone = orderObj.rider.mobile;
+    }
+
+    // 6. Delivery location ensure structure
+    if (!orderObj.deliveryAddress || !orderObj.deliveryAddress.addressLine) {
+      const custAddr = orderObj.customer?.address || orderObj.customer?.addresses?.[0];
+      const addrStr = typeof custAddr === 'string' ? custAddr : (custAddr?.fullAddress || custAddr?.addressLine || "");
+      orderObj.deliveryAddress = {
+        addressLine: addrStr || orderObj.deliveryAddress?.addressLine || "Delivery Address as specified at checkout",
+        coordinates: (orderObj.deliveryAddress && Array.isArray(orderObj.deliveryAddress.coordinates) && orderObj.deliveryAddress.coordinates.length === 2)
+          ? orderObj.deliveryAddress.coordinates
+          : (custAddr?.location?.coordinates || [77.2090, 28.6139])
+      };
+    }
+
+    // 7. Timeline reconstruction if empty
+    if (!Array.isArray(orderObj.timeline) || orderObj.timeline.length === 0) {
+      const timelineArr = [
+        {
+          status: 'placed',
+          timestamp: orderObj.createdAt || new Date(),
+          label: 'Order Placed',
+          description: 'Customer successfully placed the order',
+          by: 'customer'
+        }
+      ];
+      if (['accepted', 'preparing', 'ready', 'assigned', 'picked_up', 'delivered'].includes(orderObj.status)) {
+        timelineArr.push({
+          status: 'accepted',
+          timestamp: orderObj.createdAt || new Date(),
+          label: 'Order Accepted',
+          description: 'Restaurant confirmed and accepted the order',
+          by: 'restaurant_owner'
+        });
+      }
+      if (['preparing', 'ready', 'assigned', 'picked_up', 'delivered'].includes(orderObj.status)) {
+        timelineArr.push({
+          status: 'preparing',
+          timestamp: orderObj.createdAt || new Date(),
+          label: 'Preparing Food',
+          description: 'Kitchen is currently preparing food items',
+          by: 'restaurant_owner'
+        });
+      }
+      if (['ready', 'assigned', 'picked_up', 'delivered'].includes(orderObj.status)) {
+        timelineArr.push({
+          status: 'ready',
+          timestamp: orderObj.readyAt || orderObj.updatedAt || new Date(),
+          label: 'Order Ready',
+          description: 'Food prepared, packed and ready for handover',
+          by: 'restaurant_owner'
+        });
+      }
+      if (['assigned', 'picked_up', 'delivered'].includes(orderObj.status) && orderObj.rider) {
+        timelineArr.push({
+          status: 'assigned',
+          timestamp: orderObj.riderAssignedAt || orderObj.updatedAt || new Date(),
+          label: 'Rider Assigned',
+          description: `Assigned to delivery partner ${orderObj.rider?.name || 'Rider'}`,
+          by: 'system'
+        });
+      }
+      if (['picked_up', 'delivered'].includes(orderObj.status)) {
+        timelineArr.push({
+          status: 'picked_up',
+          timestamp: orderObj.pickedUpAt || orderObj.updatedAt || new Date(),
+          label: 'Order Picked Up',
+          description: 'Delivery partner picked up the order from restaurant',
+          by: 'rider'
+        });
+      }
+      if (orderObj.status === 'delivered') {
+        timelineArr.push({
+          status: 'delivered',
+          timestamp: orderObj.deliveredAt || orderObj.updatedAt || new Date(),
+          label: 'Delivered',
+          description: 'Order successfully delivered to customer',
+          by: 'rider'
+        });
+      }
+      if (orderObj.status === 'cancelled') {
+        timelineArr.push({
+          status: 'cancelled',
+          timestamp: orderObj.cancelledAt || orderObj.updatedAt || new Date(),
+          label: 'Order Cancelled',
+          description: orderObj.cancellationReason || 'Order was cancelled',
+          by: orderObj.cancellationInitiatedBy || 'system'
+        });
+      }
+      orderObj.timeline = timelineArr;
+    }
+
     res.status(200).json(orderObj);
   } catch (error) {
     res.status(500).json({ message: error.message });
