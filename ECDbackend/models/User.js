@@ -119,7 +119,7 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-userSchema.pre("save", function (next) {
+userSchema.pre("save", async function (next) {
   if (this.isModified("firstName") || this.isModified("lastName")) {
     const fn = (this.firstName || "").trim();
     const ln = (this.lastName || "").trim();

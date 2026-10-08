@@ -607,8 +607,9 @@ exports.changePassword = async (req, res) => {
 };
 exports.saveFCMToken = async (req, res) => {
     try {
-        const { fcmToken } = req.body;
-        if (!fcmToken || typeof fcmToken !== 'string') {
+        const rawToken = req.body.fcmToken || req.body.token || req.body.deviceToken || req.body.pushToken;
+        const fcmToken = rawToken ? String(rawToken).trim() : null;
+        if (!fcmToken) {
             return res.status(400).json({ 
                 message: "Valid FCM token is required",
                 success: false 

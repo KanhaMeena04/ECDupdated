@@ -148,6 +148,68 @@ const calculateDistanceInKm = (lat1, lon1, lat2, lon2) => {
   return Math.round(R * c * 10) / 10;
 };
 
+const buildUnifiedBill = (order) => {
+  if (!order) return null;
+  const o = typeof order.toObject === 'function' ? order.toObject() : order;
+  const itemTotal = Number(o.itemTotal || 0);
+  const tax = Number(o.tax || 0);
+  const packagingFee = Number(o.packagingFee || o.packaging || 0);
+  const deliveryFee = Number(typeof o.deliveryFee === 'number' ? o.deliveryFee : (o.deliveryCharge || 0));
+  const platformFee = Number(o.platformFee || 0);
+  const extraDeliveryCharges = Number(o.extraDeliveryCharges || 0);
+  const tip = Number(o.tip || 0);
+  const discount = Number(o.discount || 0);
+  const totalAmount = Number(o.totalAmount !== undefined ? o.totalAmount : (itemTotal + tax + packagingFee + deliveryFee + platformFee + extraDeliveryCharges + tip - discount));
+  const payableAmount = Number(o.payableAmount !== undefined ? o.payableAmount : totalAmount);
+
+  return {
+    itemTotal,
+    tax,
+    packagingFee,
+    packaging: packagingFee,
+    deliveryFee,
+    deliveryCharge: deliveryFee,
+    platformFee,
+    extraDeliveryCharges,
+    discount,
+    tip,
+    totalAmount,
+    amount: totalAmount,
+    total: totalAmount,
+    payableAmount,
+    toPay: totalAmount,
+    restaurantEarning: Number(o.restaurantCommission || 0),
+    riderEarning: Number(o.riderEarning || o.driverEarnings || 0) + tip,
+    driverEarnings: Number(o.driverEarnings || o.riderEarning || 0) + tip,
+    inrAmount: `₹${totalAmount.toFixed(2)}`
+  };
+};
+
+const enrichOrderWithUnifiedPricing = (orderObj) => {
+  if (!orderObj) return orderObj;
+  const bill = buildUnifiedBill(orderObj);
+  orderObj.totalAmount = bill.totalAmount;
+  orderObj.amount = bill.totalAmount;
+  orderObj.total = bill.totalAmount;
+  orderObj.payableAmount = bill.payableAmount;
+  orderObj.itemTotal = bill.itemTotal;
+  orderObj.tax = bill.tax;
+  orderObj.packagingFee = bill.packagingFee;
+  orderObj.packaging = bill.packagingFee;
+  orderObj.deliveryFee = bill.deliveryFee;
+  orderObj.deliveryCharge = bill.deliveryFee;
+  orderObj.platformFee = bill.platformFee;
+  orderObj.extraDeliveryCharges = bill.extraDeliveryCharges;
+  orderObj.discount = bill.discount;
+  orderObj.tip = bill.tip;
+  orderObj.inrAmount = bill.inrAmount;
+  orderObj.bill = bill;
+  return orderObj;
+};
+
+exports.buildUnifiedBill = buildUnifiedBill;
+exports.enrichOrderWithUnifiedPricing = enrichOrderWithUnifiedPricing;
+
 const calculateBill = async (
   cart,
   userId = null,
@@ -592,13 +654,52 @@ exports.placeOrder = async (req, res) => {
         requiresPayment: true,
       });
     }
+    const restNameStr = typeof restaurant.name === 'object'
+      ? (restaurant.name.en || restaurant.name.hi || Object.values(restaurant.name)[0] || 'Restaurant')
+      : (restaurant.name || 'Restaurant');
+
+    const unifiedBill = buildUnifiedBill(newOrder);
+
+    // 1. Notify Customer via Push Notification & WebSockets
+    try {
+      await sendNotification(
+        user._id,
+        "🎉 Order Placed Successfully!",
+        `Your order #${newOrder.orderNumber} has been placed with ${restNameStr} for ₹${newOrder.totalAmount}.`,
+        {
+          orderId: newOrder.orderNumber,
+          backendOrderId: newOrder._id.toString(),
+          restaurantName: restNameStr,
+          totalAmount: newOrder.totalAmount,
+          status: "placed",
+          type: "order_status"
+        }
+      );
+      const custUpdateData = {
+        orderId: newOrder._id.toString(),
+        orderNumber: newOrder.orderNumber,
+        status: "placed",
+        totalAmount: newOrder.totalAmount,
+        amount: newOrder.totalAmount,
+        bill: unifiedBill,
+        message: "Order placed successfully! We've notified the restaurant."
+      };
+      socketService.emitToCustomer(user._id.toString(), "order:placed", custUpdateData);
+      socketService.emitToCustomer(user._id.toString(), "order:status", custUpdateData);
+      socketService.emitToUser(user._id.toString(), "order:placed", custUpdateData);
+      socketService.emitToUser(user._id.toString(), "order:status", custUpdateData);
+    } catch (custNotifErr) {
+      logger.error("Failed to notify customer on order place:", custNotifErr.message);
+    }
+
+    // 2. Notify Restaurant Owner via Push & WebSockets
     try {
       if (restaurant && restaurant.owner) {
         await sendNotification(
           restaurant.owner._id,
           "New Order Received",
           `Order #${newOrder.orderNumber} - ₹${bill.toPay}`,
-          { orderId: newOrder.orderNumber, backendOrderId: newOrder._id, restaurantId }
+          { orderId: newOrder.orderNumber, backendOrderId: newOrder._id, restaurantId, totalAmount: bill.toPay }
         );
       }
       const restaurantOrderPayload = {
@@ -626,11 +727,14 @@ exports.placeOrder = async (req, res) => {
           address: deliveryAddress.addressLine,
           location: deliveryAddress.location?.coordinates || [0, 0]
         },
-        restaurantName: restaurant.name,
-        items: cart.items.length,
-        itemCount: cart.items.length,
+        restaurantName: restNameStr,
+        items: newOrder.items,
+        itemCount: newOrder.items.length,
         amount: bill.toPay,
         totalAmount: bill.toPay,
+        total: bill.toPay,
+        payableAmount: bill.toPay,
+        bill: unifiedBill,
         paymentMethod,
         status: "placed",
         timestamp: new Date(),
@@ -658,13 +762,11 @@ exports.placeOrder = async (req, res) => {
         }
       } catch (_) {}
     } catch (e) {
-      logger.error("Notify error", e);
+      logger.error("Notify restaurant error", e);
     }
-    try {
-      const restNameStr = typeof restaurant.name === 'object'
-        ? (restaurant.name.en || restaurant.name.hi || Object.values(restaurant.name)[0] || 'Restaurant')
-        : (restaurant.name || 'Restaurant');
 
+    // 3. Notify Admin Dashboard
+    try {
       socketService.emitToAdmin("order:new", {
         orderId: newOrder.orderNumber,
         orderIds: [newOrder.orderNumber],
@@ -684,12 +786,17 @@ exports.placeOrder = async (req, res) => {
         deliveryAddress: deliveryAddress.addressLine,
         restaurantCount: 1,
         totalAmount: totalPayment,
+        amount: totalPayment,
+        total: totalPayment,
+        payableAmount: totalPayment,
+        bill: unifiedBill,
         orderType: newOrder.orderType,
         paymentMethod,
         status: "placed",
         timestamp: new Date(),
       });
     } catch (err) { }
+
     // Note: Rider dispatch is triggered only when restaurant marks order ready
     logger.info("Order created. Rider dispatch pending restaurant order ready.", { orderId: newOrder._id, orderNumber: newOrder.orderNumber });
     try {
@@ -701,18 +808,25 @@ exports.placeOrder = async (req, res) => {
         logCouponUsage(user._id, cart.couponCode, newOrder._id, null, true);
       } catch (couponErr) { }
     }
+
+    const orderReturnObj = enrichOrderWithUnifiedPricing(newOrder.toObject());
+
     return res.status(201).json({
       success: true,
       message: "Order placed successfully",
-      order: newOrder,
-      data: newOrder,
+      order: orderReturnObj,
+      data: orderReturnObj,
       orderId: newOrder.orderNumber,
       orderNumber: newOrder.orderNumber,
       customerId: newOrder.customerId || customerIdCode,
       restaurantId: newOrder.restaurantId || restaurantIdCode,
       id: newOrder._id,
       totalPayment,
-      totalAmount: newOrder.totalAmount
+      totalAmount: newOrder.totalAmount,
+      amount: newOrder.totalAmount,
+      total: newOrder.totalAmount,
+      payableAmount: newOrder.totalAmount,
+      bill: unifiedBill
     });
   } catch (error) {
     console.error("Place order error:", error);
@@ -778,7 +892,7 @@ exports.getMyOrders = async (req, res) => {
           orderObj.estimatedMinutes = Math.ceil(distanceToCustomer / 1); // 1 km/min assumption
         }
       }
-      return orderObj;
+      return enrichOrderWithUnifiedPricing(orderObj);
     });
 
     const activeStatuses = ['placed', 'accepted', 'preparing', 'ready', 'assigned', 'reached_restaurant', 'picked_up', 'out_for_delivery', 'delivery_arrived', 'pending'];
@@ -819,9 +933,10 @@ exports.getOrderDetailsCustomer = async (req, res) => {
       return sendError(res, 403, "Access denied");
     }
     const { calculateDistance } = require('../utils/locationUtils');
-    const orderObj = order.toObject();
+    const orderObj = enrichOrderWithUnifiedPricing(order.toObject());
     const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
     const callContacts = buildOrderCallContacts(orderObj);
+    const unifiedBill = buildUnifiedBill(orderObj);
     const response = {
       success: true,
       order: {
@@ -834,6 +949,20 @@ exports.getOrderDetailsCustomer = async (req, res) => {
         status: orderObj.status,
         statusLabel: mapStatusLabel(orderObj.status),
         createdAt: orderObj.createdAt,
+        totalAmount: unifiedBill.totalAmount,
+        amount: unifiedBill.totalAmount,
+        total: unifiedBill.totalAmount,
+        payableAmount: unifiedBill.payableAmount,
+        inrAmount: unifiedBill.inrAmount,
+        itemTotal: unifiedBill.itemTotal,
+        tax: unifiedBill.tax,
+        packagingFee: unifiedBill.packagingFee,
+        packaging: unifiedBill.packagingFee,
+        deliveryFee: unifiedBill.deliveryFee,
+        deliveryCharge: unifiedBill.deliveryFee,
+        platformFee: unifiedBill.platformFee,
+        discount: unifiedBill.discount,
+        tip: unifiedBill.tip,
         restaurant: {
           id: orderObj.restaurant._id,
           restaurantId: orderObj.restaurantId || orderObj.restaurant?.restaurantId || "RNT001",
@@ -856,16 +985,7 @@ exports.getOrderDetailsCustomer = async (req, res) => {
           ...(item.variation && { variation: item.variation }),
           ...(item.addOns?.length && { addOns: item.addOns })
         })),
-        bill: {
-          itemTotal: orderObj.itemTotal,
-          tax: orderObj.tax,
-          packaging: orderObj.packaging || 0,
-          deliveryFee: orderObj.deliveryFee,
-          platformFee: orderObj.platformFee,
-          tip: orderObj.tip,
-          discount: orderObj.discount,
-          totalAmount: orderObj.totalAmount,
-        },
+        bill: unifiedBill,
         payment: {
           method: orderObj.paymentMethod,
           status: orderObj.paymentStatus,
@@ -930,8 +1050,9 @@ exports.getOrderDetailsRestaurant = async (req, res) => {
     if (order.restaurant._id.toString() !== restaurant._id.toString()) {
       return sendError(res, 403, "Access denied");
     }
-    const orderObj = order.toObject();
+    const orderObj = enrichOrderWithUnifiedPricing(order.toObject());
     const callContacts = buildOrderCallContacts(orderObj);
+    const unifiedBill = buildUnifiedBill(orderObj);
     const response = {
       success: true,
       order: {
@@ -941,6 +1062,20 @@ exports.getOrderDetailsRestaurant = async (req, res) => {
         statusLabel: mapStatusLabel(orderObj.status),
         createdAt: orderObj.createdAt,
         estimatedReadyTime: orderObj.estimatedDeliveryTime,
+        totalAmount: unifiedBill.totalAmount,
+        amount: unifiedBill.totalAmount,
+        total: unifiedBill.totalAmount,
+        payableAmount: unifiedBill.payableAmount,
+        inrAmount: unifiedBill.inrAmount,
+        itemTotal: unifiedBill.itemTotal,
+        tax: unifiedBill.tax,
+        packagingFee: unifiedBill.packagingFee,
+        packaging: unifiedBill.packagingFee,
+        deliveryFee: unifiedBill.deliveryFee,
+        deliveryCharge: unifiedBill.deliveryFee,
+        platformFee: unifiedBill.platformFee,
+        discount: unifiedBill.discount,
+        tip: unifiedBill.tip,
         customer: {
           id: orderObj.customer._id,
           name: orderObj.customer.name,
@@ -959,17 +1094,7 @@ exports.getOrderDetailsRestaurant = async (req, res) => {
           ...(item.variation && { variation: item.variation }),
           ...(item.addOns?.length && { addOns: item.addOns })
         })),
-        bill: {
-          itemTotal: orderObj.itemTotal,
-          tax: orderObj.tax,
-          packaging: orderObj.packaging || 0,
-          deliveryFee: orderObj.deliveryFee,
-          platformFee: orderObj.platformFee,
-          tip: orderObj.tip,
-          discount: orderObj.discount,
-          totalAmount: orderObj.totalAmount,
-          restaurantEarning: orderObj.restaurantCommission || 0,
-        },
+        bill: unifiedBill,
         payment: {
           method: orderObj.paymentMethod,
           status: orderObj.paymentStatus,
@@ -1027,9 +1152,9 @@ exports.getOrderDetailsRider = async (req, res) => {
     if (!order.rider || order.rider._id.toString() !== riderProfile._id.toString()) {
       return sendError(res, 403, "Access denied");
     }
-    const { calculateDistance } = require('../utils/locationUtils');
-    const orderObj = order.toObject();
+    const orderObj = enrichOrderWithUnifiedPricing(order.toObject());
     const callContacts = buildOrderCallContacts(orderObj);
+    const unifiedBill = buildUnifiedBill(orderObj);
     const response = {
       success: true,
       order: {
@@ -1040,6 +1165,22 @@ exports.getOrderDetailsRider = async (req, res) => {
         createdAt: orderObj.createdAt,
         pickedUpAt: orderObj.pickedUpAt,
         deliveredAt: orderObj.deliveredAt,
+        totalAmount: unifiedBill.totalAmount,
+        amount: unifiedBill.totalAmount,
+        total: unifiedBill.totalAmount,
+        payableAmount: unifiedBill.payableAmount,
+        inrAmount: unifiedBill.inrAmount,
+        itemTotal: unifiedBill.itemTotal,
+        tax: unifiedBill.tax,
+        packagingFee: unifiedBill.packagingFee,
+        packaging: unifiedBill.packagingFee,
+        deliveryFee: unifiedBill.deliveryFee,
+        deliveryCharge: unifiedBill.deliveryFee,
+        platformFee: unifiedBill.platformFee,
+        discount: unifiedBill.discount,
+        tip: unifiedBill.tip,
+        driverEarnings: unifiedBill.driverEarnings,
+        riderEarning: unifiedBill.riderEarning,
         restaurant: {
           id: orderObj.restaurant._id,
           name: orderObj.restaurant.name,
@@ -1059,14 +1200,10 @@ exports.getOrderDetailsRider = async (req, res) => {
           name: item.product?.name || item.name,
           image: item.product?.image,
           quantity: item.quantity,
+          price: item.price,
+          total: (item.price || 0) * item.quantity
         })),
-        bill: {
-          itemTotal: orderObj.itemTotal,
-          deliveryFee: orderObj.deliveryFee,
-          tip: orderObj.tip,
-          totalAmount: orderObj.totalAmount,
-          riderEarning: (orderObj.riderEarning || 0) + (orderObj.tip || 0),
-        },
+        bill: unifiedBill,
         payment: {
           method: orderObj.paymentMethod,
           status: orderObj.paymentStatus,
@@ -1211,7 +1348,7 @@ exports.getRestaurantOrders = async (req, res) => {
         orderObj.rider.rating = getAverageRating(ratingValue);
         orderObj.rider.ratingCount = getRatingCount(ratingValue);
       }
-      return orderObj;
+      return enrichOrderWithUnifiedPricing(orderObj);
     });
     res.status(200).json({ success: true, orders: formattedOrders });
   } catch (error) {
@@ -1293,7 +1430,7 @@ exports.getRestaurantOrderDetails = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      order: orderObj,
+      order: enrichOrderWithUnifiedPricing(orderObj),
     });
   } catch (error) {
     return sendError(res, 500, "Failed to fetch restaurant order details", error.message);
@@ -1324,7 +1461,7 @@ exports.getPendingOrdersForRestaurant = async (req, res) => {
       orderObj.orderId = ordNumber;
       orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
       orderObj.restaurantId = orderObj.restaurantId || restaurantIdCode || "RNT001";
-      return orderObj;
+      return enrichOrderWithUnifiedPricing(orderObj);
     });
 
     res.status(200).json({
@@ -1375,7 +1512,7 @@ exports.getCompletedOrdersForRestaurant = async (req, res) => {
       if (orderObj.rider) {
         orderObj.riderId = orderObj.riderId || orderObj.rider?.riderId || "RDR001";
       }
-      return orderObj;
+      return enrichOrderWithUnifiedPricing(orderObj);
     });
 
     return res.status(200).json({
@@ -1509,10 +1646,29 @@ exports.customerCancelOrder = async (req, res) => {
     } catch (_) {}
     await session.commitTransaction();
     session.endSession();
+
+    try {
+      await sendNotification(
+        order.customer,
+        "Order Cancelled Successfully",
+        `Your order #${order.orderNumber || order._id.toString().slice(-6)} was cancelled. ${refundAmount > 0 ? `₹${refundAmount} (${refundPercentage}%) refund credited to your wallet.` : ''}`,
+        { orderId: order._id.toString(), status: 'cancelled' }
+      );
+      const rest = await Restaurant.findById(order.restaurant).select('owner');
+      if (rest?.owner) {
+        await sendNotification(
+          rest.owner,
+          "Order Cancelled by Customer ❌",
+          `Order #${order.orderNumber || order._id.toString().slice(-6)} was cancelled by customer. Reason: ${reason}`,
+          { orderId: order._id.toString(), status: 'cancelled' }
+        );
+      }
+    } catch (_) {}
+
     return res.status(200).json({
       success: true,
       message: `Order cancelled successfully. Refund: ₹${refundAmount}`,
-      order,
+      order: enrichOrderWithUnifiedPricing(order.toObject()),
       refund: {
         amount: refundAmount,
         percentage: refundPercentage,
@@ -2149,6 +2305,15 @@ exports.markOrderReady = async (req, res) => {
           { orderId: order._id, status: 'ready', pickupOtp: pickupCode }
         );
       } catch (_) {}
+    } else {
+      try {
+        await sendNotification(
+          order.customer._id || order.customer,
+          "Order Ready! 🍳",
+          `Your food at ${restaurantName || 'the restaurant'} is freshly prepared and ready for delivery partner pickup.`,
+          { orderId: order._id, status: 'ready' }
+        );
+      } catch (_) {}
     }
     if (order.rider) {
       socketService.emitToRider(order.rider._id.toString(), 'order:ready', {
@@ -2763,7 +2928,7 @@ exports.getAllOrdersAdmin = async (req, res) => {
       if (orderObj.rider) {
         orderObj.riderId = orderObj.riderId || orderObj.rider?.riderId || "RDR001";
       }
-      return orderObj;
+      return enrichOrderWithUnifiedPricing(orderObj);
     });
 
     res.status(200).json({
@@ -3075,7 +3240,12 @@ exports.getOrderDetailsAdmin = async (req, res) => {
       orderObj.timeline = timelineArr;
     }
 
-    res.status(200).json(orderObj);
+    const enriched = enrichOrderWithUnifiedPricing(orderObj);
+    res.status(200).json({
+      ...enriched,
+      order: enriched,
+      success: true
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -3094,14 +3264,68 @@ exports.adminAssignRider = async (req, res) => {
     const riderIdCode = await ensureRiderId(rider);
     order.rider = riderId;
     order.riderId = riderIdCode;
+    order.riderAssignedAt = new Date();
     order.status = "assigned"; // Force status update
     order.timeline.push({
       status: "assigned",
       timestamp: new Date(),
       note: "Admin manually reassigned rider",
+      by: "admin"
     });
     await order.save();
-    res.status(200).json({ message: "Rider reassigned successfully", order });
+
+    try {
+      const riderUser = rider.user ? await User.findById(rider.user).select("name mobile phone") : null;
+      const riderDisplayName = rider.name || riderUser?.name || "Delivery Partner";
+      const riderPhone = rider.phone || rider.mobile || riderUser?.mobile || riderUser?.phone || "";
+
+      // Push and in-app notification to Customer
+      await sendNotification(
+        order.customer,
+        "🛵 Delivery Partner Assigned!",
+        `${riderDisplayName} has been assigned to deliver your order #${order.orderNumber || order._id}. Contact: ${riderPhone}`,
+        { orderId: order._id.toString(), status: "assigned", riderName: riderDisplayName, riderPhone }
+      );
+
+      // Push and in-app notification to Rider
+      if (rider.user) {
+        await sendNotification(
+          rider.user,
+          "📦 New Order Assigned!",
+          `Admin assigned order #${order.orderNumber || order._id} to you. Total Amount: ₹${order.totalAmount}`,
+          { orderId: order._id.toString(), status: "assigned", totalAmount: order.totalAmount }
+        );
+      }
+
+      // Socket events
+      const assignData = {
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber,
+        status: "assigned",
+        rider: {
+          _id: rider._id.toString(),
+          riderId: riderIdCode,
+          name: riderDisplayName,
+          phone: riderPhone
+        },
+        timestamp: new Date()
+      };
+
+      socketService.emitToUser(order.customer.toString(), "order:rider_assigned", assignData);
+      socketService.emitToUser(order.customer.toString(), "order:status", { ...assignData, message: `Rider ${riderDisplayName} assigned to your order` });
+      socketService.emitToRestaurant(order.restaurant.toString(), "order:rider_assigned", assignData);
+      socketService.emitToRestaurant(order.restaurant.toString(), "order:status", assignData);
+      socketService.emitToRider(rider._id.toString(), "order:assigned", { ...assignData, totalAmount: order.totalAmount, order });
+      if (rider.user) {
+        socketService.emitToRider(rider.user.toString(), "order:assigned", { ...assignData, totalAmount: order.totalAmount, order });
+      }
+      socketService.emitToAdmin("order:status", assignData);
+    } catch (notifyErr) {
+      logger.error("Failed to notify customer/rider on admin rider assignment", { error: notifyErr.message });
+    }
+
+    const enriched = enrichOrderWithUnifiedPricing(order.toObject());
+    res.status(200).json({ message: "Rider reassigned successfully", order: enriched });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -3215,10 +3439,20 @@ exports.adminCancelOrder = async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
+
+    try {
+      await sendNotification(
+        order.customer,
+        "Order Cancelled by Admin ❌",
+        `Your order #${order.orderNumber || order._id.toString().slice(-6)} was cancelled by Admin. ${reason ? `Reason: ${reason}. ` : ''}${order.paymentStatus === 'refunded' ? 'Refund has been credited to your wallet.' : ''}`,
+        { orderId: order._id.toString(), status: 'cancelled' }
+      );
+    } catch (_) {}
+
     return res.status(200).json({
       success: true,
       message: "Order cancelled and refund processed (if applicable)",
-      order,
+      order: enrichOrderWithUnifiedPricing(order.toObject()),
     });
   } catch (error) {
     if (session.inTransaction()) {
@@ -3326,10 +3560,19 @@ exports.ownerRejectOrder = async (req, res) => {
       console.error("Socket emission error:", socketError);
     }
 
+    try {
+      await sendNotification(
+        order.customer,
+        "Order Rejected by Restaurant ❌",
+        `Your order #${order.orderNumber || order.orderId || order._id.toString().slice(-6)} was rejected by the restaurant. Reason: ${reason}.${order.paymentStatus === 'refunded' ? ' Refund has been credited to your wallet.' : ''}`,
+        { orderId: order._id.toString(), status: 'cancelled' }
+      );
+    } catch (_) {}
+
     return res.status(200).json({
       success: true,
       message: "Order rejected successfully",
-      order
+      order: enrichOrderWithUnifiedPricing(order.toObject())
     });
   } catch (error) {
     logger.error("Failed to reject order", { error: error.message });
@@ -3874,7 +4117,7 @@ exports.getOrdersForRestaurantById = async (req, res) => {
             quantity: item.quantity || item.qty || 1
           }));
         }
-        return orderObj;
+        return enrichOrderWithUnifiedPricing(orderObj);
       });
 
       return res.status(200).json({ success: true, orders: formattedOrders });
@@ -3903,16 +4146,31 @@ exports.prepareOrderVendor = async (req, res) => {
     order.timeline.push({ status: "preparing", timestamp: new Date() });
     await order.save();
 
+    const enriched = enrichOrderWithUnifiedPricing(order.toObject());
+
     try {
+      await sendNotification(
+        order.customer,
+        "Food is being Prepared! 🍳",
+        `The kitchen is now preparing your order #${order.orderNumber || order._id.toString().slice(-6)}!`,
+        { orderId: order._id.toString(), status: "preparing" }
+      );
+    } catch (_) {}
+
+    try {
+      const payload = { orderId: order._id.toString(), status: "preparing", order: enriched, message: "Food is being prepared! 🍳" };
+      socketService.emitToUser(order.customer.toString(), "order:status", payload);
+      socketService.emitToUser(order.customer.toString(), "orderStatusUpdated", payload);
+      socketService.emitToRestaurant(order.restaurant.toString(), "order:status", payload);
+      socketService.emitToRestaurant(order.restaurant.toString(), "orderStatusUpdated", payload);
       const io = req.app.get("io");
       if (io) {
-        const payload = { orderId: order._id.toString(), status: "preparing", order };
         io.to(`order_${order._id}`).emit("orderStatusUpdated", payload);
         io.emit("orderStatusUpdated", payload);
       }
     } catch (_) {}
 
-    return res.status(200).json({ success: true, message: "Order is now preparing", order });
+    return res.status(200).json({ success: true, message: "Order is now preparing", order: enriched });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -4064,16 +4322,31 @@ exports.completePickupVendor = async (req, res) => {
     });
     await order.save();
 
+    const enriched = enrichOrderWithUnifiedPricing(order.toObject());
+
     try {
+      await sendNotification(
+        order.customer,
+        isSelfPickup ? "🎉 Order Completed!" : "🚀 Out for Delivery!",
+        isSelfPickup
+          ? `Your self-pickup order #${order.orderNumber || order._id.toString().slice(-6)} has been handed over and completed!`
+          : `Your order #${order.orderNumber || order._id.toString().slice(-6)} has been picked up from the restaurant and is on the way!`,
+        { orderId: order._id.toString(), status: newStatus }
+      );
+    } catch (_) {}
+
+    try {
+      const payload = { orderId: order._id.toString(), status: newStatus, order: enriched };
+      socketService.emitToUser(order.customer.toString(), "order:status", payload);
+      socketService.emitToUser(order.customer.toString(), "orderStatusUpdated", payload);
       const io = req.app.get("io");
       if (io) {
-        const payload = { orderId: order._id.toString(), status: newStatus, order };
         io.to(`order_${order._id}`).emit("orderStatusUpdated", payload);
         io.emit("orderStatusUpdated", payload);
       }
     } catch (_) {}
 
-    return res.status(200).json({ success: true, message: isSelfPickup ? "Order handed over and completed" : "Pickup completed", order });
+    return res.status(200).json({ success: true, message: isSelfPickup ? "Order handed over and completed" : "Pickup completed", order: enriched });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

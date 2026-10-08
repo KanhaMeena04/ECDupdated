@@ -141,6 +141,10 @@ exports.registerVerify = async (req, res) => {
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
+    const incomingFcm = req.body.fcmToken || req.body.token || req.body.deviceToken || req.body.pushToken;
+    if (incomingFcm && typeof incomingFcm === 'string' && incomingFcm.trim()) {
+      user.fcmToken = incomingFcm.trim();
+    }
     await user.save();
     const token = generateToken(res, user);
     res.status(200).json({
@@ -413,6 +417,11 @@ exports.loginUser = async (req, res) => {
     ]);
 
     const customerIdCode = await ensureCustomerId(user);
+    const incomingFcm = req.body.fcmToken || req.body.token || req.body.deviceToken || req.body.pushToken;
+    if (incomingFcm && typeof incomingFcm === 'string' && incomingFcm.trim()) {
+      user.fcmToken = incomingFcm.trim();
+      await user.save();
+    }
     const token = generateToken(res, user);
     res.status(200).json({
       token,
@@ -755,6 +764,10 @@ exports.driverVerifyOtp = async (req, res) => {
     if (user.role === "user") {
       user.role = "rider";
     }
+    const incomingFcm = req.body.fcmToken || req.body.token || req.body.deviceToken || req.body.pushToken;
+    if (incomingFcm && typeof incomingFcm === 'string' && incomingFcm.trim()) {
+      user.fcmToken = incomingFcm.trim();
+    }
     await user.save();
 
     let riderDoc = await Rider.findOne({
@@ -1095,6 +1108,10 @@ exports.userVerifyOtp = async (req, res) => {
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
+    const incomingFcm = req.body.fcmToken || req.body.token || req.body.deviceToken || req.body.pushToken;
+    if (incomingFcm && typeof incomingFcm === 'string' && incomingFcm.trim()) {
+      user.fcmToken = incomingFcm.trim();
+    }
     await user.save();
 
     const customerIdCode = await ensureCustomerId(user);

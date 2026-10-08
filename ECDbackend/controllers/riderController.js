@@ -3479,15 +3479,13 @@ exports.verifyPickup = async (req, res) => {
       timeline: order.timeline
     });
     try {
-      const customerUser = await User.findById(order.customer).select('mobile');
       const notificationService = require('../utils/notificationService');
-      if (customerUser?.mobile) {
-        await notificationService.sendNotification(
-          order.customer,
-          'Order Picked Up',
-          `${riderUser?.name || 'Your rider'} has picked up your order`
-        );
-      }
+      await notificationService.sendNotification(
+        order.customer,
+        '🚀 Order Picked Up!',
+        `${riderUser?.name || 'Your delivery partner'} has picked up your order and is on the way!`,
+        { orderId: order._id.toString(), status: 'picked_up', type: 'order_status' }
+      );
     } catch (notifErr) {
       console.error('Notification failed:', notifErr.message);
     }
@@ -4609,12 +4607,43 @@ exports.getMyActiveOrder = async (req, res) => {
           },
           deliveryAddress: deliveryAddrObj,
           address: deliveryAddrObj,
-          driverEarnings: order.riderEarning || ((order.deliveryFee || 30) * 0.7),
-          deliveryCharge: order.deliveryFee || 30,
-          payableAmount: order.totalAmount,
-          totalAmount: order.totalAmount,
+          totalAmount: Number(order.totalAmount || 0),
+          amount: Number(order.totalAmount || 0),
+          total: Number(order.totalAmount || 0),
+          payableAmount: Number(order.payableAmount || order.totalAmount || 0),
+          inrAmount: `₹${Number(order.totalAmount || 0).toFixed(2)}`,
+          itemTotal: Number(order.itemTotal || 0),
+          tax: Number(order.tax || 0),
+          packagingFee: Number(order.packagingFee || order.packaging || 0),
+          packaging: Number(order.packagingFee || order.packaging || 0),
+          deliveryFee: Number(typeof order.deliveryFee === 'number' ? order.deliveryFee : 0),
+          deliveryCharge: Number(typeof order.deliveryFee === 'number' ? order.deliveryFee : 0),
+          platformFee: Number(order.platformFee || 0),
+          discount: Number(order.discount || 0),
+          tip: Number(order.tip || 0),
+          driverEarnings: Number(order.riderEarning || ((order.deliveryFee || 0) * 0.7)),
+          riderEarning: Number(order.riderEarning || ((order.deliveryFee || 0) * 0.7)),
           paymentMethod: order.paymentMethod,
           paymentStatus: order.paymentStatus,
+          bill: {
+            itemTotal: Number(order.itemTotal || 0),
+            tax: Number(order.tax || 0),
+            packagingFee: Number(order.packagingFee || order.packaging || 0),
+            packaging: Number(order.packagingFee || order.packaging || 0),
+            deliveryFee: Number(typeof order.deliveryFee === 'number' ? order.deliveryFee : 0),
+            deliveryCharge: Number(typeof order.deliveryFee === 'number' ? order.deliveryFee : 0),
+            platformFee: Number(order.platformFee || 0),
+            discount: Number(order.discount || 0),
+            tip: Number(order.tip || 0),
+            totalAmount: Number(order.totalAmount || 0),
+            amount: Number(order.totalAmount || 0),
+            total: Number(order.totalAmount || 0),
+            payableAmount: Number(order.payableAmount || order.totalAmount || 0),
+            toPay: Number(order.totalAmount || 0),
+            riderEarning: Number(order.riderEarning || 0) + Number(order.tip || 0),
+            driverEarnings: Number(order.riderEarning || 0) + Number(order.tip || 0),
+            inrAmount: `₹${Number(order.totalAmount || 0).toFixed(2)}`
+          },
           items: (order.items || []).map(item => ({
             name: item.name,
             quantity: item.quantity,
@@ -4723,12 +4752,43 @@ exports.getMyActiveOrder = async (req, res) => {
             deliveryAddress: custAddress
           },
           deliveryAddress: custAddress,
-          driverEarnings: o.riderEarning || ((o.deliveryFee || 30) * 0.7),
-          deliveryCharge: o.deliveryFee || 30,
-          payableAmount: o.totalAmount,
-          totalAmount: o.totalAmount,
+          totalAmount: Number(o.totalAmount || 0),
+          amount: Number(o.totalAmount || 0),
+          total: Number(o.totalAmount || 0),
+          payableAmount: Number(o.payableAmount || o.totalAmount || 0),
+          inrAmount: `₹${Number(o.totalAmount || 0).toFixed(2)}`,
+          itemTotal: Number(o.itemTotal || 0),
+          tax: Number(o.tax || 0),
+          packagingFee: Number(o.packagingFee || o.packaging || 0),
+          packaging: Number(o.packagingFee || o.packaging || 0),
+          deliveryFee: Number(typeof o.deliveryFee === 'number' ? o.deliveryFee : 0),
+          deliveryCharge: Number(typeof o.deliveryFee === 'number' ? o.deliveryFee : 0),
+          platformFee: Number(o.platformFee || 0),
+          discount: Number(o.discount || 0),
+          tip: Number(o.tip || 0),
+          driverEarnings: Number(o.riderEarning || ((o.deliveryFee || 0) * 0.7)),
+          riderEarning: Number(o.riderEarning || ((o.deliveryFee || 0) * 0.7)),
           paymentMethod: o.paymentMethod,
           paymentStatus: o.paymentStatus,
+          bill: {
+            itemTotal: Number(o.itemTotal || 0),
+            tax: Number(o.tax || 0),
+            packagingFee: Number(o.packagingFee || o.packaging || 0),
+            packaging: Number(o.packagingFee || o.packaging || 0),
+            deliveryFee: Number(typeof o.deliveryFee === 'number' ? o.deliveryFee : 0),
+            deliveryCharge: Number(typeof o.deliveryFee === 'number' ? o.deliveryFee : 0),
+            platformFee: Number(o.platformFee || 0),
+            discount: Number(o.discount || 0),
+            tip: Number(o.tip || 0),
+            totalAmount: Number(o.totalAmount || 0),
+            amount: Number(o.totalAmount || 0),
+            total: Number(o.totalAmount || 0),
+            payableAmount: Number(o.payableAmount || o.totalAmount || 0),
+            toPay: Number(o.totalAmount || 0),
+            riderEarning: Number(o.riderEarning || 0) + Number(o.tip || 0),
+            driverEarnings: Number(o.riderEarning || 0) + Number(o.tip || 0),
+            inrAmount: `₹${Number(o.totalAmount || 0).toFixed(2)}`
+          },
           items: (o.items || []).map(item => ({
             name: item.name,
             quantity: item.quantity,

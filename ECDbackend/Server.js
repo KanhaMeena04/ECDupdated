@@ -120,6 +120,19 @@ io.on('connection', (socket) => {
     const idStr = String(userId);
     socket.join(`user_${idStr}`);
     socket.join(`user:${idStr}`);
+    socket.join(`customer_${idStr}`);
+    socket.join(`customer:${idStr}`);
+    console.log(`📡 Socket ${socket.id} joined user rooms: ${idStr}`);
+  });
+
+  socket.on('joinCustomer', (customerId) => {
+    if (!customerId) return;
+    const idStr = String(customerId);
+    socket.join(`customer_${idStr}`);
+    socket.join(`customer:${idStr}`);
+    socket.join(`user_${idStr}`);
+    socket.join(`user:${idStr}`);
+    console.log(`📡 Socket ${socket.id} joined customer rooms: ${idStr}`);
   });
 
   socket.on('joinRider', (riderId) => {
@@ -127,6 +140,9 @@ io.on('connection', (socket) => {
     const idStr = String(riderId);
     socket.join(`rider_${idStr}`);
     socket.join(`rider:${idStr}`);
+    socket.join(`user_${idStr}`);
+    socket.join(`user:${idStr}`);
+    console.log(`📡 Socket ${socket.id} joined rider rooms: ${idStr}`);
   });
 
   socket.on('disconnect', () => {
@@ -228,6 +244,10 @@ app.use('/api/v1/user', userRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/v1/users', userRoutes);
 
+const notificationRoutes = require('./routes/notificationRoutes');
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+
 const addressRoutes = require('./routes/addressRoutes');
 app.use('/api/addresses', addressRoutes);
 app.use('/api/v1/addresses', addressRoutes);
@@ -254,9 +274,6 @@ const supportChatRoutes = require('./routes/supportChatRoutes');
 app.use('/api/support', supportChatRoutes);
 app.use('/api/v1/support', supportChatRoutes);
 
-const notificationRoutes = require('./routes/notificationRoutes');
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/v1/notifications', notificationRoutes);
 
 const uploadRoutes = require('./routes/uploadRoutes');
 app.use('/api/upload', uploadRoutes);
@@ -297,9 +314,6 @@ app.use('/api/v1/settlements', settlementRoutes);
 app.use('/api/training', trainingRoutes);
 app.use('/api/v1/training', trainingRoutes);
 
-const locationRoutes = require('./routes/locationRoutes');
-app.use('/api/location', locationRoutes);
-app.use('/api/v1/location', locationRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/', (req, res) => {

@@ -13,12 +13,14 @@ module.exports = {
     return io;
   },
   emitToUser: (userId, event, data) => {
-    if (!io) return;
-    io.to(`user:${userId}`).emit(event, data);
+    if (!io || !userId) return;
+    const id = String(userId);
+    io.to(`user:${id}`).to(`user_${id}`).to(`customer:${id}`).to(`customer_${id}`).emit(event, data);
   },
   emitToCustomer: (customerId, event, data) => {
-    if (!io) return;
-    io.to(`customer:${customerId}`).emit(event, data);
+    if (!io || !customerId) return;
+    const id = String(customerId);
+    io.to(`customer:${id}`).to(`customer_${id}`).to(`user:${id}`).to(`user_${id}`).emit(event, data);
   },
   emitToAdmin: (event, data) => {
     if (!io) {
@@ -31,24 +33,29 @@ module.exports = {
     io.to('admin:dashboard').emit(event, data);
   },
   emitToRestaurant: (restaurantId, event, data) => {
-    if (!io) return;
-    io.to(`restaurant:${restaurantId}`).emit(event, data);
+    if (!io || !restaurantId) return;
+    const id = String(restaurantId);
+    io.to(`restaurant:${id}`).to(`restaurant_${id}`).emit(event, data);
   },
   emitToRider: (riderId, event, data) => {
-    if (!io) return;
-    io.to(`rider:${riderId}`).emit(event, data);
+    if (!io || !riderId) return;
+    const id = String(riderId);
+    io.to(`rider:${id}`).to(`rider_${id}`).emit(event, data);
   },
   emitToRiderByUserId: (userId, event, data) => {
-    if (!io) return;
-    io.to(`rider:${userId}`).emit(event, data);
+    if (!io || !userId) return;
+    const id = String(userId);
+    io.to(`rider:${id}`).to(`rider_${id}`).to(`user:${id}`).to(`user_${id}`).emit(event, data);
   },
   emitToZone: (zoneId, event, data) => {
-    if (!io) return;
-    io.to(`zone:${zoneId}`).emit(event, data);
+    if (!io || !zoneId) return;
+    const id = String(zoneId);
+    io.to(`zone:${id}`).to(`zone_${id}`).emit(event, data);
   },
   emitToOrder: (orderId, event, data) => {
-    if (!io) return;
-    io.to(`order:${orderId}`).emit(event, data);
+    if (!io || !orderId) return;
+    const id = String(orderId);
+    io.to(`order:${id}`).to(`order_${id}`).emit(event, data);
   },
   emitToAll: (event, data) => {
     if (!io) return;

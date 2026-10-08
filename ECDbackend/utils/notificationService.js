@@ -75,8 +75,14 @@ exports.sendNotification = async (userId, title, message, data = {}) => {
         timestamp: new Date(),
       };
       socketService.emitToUser(userIdStr, "notification:new", notifData);
+      socketService.emitToUser(userIdStr, "notification", notifData);
+      socketService.emitToUser(userIdStr, "newNotification", notifData);
+      socketService.emitToCustomer(userIdStr, "notification:new", notifData);
+      socketService.emitToCustomer(userIdStr, "notification", notifData);
       if (recipientUserId !== userIdStr) {
         socketService.emitToUser(recipientUserId, "notification:new", notifData);
+        socketService.emitToUser(recipientUserId, "notification", notifData);
+        socketService.emitToCustomer(recipientUserId, "notification:new", notifData);
       }
       console.log(`🔌 Socket notification sent to target ${userIdStr} / ${recipientUserId}`);
     } catch (socketError) {

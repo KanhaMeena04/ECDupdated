@@ -56,8 +56,77 @@ router.get('/favorites/restaurants', protect, getFavoriteRestaurants);
 router.post('/favorites/restaurants/:id', protect, toggleFavoriteRestaurant);
 router.get('/favorites/products', protect, getFavoriteProducts);
 router.post('/favorites/products/:id', protect, toggleFavoriteProduct);
+const Notification = require('../models/Notification');
+
 router.post('/fcm-token', protect, saveFCMToken);
+router.post('/device-token', protect, saveFCMToken);
+router.post('/register-device', protect, saveFCMToken);
 router.delete('/fcm-token', protect, removeFCMToken);
 router.get('/notification-status', protect, getNotificationStatus);
+
+// In-app notifications
+router.get('/notifications', protect, async (req, res) => {
+  try {
+    const notifications = await Notification.find({ user: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(50);
+    const unreadCount = await Notification.countDocuments({ user: req.user._id, isRead: false });
+    return res.status(200).json({ success: true, notifications, unreadCount });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+router.get('/my-notifications', protect, async (req, res) => {
+  try {
+    const notifications = await Notification.find({ user: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(50);
+    const unreadCount = await Notification.countDocuments({ user: req.user._id, isRead: false });
+    return res.status(200).json({ success: true, notifications, unreadCount });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+router.patch('/notifications/mark-all-read', protect, async (req, res) => {
+  try {
+    await Notification.updateMany({ user: req.user._id, isRead: false }, { $set: { isRead: true } });
+    return res.status(200).json({ success: true, message: 'All notifications marked as read' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+router.patch('/notifications/read-all', protect, async (req, res) => {
+  try {
+    await Notification.updateMany({ user: req.user._id, isRead: false }, { $set: { isRead: true } });
+    return res.status(200).json({ success: true, message: 'All notifications marked as read' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+router.patch('/notifications/mark-read', protect, async (req, res) => {
+  try {
+    await Notification.updateMany({ user: req.user._id, isRead: false }, { $set: { isRead: true } });
+    return res.status(200).json({ success: true, message: 'All notifications marked as read' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+router.patch('/notifications/:id/read', protect, async (req, res) => {
+  try {
+    await Notification.updateOne({ _id: req.params.id, user: req.user._id }, { $set: { isRead: true } });
+    return res.status(200).json({ success: true, message: 'Notification marked as read' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+router.delete('/notifications/:id', protect, async (req, res) => {
+  try {
+    await Notification.deleteOne({ _id: req.params.id, user: req.user._id });
+    return res.status(200).json({ success: true, message: 'Notification deleted' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
 

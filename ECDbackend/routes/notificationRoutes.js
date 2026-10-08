@@ -69,6 +69,24 @@ router.patch('/mark-all-read', protect, async (req, res) => {
   }
 });
 
+router.patch('/read-all', protect, async (req, res) => {
+  try {
+    await Notification.updateMany({ user: req.user._id, isRead: false }, { $set: { isRead: true } });
+    return res.status(200).json({ success: true, message: 'All notifications marked as read' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.patch('/:id/read', protect, async (req, res) => {
+  try {
+    await Notification.updateOne({ _id: req.params.id, user: req.user._id }, { $set: { isRead: true } });
+    return res.status(200).json({ success: true, message: 'Notification marked as read' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Delete notification
 router.delete('/:id', protect, async (req, res) => {
   try {

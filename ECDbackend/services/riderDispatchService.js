@@ -96,6 +96,7 @@ exports.findAndNotifyRider = async (orderId) => {
             const pickupDistance = calculateDistance(riderCoords, restaurantCoords);
             const pickupMinutes = estimateTravelMinutes(pickupDistance);
             const ordNumber = order.orderNumber || (order._id ? `ORD${order._id.toString().slice(-4).toUpperCase()}` : "ORD001");
+            const totAmount = Number(order.totalAmount || 0);
             const requestData = {
                 requestId: request._id,
                 orderId: ordNumber,
@@ -106,7 +107,37 @@ exports.findAndNotifyRider = async (orderId) => {
                 restaurantName: restaurant.name,
                 restaurantAddress: restaurant.address,
                 earnings: riderEarning,
+                riderEarning: riderEarning,
+                driverEarnings: riderEarning,
                 tip: order.tip || 0,
+                totalAmount: totAmount,
+                amount: totAmount,
+                total: totAmount,
+                orderAmount: totAmount,
+                payableAmount: Number(order.payableAmount || totAmount),
+                collectCashAmount: order.paymentMethod === 'cod' ? totAmount : 0,
+                paymentMethod: order.paymentMethod,
+                itemTotal: Number(order.itemTotal || 0),
+                tax: Number(order.tax || 0),
+                packagingFee: Number(order.packagingFee || order.packaging || 0),
+                deliveryFee: Number(order.deliveryFee || 0),
+                bill: {
+                    itemTotal: Number(order.itemTotal || 0),
+                    tax: Number(order.tax || 0),
+                    packagingFee: Number(order.packagingFee || order.packaging || 0),
+                    packaging: Number(order.packagingFee || order.packaging || 0),
+                    deliveryFee: Number(order.deliveryFee || 0),
+                    deliveryCharge: Number(order.deliveryFee || 0),
+                    platformFee: Number(order.platformFee || 0),
+                    discount: Number(order.discount || 0),
+                    tip: Number(order.tip || 0),
+                    totalAmount: totAmount,
+                    amount: totAmount,
+                    total: totAmount,
+                    payableAmount: Number(order.payableAmount || totAmount),
+                    toPay: totAmount,
+                    riderEarning: riderEarning
+                },
                 distances: {
                     pickupDistance: Math.round(pickupDistance * 100) / 100,
                     deliveryDistance: Math.round(deliveryDistance * 100) / 100,
@@ -128,8 +159,8 @@ exports.findAndNotifyRider = async (orderId) => {
             sendNotification(
                 riderUserId,
                 '🚀 New Delivery Request!',
-                `Earn ₹${riderEarning} — ${restNameStr} → ${order.deliveryAddress?.area || 'Customer'}`,
-                { orderId: order._id.toString(), requestId: request._id.toString(), type: 'dispatch_request' }
+                `Earn ₹${riderEarning} — ${restNameStr} → ${order.deliveryAddress?.area || 'Customer'} (Order: ₹${totAmount})`,
+                { orderId: order._id.toString(), requestId: request._id.toString(), totalAmount: totAmount, type: 'dispatch_request' }
             ).catch(() => { }); // non-blocking
         }
         setTimeout(async () => {
@@ -275,10 +306,21 @@ exports.handleRiderResponse = async (riderUserId, requestId, action) => {
                 vehicleNumber: rider.vehicle?.number
             });
             if (targetOrder.customer) {
-                socketService.emitToCustomer(targetOrder.customer.toString(), 'order:status', updateData);
+                const custIdStr = targetOrder.customer.toString();
+                socketService.emitToCustomer(custIdStr, 'order:status', updateData);
+                socketService.emitToCustomer(custIdStr, 'order:rider_assigned', updateData);
+                socketService.emitToUser(custIdStr, 'order:status', updateData);
+                socketService.emitToUser(custIdStr, 'order:rider_assigned', updateData);
+                sendNotification(
+                    targetOrder.customer,
+                    "🛵 Delivery Partner Assigned!",
+                    `${rider.user.name || 'A delivery partner'} has been assigned to your order #${ordNumber}.`,
+                    { orderId: targetOrder._id.toString(), status: 'assigned', type: 'order_status', riderName: rider.user.name }
+                ).catch(() => {});
             }
             if (targetOrder.restaurant) {
                 socketService.emitToRestaurant(targetOrder.restaurant.toString(), 'order:status', updateData);
+                socketService.emitToRestaurant(targetOrder.restaurant.toString(), 'order:rider_assigned', updateData);
             }
             socketService.emitToAdmin('order:rider_assigned', {
                 orderId: ordNumber,

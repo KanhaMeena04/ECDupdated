@@ -225,6 +225,16 @@ exports.formatProductForUser = (product) => {
 exports.formatOrderForCustomer = (order) => {
   if (!order) return null;
   const ordNumber = order.orderNumber || (order._id ? `ORD${String(order._id).slice(-4).toUpperCase()}` : "ORD001");
+  const tot = Number(order.totalAmount || 0);
+  const payAmt = Number(order.payableAmount || tot);
+  const pkgFee = Number(order.packagingFee || order.packaging || 0);
+  const delFee = Number(typeof order.deliveryFee === 'number' ? order.deliveryFee : (order.deliveryCharge || 0));
+  const pltFee = Number(order.platformFee || 0);
+  const itmTot = Number(order.itemTotal || 0);
+  const tx = Number(order.tax || 0);
+  const dsc = Number(order.discount || 0);
+  const tp = Number(order.tip || 0);
+
   return {
     _id: order._id,
     orderNumber: ordNumber,
@@ -235,12 +245,37 @@ exports.formatOrderForCustomer = (order) => {
     status: order.status,
     restaurant: order.restaurant,
     items: order.items,
-    totalAmount: order.totalAmount,
-    itemTotal: order.itemTotal,
-    tax: order.tax,
-    deliveryFee: order.deliveryFee,
-    discount: order.discount,
-    tip: order.tip,
+    totalAmount: tot,
+    amount: tot,
+    total: tot,
+    payableAmount: payAmt,
+    inrAmount: `₹${tot.toFixed(2)}`,
+    itemTotal: itmTot,
+    tax: tx,
+    packagingFee: pkgFee,
+    packaging: pkgFee,
+    deliveryFee: delFee,
+    deliveryCharge: delFee,
+    platformFee: pltFee,
+    discount: dsc,
+    tip: tp,
+    bill: {
+      itemTotal: itmTot,
+      tax: tx,
+      packagingFee: pkgFee,
+      packaging: pkgFee,
+      deliveryFee: delFee,
+      deliveryCharge: delFee,
+      platformFee: pltFee,
+      discount: dsc,
+      tip: tp,
+      totalAmount: tot,
+      amount: tot,
+      total: tot,
+      payableAmount: payAmt,
+      toPay: tot,
+      inrAmount: `₹${tot.toFixed(2)}`
+    },
     paymentMethod: order.paymentMethod,
     paymentStatus: order.paymentStatus,
     deliveryAddress: order.deliveryAddress,
