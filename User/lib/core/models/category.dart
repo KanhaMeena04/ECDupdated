@@ -9,5 +9,5 @@ class Category {
     required this.title,
     required this.image,
     double? startingPrice,
-  }) : startingPrice = startingPrice ?? 28.0;
+  }) : startingPrice = startingPrice ?? 0.0;
 }

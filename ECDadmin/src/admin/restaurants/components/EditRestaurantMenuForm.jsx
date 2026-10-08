@@ -194,7 +194,7 @@ const EditRestaurantMenuForm = () => {
       toast.success("Menu item deleted");
       fetchMenu();
     } catch (err) {
-      toast.error("Failed to delete menu item");
+      toast.error(err?.response?.data?.message || "Failed to delete menu item");
     }
   };
 

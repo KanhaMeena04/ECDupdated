@@ -86,7 +86,7 @@ const CategoryTable = () => {
     slug: "",
     parentCategoryId: "",
     description: "",
-    startingPrice: 28,
+    startingPrice: 49,
     image: "",
     icon: "",
     position: 0,
@@ -118,7 +118,7 @@ const CategoryTable = () => {
       slug: "",
       parentCategoryId: parentId || (mainCategoriesList[0]?._id || ""),
       description: "",
-      startingPrice: 28,
+      startingPrice: 49,
       image: "",
       icon: "",
       position: (type === "main" ? mainCategoriesList.length : subcategories.length) + 1,
@@ -139,7 +139,7 @@ const CategoryTable = () => {
       slug: cat.slug || "",
       parentCategoryId: cat.parentCategoryId?._id || cat.parentCategoryId || "",
       description: cat.description || "",
-      startingPrice: cat.startingPrice || 28,
+      startingPrice: cat.startingPrice !== undefined && cat.startingPrice !== null ? cat.startingPrice : 49,
       image: cat.image || "",
       icon: cat.icon || "",
       position: cat.position || 0,
@@ -335,7 +335,7 @@ const CategoryTable = () => {
                     <TableCell sx={{ fontWeight: 600 }}>{cat.name}</TableCell>
                     <TableCell sx={{ color: "text.secondary", fontSize: "0.85rem" }}>{cat.slug}</TableCell>
                     <TableCell align="center">
-                      <Chip label={`₹${cat.startingPrice || 28}`} size="small" sx={{ fontWeight: 700, bgcolor: "#E8F5E9", color: "#2E7D32" }} />
+                      <Chip label={`₹${cat.startingPrice !== undefined && cat.startingPrice !== null ? cat.startingPrice : 49}`} size="small" sx={{ fontWeight: 700, bgcolor: "#E8F5E9", color: "#2E7D32" }} />
                     </TableCell>
                     <TableCell align="center">
                       <Chip label={cat.subcategoryCount || 0} size="small" color="primary" variant="outlined" />

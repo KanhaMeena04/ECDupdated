@@ -38,7 +38,7 @@ const categorySchema = new mongoose.Schema(
     },
     startingPrice: {
       type: Number,
-      default: 28,
+      default: 49,
     },
     icon: {
       type: String,

@@ -24,7 +24,7 @@ class CategoryItemModel {
     required this.isFeatured,
     double? startingPrice,
     required this.subcategories,
-  }) : startingPrice = startingPrice ?? 28.0;
+  }) : startingPrice = startingPrice ?? 0.0;
 
   factory CategoryItemModel.fromJson(Map<String, dynamic> json) {
     var subs = <SubcategoryItemModel>[];
@@ -33,7 +33,7 @@ class CategoryItemModel {
           .map((s) => SubcategoryItemModel.fromJson(s))
           .toList();
     }
-    final priceVal = double.tryParse((json['startingPrice'] ?? json['price'] ?? json['fromPrice'] ?? 28).toString()) ?? 28.0;
+    final priceVal = double.tryParse((json['startingPrice'] ?? json['price'] ?? json['fromPrice'] ?? 0).toString()) ?? 0.0;
     return CategoryItemModel(
       id: json['_id'] ?? json['id'] ?? '',
       name: json['name'] ?? 'Category',

@@ -423,7 +423,7 @@ class RestaurantApiService {
               catTitle = json['name'].toString().trim();
             }
           }
-          final priceVal = _parseDouble(json['startingPrice'] ?? json['price'] ?? json['fromPrice'], 28.0);
+          final priceVal = _parseDouble(json['startingPrice'] ?? json['price'] ?? json['fromPrice'], 0.0);
 
           String rawImg = (json['image'] ?? json['imageUrl'] ?? '').toString().trim();
           if (rawImg.isEmpty || rawImg == 'null') {

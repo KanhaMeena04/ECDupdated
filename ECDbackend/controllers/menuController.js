@@ -771,16 +771,45 @@ exports.toggleProductAvailability = async (req, res) => {
   try {
     const productId = req.params.id;
     const { available } = req.body;
-    const restaurant = await Restaurant.findOne({ owner: req.user._id });
-    if (!restaurant)
-      return res.status(404).json({ message: "Restaurant not found" });
-    const product = await Product.findOne({
-      _id: productId,
-      restaurant: restaurant._id,
-    });
+    const isAdmin = req.user && req.user.role === 'admin';
+
+    let restaurant = null;
+    let product = null;
+
+    if (isAdmin) {
+      if (mongoose.Types.ObjectId.isValid(productId)) {
+        product = await Product.findById(productId);
+      }
+      if (product && product.restaurant) {
+        restaurant = await Restaurant.findById(product.restaurant);
+      }
+    } else {
+      restaurant = await Restaurant.findOne({ owner: req.user._id });
+      if (!restaurant)
+        return res.status(404).json({ message: "Restaurant not found" });
+      if (mongoose.Types.ObjectId.isValid(productId)) {
+        product = await Product.findOne({
+          _id: productId,
+          restaurant: restaurant._id,
+        });
+      }
+    }
+
     if (!product) return res.status(404).json({ message: "Product not found" });
-    product.available = !!available;
+    const isAvail = available === "true" || available === true;
+    product.available = isAvail;
+    product.isAvailable = isAvail;
     await product.save();
+
+    // Also sync to restaurant embedded menu if present
+    if (restaurant && Array.isArray(restaurant.menu)) {
+      const prodName = typeof product.name === 'object' ? (product.name.en || Object.values(product.name)[0] || '') : (product.name || '');
+      await Restaurant.updateOne(
+        { _id: restaurant._id, $or: [{ "menu._id": product._id }, { "menu.name": prodName }] },
+        { $set: { "menu.$.isAvailable": isAvail } }
+      ).catch(() => {});
+    }
+
     res.status(200).json({ message: "Product availability updated", product });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -1059,23 +1088,70 @@ exports.editProduct = async (req, res) => {
 exports.deleteProduct = async (req, res) => {
   try {
     const productId = req.params.id;
-    const restaurant = await Restaurant.findOne({ owner: req.user._id });
-    if (!restaurant)
-      return res.status(404).json({ message: "Restaurant not found" });
-    const product = await Product.findOneAndDelete({
-      _id: productId,
-      restaurant: restaurant._id,
-    });
-    if (!product)
-      return res
-        .status(404)
-        .json({ message: "Product not found or not yours" });
-    await Restaurant.findByIdAndUpdate(
-      restaurant._id,
-      { $pull: { product: productId } }, // $pull removes the ID
-      { new: true }
-    );
-    res.status(200).json({ message: "Product deleted" });
+    const isAdmin = req.user && req.user.role === 'admin';
+
+    let restaurant = null;
+    let product = null;
+
+    if (isAdmin) {
+      if (mongoose.Types.ObjectId.isValid(productId)) {
+        product = await Product.findById(productId);
+      }
+      if (product && product.restaurant) {
+        restaurant = await Restaurant.findById(product.restaurant);
+      }
+      if (!restaurant) {
+        restaurant = await Restaurant.findOne({
+          $or: [
+            { "menu._id": productId },
+            { product: productId }
+          ]
+        });
+      }
+    } else {
+      restaurant = await Restaurant.findOne({ owner: req.user._id });
+      if (!restaurant)
+        return res.status(404).json({ message: "Restaurant not found" });
+      if (mongoose.Types.ObjectId.isValid(productId)) {
+        product = await Product.findOne({
+          _id: productId,
+          restaurant: restaurant._id,
+        });
+      }
+    }
+
+    if (!product && !restaurant) {
+      return res.status(404).json({ message: "Product or restaurant not found" });
+    }
+
+    const restId = restaurant ? restaurant._id : (product ? product.restaurant : null);
+    const prodName = product ? (typeof product.name === 'object' ? (product.name.en || Object.values(product.name)[0] || '') : (product.name || '')) : '';
+
+    // Delete from Product collection
+    if (product) {
+      await Product.findByIdAndDelete(product._id);
+    } else if (mongoose.Types.ObjectId.isValid(productId)) {
+      await Product.findByIdAndDelete(productId);
+    }
+
+    // Pull from Restaurant embedded menu and product arrays
+    if (restId) {
+      const pullConditions = [{ _id: productId }];
+      if (prodName) pullConditions.push({ name: prodName });
+
+      await Restaurant.findByIdAndUpdate(
+        restId,
+        {
+          $pull: {
+            product: productId,
+            menu: { $or: pullConditions }
+          }
+        },
+        { new: true }
+      );
+    }
+
+    res.status(200).json({ success: true, message: "Product deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1116,22 +1192,29 @@ exports.editCategory = async (req, res) => {
 exports.deleteCategory = async (req, res) => {
   try {
     const categoryId = req.params.id;
-    const restaurant = await Restaurant.findOne({ owner: req.user._id });
-    if (!restaurant)
-      return res.status(404).json({ message: "Restaurant not found" });
+    const isAdmin = req.user && req.user.role === 'admin';
+    let restaurant = null;
+
+    if (isAdmin) {
+      const category = await Category.findById(categoryId);
+      if (!category) return res.status(404).json({ message: "Category not found" });
+      restaurant = category.restaurant ? await Restaurant.findById(category.restaurant) : null;
+    } else {
+      restaurant = await Restaurant.findOne({ owner: req.user._id });
+      if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+    }
+
+    const restQuery = restaurant ? { restaurant: restaurant._id } : {};
     const existingProducts = await Product.findOne({
       category: categoryId,
-      restaurant: restaurant._id,
+      ...restQuery,
     });
     if (existingProducts)
       return res
         .status(400)
         .json({ message: "Category has products. Remove them first." });
-    await Category.findOneAndDelete({
-      _id: categoryId,
-      restaurant: restaurant._id,
-    });
-    res.status(200).json({ message: "Category deleted" });
+    await Category.findByIdAndDelete(categoryId);
+    res.status(200).json({ success: true, message: "Category deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

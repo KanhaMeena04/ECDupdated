@@ -1757,7 +1757,7 @@ class _HomeTabState extends State<_HomeTab> {
 
   String _getCategoryPriceTag(Category category) {
     final double sp = category.startingPrice;
-    if (sp > 0) {
+    if (sp > 0 && sp != 28) {
       return 'FROM ₹${sp.toInt()}';
     }
     final name = category.title.toLowerCase();
@@ -1771,7 +1771,11 @@ class _HomeTabState extends State<_HomeTab> {
     if (name.contains('pizza')) return 'FROM ₹99';
     if (name.contains('cake') || name.contains('dessert')) return 'FROM ₹39';
     if (name.contains('biryani')) return 'FROM ₹119';
-    return 'FROM ₹28';
+    if (name.contains('chinese') || name.contains('noodle')) return 'FROM ₹49';
+    if (name.contains('momo')) return 'FROM ₹29';
+    if (name.contains('beverage') || name.contains('drink') || name.contains('shake')) return 'FROM ₹25';
+    if (sp > 0) return 'FROM ₹${sp.toInt()}';
+    return 'FROM ₹49';
   }
 
   Widget _buildTab(BuildContext context, String title, bool isActive, bool isDark, int index) {
