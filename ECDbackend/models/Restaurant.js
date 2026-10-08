@@ -57,7 +57,7 @@ const restaurantSchema = new mongoose.Schema(
     deliveringZones: [{ type: String }], // Form: Delivering Zones
     deliveryType: [{ 
       type: String, 
-      enum: ['Home Delivery', 'Pickup', 'Dining'] 
+      enum: ['Home Delivery', 'Pickup', 'Both', 'Dining'] 
     }], 
     paymentMethods: {
       type: String,

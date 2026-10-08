@@ -114,7 +114,7 @@ const UserDetail = () => {
                 Created At
               </Typography>
               <Typography className="text-gray-700 text-sm">
-                {userData.registeredAt || (userData.createdAt ? new Date(userData.createdAt).toLocaleString('en-IN') : 'N/A')}
+                {userData.createdAt ? new Date(userData.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit', hour: 'numeric', minute: '2-digit', hour12: true }) : (userData.registeredAt || 'N/A')}
               </Typography>
             </Box>
           </div>

@@ -191,10 +191,10 @@ const AdminCreateRestaurantForm = () => {
           <TextField label="Packaging Charge" name="packagingCharge" type="number" fullWidth onChange={handleChange} value={formData.packagingCharge || ""} />
         </Grid>
         <Grid item xs={12} md={6}>
-          <TextField select label="Delivery Type" name="deliveryType" fullWidth value={formData.deliveryType || ""} onChange={handleChange}>
-            <MenuItem value="Dining">Online Dining</MenuItem>
-            <MenuItem value="Pickup">Pickup</MenuItem>
+          <TextField select label="Delivery Type" name="deliveryType" fullWidth value={formData.deliveryType || "Both"} onChange={handleChange}>
+            <MenuItem value="Both">Both (Home Delivery & Pickup)</MenuItem>
             <MenuItem value="Home Delivery">Home Delivery</MenuItem>
+            <MenuItem value="Pickup">Pickup</MenuItem>
           </TextField>
         </Grid>
         <Grid item xs={12} md={6}>

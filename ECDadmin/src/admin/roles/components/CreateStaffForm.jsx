@@ -121,13 +121,25 @@ const CreateStaffForm = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-1 md:col-span-2">
+          <div className="flex flex-col gap-1">
             <label className="text-gray-600 text-sm font-medium">Password*</label>
             <input 
               type="password" 
               name="password"
               placeholder="••••••••"
               value={formData.password}
+              className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-gray-600 text-sm font-medium">Security PIN (Optional 4-6 digits)</label>
+            <input 
+              type="text" 
+              name="pin"
+              placeholder="e.g. 1234"
+              value={formData.pin || ''}
               className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               onChange={handleChange}
             />

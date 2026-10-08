@@ -308,6 +308,8 @@ const useEditRestaurantProfile = (restaurantId) => {
             bannerImage: rawData.bannerImage || rawData.coverImage || "",
             rating: typeof rawData.rating === 'object' ? (rawData.rating?.average ?? rawData.avgRating ?? rawData.adminRating ?? 0) : (rawData.rating ?? rawData.avgRating ?? 0),
             cuisine: Array.isArray(rawData.cuisine) ? rawData.cuisine : (Array.isArray(rawData.categories) ? rawData.categories : ["North Indian", "Fast Food"]),
+            deliveryType: rawData.deliveryType || ["Home Delivery", "Pickup", "Both"],
+            isSelfPickupEnabled: rawData.isSelfPickupEnabled !== undefined ? rawData.isSelfPickupEnabled : true,
             paymentMethods: rawData.paymentMethods || "Both",
             isActive: rawData.isActive !== undefined ? rawData.isActive : true,
             restaurantApproved: rawData.restaurantApproved !== undefined ? rawData.restaurantApproved : true,

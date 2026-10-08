@@ -8,15 +8,18 @@ const staffSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: true,
-    unique: true,
+    sparse: true,
     lowercase: true,
     trim: true
   },
   phone: {
     type: String,
-    required: true,
+    default: '',
     trim: true
+  },
+  pin: {
+    type: String,
+    default: ''
   },
   password: {
     type: String,

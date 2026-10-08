@@ -78,7 +78,7 @@ router.get('/:id/profile', protect, getRestaurantProfileById);
 router.get('/:id/order-history', protect, getOrderHistory);
 router.get('/:id/dashboard-stats', protect, getDashboardStats);
 router.post('/vendor/delete-account', protect, deleteAccount);
-router.put('/:id/toggle-active', protect, toggleRestaurantActive);
+router.put('/:id/toggle-active', optionalAuth, toggleRestaurantActive);
 router.post('/vendor/menu/add/:id', optionalAuth, vendorAddMenuItem);
 router.post('/vendor/menu/bulk-import/:id', optionalAuth, vendorBulkImportMenuItems);
 router.put('/vendor/menu/edit/:restId/:itemId', optionalAuth, vendorEditMenuItem);

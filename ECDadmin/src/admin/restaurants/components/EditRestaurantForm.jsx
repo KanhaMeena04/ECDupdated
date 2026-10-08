@@ -49,6 +49,34 @@ const EditRestaurantForm = () => {
     });
   };
 
+  const getSelectedDeliveryType = () => {
+    const raw = data?.deliveryType;
+    if (!raw) return "Both";
+    if (Array.isArray(raw)) {
+      const hasHome = raw.some((d) =>
+        String(d).toLowerCase().includes("home") || String(d).toLowerCase().includes("delivery")
+      );
+      const hasPickup = raw.some((d) =>
+        String(d).toLowerCase().includes("pickup")
+      );
+      const hasBoth = raw.some((d) =>
+        String(d).toLowerCase().includes("both")
+      );
+      if (hasBoth || (hasHome && hasPickup)) return "Both";
+      if (hasPickup) return "Pickup";
+      if (hasHome) return "Home Delivery";
+      return "Both";
+    }
+    if (typeof raw === "string") {
+      const lower = raw.toLowerCase();
+      if (lower.includes("both") || lower.includes("dining")) return "Both";
+      if (lower.includes("pickup")) return "Pickup";
+      if (lower.includes("home") || lower.includes("delivery")) return "Home Delivery";
+      return "Both";
+    }
+    return "Both";
+  };
+
   if (loading || !data) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -237,13 +265,24 @@ const EditRestaurantForm = () => {
                   <InputLabel>Delivery Type</InputLabel>
                   <Select
                     name="deliveryType"
-                    value={data.deliveryType || ""}
+                    value={getSelectedDeliveryType()}
                     label="Delivery Type"
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      const selectedVal = e.target.value;
+                      handleChange({
+                        target: {
+                          name: "deliveryType",
+                          value:
+                            selectedVal === "Both"
+                              ? ["Home Delivery", "Pickup", "Both"]
+                              : [selectedVal],
+                        },
+                      });
+                    }}
                   >
+                    <MenuItem value="Both">Both (Home Delivery & Pickup)</MenuItem>
                     <MenuItem value="Home Delivery">Home Delivery</MenuItem>
                     <MenuItem value="Pickup">Pickup</MenuItem>
-                    <MenuItem value="Dining">Dining</MenuItem>
                   </Select>
                 </FormControl>
               </div>

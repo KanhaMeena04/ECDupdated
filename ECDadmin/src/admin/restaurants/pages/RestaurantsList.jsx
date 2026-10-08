@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import toast from "react-hot-toast";
 
 import PageHeader from "../../components/PageHeader";
@@ -11,7 +12,7 @@ import {
   useRestaurantListForAdmin,
   useDeleteRestaurant,
 } from "../../api/restaurant.js";
-
+import { API_BASE_URL } from "../../../utils/utils.js";
 import { getRestaurantColumns } from "../../data/restaurantData.js";
 
 export default function RestaurantsList() {
@@ -21,6 +22,8 @@ export default function RestaurantsList() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletedIds, setDeletedIds] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusLoadingId, setStatusLoadingId] = useState(null);
+  const [statusOverrides, setStatusOverrides] = useState({});
 
   const parseBackendDate = (value) => {
     if (!value) return null;
@@ -39,6 +42,7 @@ export default function RestaurantsList() {
     const date = parseBackendDate(rawDate);
     if (!date) return "-";
     return date.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -54,9 +58,89 @@ export default function RestaurantsList() {
     handleRestaurantListForAdmin,
   } = useRestaurantListForAdmin();
 
+  // Search trigger to backend
   useEffect(() => {
-    handleRestaurantListForAdmin(searchTerm);
+    const timer = setTimeout(() => {
+      handleRestaurantListForAdmin(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
   }, [handleRestaurantListForAdmin, searchTerm]);
+
+  // Periodic auto-sync & window focus refresh so changes from mobile app reflect dynamically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        handleRestaurantListForAdmin(searchTerm);
+      }
+    }, 15000);
+
+    const onFocus = () => handleRestaurantListForAdmin(searchTerm);
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [handleRestaurantListForAdmin, searchTerm]);
+
+  /* -------------------- DYNAMIC STATUS TOGGLE -------------------- */
+  const handleToggleStatus = useCallback(
+    async (row) => {
+      const rowId = row._id || row.id;
+      if (!rowId || statusLoadingId) return;
+
+      const currentIsActive =
+        statusOverrides[rowId] !== undefined
+          ? statusOverrides[rowId] === "Active"
+          : row.status === "Active" || row.isActive === true;
+      const nextActive = !currentIsActive;
+      const rName =
+        typeof row.name === "object"
+          ? row.name.en || Object.values(row.name)[0] || "Restaurant"
+          : row.name || "Restaurant";
+
+      // 1. Optimistic instant UI update
+      setStatusOverrides((prev) => ({
+        ...prev,
+        [rowId]: nextActive ? "Active" : "Inactive",
+      }));
+      setStatusLoadingId(rowId);
+
+      try {
+        const token = localStorage.getItem("token");
+        await axios.put(
+          `${API_BASE_URL}/api/restaurants/${rowId}/toggle-active`,
+          {
+            isActive: nextActive,
+            isOnline: nextActive,
+            isTemporarilyClosed: !nextActive,
+          },
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+          }
+        );
+
+        toast.success(
+          `"${rName}" is now ${nextActive ? "Active (Online)" : "Inactive (Offline)"}!`,
+          { icon: nextActive ? "🟢" : "🔴" }
+        );
+      } catch (err) {
+        // Revert on failure
+        setStatusOverrides((prev) => ({
+          ...prev,
+          [rowId]: currentIsActive ? "Active" : "Inactive",
+        }));
+        toast.error(
+          err?.response?.data?.message || "Failed to update restaurant status"
+        );
+      } finally {
+        setStatusLoadingId(null);
+        handleRestaurantListForAdmin(searchTerm);
+      }
+    },
+    [statusLoadingId, statusOverrides, handleRestaurantListForAdmin, searchTerm]
+  );
 
   const {
     deleteRestaurant,
@@ -65,7 +149,13 @@ export default function RestaurantsList() {
     onSuccess: () => {
       if (deleteTarget) {
         setDeletedIds((prev) => [...prev, deleteTarget._id || deleteTarget.id]);
-        toast.success(`Deleted "${typeof deleteTarget.name === 'object' ? (deleteTarget.name.en || Object.values(deleteTarget.name)[0]) : deleteTarget.name}" successfully!`);
+        toast.success(
+          `Deleted "${
+            typeof deleteTarget.name === "object"
+              ? deleteTarget.name.en || Object.values(deleteTarget.name)[0]
+              : deleteTarget.name
+          }" successfully!`
+        );
       }
       setDeleteTarget(null);
       handleRestaurantListForAdmin(searchTerm);
@@ -73,10 +163,16 @@ export default function RestaurantsList() {
     onError: () => {
       if (deleteTarget) {
         setDeletedIds((prev) => [...prev, deleteTarget._id || deleteTarget.id]);
-        toast.success(`Deleted "${typeof deleteTarget.name === 'object' ? (deleteTarget.name.en || Object.values(deleteTarget.name)[0]) : deleteTarget.name}" successfully!`);
+        toast.success(
+          `Deleted "${
+            typeof deleteTarget.name === "object"
+              ? deleteTarget.name.en || Object.values(deleteTarget.name)[0]
+              : deleteTarget.name
+          }" successfully!`
+        );
       }
       setDeleteTarget(null);
-    }
+    },
   });
 
   const handleConfirmDelete = async () => {
@@ -85,7 +181,13 @@ export default function RestaurantsList() {
       await deleteRestaurant(deleteTarget.id || deleteTarget._id);
     } catch {
       setDeletedIds((prev) => [...prev, deleteTarget._id || deleteTarget.id]);
-      toast.success(`Deleted "${typeof deleteTarget.name === 'object' ? (deleteTarget.name.en || Object.values(deleteTarget.name)[0]) : deleteTarget.name}" successfully!`);
+      toast.success(
+        `Deleted "${
+          typeof deleteTarget.name === "object"
+            ? deleteTarget.name.en || Object.values(deleteTarget.name)[0]
+            : deleteTarget.name
+        }" successfully!`
+      );
       setDeleteTarget(null);
     }
   };
@@ -97,8 +199,10 @@ export default function RestaurantsList() {
         navigate,
         formatDate,
         onDeleteClick: (row) => setDeleteTarget(row),
+        onToggleStatus: handleToggleStatus,
+        statusLoadingId,
       }),
-    [navigate]
+    [navigate, handleToggleStatus, statusLoadingId]
   );
 
   /* -------------------- ROWS -------------------- */
@@ -108,26 +212,119 @@ export default function RestaurantsList() {
       : Array.isArray(data)
       ? data
       : [];
-    
+
     return listToMap
       .filter((item) => !deletedIds.includes(item._id) && !deletedIds.includes(item.id))
-      .map((item) => ({
-        _id: item._id,
-        id: item._id,
-        name: typeof item.name === 'object' ? (item.name.en || Object.values(item.name)[0] || '-') : (item.name || "-"),
-        ownerId: item.ownerName || item.ownerId || (item.owner ? item.owner.name || item.owner.email : "-") || item.name || "-",
-        email: item.email || (item.owner ? item.owner.email : "-") || "-",
-        address: item.address || (item.city ? item.city : "-"),
-        contact: item.contact || item.contactNumber || item.phone || (item.owner ? item.owner.mobile : "-") || "-",
-        pin: item.pin || item.restaurantKey || item.ownerPin || (item.owner ? item.owner.pin : "1234") || "1234",
-        rating: typeof item.rating === 'object' ? (item.rating?.average ?? item.avgRating ?? item.adminRating ?? 0) : (item.rating ?? item.avgRating ?? 0),
-        status: (item.status === "Active" || item.isActive !== false) ? "Active" : "Inactive",
-        openStatus: (item.openStatus === "Accepting Orders" || (item.restaurantApproved !== false && item.isActive !== false))
-          ? "Accepting Orders"
-          : "Not Accepting Orders",
-        createdOn: item.createdOn || formatDate(item.createdAt || item.createdOn),
-      }));
-  }, [data, deletedIds]);
+      .map((item) => {
+        const itemId = item._id || item.id;
+        const override = statusOverrides[itemId];
+        const isActive =
+          override !== undefined
+            ? override === "Active"
+            : item.status === "Active" || item.isActive === true;
+
+        const rawName = item.name;
+        const rName =
+          typeof rawName === "object" && rawName !== null
+            ? rawName.en ||
+              Object.values(rawName).find(
+                (v) => typeof v === "string" && v.trim()
+              ) ||
+              "-"
+            : rawName || "-";
+
+        const ownerName =
+          item.ownerName ||
+          item.ownerId ||
+          (item.owner ? item.owner.name || item.owner.email : "-") ||
+          "-";
+        const contact =
+          item.contact ||
+          item.contactNumber ||
+          item.phone ||
+          (item.owner ? item.owner.mobile : "-") ||
+          "-";
+        const email =
+          item.email || (item.owner ? item.owner.email : "-") || "-";
+        const city = item.city || "";
+        const state = item.state || "";
+        const address =
+          item.address ||
+          (city ? `${city}${state ? ", " + state : ""}` : "-");
+
+        return {
+          _id: itemId,
+          id: itemId,
+          name: rName,
+          ownerId: ownerName,
+          ownerName: ownerName,
+          email: email,
+          address: address,
+          city: city,
+          state: state,
+          contact: contact,
+          contactNumber: contact,
+          phone: contact,
+          pin:
+            item.pin ||
+            item.restaurantKey ||
+            item.ownerPin ||
+            (item.owner ? item.owner.pin : "1234") ||
+            "1234",
+          rating:
+            typeof item.rating === "object"
+              ? item.rating?.average ??
+                item.avgRating ??
+                item.adminRating ??
+                0
+              : item.rating ?? item.avgRating ?? 0,
+          status: isActive ? "Active" : "Inactive",
+          isActive: isActive,
+          openStatus:
+            isActive &&
+            (item.openStatus === "Accepting Orders" ||
+              item.openStatus === "Open" ||
+              item.isOnline !== false)
+              ? "Accepting Orders"
+              : "Closed / Offline",
+          createdOn:
+            item.createdOn || formatDate(item.createdAt || item.createdOn),
+        };
+      });
+  }, [data, deletedIds, statusOverrides]);
+
+  /* -------------------- UNIVERSAL CLIENT-SIDE FILTER -------------------- */
+  const filteredRows = useMemo(() => {
+    if (!searchTerm.trim()) return rows;
+    const q = searchTerm.toLowerCase().trim();
+    const cleanDigits = q.replace(/[^0-9]/g, "");
+
+    return rows.filter((r) => {
+      const name = String(r.name || "").toLowerCase();
+      const owner = String(r.ownerId || r.ownerName || "").toLowerCase();
+      const email = String(r.email || "").toLowerCase();
+      const rawContact = String(r.contact || "").toLowerCase();
+      const contactDigits = String(r.contact || "").replace(/[^0-9]/g, "");
+      const contactMatch =
+        cleanDigits.length >= 3 && contactDigits.includes(cleanDigits);
+      const address = String(r.address || "").toLowerCase();
+      const city = String(r.city || "").toLowerCase();
+      const state = String(r.state || "").toLowerCase();
+      const pin = String(r.pin || "").toLowerCase();
+
+      return (
+        name.includes(q) ||
+        owner.includes(q) ||
+        email.includes(q) ||
+        contactMatch ||
+        rawContact.includes(q) ||
+        address.includes(q) ||
+        city.includes(q) ||
+        state.includes(q) ||
+        pin.includes(q)
+      );
+    });
+  }, [rows, searchTerm]);
 
   /* -------------------- RENDER -------------------- */
   return (
@@ -143,14 +340,14 @@ export default function RestaurantsList() {
       <PageActionBar
         buttonLabel="Add Restaurant"
         onButtonClick={() => navigate("/add-restaurants")}
-        searchLabel="Search"
+        placeholder="Search by restaurant name, owner, mobile, email, city, location, state..."
         searchValue={searchTerm}
         onSearchChange={(val) => setSearchTerm(val)}
       />
 
       <RestaurantTable
         columns={columns}
-        rows={rows}
+        rows={filteredRows}
         loading={loading}
       />
 
@@ -160,7 +357,9 @@ export default function RestaurantsList() {
         description={
           deleteTarget
             ? `Are you sure you want to delete "${
-                typeof deleteTarget.name === 'object' ? (deleteTarget.name.en || Object.values(deleteTarget.name)[0]) : deleteTarget.name
+                typeof deleteTarget.name === "object"
+                  ? deleteTarget.name.en || Object.values(deleteTarget.name)[0]
+                  : deleteTarget.name
               }"? This action cannot be undone.`
             : ""
         }

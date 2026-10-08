@@ -57,6 +57,9 @@ class RestaurantSocketService {
       _socket?.on('order:status', (data) => _notifyListeners(data));
       _socket?.on('order:picked_up', (data) => _notifyListeners(data));
       _socket?.on('orderStatusUpdated', (data) => _notifyListeners(data));
+      _socket?.on('restaurantStatusUpdated', (data) => _notifyStatusListeners(data));
+      _socket?.on('restaurant:status_changed', (data) => _notifyStatusListeners(data));
+      _socket?.on('restaurant:status_update', (data) => _notifyStatusListeners(data));
 
       _socket?.connect();
       _isInitialized = true;
@@ -91,11 +94,32 @@ class RestaurantSocketService {
     _newOrderListeners.remove(callback);
   }
 
+  static final List<Function(dynamic)> _statusListeners = [];
+
+  static void _notifyStatusListeners(dynamic data) {
+    debugPrint('[RestaurantSocket] Restaurant status update event received: $data');
+    final listenersCopy = List<Function(dynamic)>.from(_statusListeners);
+    for (var listener in listenersCopy) {
+      listener(data);
+    }
+  }
+
+  static void onStatusUpdate(Function(dynamic) callback) {
+    if (!_statusListeners.contains(callback)) {
+      _statusListeners.add(callback);
+    }
+  }
+
+  static void offStatusUpdate(Function(dynamic) callback) {
+    _statusListeners.remove(callback);
+  }
+
   static void dispose() {
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
     _isInitialized = false;
     _newOrderListeners.clear();
+    _statusListeners.clear();
   }
 }

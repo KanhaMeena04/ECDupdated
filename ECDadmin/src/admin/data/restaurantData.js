@@ -43,7 +43,7 @@ export const initialRestaurantFormState = {
     longitude: "",
   },
 
-  deliveryType: [],
+  deliveryType: ["Home Delivery", "Pickup", "Both"],
   deliveryTime: "30-40 mins",
 
   packagingCharge: "",
@@ -78,6 +78,8 @@ export const getRestaurantColumns = ({
   navigate,
   formatDate,
   onDeleteClick,
+  onToggleStatus,
+  statusLoadingId,
 }) => {
   const RatingStars = ({ value = 0 }) => (
     <Stack direction="row" spacing={0.5}>
@@ -154,26 +156,62 @@ export const getRestaurantColumns = ({
     {
       key: "status",
       label: "Status",
-      render: (row) => (
-        <Chip
-          label={row.status}
-          color={row.status === "Active" ? "success" : "warning"}
-          variant="outlined"
-          size="small"
-        />
-      ),
+      render: (row) => {
+        const isActive = row.status === "Active" || row.isActive === true;
+        const rowId = row._id || row.id;
+        const isLoading = statusLoadingId === rowId;
+
+        return (
+          <Tooltip title={`Click to turn ${isActive ? "Inactive (Offline)" : "Active (Online)"}`}>
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onToggleStatus) onToggleStatus(row);
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150 cursor-pointer shadow-sm hover:scale-105 active:scale-95 ${
+                isActive
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
+                  : "bg-red-50 text-red-700 border-red-300 hover:bg-red-100"
+              } ${isLoading ? "opacity-60 cursor-not-allowed" : ""}`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isActive ? "bg-emerald-500 animate-pulse" : "bg-red-500"
+                }`}
+              />
+              <span>{isLoading ? "Updating..." : (isActive ? "Active" : "Inactive")}</span>
+            </button>
+          </Tooltip>
+        );
+      },
     },
 
     {
       key: "openStatus",
       label: "Open Status",
-      render: (row) => (
-        <Chip
-          label={row.openStatus}
-          color={row.openStatus.includes("Not") ? "warning" : "success"}
-          size="small"
-        />
-      ),
+      render: (row) => {
+        const isOpen =
+          (row.openStatus === "Accepting Orders" || row.openStatus === "Open") &&
+          (row.status === "Active" || row.isActive === true);
+        return (
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+              isOpen
+                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                : "bg-amber-50 text-amber-800 border-amber-200"
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isOpen ? "bg-emerald-600" : "bg-amber-600"
+              }`}
+            />
+            {isOpen ? "Accepting Orders" : "Closed / Offline"}
+          </span>
+        );
+      },
     },
 
     {

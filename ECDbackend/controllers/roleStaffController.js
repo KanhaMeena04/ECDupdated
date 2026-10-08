@@ -33,7 +33,19 @@ exports.getAllRoles = async (req, res) => {
 
 exports.createRole = async (req, res) => {
   try {
-    const { name, accountType, description, permissions } = req.body;
+    const { 
+      name, 
+      accountType, 
+      description, 
+      permissions,
+      createAdminUser,
+      adminName,
+      adminEmail,
+      adminMobile,
+      adminPassword,
+      adminPin 
+    } = req.body;
+
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: 'Role name is required' });
     }
@@ -41,6 +53,44 @@ exports.createRole = async (req, res) => {
     const existing = await Role.findOne({ name: name.trim() });
     if (existing) {
       return res.status(400).json({ success: false, message: 'A role with this name already exists' });
+    }
+
+    // Validate admin credentials if requested
+    const shouldCreateAdmin = createAdminUser || (adminEmail || adminMobile || adminPassword || adminPin);
+    const emailClean = (adminEmail || '').toLowerCase().trim();
+    const mobileClean = (adminMobile || '').trim();
+    const passClean = (adminPassword || adminPin || '').trim();
+    const pinClean = (adminPin || adminPassword || '').trim();
+
+    if (shouldCreateAdmin) {
+      if (!emailClean && !mobileClean) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Either Admin Email or Mobile Number is required to create a login account' 
+        });
+      }
+      if (!passClean && !pinClean) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Admin Password or Security PIN is required to create a login account' 
+        });
+      }
+
+      const dupChecks = [];
+      if (emailClean) dupChecks.push({ email: emailClean });
+      if (mobileClean) {
+        dupChecks.push({ mobile: mobileClean });
+        dupChecks.push({ phone: mobileClean });
+      }
+      if (dupChecks.length > 0) {
+        const dupUser = await User.findOne({ $or: dupChecks });
+        if (dupUser) {
+          return res.status(400).json({
+            success: false,
+            message: `A user with this ${dupUser.email === emailClean ? 'email address' : 'mobile number'} already exists`
+          });
+        }
+      }
     }
 
     const role = await Role.create({
@@ -51,7 +101,55 @@ exports.createRole = async (req, res) => {
       isSystemDefault: false
     });
 
-    return res.status(201).json({ success: true, message: 'Role created successfully', role });
+    let createdAdmin = null;
+    if (shouldCreateAdmin) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(passClean || pinClean, salt);
+
+      createdAdmin = await User.create({
+        name: (adminName || name || 'Admin').trim(),
+        email: emailClean || undefined,
+        mobile: mobileClean || undefined,
+        phone: mobileClean || undefined,
+        password: hashedPassword,
+        pin: pinClean || undefined,
+        role: 'admin',
+        roleRef: role._id,
+        roleName: role.name,
+        permissions: role.permissions,
+        isVerified: true,
+        isDeleted: false,
+        isBlocked: false
+      });
+
+      await Staff.create({
+        name: createdAdmin.name,
+        email: emailClean || `${mobileClean}@ecdkart.local`,
+        phone: mobileClean || '',
+        pin: pinClean || '',
+        password: hashedPassword,
+        role: role._id,
+        roleName: role.name,
+        user: createdAdmin._id,
+        status: 'active'
+      });
+    }
+
+    return res.status(201).json({ 
+      success: true, 
+      message: shouldCreateAdmin 
+        ? 'Role and Admin login account created successfully!' 
+        : 'Role created successfully', 
+      role,
+      adminUser: createdAdmin ? {
+        _id: createdAdmin._id,
+        name: createdAdmin.name,
+        email: createdAdmin.email,
+        mobile: createdAdmin.mobile,
+        roleName: role.name,
+        permissions: role.permissions
+      } : null
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -71,6 +169,17 @@ exports.updateRole = async (req, res) => {
     if (Array.isArray(permissions)) role.permissions = permissions;
 
     await role.save();
+
+    // Keep assigned Users and Staff synced with updated role name and permissions
+    await User.updateMany(
+      { roleRef: role._id },
+      { roleName: role.name, permissions: role.permissions }
+    );
+    await Staff.updateMany(
+      { role: role._id },
+      { roleName: role.name }
+    );
+
     return res.status(200).json({ success: true, message: 'Role updated successfully', role });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -104,14 +213,21 @@ exports.getAllStaff = async (req, res) => {
 
 exports.createStaff = async (req, res) => {
   try {
-    const { name, email, phone, password, roleId } = req.body;
-    if (!name || !email || !password || !roleId) {
-      return res.status(400).json({ success: false, message: 'Name, email, password, and roleId are required' });
+    const { name, email, phone, password, roleId, pin } = req.body;
+    if (!name || (!email && !phone) || (!password && !pin) || !roleId) {
+      return res.status(400).json({ success: false, message: 'Name, Email/Phone, Password/PIN, and roleId are required' });
     }
 
-    const existing = await Staff.findOne({ email });
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'Staff with this email already exists' });
+    const emailClean = (email || '').toLowerCase().trim();
+    const phoneClean = (phone || '').trim();
+    const passClean = (password || pin || '').trim();
+    const pinClean = (pin || password || '').trim();
+
+    if (emailClean) {
+      const existing = await Staff.findOne({ email: emailClean });
+      if (existing) {
+        return res.status(400).json({ success: false, message: 'Staff with this email already exists' });
+      }
     }
 
     const role = await Role.findById(roleId);
@@ -120,15 +236,54 @@ exports.createStaff = async (req, res) => {
     }
 
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(passClean || pinClean, salt);
+
+    // Create User record so staff can log in through the admin panel
+    let user = null;
+    const existingConditions = [];
+    if (emailClean) existingConditions.push({ email: emailClean });
+    if (phoneClean) {
+      existingConditions.push({ mobile: phoneClean });
+      existingConditions.push({ phone: phoneClean });
+    }
+
+    if (existingConditions.length > 0) {
+      user = await User.findOne({ $or: existingConditions });
+    }
+
+    if (!user) {
+      user = await User.create({
+        name,
+        email: emailClean || undefined,
+        mobile: phoneClean || undefined,
+        phone: phoneClean || undefined,
+        password: hashedPassword,
+        pin: pinClean || undefined,
+        role: 'admin',
+        roleRef: role._id,
+        roleName: role.name,
+        permissions: role.permissions,
+        isVerified: true
+      });
+    } else {
+      user.role = 'admin';
+      user.roleRef = role._id;
+      user.roleName = role.name;
+      user.permissions = role.permissions;
+      user.password = hashedPassword;
+      if (pinClean) user.pin = pinClean;
+      await user.save();
+    }
 
     const staff = await Staff.create({
       name,
-      email,
-      phone: phone || '',
+      email: emailClean || `${phoneClean}@ecdkart.local`,
+      phone: phoneClean,
+      pin: pinClean,
       password: hashedPassword,
       role: role._id,
-      roleName: role.name
+      roleName: role.name,
+      user: user._id
     });
 
     return res.status(201).json({ success: true, message: 'Staff created successfully', staff });
@@ -142,6 +297,9 @@ exports.deleteStaff = async (req, res) => {
     const { id } = req.params;
     const staff = await Staff.findByIdAndDelete(id);
     if (!staff) return res.status(404).json({ success: false, message: 'Staff member not found' });
+    if (staff.user) {
+      await User.findByIdAndDelete(staff.user);
+    }
     return res.status(200).json({ success: true, message: 'Staff member deleted' });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

@@ -53,6 +53,17 @@ const userSchema = new mongoose.Schema(
       enum: ["customer", "user", "admin", "restaurant_owner", "rider", "driver"],
       default: "customer",
     },
+    roleRef: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Role",
+    },
+    roleName: {
+      type: String,
+      default: "",
+    },
+    permissions: [{
+      type: String,
+    }],
     profilePic: { type: String },
     avatar: { type: String },
     image: { type: String },

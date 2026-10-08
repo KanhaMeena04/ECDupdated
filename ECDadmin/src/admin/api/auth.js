@@ -11,7 +11,7 @@ const useAdminAuth = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const login = async (email, password) => {
+  const login = async (emailOrMobile, password) => {
     setLoading(true);
     setGlobalLoading(true);
     setError("");
@@ -20,7 +20,13 @@ const useAdminAuth = () => {
     try {
       const res = await axios.post(
         `${API_BASE_URL}/api/auth/login`,
-        { email, password },
+        {
+          loginId: emailOrMobile,
+          email: emailOrMobile,
+          mobile: emailOrMobile,
+          password,
+          pin: password
+        },
         { withCredentials: true }
       );
 

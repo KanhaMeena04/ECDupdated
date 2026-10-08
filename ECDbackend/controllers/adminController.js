@@ -1027,7 +1027,9 @@ exports.getAllUsers = async (req, res) => {
         type: loginType,
         wallet: `₹${(userObj.walletBalance || userObj.wallet || 0).toFixed(2)}`,
         walletBalance: userObj.walletBalance || userObj.wallet || 0,
-        registeredAt: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "N/A",
+        registeredAt: userObj.registeredAt || userObj.createdAt,
+        registeredAtFormatted: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "short", timeStyle: "short" }) : "N/A",
+        createdAtFormatted: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "short", timeStyle: "short" }) : "N/A",
       };
     });
 
@@ -1077,7 +1079,9 @@ exports.getUserById = async (req, res) => {
       name: fullName,
       wallet: `₹${(userObj.walletBalance || 0).toFixed(2)}`,
       walletBalance: userObj.walletBalance || 0,
-      registeredAt: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" }) : "",
+      registeredAt: userObj.registeredAt || userObj.createdAt,
+      registeredAtFormatted: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "short", timeStyle: "short" }) : "",
+      createdAtFormatted: userObj.createdAt ? new Date(userObj.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "short", timeStyle: "short" }) : "",
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

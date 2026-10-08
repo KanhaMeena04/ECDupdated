@@ -8,7 +8,7 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [email, setEmail] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
@@ -23,7 +23,7 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const loggedUser = await login(email, password);
+    const loggedUser = await login(loginId, password);
     if (!loggedUser) return;
     if (loggedUser.role === "admin") {
       navigate("/dashboard");
@@ -92,40 +92,43 @@ const AdminLogin = () => {
               Welcome Administrator
             </h2>
             <p className="text-sm text-gray-500 mt-1.5 font-medium">
-              Sign in to explore the food operations management console
+              Sign in using your Email ID or Mobile Number with your Password or PIN
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email Address */}
+            {/* Login ID: Email Address or Mobile Number */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5" htmlFor="email">
-                Email Address
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5" htmlFor="loginId">
+                Login ID (Email or Mobile Number)
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
                   <svg className="w-5 h-5 text-[#248C70]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
                 <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@ecdkart.com"
+                  id="loginId"
+                  type="text"
+                  value={loginId}
+                  onChange={(e) => setLoginId(e.target.value)}
+                  placeholder="admin@ecdkart.com or 9876543210"
                   required
                   disabled={loading}
                   style={{ color: '#2C2C2C', WebkitTextFillColor: '#2C2C2C', backgroundColor: '#FFFFFF' }}
                   className="w-full pl-11 pr-4 py-3.5 bg-white border-2 border-[#94B2AA] rounded-xl text-[#2C2C2C] text-base placeholder-gray-400 font-semibold focus:ring-2 focus:ring-[#248C70] focus:border-[#248C70] focus:outline-none transition duration-200 shadow-sm"
                 />
               </div>
+              <p className="text-[11px] text-gray-400 mt-1">
+                Enter registered email address or 10-digit mobile number
+              </p>
             </div>
 
-            {/* Access Key / Password */}
+            {/* Access Key / Password / PIN */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#2C2C2C] mb-1.5" htmlFor="password">
-                Access Key / Password
+                Password or Security PIN
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
@@ -138,7 +141,7 @@ const AdminLogin = () => {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
+                  placeholder="•••••••••••• or 4-digit PIN"
                   required
                   disabled={loading}
                   style={{ color: '#2C2C2C', WebkitTextFillColor: '#2C2C2C', backgroundColor: '#FFFFFF' }}

@@ -70,7 +70,10 @@ exports.formatRestaurantForUser = (restaurant, userLat = null, userLng = null) =
     deliveryTime: deliveryTime,
     deliveryTimeMin: typeof deliveryTime === 'number' ? deliveryTime : computedDeliveryMin,
     deliveryTimeFormatted: `${Math.max(15, computedDeliveryMin - 5)}-${computedDeliveryMin + 5} mins`,
-    deliveryType: restaurant.deliveryType || [],
+    deliveryType: restaurant.deliveryType || ['Home Delivery', 'Pickup', 'Both'],
+    isSelfPickupEnabled: restaurant.isSelfPickupEnabled !== undefined 
+      ? Boolean(restaurant.isSelfPickupEnabled) 
+      : (Array.isArray(restaurant.deliveryType) ? restaurant.deliveryType.some(d => String(d).toLowerCase().includes("pickup") || String(d).toLowerCase().includes("both")) : true),
     isFreeDelivery: restaurant.isFreeDelivery,
     minOrderValue: restaurant.minOrderValue || 0,
     estimatedPreparationTime: prepTime,
@@ -138,7 +141,10 @@ exports.formatRestaurantForAdmin = (restaurant) => {
     contactNumber: realPhone,
     contact: realPhone,
     deliveryTime: restaurant.deliveryTime || 30,
-    deliveryType: restaurant.deliveryType || ['Home Delivery', 'Pickup'],
+    deliveryType: restaurant.deliveryType || ['Home Delivery', 'Pickup', 'Both'],
+    isSelfPickupEnabled: restaurant.isSelfPickupEnabled !== undefined 
+      ? Boolean(restaurant.isSelfPickupEnabled) 
+      : (Array.isArray(restaurant.deliveryType) ? restaurant.deliveryType.some(d => String(d).toLowerCase().includes("pickup") || String(d).toLowerCase().includes("both")) : true),
     paymentMethods: restaurant.paymentMethods || 'Both',
     isActive: restaurant.isActive !== undefined ? restaurant.isActive : true,
     isOnline: restaurant.isOnline !== undefined ? restaurant.isOnline : true,

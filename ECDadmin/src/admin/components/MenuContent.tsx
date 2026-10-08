@@ -44,57 +44,71 @@ import Article from "@mui/icons-material/Article";
 import Security from "@mui/icons-material/Security";
 import BarChart from "@mui/icons-material/BarChart";
 
-export const menuItems = [
-  { text: 'Dashboard', icon: <HomeRounded />, path: '/dashboard' },
-  { text: 'Live Orders', icon: <Assignment />, path: '/order-dashboard' },
-  { text: 'Live Map', icon: <Map />, path: '/eagles-view' },
-  { text: 'Customers', icon: <People />, path: '/user-management' },
+import { useAuth } from '../context/AuthContext';
+
+export interface MenuItemType {
+  text: string;
+  icon?: React.ReactNode;
+  path?: string;
+  permission?: string;
+  children?: { text: string; path: string; permission?: string }[];
+}
+
+export const menuItems: MenuItemType[] = [
+  { text: 'Dashboard', icon: <HomeRounded />, path: '/dashboard', permission: 'Dashboard' },
+  { text: 'Live Orders', icon: <Assignment />, path: '/order-dashboard', permission: 'Order' },
+  { text: 'Live Map', icon: <Map />, path: '/eagles-view', permission: 'Order' },
+  { text: 'Customers', icon: <People />, path: '/user-management', permission: 'User' },
 
   {
     text: 'Restaurants',
     icon: <Store />,
+    permission: 'Restaurant',
     children: [
       { text: 'All Restaurants', path: '/restaurants' },
       { text: 'Pending Approval', path: '/pending-restaurants' },
       { text: 'Approved Restaurants', path: '/approve-restaurant' },
-      { text: 'Restaurant Promocodes', path: '/promocodes' },
-      { text: 'Add Promocode', path: '/add-promocodes' },
+      { text: 'Restaurant Promocodes', path: '/promocodes', permission: 'Promocode' },
+      { text: 'Add Promocode', path: '/add-promocodes', permission: 'Promocode' },
     ]
   },
 
   {
     text: 'Riders',
     icon: <DriveEta />,
+    permission: 'Driver',
     children: [
       { text: 'All Riders', path: '/driver-list' },
       { text: 'Pending Verification', path: '/pending-driver-list' },
       { text: 'Earnings & Config', path: '/rider-earnings-control' },
-      { text: 'Payout Requests', path: '/rider-payout-requests' },
+      { text: 'Payout Requests', path: '/rider-payout-requests', permission: 'Settlements' },
       { text: 'Cash Management', path: '/rider-cash-management' },
     ]
   },
 
-  { text: 'Orders', icon: <Assignment />, path: '/new-order' },
+  { text: 'Orders', icon: <Assignment />, path: '/new-order', permission: 'Order' },
 
   {
     text: 'Menu',
     icon: <RestaurantMenu />,
+    permission: 'Restaurant',
     children: [
       { text: 'Menu Items', path: '/catalog-master-control' },
-      { text: 'Categories', path: '/category' },
-      { text: 'Subcategories', path: '/category?tab=1' },
-      { text: 'Pending Menu Approvals', path: '/pending-menu-approvals' },
-      { text: 'Category Requests', path: '/category-requests' },
-      { text: 'Menu Approval History', path: '/menu-approval-history' },
+      { text: 'Categories', path: '/category', permission: 'Category' },
+      { text: 'Subcategories', path: '/category?tab=1', permission: 'Category' },
+      { text: 'Pending Menu Approvals', path: '/pending-menu-approvals', permission: 'MenuApprovals' },
+      { text: 'Category Requests', path: '/category-requests', permission: 'Category' },
+      { text: 'Menu Approval History', path: '/menu-approval-history', permission: 'MenuApprovals' },
     ]
   },
 
   {
     text: 'Pricing',
     icon: <AttachMoney />,
+    permission: 'SiteSettings',
     children: [
       { text: 'Delivery Charges', path: '/pricing-control' },
-      { text: 'Commission', path: '/financial-overview' },
+      { text: 'Commission', path: '/financial-overview', permission: 'Reports' },
       { text: 'Packaging', path: '/pricing-control' },
       { text: 'Platform Fees', path: '/pricing-control' },
     ]
@@ -103,38 +117,41 @@ export const menuItems = [
   {
     text: 'Marketing',
     icon: <Campaign />,
+    permission: 'Promocode',
     children: [
-      { text: 'Coupons & Offers', path: '/promocodes' },
-      { text: 'Banners', path: '/restaurant-banner' },
-      { text: 'Notifications', path: '/custom-push' },
+      { text: 'Coupons & Offers', path: '/promocodes', permission: 'Promocode' },
+      { text: 'Banners', path: '/restaurant-banner', permission: 'CMSControlTower' },
+      { text: 'Notifications', path: '/custom-push', permission: 'PushNotifications' },
     ]
   },
 
   {
     text: 'Finance',
     icon: <AccountBalance />,
+    permission: 'Reports',
     children: [
-      { text: 'Payments', path: '/financial-overview' },
-      { text: 'Refunds', path: '/order-refund' },
-      { text: 'Restaurant Settlement', path: '/restaurant-payout' },
-      { text: 'Rider Settlement', path: '/driver-payout' },
-      { text: 'Reconciliation', path: '/payment-reconciliation' },
+      { text: 'Payments', path: '/financial-overview', permission: 'Reports' },
+      { text: 'Refunds', path: '/order-refund', permission: 'Reports' },
+      { text: 'Restaurant Settlement', path: '/restaurant-payout', permission: 'Settlements' },
+      { text: 'Rider Settlement', path: '/driver-payout', permission: 'Settlements' },
+      { text: 'Reconciliation', path: '/payment-reconciliation', permission: 'Reports' },
     ]
   },
 
-  { text: 'Service Areas', icon: <LocationCity />, path: '/service-areas' },
-  { text: 'Self Pickup', icon: <Storefront />, path: '/self-pickup-control' },
-  { text: 'Order Timings & Cancellation', icon: <Schedule />, path: '/order-timing-control' },
-  { text: 'CMS', icon: <Article />, path: '/user-app-cms' },
-  { text: 'Reports & Analytics', icon: <BarChart />, path: '/profit-loss-report' },
+  { text: 'Service Areas', icon: <LocationCity />, path: '/service-areas', permission: 'City' },
+  { text: 'Self Pickup', icon: <Storefront />, path: '/self-pickup-control', permission: 'SiteSettings' },
+  { text: 'Order Timings & Cancellation', icon: <Schedule />, path: '/order-timing-control', permission: 'SiteSettings' },
+  { text: 'CMS', icon: <Article />, path: '/user-app-cms', permission: 'CMSControlTower' },
+  { text: 'Reports & Analytics', icon: <BarChart />, path: '/profit-loss-report', permission: 'Reports' },
 
-  { text: 'Rule Engine', icon: <Tune />, path: '/rule-engine' },
-  { text: 'Feature Flags', icon: <Flag />, path: '/feature-flags' },
-  { text: 'Scheduled Changes', icon: <Schedule />, path: '/scheduled-changes' },
+  { text: 'Rule Engine', icon: <Tune />, path: '/rule-engine', permission: 'RuleEngine' },
+  { text: 'Feature Flags', icon: <Flag />, path: '/feature-flags', permission: 'RuleEngine' },
+  { text: 'Scheduled Changes', icon: <Schedule />, path: '/scheduled-changes', permission: 'RuleEngine' },
 
   {
     text: 'Master Settings',
     icon: <SettingsApplications />,
+    permission: 'SiteSettings',
     children: [
       { text: 'Order & Cancellation Rules', path: '/order-timing-control' },
       { text: 'Delivery Rules', path: '/pricing-control' },
@@ -145,16 +162,47 @@ export const menuItems = [
     ]
   },
 
-  { text: 'Roles & Permissions', icon: <Security />, path: '/role' },
-  { text: 'Audit Logs', icon: <ReceiptLong />, path: '/audit-logs' },
-  { text: 'Emergency Controls', icon: <Warning />, path: '/emergency-controls' },
-  { text: 'System Health', icon: <HealthAndSafety />, path: '/dashboard' },
-]
+  { text: 'Roles & Permissions', icon: <Security />, path: '/role', permission: 'RuleEngine' },
+  { text: 'Audit Logs', icon: <ReceiptLong />, path: '/audit-logs', permission: 'SiteSettings' },
+  { text: 'Emergency Controls', icon: <Warning />, path: '/emergency-controls', permission: 'RuleEngine' },
+  { text: 'System Health', icon: <HealthAndSafety />, path: '/dashboard', permission: 'Dashboard' },
+];
 
 export default function MenuContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = React.useState<string | null>(null);
+  const { user } = useAuth();
+
+  const userPerms: string[] | undefined = (user as any)?.permissions;
+  const isSuperAdmin = !userPerms ||
+    userPerms.includes('all') ||
+    user?.email === 'admin@gmail.com' ||
+    user?.email === 'admin@ecdkart.com' ||
+    (user as any)?.roleName === 'Super Admin';
+
+  const visibleMenuItems = React.useMemo(() => {
+    if (isSuperAdmin || !Array.isArray(userPerms)) {
+      return menuItems;
+    }
+    return menuItems.filter(item => {
+      if (item.permission && userPerms.includes(item.permission)) return true;
+      if (item.children && item.children.length > 0) {
+        return item.children.some(child => {
+          const perm = child.permission || item.permission;
+          return !perm || userPerms.includes(perm);
+        });
+      }
+      return !item.permission;
+    }).map(item => {
+      if (!item.children) return item;
+      const filteredChildren = item.children.filter(child => {
+        const perm = child.permission || item.permission;
+        return !perm || userPerms.includes(perm);
+      });
+      return { ...item, children: filteredChildren };
+    });
+  }, [userPerms, isSuperAdmin]);
 
   return (
     <Stack
@@ -172,7 +220,7 @@ export default function MenuContent() {
       }}
     >
       <List sx={{ pt: 2 }}>
-        {menuItems.map((item) => (
+        {visibleMenuItems.map((item) => (
           <React.Fragment key={item.text}>
             <ListItem disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton

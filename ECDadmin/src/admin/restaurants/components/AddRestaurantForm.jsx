@@ -173,6 +173,7 @@ const AddRestaurantForm = () => {
   // 1. Restaurant Details (Step 1 of App)
   const [name, setName] = useState("");
   const [restaurantType, setRestaurantType] = useState("Both (Veg & Non-Veg)");
+  const [deliveryType, setDeliveryType] = useState("Both");
   const [description, setDescription] = useState("");
   const [rating, setRating] = useState("4.5");
   const [restaurantImages, setRestaurantImages] = useState([]);
@@ -569,7 +570,10 @@ const AddRestaurantForm = () => {
       packagingCharge: 0,
       adminCommission: 10,
       paymentMethods: "Both",
-      deliveryType: isSelfPickupEnabled ? ["Home Delivery", "Pickup"] : ["Home Delivery"],
+      deliveryType:
+        deliveryType === "Both"
+          ? ["Home Delivery", "Pickup", "Both"]
+          : [deliveryType],
       timing: weeklySchedule,
       menu: menuItems,
       menuItems: menuItems,
@@ -653,7 +657,7 @@ const AddRestaurantForm = () => {
         subtitle="Basic profile and trade information as requested during partner registration"
         icon={Storefront}
       >
-        <Grid item xs={12} sm={5}>
+        <Grid item xs={12} sm={4}>
           <TextField
             label="Restaurant Trade Name *"
             value={name}
@@ -664,7 +668,7 @@ const AddRestaurantForm = () => {
             placeholder="e.g. Shikha ka Dhaba / Royal Rasoi"
           />
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <FormControl fullWidth size="medium">
             <InputLabel>Restaurant Food Type *</InputLabel>
             <Select
@@ -679,6 +683,20 @@ const AddRestaurantForm = () => {
           </FormControl>
         </Grid>
         <Grid item xs={12} sm={3}>
+          <FormControl fullWidth size="medium">
+            <InputLabel>Delivery Type *</InputLabel>
+            <Select
+              value={deliveryType}
+              label="Delivery Type *"
+              onChange={(e) => setDeliveryType(e.target.value)}
+            >
+              <MenuItem value="Both">Both (Home Delivery & Pickup)</MenuItem>
+              <MenuItem value="Home Delivery">Home Delivery</MenuItem>
+              <MenuItem value="Pickup">Pickup</MenuItem>
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} sm={2}>
           <TextField
             label="Initial Rating (1.0 - 5.0) *"
             type="number"

@@ -1,6 +1,8 @@
 const User = require("../models/User");
 const Restaurant = require("../models/Restaurant");
 const Rider = require("../models/Rider");
+const Role = require("../models/Role");
+const Staff = require("../models/Staff");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -224,107 +226,199 @@ exports.resendOTP = async (req, res) => {
   }
 };
 exports.loginUser = async (req, res) => {
-try {
-const { email, mobile, password } = req.body;
-if ((!email && !mobile) || !password) {
-return res.status(400).json({ message: "Credentials required" });
-}
+  try {
+    const { email, mobile, password, pin, loginId } = req.body;
+    const rawIdentifier = (loginId || email || mobile || "").trim();
+    const secret = (password || pin || "").trim();
 
-// Auto-heal default admin account for local development if logging in with admin credentials
-const normalizedEmail = (email || "").toLowerCase().trim();
-if ((normalizedEmail === "admin@gmail.com" || normalizedEmail === "admin@ecdkart.com") && password === "admin123") {
-let adminUser = await User.findOne({ email: normalizedEmail });
-if (!adminUser) {
-adminUser = await User.findOne({ role: "admin" });
-}
-const salt = await bcrypt.genSalt(10);
-const hashedPassword = await bcrypt.hash("admin123", salt);
-if (!adminUser) {
-adminUser = await User.create({
-name: "Super Admin",
-email: normalizedEmail,
-mobile: "+919999999999",
-password: hashedPassword,
-role: "admin",
-isVerified: true,
-isDeleted: false,
-isBlocked: false,
-});
-} else {
-adminUser.email = normalizedEmail;
-adminUser.password = hashedPassword;
-adminUser.role = "admin";
-adminUser.isVerified = true;
-adminUser.isDeleted = false;
-adminUser.isBlocked = false;
-await adminUser.save();
-}
+    if (!rawIdentifier || !secret) {
+      return res.status(400).json({ message: "Login credentials (Email/Mobile and Password/PIN) are required" });
+    }
 
-const token = generateToken(res, adminUser);
-return res.status(200).json({
-token,
-user: {
-_id: adminUser._id,
-name: adminUser.name,
-email: adminUser.email,
-role: adminUser.role,
-restaurantId: null,
-riderId: null,
-},
-message: "Login Successfully",
-});
-}
+    // Auto-heal default admin account for local development if logging in with admin credentials
+    const normalizedEmail = rawIdentifier.toLowerCase();
+    if ((normalizedEmail === "admin@gmail.com" || normalizedEmail === "admin@ecdkart.com") && secret === "admin123") {
+      let adminUser = await User.findOne({ email: normalizedEmail });
+      if (!adminUser) {
+        adminUser = await User.findOne({ role: "admin" });
+      }
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash("admin123", salt);
+      if (!adminUser) {
+        adminUser = await User.create({
+          name: "Super Admin",
+          email: normalizedEmail,
+          mobile: "+919999999999",
+          phone: "+919999999999",
+          password: hashedPassword,
+          pin: "1234",
+          role: "admin",
+          roleName: "Super Admin",
+          permissions: ["all"],
+          isVerified: true,
+          isDeleted: false,
+          isBlocked: false,
+        });
+      } else {
+        adminUser.email = normalizedEmail;
+        adminUser.password = hashedPassword;
+        adminUser.role = "admin";
+        adminUser.roleName = "Super Admin";
+        adminUser.permissions = ["all"];
+        adminUser.isVerified = true;
+        adminUser.isDeleted = false;
+        adminUser.isBlocked = false;
+        await adminUser.save();
+      }
 
-const user = await User.findOne({
-$or: [
-{ email: email || null },
-{ mobile: mobile || null }
-]
-});
-if (!user) return res.status(401).json({ message: "Invalid credentials" });
-if (user.isDeleted) {
-return res.status(403).json({ message: "Account is deleted" });
-}
-if (user.isBlocked) {
-return res.status(403).json({
-message: "Account is blocked",
-blockReason: user.blockReason || "",
-});
-}
-if (!user.isVerified) {
-return res
-.status(401)
-.json({
-message: "Account not verified. Please verify OTP first.",
-needsOTP: true,
-email: user.email,
-mobile: user.mobile,
-nextStep: "Call /resend-otp endpoint to get new OTP, then call /register/verify"
-});
-}
-const match = await bcrypt.compare(password, user.password);
-if (!match) return res.status(401).json({ message: "Invalid credentials" });
-const [restaurantDoc, riderDoc] = await Promise.all([
-Restaurant.findOne({ owner: user._id }).select("_id"),
-Rider.findOne({ user: user._id }).select("_id"),
-]);
-const token = generateToken(res, user);
-res.status(200).json({
-token,
-user: {
-_id: user._id,
-name: user.name,
-email: user.email,
-role: user.role,
-restaurantId: restaurantDoc?._id || null,
-riderId: riderDoc?._id || null,
-},
-message: "Login Successfully",
-});
-} catch (err) {
-  console.error("Login User Error:", err);
-  res.status(500).json({ message: err.message || "Server Error: " + err });
-}
+      const token = generateToken(res, adminUser);
+      return res.status(200).json({
+        token,
+        user: {
+          _id: adminUser._id,
+          name: adminUser.name,
+          email: adminUser.email,
+          mobile: adminUser.mobile,
+          role: adminUser.role,
+          roleName: "Super Admin",
+          permissions: ["all"],
+          restaurantId: null,
+          riderId: null,
+        },
+        message: "Login Successfully",
+      });
+    }
+
+    const cleanDigits = rawIdentifier.replace(/[\s-]/g, '');
+    const searchConditions = [
+      { email: normalizedEmail },
+      { mobile: rawIdentifier },
+      { phone: rawIdentifier }
+    ];
+
+    if (/^\d{10}$/.test(cleanDigits)) {
+      searchConditions.push({ mobile: cleanDigits });
+      searchConditions.push({ phone: cleanDigits });
+      searchConditions.push({ mobile: `+91${cleanDigits}` });
+      searchConditions.push({ phone: `+91${cleanDigits}` });
+    } else if (cleanDigits.startsWith('+91')) {
+      const ten = cleanDigits.slice(3);
+      searchConditions.push({ mobile: ten });
+      searchConditions.push({ phone: ten });
+      searchConditions.push({ mobile: cleanDigits });
+      searchConditions.push({ phone: cleanDigits });
+    }
+
+    let user = await User.findOne({ $or: searchConditions });
+
+    // If not found in User collection, check Staff collection
+    if (!user) {
+      const staff = await Staff.findOne({ $or: searchConditions }).populate('role');
+      if (staff) {
+        if (staff.user) {
+          user = await User.findById(staff.user);
+        }
+        if (!user) {
+          user = await User.create({
+            name: staff.name,
+            email: staff.email,
+            mobile: staff.phone,
+            phone: staff.phone,
+            password: staff.password,
+            pin: staff.pin || undefined,
+            role: 'admin',
+            roleRef: staff.role?._id || staff.role,
+            roleName: staff.roleName || staff.role?.name || 'Admin',
+            permissions: staff.role?.permissions || [],
+            isVerified: true
+          });
+          staff.user = user._id;
+          await staff.save();
+        }
+      }
+    }
+
+    if (!user) return res.status(401).json({ message: "Invalid credentials" });
+    if (user.isDeleted) {
+      return res.status(403).json({ message: "Account is deleted" });
+    }
+    if (user.isBlocked) {
+      return res.status(403).json({
+        message: "Account is blocked",
+        blockReason: user.blockReason || "",
+      });
+    }
+    if (!user.isVerified && user.role !== 'admin') {
+      return res.status(401).json({
+        message: "Account not verified. Please verify OTP first.",
+        needsOTP: true,
+        email: user.email,
+        mobile: user.mobile,
+        nextStep: "Call /resend-otp endpoint to get new OTP, then call /register/verify"
+      });
+    }
+
+    let match = false;
+    if (user.password) {
+      match = await bcrypt.compare(secret, user.password);
+    }
+    if (!match && user.pin) {
+      if (user.pin === secret) {
+        match = true;
+      } else {
+        try {
+          match = await bcrypt.compare(secret, user.pin);
+        } catch (_) {}
+      }
+    }
+
+    if (!match) return res.status(401).json({ message: "Invalid credentials" });
+
+    // Determine permissions & roleName
+    let permissions = Array.isArray(user.permissions) ? [...user.permissions] : [];
+    let roleName = user.roleName || (user.role === 'admin' ? 'Super Admin' : user.role);
+
+    if (user.roleRef) {
+      const roleDoc = await Role.findById(user.roleRef);
+      if (roleDoc) {
+        if (Array.isArray(roleDoc.permissions) && roleDoc.permissions.length > 0) {
+          permissions = roleDoc.permissions;
+        }
+        roleName = roleDoc.name || roleName;
+      }
+    }
+
+    if (user.email === 'admin@gmail.com' || user.email === 'admin@ecdkart.com') {
+      permissions = ['all'];
+      roleName = 'Super Admin';
+    }
+
+    const [restaurantDoc, riderDoc] = await Promise.all([
+      Restaurant.findOne({ owner: user._id }).select("_id"),
+      Rider.findOne({ user: user._id }).select("_id"),
+    ]);
+
+    const token = generateToken(res, user);
+    res.status(200).json({
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile || user.phone,
+        role: user.role,
+        roleName,
+        roleId: user.roleRef || null,
+        permissions,
+        restaurantId: restaurantDoc?._id || null,
+        riderId: riderDoc?._id || null,
+      },
+      message: "Login Successfully",
+    });
+  } catch (err) {
+    console.error("Login User Error:", err);
+    res.status(500).json({ message: err.message || "Server Error: " + err });
+  }
 };
 
 exports.logoutUser = (req, res) => {

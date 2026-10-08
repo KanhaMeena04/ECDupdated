@@ -92,6 +92,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../../utils/utils';
 import NavbarBreadcrumbs from './NavbarBreadcrumbs';
 import { menuItems } from './MenuContent'; 
+import { useAuth } from '../context/AuthContext';
 
 const ListItemAny: any = ListItem; 
 
@@ -128,6 +129,7 @@ interface HeaderProps {
 
 export default function Header({ onToggleDashboard, showToggleButton }: HeaderProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   
@@ -648,7 +650,14 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
               </List>
             </Menu>
 
-            <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' }, fontWeight: 600 }}>Admin</Typography>
+            <Box sx={{ display: { xs: 'none', sm: 'block' }, textAlign: 'right' }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: '#1f2937', lineHeight: 1.1 }}>
+                {user?.name || 'Administrator'}
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#248C70', fontWeight: 600, display: 'block', textTransform: 'capitalize' }}>
+                {(user as any)?.roleName || (user?.role === 'admin' ? 'Super Admin' : user?.role || 'Admin')}
+              </Typography>
+            </Box>
             
             {/* Profile Avatar Trigger */}
             <Avatar 
@@ -659,14 +668,14 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
                 bgcolor: '#248C70', 
                 color: '#ffffff', 
                 fontWeight: 700,
-                fontSize: '0.85rem',
+                fontSize: '0.82rem',
                 cursor: 'pointer',
                 border: '2px solid #94B2AA',
                 boxShadow: '0 2px 8px rgba(36, 140, 112, 0.25)',
                 '&:hover': { bgcolor: '#1c6d57' } 
               }}
             >
-              AD
+              {((user?.name || 'AD').split(' ').map((n: string) => n[0]).slice(0, 2).join('')).toUpperCase() || 'AD'}
             </Avatar>
 
             {/* Logout Only Menu */}

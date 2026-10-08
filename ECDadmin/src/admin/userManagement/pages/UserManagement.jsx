@@ -40,6 +40,24 @@ const UserManagement = () => {
   const { addMoneyToWallet } = useAddMoneyToWallet();
   const { toggleCodBlock } = useCODBlockUnblock();
 
+  const formatDateTime = (rawDate) => {
+    if (!rawDate) return 'N/A';
+    // If it's an ISO date string or timestamp, format in Indian Standard Time (IST)
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+    return String(rawDate);
+  };
+
   const headers = [
     'Name',
     'Email',
@@ -302,12 +320,12 @@ const UserManagement = () => {
 
                     {/* Created at */}
                     <TableCell className="border-r border-gray-200 text-gray-600 text-xs py-3 whitespace-nowrap">
-                      {user.createdAt ? new Date(user.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}
+                      {formatDateTime(user.createdAt)}
                     </TableCell>
 
                     {/* Registered at */}
                     <TableCell className="border-r border-gray-200 text-gray-600 text-xs py-3 whitespace-nowrap">
-                      {user.registeredAt || (user.createdAt ? new Date(user.createdAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A')}
+                      {formatDateTime(user.registeredAt || user.createdAt)}
                     </TableCell>
 
                     {/* Wallet */}

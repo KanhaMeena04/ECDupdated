@@ -308,6 +308,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       };
       RestaurantSocketService.onNewOrder(_newOrderSocketCallback!);
+      RestaurantSocketService.onStatusUpdate((data) {
+        if (!mounted || data == null) return;
+        final Map<String, dynamic>? payload = (data is Map<String, dynamic>)
+            ? data
+            : (data is Map ? Map<String, dynamic>.from(data) : null);
+        if (payload != null) {
+          final eventRestId = payload['restaurantId']?.toString() ?? '';
+          if (eventRestId.isEmpty || eventRestId == restId) {
+            if (payload['isOnline'] != null || payload['isActive'] != null) {
+              final newOnline = (payload['isOnline'] == true || payload['isActive'] == true);
+              if (_isOnline != newOnline) {
+                setState(() {
+                  _isOnline = newOnline;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Status updated by Admin: ${newOnline ? "Online" : "Offline"}'),
+                    backgroundColor: newOnline ? AppColors.primaryGreen : Colors.red,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
+            }
+          }
+        }
+      });
     }
   }
 
