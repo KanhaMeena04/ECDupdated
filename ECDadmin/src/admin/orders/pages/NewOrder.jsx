@@ -54,7 +54,10 @@ export default function NewOrder() {
       render: (row) => (
         <div>
           <p className="font-semibold text-gray-900 text-sm">{row.customerName}</p>
-          <p className="text-xs text-gray-500 font-mono">{row.customerMobile || "—"}</p>
+          <p className="text-xs text-gray-500 font-mono">
+            {row.customerId ? <span className="text-emerald-700 font-semibold mr-1">#{row.customerId}</span> : null}
+            {row.customerMobile || "—"}
+          </p>
         </div>
       ),
     },
@@ -78,7 +81,12 @@ export default function NewOrder() {
       key: "restaurant",
       label: "Restaurant",
       render: (row) => (
-        <span className="font-medium text-gray-800 text-xs">{row.restaurant}</span>
+        <div>
+          <span className="font-medium text-gray-800 text-xs block">{row.restaurant}</span>
+          {row.restaurantId ? (
+            <span className="text-[10px] font-semibold text-blue-700 font-mono">#{row.restaurantId}</span>
+          ) : null}
+        </div>
       ),
     },
     {
@@ -92,7 +100,12 @@ export default function NewOrder() {
       key: "deliveryPeople",
       label: "Rider",
       render: (row) => (
-        <span className="text-xs font-medium text-gray-700">{row.deliveryPeople}</span>
+        <div>
+          <span className="text-xs font-medium text-gray-700 block">{row.deliveryPeople}</span>
+          {row.riderId && row.riderId !== "—" ? (
+            <span className="text-[10px] font-semibold text-purple-700 font-mono">#{row.riderId}</span>
+          ) : null}
+        </div>
       ),
     },
     {

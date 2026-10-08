@@ -59,7 +59,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     }
 
     final backendId = order['_id']?.toString() ?? widget.orderId;
-    final orderNumber = order['orderNumber']?.toString().toUpperCase() ?? backendId.toUpperCase();
+    final rawOrderNum = order['orderNumber'] ?? order['orderId'];
+    final orderNumber = rawOrderNum != null && rawOrderNum.toString().isNotEmpty
+        ? rawOrderNum.toString().toUpperCase()
+        : (backendId.length > 8 ? 'ORD${backendId.substring(backendId.length - 4).toUpperCase()}' : backendId.toUpperCase());
     final status = order['status']?.toString().toLowerCase() ?? 'placed';
     final restaurant = order['restaurant'] is Map ? order['restaurant'] : (order['store'] is Map ? order['store'] : {});
     final restaurantName = restaurant['name']?.toString() ?? 'Restaurant';

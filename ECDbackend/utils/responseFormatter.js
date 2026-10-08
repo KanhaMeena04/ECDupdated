@@ -223,8 +223,14 @@ exports.formatProductForUser = (product) => {
 };
 exports.formatOrderForCustomer = (order) => {
   if (!order) return null;
+  const ordNumber = order.orderNumber || (order._id ? `ORD${String(order._id).slice(-4).toUpperCase()}` : "ORD001");
   return {
     _id: order._id,
+    orderNumber: ordNumber,
+    orderId: ordNumber,
+    customerId: order.customerId || (order.customer && order.customer.customerId) || "C001",
+    restaurantId: order.restaurantId || (order.restaurant && order.restaurant.restaurantId) || "RNT001",
+    riderId: order.riderId || (order.rider && order.rider.riderId) || null,
     status: order.status,
     restaurant: order.restaurant,
     items: order.items,
@@ -241,6 +247,8 @@ exports.formatOrderForCustomer = (order) => {
     createdAt: order.createdAt,
     timeline: order.timeline,
     rider: order.rider,
+    riderName: order.riderName,
+    riderPhone: order.riderPhone,
     isRated: order.isRated,
   };
 };

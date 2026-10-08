@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { getFileUrl } = require('../utils/upload');
 const { sendOTP } = require('../utils/twilioService');
+const { ensureCustomerId } = require('../utils/idGenerator');
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 exports.getProfile = async (req, res) => {
     try {
@@ -13,8 +14,10 @@ exports.getProfile = async (req, res) => {
         if (!user || user.isDeleted) {
             return res.status(404).json({ success: false, message: "User not found or account deleted" });
         }
+        const customerId = await ensureCustomerId(user);
         const userObj = user.toObject ? user.toObject() : { ...user };
         userObj.id = user._id.toString();
+        userObj.customerId = customerId || user.customerId || "C001";
         userObj.phone = user.phone || user.mobile || "";
         userObj.mobile = user.mobile || user.phone || "";
         userObj.avatar = user.profilePic || user.avatar || "";

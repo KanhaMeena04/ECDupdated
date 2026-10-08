@@ -11,6 +11,7 @@ class UserProvider extends ChangeNotifier {
   String _phone = '';
   String _avatar = '';
   String _token = '';
+  String _customerId = '';
   bool _isLoggedIn = false;
   double _walletBalance = 0.0;
   bool _isCodBlocked = false;
@@ -22,6 +23,7 @@ class UserProvider extends ChangeNotifier {
   String get phone => _phone;
   String get avatar => _avatar;
   String get token => _token;
+  String get customerId => _customerId;
   double get walletBalance => _walletBalance;
   bool get isCodBlocked => _isCodBlocked;
   bool get codActive => _codActive;
@@ -43,6 +45,7 @@ class UserProvider extends ChangeNotifier {
       final savedName = prefs.getString('saved_user_name') ?? '';
       final savedEmail = prefs.getString('saved_user_email') ?? '';
       final savedAvatar = prefs.getString('saved_user_avatar') ?? '';
+      final savedCustomerId = prefs.getString('saved_user_customer_id') ?? '';
       final savedWallet = prefs.getDouble('saved_user_wallet');
       final savedCodBlocked = prefs.getBool('saved_user_cod_blocked');
 
@@ -53,6 +56,7 @@ class UserProvider extends ChangeNotifier {
         'name': savedName,
         'email': savedEmail,
         'avatar': savedAvatar,
+        'customerId': savedCustomerId,
         'wallet': savedWallet,
         'codBlocked': savedCodBlocked,
       };
@@ -69,6 +73,7 @@ class UserProvider extends ChangeNotifier {
     final savedName = (data['name'] as String?) ?? '';
     final savedEmail = (data['email'] as String?) ?? '';
     final savedAvatar = (data['avatar'] as String?) ?? '';
+    final savedCustomerId = (data['customerId'] as String?) ?? '';
     final savedWallet = data['wallet'] as double?;
     final savedCodBlocked = data['codBlocked'] as bool?;
 
@@ -76,6 +81,7 @@ class UserProvider extends ChangeNotifier {
       _token = token;
       _isLoggedIn = true;
       _phone = savedPhone;
+      _customerId = savedCustomerId;
       _name = (savedName.isNotEmpty && savedName != 'Guest User')
           ? savedName
           : (savedPhone.isNotEmpty ? 'User $savedPhone' : 'User');
@@ -105,6 +111,7 @@ class UserProvider extends ChangeNotifier {
       final savedName = prefs.getString('saved_user_name') ?? '';
       final savedEmail = prefs.getString('saved_user_email') ?? '';
       final savedAvatar = prefs.getString('saved_user_avatar') ?? '';
+      final savedCustomerId = prefs.getString('saved_user_customer_id') ?? '';
       final savedWallet = prefs.getDouble('saved_user_wallet');
       final savedCodBlocked = prefs.getBool('saved_user_cod_blocked');
 
@@ -112,6 +119,7 @@ class UserProvider extends ChangeNotifier {
         _token = token;
         _isLoggedIn = true;
         _phone = savedPhone;
+        if (savedCustomerId.isNotEmpty) _customerId = savedCustomerId;
         _name = (savedName.isNotEmpty && savedName != 'Guest User')
             ? savedName
             : (savedPhone.isNotEmpty ? 'User $savedPhone' : 'User');
@@ -129,6 +137,7 @@ class UserProvider extends ChangeNotifier {
           'name': _name,
           'email': _email,
           'avatar': _avatar,
+          'customerId': _customerId,
           'wallet': _walletBalance,
           'codBlocked': _isCodBlocked,
         };
@@ -147,6 +156,7 @@ class UserProvider extends ChangeNotifier {
       if (_name.isNotEmpty && _name != 'Guest User') await prefs.setString('saved_user_name', _name);
       if (_email.isNotEmpty) await prefs.setString('saved_user_email', _email);
       if (_avatar.isNotEmpty) await prefs.setString('saved_user_avatar', _avatar);
+      if (_customerId.isNotEmpty) await prefs.setString('saved_user_customer_id', _customerId);
       await prefs.setDouble('saved_user_wallet', _walletBalance);
       await prefs.setBool('saved_user_cod_blocked', _isCodBlocked);
       if (_isLoggedIn || _token.isNotEmpty || _phone.isNotEmpty) {
@@ -159,6 +169,7 @@ class UserProvider extends ChangeNotifier {
         'name': _name,
         'email': _email,
         'avatar': _avatar,
+        'customerId': _customerId,
         'wallet': _walletBalance,
         'codBlocked': _isCodBlocked,
       };
@@ -175,8 +186,10 @@ class UserProvider extends ChangeNotifier {
     double? walletBalance,
     bool? isCodBlocked,
     String? token,
+    String? customerId,
   }) {
     if (token != null && token.isNotEmpty) _token = token;
+    if (customerId != null && customerId.isNotEmpty) _customerId = customerId;
     if (name != null && name.isNotEmpty && name != 'Guest User') _name = name;
     if (email != null) _email = email;
     if (phone != null && phone.isNotEmpty) _phone = phone;
@@ -203,6 +216,7 @@ class UserProvider extends ChangeNotifier {
     _phone = '';
     _avatar = '';
     _token = '';
+    _customerId = '';
     _walletBalance = 0.0;
     _isCodBlocked = false;
     _codActive = true;
@@ -215,6 +229,7 @@ class UserProvider extends ChangeNotifier {
       await prefs.remove('saved_user_name');
       await prefs.remove('saved_user_email');
       await prefs.remove('saved_user_avatar');
+      await prefs.remove('saved_user_customer_id');
       await prefs.remove('saved_user_wallet');
       await prefs.remove('saved_user_cod_blocked');
       await prefs.setBool('is_logged_in', false);
@@ -261,6 +276,11 @@ class UserProvider extends ChangeNotifier {
           _phone = fetchedPhone;
         } else if (fetchedMobile.isNotEmpty) {
           _phone = fetchedMobile;
+        }
+
+        final fetchedCustomerId = userData['customerId']?.toString().trim() ?? '';
+        if (fetchedCustomerId.isNotEmpty) {
+          _customerId = fetchedCustomerId;
         }
 
         if (userData['avatar'] != null) {

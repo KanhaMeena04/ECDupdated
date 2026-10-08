@@ -22,6 +22,7 @@ class AuthService {
     String? name,
     String? email,
     String? userId,
+    String? customerId,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
@@ -38,6 +39,9 @@ class AuthService {
     if (userId != null && userId.isNotEmpty) {
       await prefs.setString('saved_user_id', userId);
     }
+    if (customerId != null && customerId.isNotEmpty) {
+      await prefs.setString('saved_user_customer_id', customerId);
+    }
   }
 
   static Future<void> logout() async {
@@ -48,6 +52,7 @@ class AuthService {
     await prefs.remove('saved_user_name');
     await prefs.remove('saved_user_email');
     await prefs.remove('saved_user_id');
+    await prefs.remove('saved_user_customer_id');
     await prefs.remove('saved_user_avatar');
     await prefs.remove('saved_user_wallet');
     await prefs.remove('saved_user_cod_blocked');
@@ -151,6 +156,7 @@ class AuthService {
         final resName = userMap?['name']?.toString() ?? '';
         final resEmail = userMap?['email']?.toString() ?? '';
         final resId = data['userId']?.toString() ?? userMap?['id']?.toString() ?? userMap?['_id']?.toString() ?? '';
+        final resCustomerId = userMap?['customerId']?.toString() ?? '';
 
         if (token != null && token.isNotEmpty) {
           await saveToken(
@@ -159,14 +165,16 @@ class AuthService {
             name: resName,
             email: resEmail,
             userId: resId,
+            customerId: resCustomerId,
           );
-          debugPrint('✅ [verifyOtp] Token & User Session saved: $resPhone');
+          debugPrint('✅ [verifyOtp] Token & User Session saved: $resPhone (customerId: $resCustomerId)');
         }
 
         return AuthResult.success(
           message: data['message']?.toString() ?? 'Login successful',
           token: token,
           userId: resId.isNotEmpty ? resId : null,
+          customerId: resCustomerId.isNotEmpty ? resCustomerId : null,
           isNewUser: data['isNewUser'] as bool? ?? false,
         );
       } else {
@@ -226,6 +234,7 @@ class AuthService {
         final resName = userMap?['name']?.toString() ?? trimmedUser;
         final resEmail = userMap?['email']?.toString() ?? '';
         final resId = data['userId']?.toString() ?? userMap?['id']?.toString() ?? userMap?['_id']?.toString() ?? '';
+        final resCustomerId = userMap?['customerId']?.toString() ?? '';
 
         if (token != null && token.isNotEmpty) {
           await saveToken(
@@ -234,14 +243,16 @@ class AuthService {
             name: resName,
             email: resEmail,
             userId: resId,
+            customerId: resCustomerId,
           );
-          debugPrint('✅ [loginWithPassword] Token & User Session saved');
+          debugPrint('✅ [loginWithPassword] Token & User Session saved (customerId: $resCustomerId)');
         }
 
         return AuthResult.success(
           message: data['message']?.toString() ?? 'Login successful',
           token: token,
           userId: resId.isNotEmpty ? resId : null,
+          customerId: resCustomerId.isNotEmpty ? resCustomerId : null,
         );
       } else {
         return AuthResult.failure(
@@ -373,6 +384,7 @@ class AuthService {
         final resName = userMap?['name']?.toString() ?? googleUser['name']?.toString() ?? '';
         final resEmail = userMap?['email']?.toString() ?? googleUser['email']?.toString() ?? '';
         final resId = data['userId']?.toString() ?? userMap?['id']?.toString() ?? userMap?['_id']?.toString() ?? '';
+        final resCustomerId = userMap?['customerId']?.toString() ?? '';
 
         if (token != null && token.isNotEmpty) {
           await saveToken(
@@ -381,14 +393,16 @@ class AuthService {
             name: resName,
             email: resEmail,
             userId: resId,
+            customerId: resCustomerId,
           );
-          debugPrint('✅ [verifyGooglePhone] Token & User Session saved: $resPhone');
+          debugPrint('✅ [verifyGooglePhone] Token & User Session saved: $resPhone (customerId: $resCustomerId)');
         }
 
         return AuthResult.success(
           message: data['message']?.toString() ?? 'Account created successfully',
           token: token,
           userId: resId.isNotEmpty ? resId : null,
+          customerId: resCustomerId.isNotEmpty ? resCustomerId : null,
           isNewUser: true,
         );
       } else {
@@ -446,6 +460,7 @@ class AuthResult {
   final String message;
   final String? token;
   final String? userId;
+  final String? customerId;
   final bool isNewUser;
   final bool requiresPhoneVerification;
   final Map<String, dynamic>? googleUser;
@@ -455,6 +470,7 @@ class AuthResult {
     required this.message,
     this.token,
     this.userId,
+    this.customerId,
     this.isNewUser = false,
     this.requiresPhoneVerification = false,
     this.googleUser,
@@ -464,6 +480,7 @@ class AuthResult {
     required String message,
     String? token,
     String? userId,
+    String? customerId,
     bool isNewUser = false,
     bool requiresPhoneVerification = false,
     Map<String, dynamic>? googleUser,

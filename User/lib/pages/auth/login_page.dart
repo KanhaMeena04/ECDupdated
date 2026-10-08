@@ -288,6 +288,7 @@ class _LoginPageState extends State<LoginPage>
         context.read<UserProvider>().setUserInfo(
           phone: phone,
           token: result.token,
+          customerId: result.customerId,
         );
         context.read<UserProvider>().fetchProfile();
       }

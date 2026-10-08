@@ -425,7 +425,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   void _showOrderDeliveredDialog() {
     if (_hasShownDeliveredDialog || !mounted) return;
     _hasShownDeliveredDialog = true;
-    final orderNum = widget.order['orderNumber'] ?? widget.order['orderId'] ?? widget.order['_id'] ?? '';
+    final rawOrderNum = widget.order['orderNumber'] ?? widget.order['orderId'];
+    final backendId = (widget.order['_id'] ?? '').toString();
+    final orderNum = rawOrderNum != null && rawOrderNum.toString().isNotEmpty
+        ? rawOrderNum.toString().toUpperCase()
+        : (backendId.length > 8 ? 'ORD${backendId.substring(backendId.length - 4).toUpperCase()}' : (backendId.isNotEmpty ? backendId.toUpperCase() : 'N/A'));
     final custName = widget.order['customer']?['name'] ?? 'Customer';
     final orderId = (widget.order['_id'] ?? widget.order['orderId'] ?? '').toString();
     final noteController = TextEditingController();

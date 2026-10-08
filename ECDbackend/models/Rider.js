@@ -11,6 +11,7 @@ const riderSchema = new mongoose.Schema({
     email: { type: String },
     mobile: { type: String },
     phone: { type: String },
+    riderId: { type: String, sparse: true, index: true },
     profilePic: { type: String },
     profileImage: { type: String },
     avatar: { type: String },

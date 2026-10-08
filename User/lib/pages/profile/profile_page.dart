@@ -168,7 +168,7 @@ class ProfileTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                if (userProvider.isLoggedIn)
+                if (userProvider.isLoggedIn) ...[
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -192,7 +192,31 @@ class ProfileTab extends StatelessWidget {
                           ),
                         ),
                     ],
-                  )
+                  ),
+                  if (userProvider.customerId.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark ? Colors.grey[700]! : const Color(0xFFE5E7EB),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        'Customer ID: #${userProvider.customerId}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                          color: isDark ? Colors.grey[300] : const Color(0xFF4B5563),
+                        ),
+                      ),
+                    ),
+                  ],
+                ]
                 else
                   Padding(
                     padding: const EdgeInsets.only(top: 6),

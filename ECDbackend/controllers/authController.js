@@ -7,6 +7,11 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { sendOTP, verify2FactorOTP } = require("../utils/twilioService");
+const {
+  ensureCustomerId,
+  ensureRiderId,
+  ensureRestaurantId,
+} = require("../utils/idGenerator");
 
 // Fixed demo credentials for customer app (App Store / QA review)
 const DEMO_USER_PHONE = "1234567890";
@@ -878,6 +883,7 @@ exports.driverLoginWithPin = async (req, res) => {
       await riderDoc.save();
     }
 
+    const riderIdCode = await ensureRiderId(riderDoc);
     const token = generateToken(res, user);
     return res.status(200).json({
       success: true,
@@ -885,14 +891,16 @@ exports.driverLoginWithPin = async (req, res) => {
       token,
       user: {
         _id: user._id,
+        id: user._id,
         name: user.name,
         email: user.email,
         mobile: user.mobile,
         role: user.role,
-        riderId: riderDoc._id
+        riderId: riderIdCode
       },
       rider: riderDoc,
-      riderId: riderDoc._id
+      riderId: riderIdCode,
+      driverId: riderIdCode
     });
   } catch (error) {
     console.error("Driver Login with PIN Error:", error);
@@ -1086,6 +1094,7 @@ exports.userVerifyOtp = async (req, res) => {
     user.otpExpires = undefined;
     await user.save();
 
+    const customerIdCode = await ensureCustomerId(user);
     const token = generateToken(res, user);
     const userAgeMs = user.createdAt ? (Date.now() - new Date(user.createdAt).getTime()) : 0;
     const hasOrders = (user.totalOrders && user.totalOrders > 0) || false;
@@ -1103,6 +1112,7 @@ exports.userVerifyOtp = async (req, res) => {
       user: {
         _id: user._id,
         id: user._id,
+        customerId: customerIdCode,
         name: user.name,
         email: user.email,
         mobile: user.mobile,

@@ -1585,6 +1585,14 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           ),
           const Divider(height: 20),
           _buildInfoRow('Order ID', '#${widget.order.id}'),
+          if (widget.order.customerId != null && widget.order.customerId!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _buildInfoRow('Customer ID', '#${widget.order.customerId}'),
+          ],
+          if (widget.order.riderId != null && widget.order.riderId!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _buildInfoRow('Rider ID', '#${widget.order.riderId}'),
+          ],
           const SizedBox(height: 10),
           _buildInfoRow('Payment Method', widget.order.paymentMethod),
         ],

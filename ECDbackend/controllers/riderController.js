@@ -15,6 +15,7 @@ const { uploadToImageKit } = require('../services/imageKitService');
 const { calculateDistance } = require('../utils/locationUtils');
 const { initiateProfileUpdate, verifyOTPAndApplyUpdate, checkDuplicate } = require('../utils/profileUpdateHelpers');
 const { sendOTP } = require('../utils/twilioService');
+const { ensureRiderId } = require('../utils/idGenerator');
 const logger = console;
 const sendError = (res, status, message, details) => {
   return res.status(status).json({
@@ -803,16 +804,27 @@ exports.getCompletedOrdersForRider = async (req, res) => {
     };
     const [orders, total] = await Promise.all([
       Order.find(query)
-        .populate("restaurant", "name image bannerImage address")
-        .populate("customer", "name mobile")
+        .populate("restaurant", "name image bannerImage address restaurantId")
+        .populate("customer", "name mobile customerId")
         .sort({ deliveredAt: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit),
       Order.countDocuments(query),
     ]);
+    const riderIdCode = await ensureRiderId(riderProfile);
+    const formattedOrders = orders.map(order => {
+      const orderObj = order.toObject();
+      const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
+      orderObj.orderNumber = ordNumber;
+      orderObj.orderId = ordNumber;
+      orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
+      orderObj.restaurantId = orderObj.restaurantId || orderObj.restaurant?.restaurantId || "RNT001";
+      orderObj.riderId = orderObj.riderId || riderIdCode || "RDR001";
+      return orderObj;
+    });
     return res.status(200).json({
       success: true,
-      orders,
+      orders: formattedOrders,
       pagination: {
         total,
         page,
@@ -3929,9 +3941,14 @@ exports.getAvailableOrders = async (req, res) => {
         ? calculateDistance(restaurantCoords, customerCoords)
         : null;
       const totalDistance = (pickupDistance || 0) + (deliveryDistance || 0);
+      const ordNumber = o.orderNumber || (o._id ? `ORD${o._id.toString().slice(-4).toUpperCase()}` : "ORD001");
       return {
         _id: o._id,
-        orderId: o._id,
+        orderId: ordNumber,
+        orderNumber: ordNumber,
+        backendOrderId: o._id,
+        customerId: o.customerId || o.customer?.customerId || "C001",
+        restaurantId: o.restaurantId || o.restaurant?.restaurantId || "RNT001",
         restaurantName: o.restaurant.name.en || o.restaurant.name,
         restaurantAddress: o.restaurant.address,
         restaurantLocation: {
@@ -4029,6 +4046,7 @@ exports.acceptOrder = async (req, res) => {
     const riderUserObj = await User.findById(riderUserId);
     const riderPhoneVal = riderUserObj?.mobile || riderUserObj?.phone || riderProfile.contactNumber || riderProfile.phone || riderProfile.mobile || "";
     const riderNameVal = riderProfile.name || riderUserObj?.name || "Rider Partner";
+    const riderIdCode = await ensureRiderId(riderProfile);
 
     const order = await Order.findOneAndUpdate(
       {
@@ -4039,6 +4057,7 @@ exports.acceptOrder = async (req, res) => {
       {
         $set: {
           rider: riderId,
+          riderId: riderIdCode,
           riderName: riderNameVal,
           riderPhone: riderPhoneVal,
           status: "assigned",
@@ -4117,12 +4136,17 @@ exports.acceptOrder = async (req, res) => {
     } catch (e) { }
     try {
       const populatedOrder = await Order.findById(order._id)
-        .populate("customer", "name")
-        .populate("restaurant", "name")
+        .populate("customer", "name customerId")
+        .populate("restaurant", "name restaurantId")
         .populate("rider");
+      const ordNumber = order.orderNumber || (order._id ? `ORD${order._id.toString().slice(-4).toUpperCase()}` : "ORD001");
       const assignmentData = {
-        orderId: order._id,
-        riderId: riderId,
+        orderId: ordNumber,
+        orderNumber: ordNumber,
+        backendOrderId: order._id,
+        riderId: riderIdCode,
+        customerId: order.customerId || populatedOrder.customer?.customerId || "C001",
+        restaurantId: order.restaurantId || populatedOrder.restaurant?.restaurantId || "RNT001",
         riderName: riderNameVal,
         riderPhone: riderPhoneVal,
         riderMobile: riderPhoneVal,
@@ -4167,10 +4191,14 @@ exports.acceptOrder = async (req, res) => {
       } catch (_) {}
       socketService.emitToAdmin("order:rider_assigned", {
         ...assignmentData,
-        customerName: populatedOrder.customer.name,
-        restaurantName: populatedOrder.restaurant.name,
-        orderId: order._id.toString(),
-        riderId: riderId.toString(),
+        customerName: populatedOrder.customer?.name,
+        customerId: order.customerId || populatedOrder.customer?.customerId || "C001",
+        restaurantName: populatedOrder.restaurant?.name,
+        restaurantId: order.restaurantId || populatedOrder.restaurant?.restaurantId || "RNT001",
+        orderId: ordNumber,
+        orderNumber: ordNumber,
+        backendOrderId: order._id.toString(),
+        riderId: riderIdCode,
         orderStatus: "assigned",
         riderLocation: riderProfile.currentLocation?.coordinates ? {
           latitude: riderProfile.currentLocation.coordinates[1],
@@ -4178,12 +4206,17 @@ exports.acceptOrder = async (req, res) => {
         } : null
       });
       const riderAcceptedPayload = {
-        riderId: riderProfile._id.toString(),
+        riderId: riderIdCode,
+        backendRiderId: riderProfile._id.toString(),
         riderUserId: riderUserId.toString(),
         riderName: riderProfile.name,
-        orderId: order._id.toString(),
-        customerName: populatedOrder.customer.name,
-        restaurantName: populatedOrder.restaurant.name,
+        orderId: ordNumber,
+        orderNumber: ordNumber,
+        backendOrderId: order._id.toString(),
+        customerName: populatedOrder.customer?.name,
+        customerId: order.customerId || populatedOrder.customer?.customerId || "C001",
+        restaurantName: populatedOrder.restaurant?.name,
+        restaurantId: order.restaurantId || populatedOrder.restaurant?.restaurantId || "RNT001",
         orderStatus: "assigned",
         timestamp: new Date(),
         action: "accepted_order",
@@ -4512,10 +4545,15 @@ exports.getMyActiveOrder = async (req, res) => {
           location: customerLat && customerLng ? { type: 'Point', coordinates: [customerLng, customerLat] } : null
         };
 
+        const ordNumber = order.orderNumber || (order._id ? `ORD${order._id.toString().slice(-4).toUpperCase()}` : "ORD001");
         return {
           _id: order._id,
-          orderId: order._id,
-          orderNumber: order.orderNumber || order.orderId || order._id,
+          orderId: ordNumber,
+          orderNumber: ordNumber,
+          backendOrderId: order._id,
+          customerId: order.customerId || order.customer?.customerId || "C001",
+          restaurantId: order.restaurantId || order.restaurant?.restaurantId || "RNT001",
+          riderId: order.riderId || riderProfile.riderId || "RDR001",
           deliveryStatus: order.status === 'assigned' ? 'accepted' : order.status,
           status: order.status,
           pickupOtp: order.pickupOtp,
@@ -4526,6 +4564,7 @@ exports.getMyActiveOrder = async (req, res) => {
           restaurantLng,
           store: {
             _id: order.restaurant?._id,
+            restaurantId: order.restaurantId || order.restaurant?.restaurantId || "RNT001",
             name: storeName,
             address: storeAddress,
             location: order.restaurant?.location,
@@ -4537,6 +4576,7 @@ exports.getMyActiveOrder = async (req, res) => {
           },
           restaurant: {
             _id: order.restaurant?._id,
+            restaurantId: order.restaurantId || order.restaurant?.restaurantId || "RNT001",
             name: storeName,
             address: storeAddress,
             phone: order.restaurant?.contactNumber || order.restaurant?.phone || '',
@@ -4550,6 +4590,7 @@ exports.getMyActiveOrder = async (req, res) => {
           },
           customer: {
             _id: order.customer?._id,
+            customerId: order.customerId || order.customer?.customerId || "C001",
             name: order.customer?.name || 'Customer',
             phone: order.customer?.phone || order.customer?.mobile || '',
             address: deliveryAddrObj,

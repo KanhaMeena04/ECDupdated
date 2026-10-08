@@ -126,7 +126,17 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       child: Scaffold(
         backgroundColor: Colors.grey[50],
         appBar: AppBar(
-          title: Text('Order #${_currentOrder['orderNumber'] ?? 'N/A'}'),
+          title: Builder(
+            builder: (context) {
+              final rawOrd = _currentOrder['orderNumber'] ?? _currentOrder['orderId'];
+              final displayOrd = rawOrd != null && rawOrd.toString().isNotEmpty
+                  ? rawOrd.toString().toUpperCase()
+                  : (_currentOrder['_id'] != null && _currentOrder['_id'].toString().length > 8
+                      ? 'ORD${_currentOrder['_id'].toString().substring(_currentOrder['_id'].toString().length - 4).toUpperCase()}'
+                      : _currentOrder['_id']?.toString() ?? 'N/A');
+              return Text('Order #$displayOrd');
+            },
+          ),
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
           elevation: 0.5,
@@ -221,6 +231,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildDetailRow(Icons.storefront, 'Restaurant/Store', restaurant['name']),
+                          if ((_currentOrder['restaurantId'] ?? restaurant['restaurantId']) != null) ...[
+                            const SizedBox(height: 12),
+                            _buildDetailRow(Icons.confirmation_number_outlined, 'Restaurant ID', '#${_currentOrder['restaurantId'] ?? restaurant['restaurantId']}'),
+                          ],
                           const SizedBox(height: 12),
                           _buildDetailRow(Icons.pin_drop_outlined, 'Store Location', restaurant['address'] ?? 'N/A'),
                         ],
@@ -238,6 +252,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildDetailRow(Icons.person_outline, 'Customer Name', customer['name'] ?? 'N/A'),
+                        if ((_currentOrder['customerId'] ?? customer['customerId']) != null) ...[
+                          const SizedBox(height: 12),
+                          _buildDetailRow(Icons.badge_outlined, 'Customer ID', '#${_currentOrder['customerId'] ?? customer['customerId']}'),
+                        ],
                         const SizedBox(height: 12),
                         _buildDetailRow(Icons.phone_outlined, 'Customer Contact', _currentOrder['deliveryPhone'] ?? customer['phone'] ?? 'N/A'),
                         const SizedBox(height: 12),

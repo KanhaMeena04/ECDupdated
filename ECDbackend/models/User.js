@@ -48,6 +48,7 @@ const userSchema = new mongoose.Schema(
     },
     mobile: { type: String, sparse: true },
     phone: { type: String, sparse: true },
+    customerId: { type: String, sparse: true, index: true },
     pin: { type: String },
     password: { type: String },
     role: {

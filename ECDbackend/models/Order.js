@@ -11,6 +11,9 @@ const orderSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
+    customerId: { type: String, index: true },
+    restaurantId: { type: String, index: true },
+    riderId: { type: String, index: true },
     restaurant: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",

@@ -81,8 +81,15 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           final amount = double.tryParse((o['payableAmount'] ?? o['totalAmount'] ?? 0).toString()) ?? 0.0;
           final itemsList = (o['items'] is List) ? (o['items'] as List) : [];
 
+          final rawOrdNum = o['orderNumber'] ?? o['orderId'];
+          final displayOrdId = rawOrdNum != null && rawOrdNum.toString().isNotEmpty
+              ? rawOrdNum.toString().toUpperCase()
+              : (o['_id'] != null && o['_id'].toString().length > 8
+                  ? 'ORD${o['_id'].toString().substring(o['_id'].toString().length - 4).toUpperCase()}'
+                  : o['_id']?.toString() ?? 'N/A');
+
           grouped[key]!.add({
-            'id': o['orderNumber']?.toString() ?? o['_id']?.toString().substring(0, 6) ?? 'N/A',
+            'id': displayOrdId,
             'customerName': cName,
             'totalAmount': amount,
             'status': 'Delivered',

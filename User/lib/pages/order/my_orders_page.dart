@@ -319,7 +319,10 @@ class _OrderCard extends StatelessWidget {
     final placedAt = DateTime.tryParse(order['createdAt']?.toString() ?? '') ?? DateTime.now();
     final address = order['address']?['fullAddress']?.toString() ?? order['deliveryAddress']?['addressLine']?.toString() ?? 'Indore, MP';
     final backendId = order['_id']?.toString() ?? '';
-    final orderNumber = order['orderNumber']?.toString().toUpperCase() ?? backendId.toUpperCase();
+    final rawOrderNum = order['orderNumber'] ?? order['orderId'];
+    final orderNumber = rawOrderNum != null && rawOrderNum.toString().isNotEmpty
+        ? rawOrderNum.toString().toUpperCase()
+        : (backendId.length > 8 ? 'ORD${backendId.substring(backendId.length - 4).toUpperCase()}' : backendId.toUpperCase());
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),

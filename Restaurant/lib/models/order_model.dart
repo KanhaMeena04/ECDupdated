@@ -14,6 +14,7 @@ class Order {
   final double tax;
   final double discount;
   final double? restaurantEarning;
+  final String? customerId;
   String? riderName;
   String? riderId;
   String? riderPhone;
@@ -56,6 +57,7 @@ class Order {
     this.tax = 0.0,
     this.discount = 0.0,
     this.restaurantEarning,
+    this.customerId,
     this.riderName,
     this.riderId,
     this.riderPhone,
@@ -278,8 +280,14 @@ class Order {
     double parsedDiscount = double.tryParse(json['discount']?.toString() ?? json['totalDiscount']?.toString() ?? '') ?? 0.0;
 
     return Order(
-      id: json['orderNumber']?.toString() ?? json['_id']?.toString() ?? 'N/A',
+      id: json['orderNumber']?.toString() ??
+          json['orderId']?.toString() ??
+          (json['_id'] != null && json['_id'].toString().length > 8
+              ? 'ORD${json['_id'].toString().substring(json['_id'].toString().length - 4).toUpperCase()}'
+              : json['_id']?.toString() ?? 'N/A'),
       backendId: json['_id']?.toString() ?? '',
+      customerId: json['customerId']?.toString() ??
+          (json['customer'] is Map ? json['customer']['customerId']?.toString() : null),
       customerName: cName,
       orderName: oName,
       quantity: oQty > 0 ? oQty : 1,

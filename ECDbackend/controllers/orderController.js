@@ -14,6 +14,12 @@ const { getPaginationParams } = require("../utils/pagination");
 const socketService = require("../services/socketService");
 const { formatRestaurantForUser, formatOrderForCustomer } = require("../utils/responseFormatter");
 const {
+  getNextOrderId,
+  ensureCustomerId,
+  ensureRestaurantId,
+  ensureRiderId,
+} = require("../utils/idGenerator");
+const {
   validateOrderState,
   validateRestaurantAcceptance,
   validateRestaurantMarkReady,
@@ -448,7 +454,9 @@ exports.placeOrder = async (req, res) => {
     const pickupOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const deliveryOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const otpExpiry = 100 * 60 * 1000; // 100 minutes
-    const orderNumber = "ECD" + Date.now().toString(36).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+    const orderNumber = await getNextOrderId();
+    const customerIdCode = await ensureCustomerId(user);
+    const restaurantIdCode = await ensureRestaurantId(restaurant);
     
     // Enrich cart items with Product details (name, image, price) if missing
     const enrichedItems = await Promise.all(
@@ -488,13 +496,16 @@ exports.placeOrder = async (req, res) => {
                                            systemSettings?.selfPickupConfig?.cancellationWindowMins || 
                                            restaurant?.cancellationWindowMinutes || 5);
     const dynamicGracePeriodMins = Number(systemSettings?.orderTimingConfig?.riderPickupGracePeriodMins || 
-                                          systemSettings?.selfPickupConfig?.gracePeriodMins || 15);
+                                           systemSettings?.selfPickupConfig?.gracePeriodMins || 15);
     const cancellationWindowExpiresAt = new Date(Date.now() + dynamicCancellationMins * 60 * 1000);
 
     const newOrder = await Order.create({
       customer: user._id,
+      customerId: customerIdCode,
       orderNumber,
+      orderId: orderNumber,
       restaurant: restaurantId,
+      restaurantId: restaurantIdCode,
       cancellationWindowMinutes: dynamicCancellationMins,
       cancellationWindowExpiresAt,
       gracePeriodMinutes: dynamicGracePeriodMins,
@@ -586,16 +597,19 @@ exports.placeOrder = async (req, res) => {
         await sendNotification(
           restaurant.owner._id,
           "New Order Received",
-          `Order #${newOrder._id} - ₹${bill.toPay}`,
-          { orderId: newOrder._id, restaurantId }
+          `Order #${newOrder.orderNumber} - ₹${bill.toPay}`,
+          { orderId: newOrder.orderNumber, backendOrderId: newOrder._id, restaurantId }
         );
       }
       const restaurantOrderPayload = {
-        orderId: newOrder._id,
+        orderId: newOrder.orderNumber,
+        orderNumber: newOrder.orderNumber,
         _id: newOrder._id,
-        restaurantId: restaurantId.toString(),
+        id: newOrder.orderNumber,
+        backendId: newOrder._id.toString(),
+        restaurantId: newOrder.restaurantId || restaurantIdCode,
         restaurant: restaurantId.toString(),
-        customerId: user._id.toString(),
+        customerId: newOrder.customerId || customerIdCode,
         customerName: user.name,
         customerPhone: user.mobile || user.phone,
         customerLocation: {
@@ -606,6 +620,7 @@ exports.placeOrder = async (req, res) => {
         deliveryAddress: deliveryAddress.addressLine,
         customer: {
           id: user._id,
+          customerId: newOrder.customerId || customerIdCode,
           name: user.name,
           phone: user.mobile || user.phone,
           address: deliveryAddress.addressLine,
@@ -651,11 +666,14 @@ exports.placeOrder = async (req, res) => {
         : (restaurant.name || 'Restaurant');
 
       socketService.emitToAdmin("order:new", {
-        orderId: newOrder._id,
-        orderIds: [newOrder._id],
-        orderCode: `#${newOrder._id.toString().slice(-6).toUpperCase()}`,
-        restaurantId: restaurant._id,
+        orderId: newOrder.orderNumber,
+        orderIds: [newOrder.orderNumber],
+        backendId: newOrder._id,
+        orderCode: `#${newOrder.orderNumber}`,
+        orderNumber: newOrder.orderNumber,
+        restaurantId: newOrder.restaurantId || restaurantIdCode,
         restaurantName: restNameStr,
+        customerId: newOrder.customerId || customerIdCode,
         customerName: user.name,
         customerPhone: user.mobile || user.phone,
         customerLocation: {
@@ -673,7 +691,7 @@ exports.placeOrder = async (req, res) => {
       });
     } catch (err) { }
     // Note: Rider dispatch is triggered only when restaurant marks order ready
-    logger.info("Order created. Rider dispatch pending restaurant order ready.", { orderId: newOrder._id });
+    logger.info("Order created. Rider dispatch pending restaurant order ready.", { orderId: newOrder._id, orderNumber: newOrder.orderNumber });
     try {
       await Cart.findOneAndDelete({ user: user._id });
     } catch (cartDelErr) { }
@@ -688,7 +706,10 @@ exports.placeOrder = async (req, res) => {
       message: "Order placed successfully",
       order: newOrder,
       data: newOrder,
-      orderId: newOrder._id,
+      orderId: newOrder.orderNumber,
+      orderNumber: newOrder.orderNumber,
+      customerId: newOrder.customerId || customerIdCode,
+      restaurantId: newOrder.restaurantId || restaurantIdCode,
       id: newOrder._id,
       totalPayment,
       totalAmount: newOrder.totalAmount
@@ -713,6 +734,14 @@ exports.getMyOrders = async (req, res) => {
       .sort({ createdAt: -1 });
     const formattedOrders = orders.map(order => {
       const orderObj = order.toObject();
+      const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
+      orderObj.orderNumber = ordNumber;
+      orderObj.orderId = ordNumber;
+      orderObj.customerId = orderObj.customerId || req.user.customerId || "C001";
+      orderObj.restaurantId = orderObj.restaurantId || orderObj.restaurant?.restaurantId || "RNT001";
+      if (orderObj.rider) {
+        orderObj.riderId = orderObj.riderId || orderObj.rider?.riderId || "RDR001";
+      }
       if (orderObj.items && Array.isArray(orderObj.items)) {
         orderObj.items = orderObj.items.map(item => {
           const name = item.name || (item.product && item.product.name) || "Food Item";
@@ -791,17 +820,23 @@ exports.getOrderDetailsCustomer = async (req, res) => {
     }
     const { calculateDistance } = require('../utils/locationUtils');
     const orderObj = order.toObject();
+    const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
     const callContacts = buildOrderCallContacts(orderObj);
     const response = {
       success: true,
       order: {
         id: orderObj._id,
-        orderNumber: orderObj.orderNumber || orderObj._id.toString().slice(-6),
+        orderNumber: ordNumber,
+        orderId: ordNumber,
+        customerId: orderObj.customerId || req.user.customerId || "C001",
+        restaurantId: orderObj.restaurantId || orderObj.restaurant?.restaurantId || "RNT001",
+        riderId: orderObj.riderId || orderObj.rider?.riderId || (orderObj.rider ? "RDR001" : null),
         status: orderObj.status,
         statusLabel: mapStatusLabel(orderObj.status),
         createdAt: orderObj.createdAt,
         restaurant: {
           id: orderObj.restaurant._id,
+          restaurantId: orderObj.restaurantId || orderObj.restaurant?.restaurantId || "RNT001",
           name: orderObj.restaurant.name,
           image: orderObj.restaurant.image,
           address: orderObj.restaurant.address,
@@ -839,6 +874,7 @@ exports.getOrderDetailsCustomer = async (req, res) => {
         ...(orderObj.rider && {
           rider: {
             id: orderObj.rider._id,
+            riderId: orderObj.riderId || orderObj.rider?.riderId || "RDR001",
             name: orderObj.rider.user?.name || 'Rider',
             phone: orderObj.rider.user?.mobile,
             avatar: orderObj.rider.user?.profilePic,
@@ -1137,15 +1173,24 @@ exports.getRestaurantOrders = async (req, res) => {
     }
     const restaurant = await Restaurant.findOne({ owner: req.user._id });
     if (!restaurant) return sendError(res, 404, "Restaurant not found");
+    const restaurantIdCode = await ensureRestaurantId(restaurant);
     const orders = await Order.find({ restaurant: restaurant._id })
-      .populate("customer", "name email mobile phone")
+      .populate("customer", "name email mobile phone customerId")
       .populate("items.product", "name image price")
-      .populate("rider", "user rating name phone mobile vehicle")
+      .populate("rider", "user rating name phone mobile vehicle riderId")
       .populate("rider.user", "name mobile profilePic phone")
       .select('-timeline -riderNotificationStatus')
       .sort({ createdAt: -1 });
     const formattedOrders = orders.map((order) => {
       const orderObj = order.toObject();
+      const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
+      orderObj.orderNumber = ordNumber;
+      orderObj.orderId = ordNumber;
+      orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
+      orderObj.restaurantId = orderObj.restaurantId || restaurantIdCode || "RNT001";
+      if (orderObj.rider) {
+        orderObj.riderId = orderObj.riderId || orderObj.rider?.riderId || "RDR001";
+      }
       if (orderObj.items && Array.isArray(orderObj.items)) {
         orderObj.items = orderObj.items.map(item => {
           const name = item.name || (item.product && item.product.name) || "Food Item";
@@ -1183,15 +1228,20 @@ exports.getRestaurantOrderDetails = async (req, res) => {
     if (!req.user || !isValidObjectId(req.user._id)) {
       return sendError(res, 401, "Unauthorized");
     }
-    const restaurant = await Restaurant.findOne({ owner: req.user._id }).select("_id");
+    const restaurant = await Restaurant.findOne({ owner: req.user._id });
     if (!restaurant) {
       return sendError(res, 404, "Restaurant not found");
     }
-    const order = await Order.findById(req.params.id)
-      .populate("customer", "name email mobile profilePic")
-      .populate("restaurant", "name image bannerImage address city area location deliveryTime")
+    const restaurantIdCode = await ensureRestaurantId(restaurant);
+    const targetOrderId = req.params.id;
+    const orderQuery = mongoose.Types.ObjectId.isValid(targetOrderId)
+      ? { $or: [{ _id: targetOrderId }, { orderId: targetOrderId }, { orderNumber: targetOrderId }] }
+      : { $or: [{ orderId: targetOrderId }, { orderNumber: targetOrderId }] };
+    const order = await Order.findOne(orderQuery)
+      .populate("customer", "name email mobile profilePic customerId")
+      .populate("restaurant", "name image bannerImage address city area location deliveryTime restaurantId")
       .populate("items.product", "name image price")
-      .populate("rider", "user currentLocation rating vehicle")
+      .populate("rider", "user currentLocation rating vehicle riderId")
       .populate("rider.user", "name mobile profilePic");
     if (!order) {
       return sendError(res, 404, "Order not found");
@@ -1200,6 +1250,14 @@ exports.getRestaurantOrderDetails = async (req, res) => {
       return sendError(res, 403, "Access denied");
     }
     const orderObj = order.toObject();
+    const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
+    orderObj.orderNumber = ordNumber;
+    orderObj.orderId = ordNumber;
+    orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
+    orderObj.restaurantId = orderObj.restaurantId || restaurantIdCode || "RNT001";
+    if (orderObj.rider) {
+      orderObj.riderId = orderObj.riderId || orderObj.rider?.riderId || "RDR001";
+    }
     if (orderObj.restaurant) {
       orderObj.restaurant = formatRestaurantForUser(orderObj.restaurant);
     }
@@ -1250,18 +1308,30 @@ exports.getPendingOrdersForRestaurant = async (req, res) => {
     if (!restaurant) {
       return sendError(res, 404, "Restaurant not found");
     }
+    const restaurantIdCode = await ensureRestaurantId(restaurant);
     const pendingOrders = await Order.find({
       restaurant: restaurant._id,
       status: "placed",
     })
-      .populate("customer", "name email mobile address")
+      .populate("customer", "name email mobile address customerId")
       .populate("items.product", "name image category")
       .sort({ createdAt: -1 });
+
+    const formattedPending = pendingOrders.map(order => {
+      const orderObj = order.toObject();
+      const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
+      orderObj.orderNumber = ordNumber;
+      orderObj.orderId = ordNumber;
+      orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
+      orderObj.restaurantId = orderObj.restaurantId || restaurantIdCode || "RNT001";
+      return orderObj;
+    });
+
     res.status(200).json({
       success: true,
-      message: `Found ${pendingOrders.length} pending orders`,
-      count: pendingOrders.length,
-      orders: pendingOrders,
+      message: `Found ${formattedPending.length} pending orders`,
+      count: formattedPending.length,
+      orders: formattedPending,
     });
   } catch (error) {
     logger.error("Failed to fetch pending restaurant orders", {
@@ -1280,12 +1350,13 @@ exports.getCompletedOrdersForRestaurant = async (req, res) => {
     if (!restaurant) {
       return sendError(res, 404, "Restaurant not found");
     }
+    const restaurantIdCode = await ensureRestaurantId(restaurant);
     const { page, limit, skip } = getPaginationParams(req, 20);
     const query = { restaurant: restaurant._id, status: "delivered" };
     const [orders, total] = await Promise.all([
       Order.find(query)
-        .populate("customer", "name email mobile")
-        .populate("rider", "user rating")
+        .populate("customer", "name email mobile customerId")
+        .populate("rider", "user rating riderId")
         .populate("rider.user", "name mobile profilePic")
         .select("-timeline -riderNotificationStatus")
         .sort({ deliveredAt: -1, createdAt: -1 })
@@ -1293,9 +1364,23 @@ exports.getCompletedOrdersForRestaurant = async (req, res) => {
         .limit(limit),
       Order.countDocuments(query),
     ]);
+
+    const formattedOrders = orders.map(order => {
+      const orderObj = order.toObject();
+      const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
+      orderObj.orderNumber = ordNumber;
+      orderObj.orderId = ordNumber;
+      orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
+      orderObj.restaurantId = orderObj.restaurantId || restaurantIdCode || "RNT001";
+      if (orderObj.rider) {
+        orderObj.riderId = orderObj.riderId || orderObj.rider?.riderId || "RDR001";
+      }
+      return orderObj;
+    });
+
     return res.status(200).json({
       success: true,
-      orders,
+      orders: formattedOrders,
       pagination: {
         total,
         page,
@@ -2588,6 +2673,10 @@ exports.getAllOrdersAdmin = async (req, res) => {
 
       const searchConditions = [
         { orderNumber: sRegex },
+        { orderId: sRegex },
+        { customerId: sRegex },
+        { restaurantId: sRegex },
+        { riderId: sRegex },
         { paymentMethod: sRegex },
         { status: sRegex },
         { orderType: sRegex },
@@ -2617,8 +2706,8 @@ exports.getAllOrdersAdmin = async (req, res) => {
     const [total, orders, allMatchingOrdersForSummary] = await Promise.all([
       Order.countDocuments(query),
       Order.find(query)
-        .populate("customer", "name email mobile address")
-        .populate("restaurant", "name address contactNumber phone email")
+        .populate("customer", "name email mobile address customerId")
+        .populate("restaurant", "name address contactNumber phone email restaurantId")
         .populate({
           path: "rider",
           populate: { path: "user", select: "name mobile profilePic" }
@@ -2654,8 +2743,21 @@ exports.getAllOrdersAdmin = async (req, res) => {
       }
     });
 
+    const formattedAdminOrders = orders.map(order => {
+      const orderObj = order.toObject();
+      const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
+      orderObj.orderNumber = ordNumber;
+      orderObj.orderId = ordNumber;
+      orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
+      orderObj.restaurantId = orderObj.restaurantId || orderObj.restaurant?.restaurantId || "RNT001";
+      if (orderObj.rider) {
+        orderObj.riderId = orderObj.riderId || orderObj.rider?.riderId || "RDR001";
+      }
+      return orderObj;
+    });
+
     res.status(200).json({
-      orders,
+      orders: formattedAdminOrders,
       total,
       page,
       limit,
@@ -2790,14 +2892,27 @@ exports.adminResolveFailedOrder = async (req, res) => {
 };
 exports.getOrderDetailsAdmin = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id)
+    const targetId = req.params.id;
+    const orderQuery = mongoose.Types.ObjectId.isValid(targetId)
+      ? { $or: [{ _id: targetId }, { orderId: targetId }, { orderNumber: targetId }] }
+      : { $or: [{ orderId: targetId }, { orderNumber: targetId }] };
+    const order = await Order.findOne(orderQuery)
       .populate("customer")
       .populate("restaurant")
       .populate("rider")
       .populate({ path: "rider", populate: { path: "user", select: "name mobile profilePic email" } })
       .populate("timeline");
     if (!order) return res.status(404).json({ message: "Order not found" });
-    res.status(200).json(order);
+    const orderObj = order.toObject();
+    const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
+    orderObj.orderNumber = ordNumber;
+    orderObj.orderId = ordNumber;
+    orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
+    orderObj.restaurantId = orderObj.restaurantId || orderObj.restaurant?.restaurantId || "RNT001";
+    if (orderObj.rider) {
+      orderObj.riderId = orderObj.riderId || orderObj.rider?.riderId || "RDR001";
+    }
+    res.status(200).json(orderObj);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -2805,11 +2920,17 @@ exports.getOrderDetailsAdmin = async (req, res) => {
 exports.adminAssignRider = async (req, res) => {
   try {
     const { riderId } = req.body;
-    const order = await Order.findById(req.params.id);
+    const targetId = req.params.id;
+    const orderQuery = mongoose.Types.ObjectId.isValid(targetId)
+      ? { $or: [{ _id: targetId }, { orderId: targetId }, { orderNumber: targetId }] }
+      : { $or: [{ orderId: targetId }, { orderNumber: targetId }] };
+    const order = await Order.findOne(orderQuery);
     if (!order) return res.status(404).json({ message: "Order not found" });
     const rider = await Rider.findById(riderId);
     if (!rider) return res.status(404).json({ message: "Rider not found" });
+    const riderIdCode = await ensureRiderId(rider);
     order.rider = riderId;
+    order.riderId = riderIdCode;
     order.status = "assigned"; // Force status update
     order.timeline.push({
       status: "assigned",

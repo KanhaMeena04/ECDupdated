@@ -58,6 +58,23 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     return false;
   }
 
+  String get _displayOrderNumber {
+    final ordNum = _trackingData?['orderNumber'] ??
+        _trackingData?['orderId'] ??
+        _trackingData?['order']?['orderNumber'] ??
+        _trackingData?['order']?['orderId'];
+    if (ordNum != null && ordNum.toString().isNotEmpty && !ordNum.toString().contains('ObjectId')) {
+      final s = ordNum.toString();
+      if (s.startsWith('ORD')) return s;
+      if (s.length < 15) return s;
+    }
+    if (widget.orderId.startsWith('ORD')) return widget.orderId;
+    if (widget.orderId.length == 24) {
+      return 'ORD${widget.orderId.substring(widget.orderId.length - 4).toUpperCase()}';
+    }
+    return widget.orderId;
+  }
+
   AnimationController? _pulseController;
 
   AnimationController _getPulseController() {
@@ -843,7 +860,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
               ),
             ),
             Text(
-              'ID : #${widget.orderId.length > 10 ? widget.orderId.substring(widget.orderId.length - 10) : widget.orderId}',
+              'ID : #$_displayOrderNumber',
               style: const TextStyle(
                 color: Color(0xFF6B7280),
                 fontSize: 12,
@@ -1594,7 +1611,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Order #${widget.orderId.length > 10 ? widget.orderId.substring(widget.orderId.length - 8) : widget.orderId}',
+                            'Order #$_displayOrderNumber',
                             style: const TextStyle(
                               fontSize: 11,
                               color: Color(0xFF9CA3AF),

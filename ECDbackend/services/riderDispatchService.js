@@ -6,6 +6,7 @@ const Restaurant = require('../models/Restaurant');
 const socketService = require('./socketService');
 const { sendNotification } = require('../utils/notificationService');
 const { calculateDistance, estimateTravelMinutes } = require('../utils/locationUtils');
+const { ensureRiderId } = require('../utils/idGenerator');
 const SEARCH_RADIUS_KM = process.env.NODE_ENV === 'production' ? 1000 : 1000; // 10km prod, 1000km dev
 const BATCH_SIZE = 5;              // How many riders to notify at once
 const BATCH_TIMEOUT_MS = 45000;   // 45 seconds for a batch to respond before sending next batch
@@ -93,9 +94,14 @@ exports.findAndNotifyRider = async (orderId) => {
             const riderCoords = rider.currentLocation?.coordinates || [0, 0];
             const pickupDistance = calculateDistance(riderCoords, restaurantCoords);
             const pickupMinutes = estimateTravelMinutes(pickupDistance);
+            const ordNumber = order.orderNumber || (order._id ? `ORD${order._id.toString().slice(-4).toUpperCase()}` : "ORD001");
             const requestData = {
                 requestId: request._id,
-                orderId: order._id,
+                orderId: ordNumber,
+                orderNumber: ordNumber,
+                backendOrderId: order._id,
+                customerId: order.customerId || 'C001',
+                restaurantId: order.restaurantId || restaurant.restaurantId || 'RNT001',
                 restaurantName: restaurant.name,
                 restaurantAddress: restaurant.address,
                 earnings: riderEarning,
@@ -202,8 +208,10 @@ exports.handleRiderResponse = async (riderUserId, requestId, action) => {
                 session.endSession();
                 throw new Error('ORDER_ALREADY_TAKEN');
             }
+            const riderIdCode = await ensureRiderId(rider);
             const oldStatus = targetOrder.status;
             targetOrder.rider = rider._id;
+            targetOrder.riderId = riderIdCode;
             targetOrder.status = 'assigned';
             targetOrder.timeline.push({
                 status: 'assigned',
@@ -234,14 +242,22 @@ exports.handleRiderResponse = async (riderUserId, requestId, action) => {
             await session.commitTransaction();
             session.endSession();
             const populatedOrder = await Order.findById(targetOrder._id)
-                .populate('customer', 'name')
-                .populate('restaurant', 'name');
+                .populate('customer', 'name customerId')
+                .populate('restaurant', 'name restaurantId');
+            const ordNumber = targetOrder.orderNumber || (targetOrder._id ? `ORD${targetOrder._id.toString().slice(-4).toUpperCase()}` : "ORD001");
             const updateData = {
-                orderId: targetOrder._id,
+                orderId: ordNumber,
+                orderNumber: ordNumber,
+                backendOrderId: targetOrder._id,
+                riderId: riderIdCode,
+                customerId: targetOrder.customerId || populatedOrder.customer?.customerId || 'C001',
+                restaurantId: targetOrder.restaurantId || populatedOrder.restaurant?.restaurantId || 'RNT001',
                 status: 'assigned',
                 oldStatus,
                 timestamp: new Date(),
                 rider: {
+                    id: rider._id,
+                    riderId: riderIdCode,
                     name: rider.user.name,
                     phone: rider.user.mobile,
                     vehicle: rider.vehicle
@@ -249,7 +265,10 @@ exports.handleRiderResponse = async (riderUserId, requestId, action) => {
                 message: `Rider ${rider.user.name} is on the way`
             };
             socketService.emitToOrder(targetOrder._id.toString(), 'order:rider_assigned', {
-                orderId: targetOrder._id,
+                orderId: ordNumber,
+                orderNumber: ordNumber,
+                backendOrderId: targetOrder._id,
+                riderId: riderIdCode,
                 riderName: rider.user.name || 'Rider',
                 riderPhone: rider.user.mobile,
                 vehicleNumber: rider.vehicle?.number
@@ -261,11 +280,15 @@ exports.handleRiderResponse = async (riderUserId, requestId, action) => {
                 socketService.emitToRestaurant(targetOrder.restaurant.toString(), 'order:status', updateData);
             }
             socketService.emitToAdmin('order:rider_assigned', {
-                orderId: targetOrder._id.toString(),
-                riderId: rider._id.toString(),
+                orderId: ordNumber,
+                orderNumber: ordNumber,
+                backendOrderId: targetOrder._id.toString(),
+                riderId: riderIdCode,
                 riderName: rider.user.name || 'Rider',
                 customerName: populatedOrder.customer?.name,
+                customerId: targetOrder.customerId || populatedOrder.customer?.customerId || 'C001',
                 restaurantName: populatedOrder.restaurant?.name,
+                restaurantId: targetOrder.restaurantId || populatedOrder.restaurant?.restaurantId || 'RNT001',
                 orderStatus: 'assigned',
                 timestamp: new Date(),
                 totalAmount: targetOrder.totalAmount,

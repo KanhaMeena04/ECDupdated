@@ -122,13 +122,19 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
             final min = orderDate.minute.toString().padLeft(2, '0');
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-            history.add({
-              'amount': '₹${amt.toStringAsFixed(2)}',
-              'paymentMode': o['paymentMethod'] ?? (o['paymentStatus'] == 'paid' ? 'UPI Online' : 'Cash'),
-              'dateTime': '${orderDate.day} ${months[orderDate.month - 1]}, $hr:$min $period',
-              'orderId': 'Order #${o['orderNumber'] ?? o['_id']?.toString().substring(0, 6) ?? 'N/A'}',
-              'status': isCompleted ? 'Completed' : (status.isNotEmpty ? status[0].toUpperCase() + status.substring(1) : 'Processing'),
-            });
+              final rawOrdNum = o['orderNumber'] ?? o['orderId'];
+              final displayOrdId = rawOrdNum != null && rawOrdNum.toString().isNotEmpty
+                  ? rawOrdNum.toString().toUpperCase()
+                  : (o['_id'] != null && o['_id'].toString().length > 8
+                      ? 'ORD${o['_id'].toString().substring(o['_id'].toString().length - 4).toUpperCase()}'
+                      : o['_id']?.toString() ?? 'N/A');
+              history.add({
+                'amount': '₹${amt.toStringAsFixed(2)}',
+                'paymentMode': o['paymentMethod'] ?? (o['paymentStatus'] == 'paid' ? 'UPI Online' : 'Cash'),
+                'dateTime': '${orderDate.day} ${months[orderDate.month - 1]}, $hr:$min $period',
+                'orderId': 'Order #$displayOrdId',
+                'status': isCompleted ? 'Completed' : (status.isNotEmpty ? status[0].toUpperCase() + status.substring(1) : 'Processing'),
+              });
           }
         }
 

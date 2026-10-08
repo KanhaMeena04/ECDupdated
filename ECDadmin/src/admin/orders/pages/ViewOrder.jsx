@@ -51,7 +51,7 @@ const ViewOrder = () => {
             </div>
             <div className="text-right">
               <p className="text-lg font-semibold text-gray-400">
-                Order ID <span className="text-gray-800 font-bold">#{order._id}</span>
+                Order ID <span className="text-gray-800 font-bold">#{order.orderNumber || order.orderId || (order._id ? order._id.slice(-6).toUpperCase() : '—')}</span>
               </p>
               <Chip
                 label={order.orderType === 'self_pickup' ? 'Self Pickup 🛍️' : 'Delivery 🚴'}
@@ -64,26 +64,45 @@ const ViewOrder = () => {
 
           <hr className="my-8 border-gray-100" />
 
-          {/* Customer & Restaurant Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
+          {/* Customer, Restaurant & Rider Details */}
+          <div className={`grid grid-cols-1 ${order.rider ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-8 mb-12`}>
             <div>
-              <h3 className="font-bold uppercase text-xs tracking-wider mb-4" style={{ color: BRAND_MAIN }}>Customer Details :</h3>
+              <h3 className="font-bold uppercase text-xs tracking-wider mb-4" style={{ color: BRAND_MAIN }}>
+                Customer Details {order.customerId || order.customer?.customerId ? `(${order.customerId || order.customer?.customerId})` : ''} :
+              </h3>
               <div className="text-sm space-y-1 leading-relaxed">
-                <p className="font-bold text-gray-900 text-base">{order.customer?.name }</p>
+                <p className="font-bold text-gray-900 text-base">{order.customer?.name}</p>
+                <p className="text-xs font-semibold text-emerald-600">ID: #{order.customerId || order.customer?.customerId || 'C001'}</p>
                 <p className="text-gray-500">{order.customer?.address ? getAddress(order.customer.address) : ''}</p>
                 <p className="text-gray-500 font-medium">{order.customer?.mobile}</p>
                 <p className="text-gray-500">{order.customer?.email}</p>
               </div>
             </div>
             <div>
-              <h3 className="font-bold uppercase text-xs tracking-wider mb-4" style={{ color: BRAND_MAIN }}>Restaurant Details :</h3>
+              <h3 className="font-bold uppercase text-xs tracking-wider mb-4" style={{ color: BRAND_MAIN }}>
+                Restaurant Details {order.restaurantId || order.restaurant?.restaurantId ? `(${order.restaurantId || order.restaurant?.restaurantId})` : ''} :
+              </h3>
               <div className="text-sm space-y-1 leading-relaxed">
                 <p className="font-bold text-gray-900 text-base">{order.restaurant?.name ? getName(order.restaurant.name) : ''}</p>
+                <p className="text-xs font-semibold text-blue-600">ID: #{order.restaurantId || order.restaurant?.restaurantId || 'RNT001'}</p>
                 <p className="text-gray-500">{order.restaurant?.address ? getAddress(order.restaurant.address) : ''}</p>
                 <p className="text-gray-500 font-medium">{order.restaurant?.phone}</p>
                 <p className="text-gray-500">{order.restaurant?.email}</p>
               </div>
             </div>
+            {order.rider && (
+              <div>
+                <h3 className="font-bold uppercase text-xs tracking-wider mb-4" style={{ color: BRAND_MAIN }}>
+                  Rider Details {order.riderId || order.rider?.riderId ? `(${order.riderId || order.rider?.riderId})` : ''} :
+                </h3>
+                <div className="text-sm space-y-1 leading-relaxed">
+                  <p className="font-bold text-gray-900 text-base">{order.rider?.user?.name || order.rider?.name || 'Assigned Rider'}</p>
+                  <p className="text-xs font-semibold text-purple-600">ID: #{order.riderId || order.rider?.riderId || 'RDR001'}</p>
+                  <p className="text-gray-500 font-medium">{order.rider?.user?.mobile || order.rider?.phone || '—'}</p>
+                  <p className="text-gray-500">{order.rider?.vehicle?.number ? `Vehicle: ${order.rider.vehicle.number}` : ''}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Order Items Table */}

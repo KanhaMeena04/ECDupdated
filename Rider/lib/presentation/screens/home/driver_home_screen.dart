@@ -2066,23 +2066,33 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header: Order ID and Status
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  "Order #${order['orderNumber'] ?? order['orderId'] ?? order['_id'] ?? 'N/A'}",
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              _buildStatusBadge(order['deliveryStatus'] ?? 'PENDING'),
-            ],
-          ),
+            Builder(
+              builder: (context) {
+                final rawOrd = order['orderNumber'] ?? order['orderId'];
+                final displayOrd = rawOrd != null && rawOrd.toString().isNotEmpty
+                    ? rawOrd.toString().toUpperCase()
+                    : (order['_id'] != null && order['_id'].toString().length > 8
+                        ? 'ORD${order['_id'].toString().substring(order['_id'].toString().length - 4).toUpperCase()}'
+                        : order['_id']?.toString() ?? 'N/A');
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Order #$displayOrd",
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    _buildStatusBadge(order['deliveryStatus'] ?? 'PENDING'),
+                  ],
+                );
+              },
+            ),
           const SizedBox(height: 12),
           const Divider(height: 1),
           const SizedBox(height: 12),
