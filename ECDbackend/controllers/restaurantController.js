@@ -2480,7 +2480,7 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
       .populate("owner", "name email mobile pin")
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1, _id: 1 })
       .catch(() => []);
 
     let formattedData = restaurants.map((rest, idx) => {
@@ -2505,9 +2505,11 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
       const ownerName = (rest.owner && typeof rest.owner === 'object' && rest.owner.name) ? rest.owner.name : (rest.ownerName || `${restName} Owner`);
       const emailVal = rest.email || (rest.owner && typeof rest.owner === 'object' ? rest.owner.email : '') || (contactVal !== '-' ? `${contactVal.replace(/[^0-9]/g, '')}@ecdkart.com` : '-');
 
-      const resolvedRestId = (rest.restaurantId && /^RNT\d+/i.test(rest.restaurantId) && (idx === 0 || rest.restaurantId !== 'RNT001'))
-        ? rest.restaurantId.toUpperCase()
-        : `RNT${String(idx + 1).padStart(3, '0')}`;
+      const seqNumber = skip + idx + 1;
+      const resolvedRestId = `RNT${String(seqNumber).padStart(3, '0')}`;
+      if (rest.restaurantId !== resolvedRestId) {
+        Restaurant.findByIdAndUpdate(rest._id, { restaurantId: resolvedRestId }).catch(() => {});
+      }
 
       return {
         _id: rest._id,
