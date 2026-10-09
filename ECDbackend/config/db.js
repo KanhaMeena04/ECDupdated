@@ -26,9 +26,10 @@ const connectDB = async () => {
       `✅ MongoDB Connected Successfully | Host: ${conn.connection.host} | Database: ${conn.connection.name}`
     );
 
-    await cleanupLegacyIndexes();
-    await ensureAdminUser();
-    await reconcileUserAndRiderNames();
+    // Fire post-connect maintenance tasks asynchronously in background so API server handles traffic instantly
+    cleanupLegacyIndexes().catch(e => console.warn('Legacy index cleanup:', e.message));
+    ensureAdminUser().catch(e => console.warn('Admin check:', e.message));
+    reconcileUserAndRiderNames().catch(e => console.warn('Name reconciliation:', e.message));
 
     return conn;
   } catch (error) {
@@ -137,7 +138,13 @@ async function reconcileUserAndRiderNames() {
     const User = require('../models/User');
     const Rider = require('../models/Rider');
 
-    const users = await User.find({ isDeleted: { $ne: true } });
+    const users = await User.find({
+      $or: [
+        { firstName: { $in: ["", null, "User"] } },
+        { name: { $in: ["", null, "User"] } }
+      ]
+    }).limit(50).lean();
+
     for (const u of users) {
       let updated = false;
       let fName = (u.firstName || "").trim();
@@ -168,7 +175,12 @@ async function reconcileUserAndRiderNames() {
       }
     }
 
-    const riders = await Rider.find({}).populate('user', 'name email mobile phone');
+    const riders = await Rider.find({
+      $or: [
+        { name: { $in: ["", null, "User", "Driver Partner"] } }
+      ]
+    }).populate('user', 'name email mobile phone').limit(50).lean();
+
     for (const r of riders) {
       if (!r.user) continue;
       const userName = (r.user.name || "").trim();
@@ -178,7 +190,6 @@ async function reconcileUserAndRiderNames() {
       const isRiderGeneric = !riderName || riderName === 'User' || riderName === 'Driver Partner' || riderName.startsWith('Rider ');
 
       if (!isUserGeneric && isRiderGeneric) {
-        r.name = userName;
         await Rider.updateOne({ _id: r._id }, { $set: { name: userName } });
       } else if (isUserGeneric && !isRiderGeneric) {
         const parts = riderName.split(" ");
