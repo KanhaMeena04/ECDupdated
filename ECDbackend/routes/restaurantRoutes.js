@@ -84,9 +84,8 @@ router.post('/vendor/menu/bulk-import/:id', optionalAuth, vendorBulkImportMenuIt
 router.put('/vendor/menu/edit/:restId/:itemId', optionalAuth, vendorEditMenuItem);
 router.put('/:restId/menu/:itemId', optionalAuth, vendorEditMenuItem);
 router.patch('/vendor/menu/toggle/:restId/:itemId', optionalAuth, vendorToggleMenuItem);
-router.post('/:restId/menu/:itemId/request-delete', optionalAuth, vendorDeleteMenuItem);
 router.delete('/:restId/menu/:itemId', optionalAuth, vendorDeleteMenuItem);
-router.get('/:id/details', protect, getRestaurantProductById);
+router.get('/:id/details', optionalAuth, getRestaurantById);
 router.post('/apply', upload.fields([
   { name: 'image', maxCount: 1 },
   { name: 'bannerImage', maxCount: 1 },

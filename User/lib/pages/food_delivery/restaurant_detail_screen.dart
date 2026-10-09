@@ -45,10 +45,11 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
       _isLoadingRestaurant = false;
       _menu = widget.restaurant!.menu;
       if (_menu.isEmpty) {
-        _fetchMenu();
+        _isLoadingMenu = true;
       } else {
         _isLoadingMenu = false;
       }
+      _fetchMenu();
     } else {
       _fetchRestaurantAndMenu();
     }
@@ -108,10 +109,22 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     if (_restaurant == null) return;
     try {
       final identifier = _restaurant!.id.isNotEmpty ? _restaurant!.id : _restaurant!.slug;
-      final menu = await RestaurantApiService.getRestaurantMenu(identifier);
+      var menu = await RestaurantApiService.getRestaurantMenu(identifier);
+      if (menu.isEmpty) {
+        try {
+          final detailedRest = await RestaurantApiService.getRestaurantDetails(identifier);
+          if (detailedRest.menu.isNotEmpty) {
+            menu = detailedRest.menu;
+          }
+        } catch (_) {}
+      }
       if (mounted) {
         setState(() {
-          _menu = menu.isNotEmpty ? menu : (_restaurant?.menu ?? []);
+          if (menu.isNotEmpty) {
+            _menu = menu;
+          } else if (_menu.isEmpty && _restaurant != null && _restaurant!.menu.isNotEmpty) {
+            _menu = _restaurant!.menu;
+          }
           _isLoadingMenu = false;
         });
       }

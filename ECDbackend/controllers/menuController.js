@@ -405,6 +405,7 @@ exports.getMenu = async (req, res) => {
       $or: [
         { restaurant: restaurant._id },
         { restaurant: restaurant._id.toString() },
+        ...(restaurant.restaurantId ? [{ restaurant: restaurant.restaurantId }, { restaurantId: restaurant.restaurantId }] : []),
         ...(validProductObjIds.length > 0 ? [{ _id: { $in: validProductObjIds } }] : [])
       ]
     };
@@ -422,6 +423,22 @@ exports.getMenu = async (req, res) => {
       .populate("subcategoryId", "name slug isActive userAppVisible")
       .sort({ createdAt: -1 })
       .lean();
+
+    if (products.length === 0 && !isVendorOrAdmin) {
+      products = await Product.find({
+        $or: [
+          { restaurant: restaurant._id },
+          { restaurant: restaurant._id.toString() },
+          ...(restaurant.restaurantId ? [{ restaurant: restaurant.restaurantId }, { restaurantId: restaurant.restaurantId }] : []),
+          ...(validProductObjIds.length > 0 ? [{ _id: { $in: validProductObjIds } }] : [])
+        ]
+      })
+      .populate("category", "name slug isActive userAppVisible")
+      .populate("categoryId", "name slug isActive userAppVisible")
+      .populate("subcategoryId", "name slug isActive userAppVisible")
+      .sort({ createdAt: -1 })
+      .lean();
+    }
 
     // Check if authenticated user is authorized for B2B pricing
     const isB2BUser = req.user && (req.user.userType === "b2b" || req.user.userType === "corporate" || req.user.role === "b2b");

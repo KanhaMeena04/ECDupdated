@@ -107,8 +107,14 @@ router.post("/restaurant/delete/:orderId", protect, deleteOrderVendor);
 router.delete("/restaurant/delete/:orderId", protect, deleteOrderVendor);
 router.post("/restaurant/send-pickup-otp/:orderId", protect, sendPickupOtpVendor);
 
+// Restaurant specific GET routes (MUST precede generic /:id to prevent shadowing)
+router.get("/restaurant/pending", protect, restaurantOwner, getPendingOrdersForRestaurant);
+router.get("/restaurant/completed", protect, restaurantOwner, getCompletedOrdersForRestaurant);
+router.get("/restaurant/:id/details", optionalAuth, getRestaurantOrderDetails);
+router.get("/restaurant/:id", optionalAuth, getOrdersForRestaurantById);
+router.get("/restaurant", optionalAuth, getOrdersForRestaurantById);
+
 router.get("/:id/details", protect, generalOrderLimiter, getOrderDetails);
-router.get("/:id", protect, generalOrderLimiter, getOrderDetails);
 router.get("/:id/customer", protect, customer, generalOrderLimiter, getOrderDetailsCustomer); // ✅ Explicit customer route
 router.post("/:id/im-here", protect, customer, notifyCustomerArrived); // ✅ Customer "I'm Here" button
 router.post("/:id/customer-arrived", protect, customer, notifyCustomerArrived);
@@ -118,11 +124,7 @@ router.get("/:id/timeline", protect, generalOrderLimiter, getOrderTimeline);
 router.post("/:id/rate-rider", protect, customer, validateRateRider, handleValidationErrors, generalOrderLimiter, rateRider);
 router.post("/:id/rate-customer", protect, rateCustomer);
 router.post("/:id/resend-otp", protect, generalOrderLimiter, resendOTP);
-router.get("/restaurant", protect, restaurantOwner, getRestaurantOrders);
-router.get("/restaurant/:id/details", protect, restaurantOwner, getRestaurantOrderDetails);
-router.get("/restaurant/:id", optionalAuth, getOrdersForRestaurantById);
-router.get("/restaurant/pending", protect, restaurantOwner, getPendingOrdersForRestaurant);
-router.get("/restaurant/completed", protect, restaurantOwner, getCompletedOrdersForRestaurant);
+router.get("/:id", protect, generalOrderLimiter, getOrderDetails);
 const canUpdateOrderStatus = (req, res, next) => {
   if (req.user && ['restaurant_owner', 'rider', 'driver', 'admin'].includes(req.user.role)) {
     return next();

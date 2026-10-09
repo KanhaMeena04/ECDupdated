@@ -284,12 +284,15 @@ class RestaurantApiService {
       );
     }
     try {
-      final response = await http.get(Uri.parse('$restaurantsUrl/details/$slug'));
+      var response = await http.get(Uri.parse('$restaurantsUrl/details/$slug')).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) {
+        response = await http.get(Uri.parse('$restaurantsUrl/$slug')).timeout(const Duration(seconds: 15));
+      }
       debugPrint('API Response [getRestaurantDetails]: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-        final data = jsonResponse['restaurant'] ?? jsonResponse;
+        final data = jsonResponse['restaurant'] ?? jsonResponse['data'] ?? jsonResponse;
         return _fromJsonToRestaurant(data);
       } else {
         throw Exception('Failed to load restaurant details');
@@ -309,26 +312,42 @@ class RestaurantApiService {
       return _getMockMenuItems();
     }
     try {
-      var url = '$apiBaseUrl/menu/$identifier';
-      var response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
-      if (response.statusCode != 200) {
-        url = '$restaurantsUrl/menu/$identifier';
-        response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
+      http.Response? response;
+      final urlsToTry = [
+        '$apiBaseUrl/menu/$identifier',
+        '$restaurantsUrl/menu/$identifier',
+        '$restaurantsUrl/details/$identifier',
+        '$restaurantsUrl/$identifier',
+      ];
+
+      for (final url in urlsToTry) {
+        try {
+          final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+          if (res.statusCode == 200) {
+            response = res;
+            break;
+          }
+        } catch (_) {}
       }
-      debugPrint('API Response [getRestaurantMenu]: ${response.statusCode}');
-      
-      if (response.statusCode == 200) {
+
+      if (response != null && response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         List<dynamic> menuJson = [];
         if (jsonResponse is List) {
           menuJson = jsonResponse;
         } else if (jsonResponse is Map) {
-          if (jsonResponse['items'] is List) {
+          if (jsonResponse['items'] is List && (jsonResponse['items'] as List).isNotEmpty) {
             menuJson = jsonResponse['items'];
-          } else if (jsonResponse['products'] is List) {
+          } else if (jsonResponse['products'] is List && (jsonResponse['products'] as List).isNotEmpty) {
             menuJson = jsonResponse['products'];
-          } else if (jsonResponse['menu'] is List) {
+          } else if (jsonResponse['menu'] is List && (jsonResponse['menu'] as List).isNotEmpty) {
             menuJson = jsonResponse['menu'];
+          } else if (jsonResponse['restaurant'] is Map && jsonResponse['restaurant']['menu'] is List && (jsonResponse['restaurant']['menu'] as List).isNotEmpty) {
+            menuJson = jsonResponse['restaurant']['menu'];
+          } else if (jsonResponse['restaurant'] is Map && jsonResponse['restaurant']['products'] is List && (jsonResponse['restaurant']['products'] as List).isNotEmpty) {
+            menuJson = jsonResponse['restaurant']['products'];
+          } else if (jsonResponse['data'] is List && (jsonResponse['data'] as List).isNotEmpty) {
+            menuJson = jsonResponse['data'];
           } else if (jsonResponse['menu'] is Map) {
             final Map<String, dynamic> catMap = jsonResponse['menu'];
             for (var items in catMap.values) {
@@ -336,16 +355,20 @@ class RestaurantApiService {
                 menuJson.addAll(items);
               }
             }
-          } else if (jsonResponse['data'] is List) {
-            menuJson = jsonResponse['data'];
           }
         }
-        return menuJson.map((json) => _fromJsonToMenuItem(Map<String, dynamic>.from(json))).toList();
+
+        if (menuJson.isNotEmpty) {
+          return menuJson
+              .where((json) => json != null && json is Map)
+              .map((json) => _fromJsonToMenuItem(Map<String, dynamic>.from(json)))
+              .toList();
+        }
       }
     } catch (e) {
       debugPrint('Error fetching menu: $e');
     }
-    return _getMockMenuItems();
+    return [];
   }
 
   static Future<List<Restaurant>> searchRestaurants(String query) async {
