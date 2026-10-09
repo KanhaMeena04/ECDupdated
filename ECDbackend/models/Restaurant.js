@@ -56,7 +56,7 @@ const restaurantSchema = new mongoose.Schema(
       coordinates: { type: [Number], index: "2dsphere" },
     },
     deliveryTime: { type: Number, default: 30 },
-    geofenceRadius: { type: Number, default: 5 }, // Form: Geofence Radius (km)
+    geofenceRadius: { type: Number, default: 25 }, // Form: Geofence Radius (km)
     deliveringZones: [{ type: String }], // Form: Delivering Zones
     deliveryType: [{ 
       type: String, 

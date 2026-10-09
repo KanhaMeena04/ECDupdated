@@ -532,6 +532,11 @@ const useRestaurantListForAdmin = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const abortRef = useRef(null);
 
+  const dataRef = useRef(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
   const handleRestaurantListForAdmin = useCallback(async (searchQuery = "", options = {}) => {
     const isBackground = options && typeof options === "object" ? Boolean(options.isBackground) : false;
 
@@ -540,7 +545,7 @@ const useRestaurantListForAdmin = () => {
     }
     abortRef.current = new AbortController();
 
-    if (!isBackground && data === null) {
+    if (!isBackground && dataRef.current === null) {
       setLoading(true);
     } else {
       setIsRefreshing(true);
@@ -569,11 +574,11 @@ const useRestaurantListForAdmin = () => {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [data]);
+  }, []);
 
   useEffect(() => {
     handleRestaurantListForAdmin();
-  }, []);
+  }, [handleRestaurantListForAdmin]);
 
   return {
     data,

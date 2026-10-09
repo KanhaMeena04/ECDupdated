@@ -61,10 +61,10 @@ export default function RestaurantsList() {
   // Search trigger to backend
   useEffect(() => {
     const timer = setTimeout(() => {
-      handleRestaurantListForAdmin(searchTerm, { isBackground: Boolean(data && data.length > 0) });
+      handleRestaurantListForAdmin(searchTerm);
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchTerm, data, handleRestaurantListForAdmin]);
+  }, [searchTerm, handleRestaurantListForAdmin]);
 
   // Periodic auto-sync & window focus refresh so changes from mobile app reflect dynamically without screen flicker
   useEffect(() => {

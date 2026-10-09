@@ -2363,7 +2363,8 @@ exports.getAllRestaurants = async (req, res) => {
 
       // Enforce strict restaurant geofence radius check when GPS coordinates are provided
       if (hasUserCoords) {
-        const maxRadius = Number(restaurant.geofenceRadius || restaurant.deliveryRadius || 10);
+        const rawRadius = Number(restaurant.geofenceRadius ?? restaurant.deliveryRadius);
+        const maxRadius = (Number.isFinite(rawRadius) && rawRadius > 0) ? rawRadius : 25;
         if (distance === null || distance > maxRadius) {
           continue; // EXCLUDE any restaurant strictly beyond its configured geofence radius
         }
@@ -2482,9 +2483,6 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
         ...(matchedOwnerIds.length > 0 ? [{ owner: { $in: matchedOwnerIds } }] : []),
       ];
     }
-
-    const { backfillMissingIds } = require("../utils/idGenerator");
-    await backfillMissingIds().catch(() => {});
 
     const total = await Restaurant.countDocuments(query).catch(() => 0);
     const restaurants = await Restaurant.find(query)

@@ -198,18 +198,27 @@ exports.getHomeData = async (req, res) => {
     const lng = Number(req.query.lng ?? req.query.long);
     const { city, minPrice, maxPrice } = req.query;
     const userId = req.user ? req.user._id : null;
-    const radiusKm = Number(req.query.radiusKm || 10);
-    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+    const radiusKm = Number(req.query.radiusKm || 25);
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
     let restaurantQuery = buildRestaurantBaseQuery();
     const radiusRadians = radiusKm / 6371;
-    const useLocationFilter = hasCoords && await Restaurant.exists({
-      ...buildRestaurantBaseQuery(),
-      location: {
-        $geoWithin: {
-          $centerSphere: [[lng, lat], radiusRadians],
-        },
-      },
-    });
+    let useLocationFilter = false;
+
+    if (hasCoords) {
+      try {
+        useLocationFilter = await Restaurant.exists({
+          ...buildRestaurantBaseQuery(),
+          location: {
+            $geoWithin: {
+              $centerSphere: [[lng, lat], radiusRadians],
+            },
+          },
+        });
+      } catch (geoErr) {
+        useLocationFilter = false;
+      }
+    }
+
     if (useLocationFilter) {
       restaurantQuery.location = {
         $near: {
