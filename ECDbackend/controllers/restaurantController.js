@@ -2475,12 +2475,15 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
       ];
     }
 
+    const { backfillMissingIds } = require("../utils/idGenerator");
+    await backfillMissingIds().catch(() => {});
+
     const total = await Restaurant.countDocuments(query).catch(() => 0);
     const restaurants = await Restaurant.find(query)
       .populate("owner", "name email mobile pin")
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: 1, _id: 1 })
+      .sort({ createdAt: -1, _id: -1 })
       .catch(() => []);
 
     let formattedData = restaurants.map((rest, idx) => {
@@ -2505,11 +2508,9 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
       const ownerName = (rest.owner && typeof rest.owner === 'object' && rest.owner.name) ? rest.owner.name : (rest.ownerName || `${restName} Owner`);
       const emailVal = rest.email || (rest.owner && typeof rest.owner === 'object' ? rest.owner.email : '') || (contactVal !== '-' ? `${contactVal.replace(/[^0-9]/g, '')}@ecdkart.com` : '-');
 
-      const seqNumber = skip + idx + 1;
-      const resolvedRestId = `RNT${String(seqNumber).padStart(3, '0')}`;
-      if (rest.restaurantId !== resolvedRestId) {
-        Restaurant.findByIdAndUpdate(rest._id, { restaurantId: resolvedRestId }).catch(() => {});
-      }
+      const resolvedRestId = (rest.restaurantId && /^RNT\d+/i.test(rest.restaurantId))
+        ? rest.restaurantId.toUpperCase()
+        : `RNT${String(total - skip - idx).padStart(3, '0')}`;
 
       return {
         _id: rest._id,

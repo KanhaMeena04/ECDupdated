@@ -168,49 +168,25 @@ async function backfillMissingIds() {
     const User = getModel("User");
     const Counter = getModel("Counter");
 
-    // 1. Re-align Restaurants (RNT001, RNT002, RNT003...)
+    // 1. Re-align Restaurants (RNT001 for oldest, RNT002, RNT003...)
     if (Restaurant) {
       const allRestaurants = await Restaurant.find({}).sort({ createdAt: 1, _id: 1 });
-      const usedIds = new Set();
       let index = 1;
 
       for (const rest of allRestaurants) {
-        const currentId = rest.restaurantId ? String(rest.restaurantId).toUpperCase() : "";
-        const isDuplicateOrDefault = !currentId ||
-          (currentId === "RNT001" && index > 1) ||
-          usedIds.has(currentId) ||
-          !/^RNT\d+/i.test(currentId);
-
-        let finalId = currentId;
-        if (isDuplicateOrDefault) {
-          let numStr = String(index).padStart(3, "0");
-          let candidateId = `RNT${numStr}`;
-          while (usedIds.has(candidateId)) {
-            index++;
-            numStr = String(index).padStart(3, "0");
-            candidateId = `RNT${numStr}`;
-          }
-          finalId = candidateId;
-          await Restaurant.findByIdAndUpdate(rest._id, { restaurantId: finalId });
-          console.log(`[idGenerator] Re-aligned restaurantId ${finalId} for restaurant "${rest.name?.en || rest.name || rest._id}"`);
+        const expectedId = `RNT${String(index).padStart(3, "0")}`;
+        if (rest.restaurantId !== expectedId) {
+          await Restaurant.findByIdAndUpdate(rest._id, { restaurantId: expectedId });
+          rest.restaurantId = expectedId;
+          console.log(`[idGenerator] Saved permanent restaurantId ${expectedId} for "${rest.name?.en || rest.name || rest._id}"`);
         }
-
-        usedIds.add(finalId);
         index++;
       }
 
-      // Sync Counter sequence to highest number used
-      let maxNum = 0;
-      for (const id of usedIds) {
-        const numPart = parseInt(id.replace(/^RNT/i, ""), 10);
-        if (!isNaN(numPart) && numPart > maxNum) {
-          maxNum = numPart;
-        }
-      }
-      if (Counter && maxNum > 0) {
+      if (Counter && allRestaurants.length > 0) {
         await Counter.findByIdAndUpdate(
           "restaurant",
-          { $set: { seq: maxNum } },
+          { $set: { seq: allRestaurants.length } },
           { upsert: true, new: true }
         );
       }
