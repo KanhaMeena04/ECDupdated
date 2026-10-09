@@ -319,24 +319,26 @@ export default function RestaurantPayoutList() {
   const safeRequests = Array.isArray(requests) ? requests : [];
   const safeLedgers = Array.isArray(ledgers) ? ledgers : [];
 
-  // Filter requests based on search query
+  // Filter requests based on search query safely
   const filteredRequests = safeRequests.filter((r) => {
     if (!r) return false;
-    const name = r.restaurantProfile?.name || r.bankDetails?.accountHolder || r.user?.name || "";
-    const phone = r.bankDetails?.phone || r.restaurantProfile?.contactNumber || r.user?.mobile || "";
-    const restId = r.restaurantDisplayId || r.restaurant?._id || "";
-    const upi = r.bankDetails?.upiId || "";
-    const accNum = r.bankDetails?.accountNumber || "";
-    const ifsc = r.bankDetails?.ifsc || "";
-    const query = searchQuery.toLowerCase();
+    const name = String(r.restaurantProfile?.name || r.bankDetails?.accountHolder || r.user?.name || "").toLowerCase();
+    const phone = String(r.bankDetails?.phone || r.restaurantProfile?.contactNumber || r.user?.mobile || "").toLowerCase();
+    const restId = String(r.restaurantDisplayId || (r.restaurant?._id ? r.restaurant._id : (typeof r.restaurant === 'string' ? r.restaurant : "")) || "").toLowerCase();
+    const upi = String(r.bankDetails?.upiId || "").toLowerCase();
+    const accNum = String(r.bankDetails?.accountNumber || "").toLowerCase();
+    const ifsc = String(r.bankDetails?.ifsc || "").toLowerCase();
+    const query = String(searchQuery || "").toLowerCase().trim();
+
+    if (!query) return true;
 
     return (
-      name.toLowerCase().includes(query) ||
-      phone.toLowerCase().includes(query) ||
-      restId.toLowerCase().includes(query) ||
-      upi.toLowerCase().includes(query) ||
-      accNum.toLowerCase().includes(query) ||
-      ifsc.toLowerCase().includes(query)
+      name.includes(query) ||
+      phone.includes(query) ||
+      restId.includes(query) ||
+      upi.includes(query) ||
+      accNum.includes(query) ||
+      ifsc.includes(query)
     );
   });
 

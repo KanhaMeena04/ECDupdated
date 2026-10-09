@@ -84,7 +84,9 @@ async function calculateOrderPrice({
       deliveryFee = 0;
       deliveryRuleApplied = 'Self Pickup (₹0)';
     } else {
-      const maxRadius = adminSetting.deliveryFeeConfig?.maxDeliveryRadiusKm || 12;
+      const maxRadius = Number(restaurant?.geofenceRadius || restaurant?.deliveryRadius || 0) > 0 
+        ? Number(restaurant.geofenceRadius || restaurant.deliveryRadius) 
+        : (adminSetting.deliveryFeeConfig?.maxDeliveryRadiusKm || 12);
       if (deliveryDistance > maxRadius) {
         isRadiusExceeded = true;
       }

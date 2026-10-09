@@ -523,18 +523,26 @@ exports.placeOrder = async (req, res) => {
     // Enrich cart items with Product details (name, image, price) if missing
     const enrichedItems = await Promise.all(
       cart.items.map(async (item) => {
-        let pName = item.name || (item.product && typeof item.product === 'object' ? item.product.name : null);
-        let pImage = item.image || (item.product && typeof item.product === 'object' ? item.product.image : null);
-        let pPrice = (typeof item.price === 'number' && item.price > 0) ? item.price : ((item.product && typeof item.product === 'object' && typeof item.product.price === 'number') ? item.product.price : null);
+        let pName = item.name || (item.product && typeof item.product === 'object' ? (item.product.name?.en || item.product.name) : null);
+        let pImage = item.image || (item.product && typeof item.product === 'object' ? (item.product.image || item.product.imageUrl) : null);
+        let pPrice = (typeof item.price === 'number' && item.price > 0)
+          ? item.price
+          : ((typeof item.sellingPrice === 'number' && item.sellingPrice > 0)
+            ? item.sellingPrice
+            : ((typeof item.basePrice === 'number' && item.basePrice > 0)
+              ? item.basePrice
+              : ((item.product && typeof item.product === 'object')
+                ? (item.product.price || item.product.sellingPrice || item.product.basePrice || item.product.pricing?.b2c?.sellingPrice || 0)
+                : 0)));
 
         const prodId = item.product?._id || item.product || item.productId;
-        if ((!pName || !pPrice || !pImage) && prodId && mongoose.Types.ObjectId.isValid(prodId)) {
+        if ((!pName || !pPrice || pPrice === 0) && prodId && mongoose.Types.ObjectId.isValid(prodId)) {
           try {
-            const dbProd = await Product.findById(prodId).select('name image price basePrice pricing');
+            const dbProd = await Product.findById(prodId).select('name image imageUrl price basePrice sellingPrice pricing mrp');
             if (dbProd) {
               if (!pName) pName = typeof dbProd.name === 'object' ? (dbProd.name.en || Object.values(dbProd.name)[0]) : dbProd.name;
-              if (!pImage) pImage = dbProd.image || '';
-              if (!pPrice || pPrice === 0) pPrice = dbProd.price || dbProd.basePrice || dbProd.pricing?.b2c?.sellingPrice || 0;
+              if (!pImage) pImage = dbProd.image || dbProd.imageUrl || '';
+              if (!pPrice || pPrice === 0) pPrice = dbProd.sellingPrice || dbProd.price || dbProd.basePrice || dbProd.pricing?.b2c?.sellingPrice || dbProd.mrp || 0;
             }
           } catch (_) {}
         }
@@ -2472,43 +2480,49 @@ exports.searchRidersForOrder = async (req, res) => {
       status: { $in: ['timeout', 'rejected'] }
     });
     let nearbyRiderCount = 0;
+    const { calculateDistance } = require('../utils/locationUtils');
     try {
-      nearbyRiderCount = await Rider.countDocuments({
+      const candidateRiders = await Rider.find({
         currentLocation: {
           $geoWithin: {
             $centerSphere: [
               [restaurantCoords[0], restaurantCoords[1]],
-              1000 / 6378.1
+              25 / 6378.1 // 25 KM radius
             ]
           }
         },
         isOnline: true,
-        verificationStatus: 'approved',
+        verificationStatus: { $ne: 'rejected' },
+      }).select('_id currentLocation');
+
+      const validNearbyRiders = candidateRiders.filter(r => {
+        const coords = r.currentLocation?.coordinates;
+        if (!coords || !Array.isArray(coords) || coords.length < 2 || (coords[0] === 0 && coords[1] === 0)) return false;
+        return calculateDistance(coords, restaurantCoords) <= 25;
       });
+
+      nearbyRiderCount = validNearbyRiders.length;
     } catch (geoCountErr) {
-      nearbyRiderCount = await Rider.countDocuments({
-        isOnline: true,
-        verificationStatus: 'approved',
-      });
+      console.warn('[SearchRiders] Error counting nearby riders within 25km:', geoCountErr.message);
     }
 
     if (nearbyRiderCount === 0) {
-      logger.info('[SearchRiders] No online riders found, emitting no_rider_found immediately', {
+      logger.info('[SearchRiders] No online riders found within 25km, emitting no_rider_found immediately', {
         orderId: order._id,
         restaurantId: order.restaurant.toString(),
       });
       socketService.emitToRestaurant(order.restaurant.toString(), 'order:no_rider_found', {
         orderId: order._id,
-        message: 'No riders available nearby',
+        message: 'No riders available within 25 km',
       });
       return res.status(200).json({
         success: true,
-        message: "No riders available nearby",
+        message: "No riders available within 25 km",
         count: 0,
         orderId: order._id,
       });
     }
-    logger.info(`[SearchRiders] Found ${nearbyRiderCount} online riders, triggering dispatch`, {
+    logger.info(`[SearchRiders] Found ${nearbyRiderCount} online riders within 25km, triggering dispatch`, {
       orderId: order._id,
     });
     try {
@@ -2520,24 +2534,28 @@ exports.searchRidersForOrder = async (req, res) => {
     try {
       let nearbyRiders = [];
       try {
-        nearbyRiders = await Rider.find({
+        const candidates = await Rider.find({
           currentLocation: {
             $geoWithin: {
               $centerSphere: [
                 [restaurantCoords[0], restaurantCoords[1]],
-                1000 / 6378.1
+                25 / 6378.1
               ]
             }
           },
           isOnline: true,
-          verificationStatus: 'approved',
-        }).select('_id user').limit(10);
+          verificationStatus: { $ne: 'rejected' },
+        }).select('_id user currentLocation').limit(20);
+
+        nearbyRiders = candidates.filter(r => {
+          const coords = r.currentLocation?.coordinates;
+          if (!coords || !Array.isArray(coords) || coords.length < 2 || (coords[0] === 0 && coords[1] === 0)) return false;
+          return calculateDistance(coords, restaurantCoords) <= 25;
+        }).slice(0, 5);
       } catch (findGeoErr) {
-        nearbyRiders = await Rider.find({
-          isOnline: true,
-          verificationStatus: 'approved',
-        }).select('_id user').limit(10);
+        console.warn('[SearchRiders] Geo query error finding riders:', findGeoErr.message);
       }
+
       const notificationPromises = nearbyRiders.map(async (rider) => {
         try {
           const riderUser = await User.findById(rider.user).select('_id');
@@ -2545,7 +2563,7 @@ exports.searchRidersForOrder = async (req, res) => {
           await sendNotification(
             riderUser._id,
             "New Order Available",
-            `Order at ${restaurant.name.en || restaurant.name} - ₹${order.totalAmount}`,
+            `Order at ${typeof restaurant.name === 'object' ? (restaurant.name.en || Object.values(restaurant.name)[0]) : restaurant.name} - ₹${order.totalAmount}`,
             {
               orderId: order._id.toString(),
               restaurantId: order.restaurant.toString(),

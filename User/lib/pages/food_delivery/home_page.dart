@@ -1993,31 +1993,13 @@ class _RecommendedRestaurantCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '1.2 km away  |  20-30 minutes',
+                      '${restaurant.distanceKm > 0 ? restaurant.distanceKm.toStringAsFixed(1) : "1.5"} km away  |  ${restaurant.deliveryTimeMin > 0 ? restaurant.deliveryTimeMin : 25}-${(restaurant.deliveryTimeMin > 0 ? restaurant.deliveryTimeMin : 25) + 10} mins',
                       style: TextStyle(
                         fontSize: 9,
                         color: Colors.grey.shade600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFDF4F4),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'Best Seller: Cheese Burst Pizza',
-                        style: TextStyle(
-                          fontSize: 8,
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                     ),
                   ],
                 ),

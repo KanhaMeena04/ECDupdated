@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../core/models/product.dart';
+import '../core/models/restaurant_models.dart';
 import '../providers/cart_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/location_provider.dart';
 import '../services/restaurant_api_service.dart';
 import '../services/category_service.dart';
+import '../services/location_service.dart';
 import '../routes/app_routes.dart';
 import 'safe_image.dart';
 
@@ -337,10 +339,16 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
                                   '${AppRoutes.restaurantDetail}/$restId',
                                   extra: Restaurant(
                                     id: restId,
+                                    slug: restId,
                                     name: item.restaurantName ?? 'Restaurant',
                                     imageUrl: item.restaurantImageUrl ?? item.image,
                                     rating: item.rating,
+                                    reviewCount: 0,
+                                    distanceKm: 2.5,
+                                    deliveryTimeMin: 30,
+                                    deliveryCharge: 0.0,
                                     cuisine: 'Fast Food',
+                                    menu: const [],
                                   ),
                                 );
                               }

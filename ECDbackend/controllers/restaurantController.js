@@ -2361,10 +2361,11 @@ exports.getAllRestaurants = async (req, res) => {
         distance = calculateDistance([rawLng, rawLat], coords);
       }
 
-      // Enforce strict 25 KM maximum radius check when GPS coordinates are provided
+      // Enforce strict restaurant geofence radius check when GPS coordinates are provided
       if (hasUserCoords) {
-        if (distance === null || distance > 25) {
-          continue; // EXCLUDE any restaurant strictly beyond 25 KM
+        const maxRadius = Number(restaurant.geofenceRadius || restaurant.deliveryRadius || 10);
+        if (distance === null || distance > maxRadius) {
+          continue; // EXCLUDE any restaurant strictly beyond its configured geofence radius
         }
       }
 

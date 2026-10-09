@@ -58,12 +58,13 @@ const FilterSubCategoryTable = () => {
 
   /* ================= SEARCH ================= */
   const filteredData = useMemo(() => {
-    if (!searchTerm) return subCategoryData;
+    if (!searchTerm) return Array.isArray(subCategoryData) ? subCategoryData : [];
 
-    return subCategoryData.filter(
+    const term = String(searchTerm || "").toLowerCase();
+    return (Array.isArray(subCategoryData) ? subCategoryData : []).filter(
       (row) =>
-        row.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        row.category.toLowerCase().includes(searchTerm.toLowerCase())
+        String(row?.name || "").toLowerCase().includes(term) ||
+        String(row?.category || "").toLowerCase().includes(term)
     );
   }, [searchTerm, subCategoryData]);
 

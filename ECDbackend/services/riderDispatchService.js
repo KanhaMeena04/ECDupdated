@@ -7,7 +7,7 @@ const socketService = require('./socketService');
 const { sendNotification } = require('../utils/notificationService');
 const { calculateDistance, estimateTravelMinutes } = require('../utils/locationUtils');
 const { ensureRiderId } = require('../utils/idGenerator');
-const SEARCH_RADIUS_KM = process.env.NODE_ENV === 'production' ? 1000 : 1000; // 10km prod, 1000km dev
+const SEARCH_RADIUS_KM = 25; // Strictly 25km maximum rider search radius
 const BATCH_SIZE = 5;              // How many riders to notify at once
 const BATCH_TIMEOUT_MS = 45000;   // 45 seconds for a batch to respond before sending next batch
 exports.findAndNotifyRider = async (orderId) => {
@@ -26,41 +26,45 @@ exports.findAndNotifyRider = async (orderId) => {
             return;
         }
         const restaurant = await Restaurant.findById(order.restaurant);
-        if (!restaurant?.location?.coordinates) {
+        const restaurantCoords = restaurant?.location?.coordinates;
+        if (!restaurantCoords || !Array.isArray(restaurantCoords) || restaurantCoords.length < 2) {
             return console.error('Restaurant location missing for dispatch');
         }
         const previousRequests = await RideRequest.find({ order: order._id }).select('rider');
         const alreadyNotifiedRiderIds = previousRequests.map(r => r.rider);
         let nearbyRiders = [];
         try {
-            nearbyRiders = await Rider.find({
+            const candidateRiders = await Rider.find({
                 _id: { $nin: alreadyNotifiedRiderIds },
                 isOnline: true,
+                verificationStatus: { $ne: 'rejected' },
                 currentLocation: {
                     $geoWithin: {
                         $centerSphere: [
-                            restaurant.location.coordinates,
+                            restaurantCoords,
                             SEARCH_RADIUS_KM / 6378.1
                         ]
                     }
                 }
-            }).populate('user', 'name mobile').limit(BATCH_SIZE);
+            }).populate('user', 'name mobile');
+
+            nearbyRiders = candidateRiders.filter(rider => {
+                const rCoords = rider.currentLocation?.coordinates;
+                if (!rCoords || !Array.isArray(rCoords) || rCoords.length < 2 || (rCoords[0] === 0 && rCoords[1] === 0)) {
+                    return false;
+                }
+                const distKm = calculateDistance(rCoords, restaurantCoords);
+                return distKm <= SEARCH_RADIUS_KM;
+            }).slice(0, BATCH_SIZE);
         } catch (geoErr) {
-            console.warn('[Dispatch] Geo query error, falling back to online riders:', geoErr.message);
+            console.warn('[Dispatch] Geo query error:', geoErr.message);
         }
 
         if (nearbyRiders.length === 0) {
-            nearbyRiders = await Rider.find({
-                _id: { $nin: alreadyNotifiedRiderIds },
-                isOnline: true
-            }).populate('user', 'name mobile').limit(BATCH_SIZE);
-        }
-
-        if (nearbyRiders.length === 0) {
-            console.log(`[Dispatch] No more riders found for Order ${orderId} — all batches exhausted`);
+            console.log(`[Dispatch] No riders found within ${SEARCH_RADIUS_KM}km for Order ${orderId}`);
             socketService.emitToRestaurant(order.restaurant.toString(), 'order:no_rider_found', {
                 orderId,
-                message: 'No riders available nearby'
+                message: `No riders available within ${SEARCH_RADIUS_KM} km`
             });
             return;
         }

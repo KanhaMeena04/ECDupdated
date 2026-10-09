@@ -50,6 +50,25 @@ exports.estimateTravelMinutes = (distanceKm, speedKmph = 20) => {
   return Math.max(1, Math.ceil(minutes));
 };
 
+exports.isWithinRestaurantRadius = (restaurant, userLat, userLng) => {
+  if (!Number.isFinite(Number(userLat)) || !Number.isFinite(Number(userLng))) return true;
+  if (!restaurant) return false;
+
+  const coords = restaurant.location?.coordinates;
+  if (!coords || !Array.isArray(coords) || coords.length < 2) return true;
+
+  const restLng = Number(coords[0]);
+  const restLat = Number(coords[1]);
+  if (!Number.isFinite(restLat) || !Number.isFinite(restLng) || (restLat === 0 && restLng === 0)) return true;
+
+  const distKm = exports.calculateDistance([Number(userLng), Number(userLat)], [restLng, restLat]);
+
+  // Restaurant's configured geofence/delivery radius in KM (defaults to 10 KM if not specified)
+  const maxRadiusKm = Number(restaurant.geofenceRadius || restaurant.deliveryRadius || 10);
+
+  return distKm <= maxRadiusKm;
+};
+
 exports.getNearbyRidersQuery = (restaurantCoords, radiusMeters = 10000) => {
   return {
     currentLocation: {

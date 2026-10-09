@@ -1584,17 +1584,70 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
         ? 'Your order has been sent to the restaurant. Waiting for them to review and accept.' 
         : "We're searching for the best available driver nearby. This usually takes less than a minute.";
 
+    final restData = _trackingData?['restaurant'] ?? {};
+    double? restLat = restData['lat'] != null ? double.tryParse(restData['lat'].toString()) : null;
+    double? restLng = restData['lng'] != null ? double.tryParse(restData['lng'].toString()) : null;
+    if (restLat == null && restData['location']?['coordinates']?.length == 2) {
+      restLng = double.tryParse(restData['location']['coordinates'][0].toString());
+      restLat = double.tryParse(restData['location']['coordinates'][1].toString());
+    }
+
+    final userObj = _trackingData?['user'] ?? _trackingData?['deliveryLocation'] ?? _trackingData?['order']?['deliveryAddress'] ?? {};
+    double? userLat = (userObj['lat'] ?? userObj['latitude']) != null ? double.tryParse((userObj['lat'] ?? userObj['latitude']).toString()) : null;
+    double? userLng = (userObj['lng'] ?? userObj['longitude']) != null ? double.tryParse((userObj['lng'] ?? userObj['longitude']).toString()) : null;
+    if (userLat == null && userObj['coordinates'] is List && (userObj['coordinates'] as List).length >= 2) {
+      userLng = double.tryParse(userObj['coordinates'][0].toString());
+      userLat = double.tryParse(userObj['coordinates'][1].toString());
+    }
+    if (userLat == null && _trackingData?['order']?['deliveryAddress']?['coordinates'] is List && (_trackingData!['order']['deliveryAddress']['coordinates'] as List).length >= 2) {
+      final coords = _trackingData!['order']['deliveryAddress']['coordinates'] as List;
+      userLng = double.tryParse(coords[0].toString());
+      userLat = double.tryParse(coords[1].toString());
+    }
+
+    final double defaultRestLat = restLat ?? 22.7196;
+    final double defaultRestLng = restLng ?? 75.8577;
+    final double defaultUserLat = userLat ?? (defaultRestLat + 0.015);
+    final double defaultUserLng = userLng ?? (defaultRestLng + 0.015);
+
     return Stack(
       children: [
-        // Background Radar Searching Map Canvas
+        // Background Real Google Map Live View
         Positioned.fill(
-          child: AnimatedBuilder(
-            animation: controller,
-            builder: (context, child) {
-              return CustomPaint(
-                painter: _RadarSearchMapPainter(progress: controller.value),
-              );
+          child: GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: LatLng((defaultRestLat + defaultUserLat) / 2, (defaultRestLng + defaultUserLng) / 2),
+              zoom: 13.5,
+            ),
+            markers: {
+              Marker(
+                markerId: const MarkerId('restaurant'),
+                position: LatLng(defaultRestLat, defaultRestLng),
+                infoWindow: InfoWindow(title: restName, snippet: 'Restaurant Location'),
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+              ),
+              Marker(
+                markerId: const MarkerId('customer'),
+                position: LatLng(defaultUserLat, defaultUserLng),
+                infoWindow: const InfoWindow(title: 'Delivery Address'),
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+              ),
             },
+            polylines: {
+              Polyline(
+                polylineId: const PolylineId('finding_driver_route'),
+                color: AppColors.primary,
+                width: 4,
+                patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+                points: [
+                  LatLng(defaultRestLat, defaultRestLng),
+                  LatLng(defaultUserLat, defaultUserLng),
+                ],
+              ),
+            },
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            onMapCreated: (mapCtrl) => _mapController = mapCtrl,
           ),
         ),
 
@@ -2451,8 +2504,36 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
           else
             ...realItems.map((item) {
               final qty = item['quantity'] ?? item['qty'] ?? 1;
-              final name = item['name'] ?? item['product']?['name'] ?? 'Item';
-              final price = item['price'] ?? item['sellingPrice'] ?? 0;
+              final rawName = item['name'] ?? item['product']?['name'] ?? 'Item';
+              final name = (rawName is Map) ? (rawName['en'] ?? rawName.values.first).toString() : rawName.toString();
+              
+              double priceVal = 0.0;
+              final pCands = [
+                item['price'],
+                item['sellingPrice'],
+                item['basePrice'],
+                item['itemPrice'],
+                item['unitPrice'],
+                item['product']?['price'],
+                item['product']?['sellingPrice'],
+                item['product']?['basePrice']
+              ];
+              for (final cand in pCands) {
+                if (cand != null) {
+                  final parsed = (cand is num) ? cand.toDouble() : (double.tryParse(cand.toString()) ?? 0.0);
+                  if (parsed > 0) {
+                    priceVal = parsed;
+                    break;
+                  }
+                }
+              }
+              if (priceVal == 0 && item['totalPrice'] != null) {
+                final tPrice = (item['totalPrice'] is num) ? item['totalPrice'].toDouble() : (double.tryParse(item['totalPrice'].toString()) ?? 0.0);
+                if (tPrice > 0 && qty > 0) {
+                  priceVal = tPrice / qty;
+                }
+              }
+
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8.0),
                 child: Row(
@@ -2470,7 +2551,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        name.toString(),
+                        name,
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -2478,7 +2559,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                       ),
                     ),
                     Text(
-                      '₹${price.toString()}',
+                      '₹${priceVal.toStringAsFixed(0)}',
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 13,

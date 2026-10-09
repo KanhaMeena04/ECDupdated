@@ -53,10 +53,13 @@ const StaffTable = () => {
     }
   };
 
-  const filteredStaff = staffData.filter(s =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStaff = (Array.isArray(staffData) ? staffData : []).filter(s => {
+    if (!s) return false;
+    const term = String(searchTerm || "").toLowerCase();
+    const name = String(s.name || "").toLowerCase();
+    const email = String(s.email || "").toLowerCase();
+    return name.includes(term) || email.includes(term);
+  });
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">

@@ -92,7 +92,7 @@
 // export default DriverTable;
 
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   Visibility,
   Edit,
@@ -117,15 +117,25 @@ function DriverTable({ searchQuery = "" }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedRiderId, setSelectedRiderId] = useState(null);
 
+  // Real-time live polling every 5 seconds for instant Online/Offline status updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (typeof refetch === "function") {
+        refetch();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [refetch]);
+
   /* ---------------- Filter Logic ---------------- */
   const filteredRiders = Array.isArray(riders) ? riders.filter((r) => {
     if (!searchQuery || !searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    const id = (r._id || "").toLowerCase();
-    const name = (r.user?.name || r.name || "").toLowerCase();
-    const phone = (r.user?.mobile || r.user?.phone || r.phone || r.mobile || "").toLowerCase();
-    const status = (r.verificationStatus || "").toLowerCase();
-    const city = (r.city || r.workCity || "").toLowerCase();
+    const q = String(searchQuery || "").toLowerCase().trim();
+    const id = String(r._id || "").toLowerCase();
+    const name = String(r.user?.name || r.name || "").toLowerCase();
+    const phone = String(r.user?.mobile || r.user?.phone || r.phone || r.mobile || "").toLowerCase();
+    const status = String(r.verificationStatus || "").toLowerCase();
+    const city = String(r.city || r.workCity || "").toLowerCase();
     return id.includes(q) || name.includes(q) || phone.includes(q) || status.includes(q) || city.includes(q);
   }) : [];
 
@@ -186,7 +196,8 @@ function DriverTable({ searchQuery = "" }) {
                 "Rider ID",
                 "Name",
                 "Phone Number",
-                "Status",
+                "Verification Status",
+                "Duty / Online Status",
                 "Picture",
                 "Action",
               ].map((h) => (
@@ -204,40 +215,68 @@ function DriverTable({ searchQuery = "" }) {
           </thead>
 
           <tbody>
-            {filteredRiders.map((r, i) => (
-              <tr key={r._id} className="hover:bg-gray-50">
-                <td className="p-3 border text-center">{i + 1}</td>
-                <td className="p-3 border font-mono text-xs">
-                  <span className="px-2 py-0.5 rounded font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                    {r.riderId || (r._id ? `RDR${String(r._id).slice(-4).toUpperCase()}` : "RDR001")}
-                  </span>
-                </td>
-                <td className="p-3 border font-semibold">{r.user?.name || r.name || "Rider Partner"}</td>
-                <td className="p-3 border">{r.user?.mobile || r.user?.phone || r.phone || r.mobile || "-"}</td>
+            {filteredRiders.map((r, i) => {
+              const isRiderOnline = Boolean(
+                r.isOnline === true ||
+                r.isOnline === "true" ||
+                r.dutyStatus === "online" ||
+                r.dutyStatus === "ONLINE" ||
+                r.isAvailable === true ||
+                r.isAvailable === "true" ||
+                r.status === "online" ||
+                r.user?.isOnline === true
+              );
 
-                <td className="p-3 border">
-                  <span
-                    className={`px-3 py-1 rounded-md text-xs font-medium border ${
-                      r.verificationStatus === "approved" || r.verificationStatus === "verified"
-                        ? "text-emerald-600 border-emerald-500 bg-emerald-50"
-                        : "text-orange-500 border-orange-400 bg-orange-50"
-                    }`}
-                  >
-                    {r.verificationStatus || "pending"}
-                  </span>
-                </td>
+              return (
+                <tr key={r._id} className="hover:bg-gray-50">
+                  <td className="p-3 border text-center">{i + 1}</td>
+                  <td className="p-3 border font-mono text-xs">
+                    <span className="px-2 py-0.5 rounded font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                      {r.riderId || (r._id ? `RDR${String(r._id).slice(-4).toUpperCase()}` : "RDR001")}
+                    </span>
+                  </td>
+                  <td className="p-3 border font-semibold">{r.user?.name || r.name || "Rider Partner"}</td>
+                  <td className="p-3 border">{r.user?.mobile || r.user?.phone || r.phone || r.mobile || "-"}</td>
 
-                <td className="p-3 border">
-                  {(r.user?.profilePic || r.profilePic) ? (
-                    <img
-                      src={r.user?.profilePic || r.profilePic}
-                      alt=""
-                      className="w-10 h-10 rounded-full object-cover border"
-                    />
-                  ) : (
-                    <span className="text-gray-400 text-xs italic">No photo</span>
-                  )}
-                </td>
+                  {/* Verification Status */}
+                  <td className="p-3 border">
+                    <span
+                      className={`px-3 py-1 rounded-md text-xs font-medium border ${
+                        r.verificationStatus === "approved" || r.verificationStatus === "verified"
+                          ? "text-emerald-600 border-emerald-500 bg-emerald-50"
+                          : "text-orange-500 border-orange-400 bg-orange-50"
+                      }`}
+                    >
+                      {r.verificationStatus || "pending"}
+                    </span>
+                  </td>
+
+                  {/* Dynamic Real-Time Duty/Online Status */}
+                  <td className="p-3 border">
+                    {isRiderOnline ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Online
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-300">
+                        <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                        Offline
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="p-3 border">
+                    {(r.user?.profilePic || r.profilePic) ? (
+                      <img
+                        src={r.user?.profilePic || r.profilePic}
+                        alt=""
+                        className="w-10 h-10 rounded-full object-cover border"
+                      />
+                    ) : (
+                      <span className="text-gray-400 text-xs italic">No photo</span>
+                    )}
+                  </td>
 
                 <td className="p-3 border">
                   <div className="flex gap-3 text-gray-600">
@@ -264,10 +303,11 @@ function DriverTable({ searchQuery = "" }) {
                   </div>
                 </td>
               </tr>
-            ))}
+            );
+          })}
             {filteredRiders.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center py-6 text-gray-500">
+                <td colSpan={8} className="text-center py-6 text-gray-500">
                   {searchQuery ? `No riders found matching "${searchQuery}"` : "No riders found"}
                 </td>
               </tr>

@@ -33,10 +33,10 @@ function PendingRiderTable({ searchQuery = "" }) {
 
   const filteredDrivers = Array.isArray(drivers) ? drivers.filter((driver) => {
     if (!searchQuery || !searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    const id = (driver._id || "").toLowerCase();
-    const name = (driver.user?.name || driver.name || "").toLowerCase();
-    const phone = (driver.user?.mobile || driver.user?.phone || driver.phone || driver.mobile || "").toLowerCase();
+    const q = String(searchQuery || "").toLowerCase().trim();
+    const id = String(driver._id || "").toLowerCase();
+    const name = String(driver.user?.name || driver.name || "").toLowerCase();
+    const phone = String(driver.user?.mobile || driver.user?.phone || driver.phone || driver.mobile || "").toLowerCase();
     return id.includes(q) || name.includes(q) || phone.includes(q);
   }) : [];
 

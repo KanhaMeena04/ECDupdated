@@ -149,11 +149,14 @@ const RoleListTable = () => {
     }
   };
 
-  const filteredRoles = roles.filter(r => 
-    r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (r.accountType && r.accountType.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (r.description && r.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredRoles = (Array.isArray(roles) ? roles : []).filter(r => {
+    if (!r) return false;
+    const term = String(searchTerm || "").toLowerCase();
+    const name = String(r.name || "").toLowerCase();
+    const accType = String(r.accountType || "").toLowerCase();
+    const desc = String(r.description || "").toLowerCase();
+    return name.includes(term) || accType.includes(term) || desc.includes(term);
+  });
 
   return (
     <div className="w-full font-sans p-4 bg-white rounded-xl shadow-sm border border-gray-100">

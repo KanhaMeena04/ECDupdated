@@ -218,23 +218,27 @@ export default function RiderPayoutRequests() {
     setUtrNumber("");
   };
 
-  // Filter requests based on search query
-  const filteredRequests = requests.filter((r) => {
-    const name = r.user?.name || r.bankDetails?.accountHolder || "";
-    const phone = r.user?.mobile || r.bankDetails?.phone || "";
-    const riderId = r.riderId || r.rider?._id || r.user?._id || "";
-    const upi = r.bankDetails?.upiId || r.bankDetails?.upi || "";
-    const accNum = r.bankDetails?.accountNumber || "";
-    const ifsc = r.bankDetails?.ifsc || "";
-    const query = searchQuery.toLowerCase();
+  // Filter requests based on search query safely
+  const safeRequests = Array.isArray(requests) ? requests : [];
+  const filteredRequests = safeRequests.filter((r) => {
+    if (!r) return false;
+    const name = String(r.user?.name || r.bankDetails?.accountHolder || "").toLowerCase();
+    const phone = String(r.user?.mobile || r.bankDetails?.phone || "").toLowerCase();
+    const riderId = String(r.riderId || r.rider?._id || r.user?._id || "").toLowerCase();
+    const upi = String(r.bankDetails?.upiId || r.bankDetails?.upi || "").toLowerCase();
+    const accNum = String(r.bankDetails?.accountNumber || "").toLowerCase();
+    const ifsc = String(r.bankDetails?.ifsc || "").toLowerCase();
+    const query = String(searchQuery || "").toLowerCase().trim();
+
+    if (!query) return true;
 
     return (
-      name.toLowerCase().includes(query) ||
-      phone.toLowerCase().includes(query) ||
-      riderId.toLowerCase().includes(query) ||
-      upi.toLowerCase().includes(query) ||
-      accNum.toLowerCase().includes(query) ||
-      ifsc.toLowerCase().includes(query)
+      name.includes(query) ||
+      phone.includes(query) ||
+      riderId.includes(query) ||
+      upi.includes(query) ||
+      accNum.includes(query) ||
+      ifsc.includes(query)
     );
   });
 

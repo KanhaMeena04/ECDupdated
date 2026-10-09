@@ -348,15 +348,23 @@ exports.getHomeData = async (req, res) => {
       freeDeliveryPromise,
       newRestaurantsPromise,
     ]);
+    const { isWithinRestaurantRadius } = require('../utils/locationUtils');
     const onlyOpen = req.query.onlyOpen === "1" || req.query.onlyOpen === "true";
-    const filterOpen = (restaurants) => restaurants.filter(r => isRestaurantOpenNow(r));
-    const filteredRecommendations = onlyOpen ? filterOpen(recommendations) : recommendations;
-    const filteredExploreRestaurants = onlyOpen ? filterOpen(exploreRestaurants) : exploreRestaurants;
-    const filteredPopularRestaurants = onlyOpen ? filterOpen(popularRestaurants) : popularRestaurants;
-    const filteredFastDelivery = onlyOpen ? filterOpen(fastDelivery) : fastDelivery;
-    const filteredFreeDelivery = onlyOpen ? filterOpen(freeDelivery) : freeDelivery;
-    const filteredNewRestaurants = onlyOpen ? filterOpen(newRestaurants) : newRestaurants;
-    const filteredRecentRestaurants = onlyOpen ? filterOpen(recentRestaurants) : recentRestaurants;
+    const filterValidRestaurants = (restaurants) => {
+      return (Array.isArray(restaurants) ? restaurants : []).filter(r => {
+        if (!r) return false;
+        if (onlyOpen && !isRestaurantOpenNow(r)) return false;
+        if (hasCoords && !isWithinRestaurantRadius(r, lat, lng)) return false;
+        return true;
+      });
+    };
+    const filteredRecommendations = filterValidRestaurants(recommendations);
+    const filteredExploreRestaurants = filterValidRestaurants(exploreRestaurants);
+    const filteredPopularRestaurants = filterValidRestaurants(popularRestaurants);
+    const filteredFastDelivery = filterValidRestaurants(fastDelivery);
+    const filteredFreeDelivery = filterValidRestaurants(freeDelivery);
+    const filteredNewRestaurants = filterValidRestaurants(newRestaurants);
+    const filteredRecentRestaurants = filterValidRestaurants(recentRestaurants);
     const allRestaurantIds = collectRestaurantIds([
       filteredRecentRestaurants,
       filteredRecommendations,
@@ -663,7 +671,8 @@ exports.getRecommendedRestaurants = async (req, res) => {
         .lean();
     }
     const { isRestaurantOpenNow } = require('../utils/restaurantAvailability');
-    const openRestaurants = restaurants.filter(r => isRestaurantOpenNow(r));
+    const { isWithinRestaurantRadius } = require('../utils/locationUtils');
+    const openRestaurants = restaurants.filter(r => isRestaurantOpenNow(r) && (!hasCoords || isWithinRestaurantRadius(r, userLat, userLng)));
     const restaurantIds = collectRestaurantIds([openRestaurants]).map((id) =>
       new mongoose.Types.ObjectId(id)
     );
@@ -761,7 +770,8 @@ exports.getExploreRestaurants = async (req, res) => {
       .select("name image bannerImage rating deliveryTime address city area cuisine isFreeDelivery minOrderValue location isActive isTemporarilyClosed menuApproved verificationStatus timing priceRange")
       .lean();
     const { isRestaurantOpenNow } = require('../utils/restaurantAvailability');
-    const openRestaurants = restaurants.filter(r => isRestaurantOpenNow(r));
+    const { isWithinRestaurantRadius } = require('../utils/locationUtils');
+    const openRestaurants = restaurants.filter(r => isRestaurantOpenNow(r) && (!hasCoords || isWithinRestaurantRadius(r, userLat, userLng)));
     const restaurantIds = collectRestaurantIds([openRestaurants]).map((id) =>
       new mongoose.Types.ObjectId(id)
     );

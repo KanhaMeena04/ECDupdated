@@ -56,8 +56,11 @@ exports.getSuggestions = async (req, res) => {
         if (hasCoords) {
             query = query.sort({ location: 1 });
         }
+        const { isWithinRestaurantRadius } = require('../utils/locationUtils');
         const restaurants = await query.limit(restaurantLimit);
-        const filteredRestaurants = restaurants.filter((restaurant) => isRestaurantOpenNow(restaurant));
+        const filteredRestaurants = restaurants.filter((restaurant) => 
+            isRestaurantOpenNow(restaurant) && (!hasCoords || isWithinRestaurantRadius(restaurant, parsedLat, parsedLng))
+        );
         const riderRadiusMeters = parsedRiderRadiusKm * 1000;
         const restaurantsWithAvailability = await Promise.all(
             filteredRestaurants.map(async (restaurant) => {
@@ -212,7 +215,7 @@ exports.globalSearch = async (req, res) => {
         }
         const restaurants = await query;
         const filteredRestaurants = hasCoords
-            ? restaurants.filter((restaurant) => isRestaurantOpenNow(restaurant))
+            ? restaurants.filter((restaurant) => isRestaurantOpenNow(restaurant) && isWithinRestaurantRadius(restaurant, parsedLat, parsedLng))
             : restaurants;
         const riderRadiusMeters = parsedRiderRadiusKm * 1000;
         const restaurantsWithAvailability = await Promise.all(

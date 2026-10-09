@@ -35,8 +35,8 @@ function FoodQuantityTable() {
   };
 
   // 🔥 FIX: safe filtering + actually used
-  const filteredData = data.filter((item) =>
-    item?.name?.toLowerCase().includes(search.toLowerCase())
+  const filteredData = (Array.isArray(data) ? data : []).filter((item) =>
+    String(item?.name || "").toLowerCase().includes(String(search || "").toLowerCase())
   );
 
   return (
