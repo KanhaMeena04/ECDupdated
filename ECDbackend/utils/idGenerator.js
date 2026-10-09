@@ -27,44 +27,36 @@ function getModel(name) {
  */
 async function getNextSequence(name, prefix, padDigits = 3, modelName = null, idField = null) {
   try {
-    const model = modelName ? getModel(modelName) : null;
-    let maxExistingNum = 0;
+    let counter = await Counter.findById(name);
 
-    // Scan existing documents to find the highest number in DB matching prefix
-    if (model && idField) {
-      try {
-        const regexPattern = new RegExp(`^${prefix}\\d+`, "i");
-        const docs = await model.find({ [idField]: { $regex: regexPattern } })
-          .select(idField)
-          .lean();
+    if (!counter) {
+      let maxExistingNum = 0;
+      const model = modelName ? getModel(modelName) : null;
+      if (model && idField) {
+        try {
+          const regexPattern = new RegExp(`^${prefix}\\d+`, "i");
+          const docs = await model.find({ [idField]: { $regex: regexPattern } })
+            .select(idField)
+            .lean();
 
-        for (const doc of docs) {
-          const val = doc[idField];
-          if (typeof val === "string") {
-            const numPart = parseInt(val.toUpperCase().replace(prefix.toUpperCase(), ""), 10);
-            if (!isNaN(numPart) && numPart > maxExistingNum) {
-              maxExistingNum = numPart;
+          for (const doc of docs) {
+            const val = doc[idField];
+            if (typeof val === "string") {
+              const numPart = parseInt(val.toUpperCase().replace(prefix.toUpperCase(), ""), 10);
+              if (!isNaN(numPart) && numPart > maxExistingNum) {
+                maxExistingNum = numPart;
+              }
             }
           }
+        } catch (err) {
+          console.warn(`[idGenerator] Warning scanning ${idField} for ${name}:`, err.message);
         }
-      } catch (err) {
-        console.warn(`[idGenerator] Warning scanning ${idField} for ${name}:`, err.message);
       }
-    }
 
-    // Initialize or reconcile Counter so it is never behind existing DB records
-    let counter = await Counter.findById(name);
-    if (!counter) {
       counter = await Counter.findByIdAndUpdate(
         name,
         { $setOnInsert: { seq: maxExistingNum } },
         { upsert: true, new: true }
-      );
-    } else if (counter.seq < maxExistingNum) {
-      counter = await Counter.findByIdAndUpdate(
-        name,
-        { $set: { seq: maxExistingNum } },
-        { new: true }
       );
     }
 

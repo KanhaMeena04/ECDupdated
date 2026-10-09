@@ -344,12 +344,10 @@ server.listen(PORT, '0.0.0.0', () => {
 
 const InitializeConnection = async () => {
   try {
-    await Promise.resolve(connectDB());
+    await connectDB();
     console.log("DB connect");
     initCronJobs();
     initPaymentCronJobs();
-    const { backfillMissingIds } = require("./utils/idGenerator");
-    backfillMissingIds().catch(e => console.error("[idGenerator] Backfill error:", e.message));
   }
   catch (err) {
     console.log("error occured " + err);
