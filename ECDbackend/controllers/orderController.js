@@ -748,25 +748,51 @@ exports.placeOrder = async (req, res) => {
         timestamp: new Date(),
         order: newOrder,
       };
-      socketService.emitToRestaurant(restaurantId.toString(), "order:new", restaurantOrderPayload);
-      socketService.emitToRestaurant(restaurantId.toString(), "restaurant:new_order", restaurantOrderPayload);
-      socketService.emitToRestaurant(restaurantId.toString(), "newOrder", restaurantOrderPayload);
+      // Collect all possible room identifiers for this restaurant
+      const targetRestIds = new Set();
+      if (restaurantId) targetRestIds.add(restaurantId.toString());
+      if (restaurant?._id) targetRestIds.add(restaurant._id.toString());
+      if (restaurant?.restaurantId) targetRestIds.add(restaurant.restaurantId.toString());
+      if (newOrder.restaurantId) targetRestIds.add(newOrder.restaurantId.toString());
+      if (restaurant?.slug) targetRestIds.add(restaurant.slug.toString());
+      if (restaurant?.contactNumber) targetRestIds.add(restaurant.contactNumber.toString());
+
+      targetRestIds.forEach(targetId => {
+        socketService.emitToRestaurant(targetId, "order:new", restaurantOrderPayload);
+        socketService.emitToRestaurant(targetId, "restaurant:new_order", restaurantOrderPayload);
+        socketService.emitToRestaurant(targetId, "newOrder", restaurantOrderPayload);
+      });
       
       if (restaurant && restaurant.owner) {
         const ownerIdStr = (restaurant.owner._id || restaurant.owner).toString();
         socketService.emitToUser(ownerIdStr, "order:new", restaurantOrderPayload);
         socketService.emitToUser(ownerIdStr, "newOrder", restaurantOrderPayload);
         socketService.emitToUser(ownerIdStr, "restaurant:new_order", restaurantOrderPayload);
+        socketService.emitToRestaurant(ownerIdStr, "order:new", restaurantOrderPayload);
+        socketService.emitToRestaurant(ownerIdStr, "newOrder", restaurantOrderPayload);
       }
 
       try {
         const io = req.app.get("io") || socketService.getIO();
         if (io) {
-          io.to(`restaurant_${restaurantId}`).emit("newOrder", restaurantOrderPayload);
-          io.to(`restaurant_${restaurantId}`).emit("order:new", restaurantOrderPayload);
-          io.to(`restaurant:${restaurantId}`).emit("newOrder", restaurantOrderPayload);
-          io.to(`restaurant:${restaurantId}`).emit("order:new", restaurantOrderPayload);
+          targetRestIds.forEach(targetId => {
+            io.to(`restaurant_${targetId}`).emit("newOrder", restaurantOrderPayload);
+            io.to(`restaurant_${targetId}`).emit("order:new", restaurantOrderPayload);
+            io.to(`restaurant_${targetId}`).emit("restaurant:new_order", restaurantOrderPayload);
+            io.to(`restaurant:${targetId}`).emit("newOrder", restaurantOrderPayload);
+            io.to(`restaurant:${targetId}`).emit("order:new", restaurantOrderPayload);
+            io.to(`restaurant:${targetId}`).emit("restaurant:new_order", restaurantOrderPayload);
+            io.to(targetId).emit("newOrder", restaurantOrderPayload);
+            io.to(targetId).emit("order:new", restaurantOrderPayload);
+          });
+          if (restaurant && restaurant.owner) {
+            const ownerIdStr = (restaurant.owner._id || restaurant.owner).toString();
+            io.to(`restaurant_${ownerIdStr}`).emit("newOrder", restaurantOrderPayload);
+            io.to(`restaurant_${ownerIdStr}`).emit("order:new", restaurantOrderPayload);
+            io.to(ownerIdStr).emit("newOrder", restaurantOrderPayload);
+          }
           io.to("restaurants").emit("newOrder", restaurantOrderPayload);
+          io.to("restaurants").emit("order:new", restaurantOrderPayload);
         }
       } catch (_) {}
     } catch (e) {
@@ -4431,9 +4457,30 @@ exports.getOrdersForRestaurantById = async (req, res) => {
 
     let query = {};
     if (restaurant) {
-      query = { restaurant: restaurant._id };
+      query = {
+        $or: [
+          { restaurant: restaurant._id },
+          { restaurantId: restaurant.restaurantId },
+          { restaurantId: restaurant._id.toString() },
+          { restaurant: restaurant._id.toString() },
+          ...(id ? [{ restaurantId: id }, { restaurant: id }] : [])
+        ]
+      };
     } else if (mongoose.Types.ObjectId.isValid(id)) {
-      query = { restaurant: id };
+      query = {
+        $or: [
+          { restaurant: id },
+          { restaurantId: id },
+          { restaurant: id.toString() }
+        ]
+      };
+    } else if (id) {
+      query = {
+        $or: [
+          { restaurantId: id },
+          { restaurant: id }
+        ]
+      };
     } else {
       return res.status(200).json({ success: true, orders: [] });
     }

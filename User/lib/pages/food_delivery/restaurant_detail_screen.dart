@@ -89,7 +89,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
         setState(() {
           _restaurant = restaurant;
           _isLoadingRestaurant = false;
-          _menu = menu;
+          _menu = menu.isNotEmpty ? menu : restaurant.menu;
           _isLoadingMenu = false;
         });
       }
@@ -111,7 +111,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
       final menu = await RestaurantApiService.getRestaurantMenu(identifier);
       if (mounted) {
         setState(() {
-          _menu = menu;
+          _menu = menu.isNotEmpty ? menu : (_restaurant?.menu ?? []);
           _isLoadingMenu = false;
         });
       }

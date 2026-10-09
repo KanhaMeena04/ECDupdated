@@ -3,6 +3,7 @@ const router = express.Router();
 const rateLimit = require("express-rate-limit");
 const {
   protect,
+  optionalAuth,
   customer,
   restaurantOwner,
   rider,
@@ -119,7 +120,7 @@ router.post("/:id/rate-customer", protect, rateCustomer);
 router.post("/:id/resend-otp", protect, generalOrderLimiter, resendOTP);
 router.get("/restaurant", protect, restaurantOwner, getRestaurantOrders);
 router.get("/restaurant/:id/details", protect, restaurantOwner, getRestaurantOrderDetails);
-router.get("/restaurant/:id", protect, getOrdersForRestaurantById);
+router.get("/restaurant/:id", optionalAuth, getOrdersForRestaurantById);
 router.get("/restaurant/pending", protect, restaurantOwner, getPendingOrdersForRestaurant);
 router.get("/restaurant/completed", protect, restaurantOwner, getCompletedOrdersForRestaurant);
 const canUpdateOrderStatus = (req, res, next) => {

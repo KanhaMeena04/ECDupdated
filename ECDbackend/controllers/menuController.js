@@ -410,10 +410,9 @@ exports.getMenu = async (req, res) => {
     };
 
     if (!isVendorOrAdmin) {
-      // User App Public View: Strictly approved and non-rejected items only
-      queryFilter.isApproved = true;
-      queryFilter.approvalStatus = { $ne: "rejected" };
+      // User App Public View: Show all non-rejected items for this restaurant
       queryFilter.isRejected = { $ne: true };
+      queryFilter.approvalStatus = { $ne: "rejected" };
     }
 
     // Fetch products for restaurant

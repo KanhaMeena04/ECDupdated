@@ -1509,43 +1509,142 @@ exports.getRestaurantByIdAdmin = async (req, res) => {
 exports.getRestaurantById = async (req, res) => {
   try {
     const { id } = req.params;
-    const restaurant = await Restaurant.findById(id).populate('owner', 'name email mobile');
+    let restaurant = null;
+    if (id && mongoose.Types.ObjectId.isValid(id)) {
+      restaurant = await Restaurant.findById(id).populate('owner', 'name email mobile');
+    }
+    if (!restaurant && id) {
+      restaurant = await Restaurant.findOne({
+        $or: [
+          { restaurantId: id },
+          { slug: id }
+        ]
+      }).populate('owner', 'name email mobile');
+    }
     if (!restaurant) {
-      return res.status(404).json({ message: "Restaurant not found" });
+      return res.status(404).json({ success: false, message: "Restaurant not found" });
     }
 
+    // Fetch products from Product collection
+    const products = await Product.find({
+      $or: [
+        { restaurant: restaurant._id },
+        { restaurant: restaurant._id.toString() }
+      ],
+      isRejected: { $ne: true },
+      approvalStatus: { $ne: "rejected" }
+    }).populate('category', 'name slug').populate('categoryId', 'name slug').lean();
+
+    const menuList = [];
     const menuByCategoryId = {};
-    if (Array.isArray(restaurant.menu) && restaurant.menu.length > 0) {
+
+    products.forEach((p, idx) => {
+      const catObj = p.categoryId || p.category;
+      const catName = catObj ? (typeof catObj === 'string' ? catObj : (catObj.name?.en || catObj.name || "Main Course")) : (p.subcategory || "Main Course");
+      const rawName = p.name;
+      const itemName = typeof rawName === 'object' ? (rawName?.en || Object.values(rawName)[0] || 'Item') : (rawName || 'Item');
+      const rawDesc = p.description;
+      const itemDesc = typeof rawDesc === 'object' ? (rawDesc?.en || Object.values(rawDesc)[0] || '') : (rawDesc || '');
+      const finalPrice = Number(p.pricing?.b2c?.sellingPrice ?? p.sellingPrice ?? p.basePrice ?? 0);
+      const finalMrp = Number(p.pricing?.b2c?.mrp ?? p.mrp ?? finalPrice);
+
+      const itemObj = {
+        _id: p._id.toString(),
+        id: p._id.toString(),
+        name: itemName,
+        description: itemDesc,
+        image: p.image || '',
+        imageUrl: p.image || '',
+        price: finalPrice,
+        basePrice: finalPrice,
+        sellingPrice: finalPrice,
+        mrp: finalMrp,
+        category: catName,
+        isVeg: p.isVeg !== false && p.foodType !== 'non-veg',
+        foodType: p.foodType || (p.isVeg ? 'veg' : 'non-veg'),
+        available: p.available !== false && p.isAvailable !== false,
+        isAvailable: p.available !== false && p.isAvailable !== false,
+        preparationTime: p.preparationTime || 15,
+        variations: p.variations || [],
+        addOns: p.addOns || []
+      };
+      menuList.push(itemObj);
+
+      if (!menuByCategoryId[catName]) {
+        menuByCategoryId[catName] = {
+          category: { _id: catName, name: catName, image: '' },
+          items: []
+        };
+      }
+      menuByCategoryId[catName].items.push(itemObj);
+    });
+
+    // Fallback to restaurant.menu if Product collection is empty
+    if (menuList.length === 0 && Array.isArray(restaurant.menu) && restaurant.menu.length > 0) {
       restaurant.menu.forEach((item, idx) => {
-        const catName = item.category || (restaurant.categories && restaurant.categories[0]) || "Menu";
+        if (item.isRejected === true || item.approvalStatus === 'rejected') return;
+        const catName = item.category || "Menu";
+        const itemPrice = Number(item.price || item.basePrice || item.sellingPrice || 0);
+        const itemObj = {
+          _id: item._id ? item._id.toString() : `menu_fallback_${restaurant._id}_${idx}`,
+          id: item._id ? item._id.toString() : `menu_fallback_${restaurant._id}_${idx}`,
+          name: item.name || `Item ${idx + 1}`,
+          description: item.description || "",
+          image: item.image || "",
+          imageUrl: item.image || "",
+          price: itemPrice,
+          basePrice: itemPrice,
+          sellingPrice: itemPrice,
+          mrp: Number(item.mrp || itemPrice),
+          category: catName,
+          isVeg: item.foodType ? item.foodType.toLowerCase() === 'veg' : (item.isVeg !== false),
+          foodType: item.foodType || (item.isVeg ? 'veg' : 'non-veg'),
+          available: item.isAvailable !== false && item.available !== false,
+          isAvailable: item.isAvailable !== false && item.available !== false,
+          preparationTime: item.preparationTime || 15,
+          variations: item.variants || item.variations || [],
+          addOns: item.addOns || []
+        };
+        menuList.push(itemObj);
         if (!menuByCategoryId[catName]) {
           menuByCategoryId[catName] = {
             category: { _id: catName, name: catName, image: item.image || "" },
-            items: [],
+            items: []
           };
         }
-        menuByCategoryId[catName].items.push({
-          _id: item._id || String(idx),
-          name: item.name,
-          description: item.description || "",
-          image: item.image || "",
-          basePrice: item.price || item.basePrice || 0,
-          isVeg: item.foodType ? item.foodType.toLowerCase() === 'veg' : true,
-          available: item.isAvailable !== false,
-        });
+        menuByCategoryId[catName].items.push(itemObj);
       });
     }
 
-    const formattedRestaurant = formatRestaurantForAdmin(restaurant);
-    res.status(200).json({
-      restaurant: {
-        ...formattedRestaurant,
-        menu: menuByCategoryId,
-      },
-      menu: menuByCategoryId,
+    const rawRest = restaurant.toObject ? restaurant.toObject() : { ...restaurant };
+    const restName = (typeof restaurant.name === "object" ? restaurant.name.en : restaurant.name) || "Restaurant";
+
+    const responseData = {
+      ...rawRest,
+      name: restName,
+      brand: rawRest.brand || restName,
+      menu: menuList,
+      menuByCategoryId,
+      products: menuList,
+      rating: normalizeRatingOutput(restaurant.rating),
+      owner: restaurant.owner ? {
+        _id: restaurant.owner._id,
+        name: restaurant.owner.name,
+        email: restaurant.owner.email,
+        mobile: restaurant.owner.mobile,
+      } : null,
+      phone: restaurant.contactNumber || rawRest.phone || ""
+    };
+
+    return res.status(200).json({
+      success: true,
+      restaurant: responseData,
+      menu: menuList,
+      products: menuList,
+      data: responseData
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.updateDocuments = async (req, res) => {
@@ -3780,7 +3879,6 @@ exports.getRestaurantProfileById = async (req, res) => {
   }
 };
 
-exports.getRestaurantById = exports.getRestaurantProfileById;
 exports.getRestaurantByIdAdmin = exports.getRestaurantProfileById;
 
 
