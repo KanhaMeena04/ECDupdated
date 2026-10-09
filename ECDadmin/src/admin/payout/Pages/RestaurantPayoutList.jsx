@@ -1294,6 +1294,233 @@ export default function RestaurantPayoutList() {
           </div>
         </div>
       )}
+
+      {/* MODAL 5: View Restaurant Payout Details Modal */}
+      {requestModalType === "details" && selectedRequest && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-scaleUp max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-4">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Eye className="text-emerald-600" size={22} />
+                Restaurant Payout Transaction Details
+              </h3>
+              <button onClick={closeRequestModal} className="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer">
+                ×
+              </button>
+            </div>
+
+            <div className="my-5 space-y-4 text-sm">
+              {/* Status Header Badge */}
+              <div className={`p-4 rounded-xl border flex items-center justify-between ${
+                selectedRequest.status === "approved" || selectedRequest.status === "processed"
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                  : selectedRequest.status === "rejected"
+                  ? "bg-rose-50 border-rose-200 text-rose-900"
+                  : "bg-amber-50 border-amber-200 text-amber-900"
+              }`}>
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 block">Payout Status</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {selectedRequest.status === "approved" || selectedRequest.status === "processed" ? (
+                      <CheckCircle className="text-emerald-600" size={18} />
+                    ) : selectedRequest.status === "rejected" ? (
+                      <XCircle className="text-rose-600" size={18} />
+                    ) : (
+                      <Clock className="text-amber-600" size={18} />
+                    )}
+                    <span className="font-bold text-base capitalize">
+                      {selectedRequest.status === "approved" || selectedRequest.status === "processed" ? "Approved & Paid" : selectedRequest.status}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-gray-500 font-semibold block">Disbursed Amount</span>
+                  <span className="text-2xl font-extrabold text-emerald-700">
+                    ₹{Number(selectedRequest.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Restaurant Info Box */}
+              <div className="p-4 bg-gray-50 rounded-xl space-y-2 border border-gray-100">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500">Restaurant Partner Info</h4>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Restaurant Name:</span>
+                  <span className="font-semibold text-gray-900">
+                    {selectedRequest.restaurantProfile?.name || selectedRequest.bankDetails?.accountHolder || "Restaurant Partner"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Contact Number:</span>
+                  <span className="font-semibold text-gray-900">
+                    {selectedRequest.bankDetails?.phone || selectedRequest.restaurantProfile?.contactNumber || selectedRequest.user?.mobile || "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Restaurant ID:</span>
+                  <span className="font-mono text-xs font-semibold text-gray-800">
+                    {selectedRequest.restaurantDisplayId || selectedRequest.restaurant?._id || "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Current Wallet Balance:</span>
+                  <span className="font-semibold text-gray-800">
+                    ₹{Number(selectedRequest.walletBalance || 0).toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Disbursement Destination & Details */}
+              <div className="p-4 bg-purple-50/50 rounded-xl space-y-2 border border-purple-100">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700">Disbursement Account & Details</h4>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Payment Channel:</span>
+                  <span className="font-bold text-xs uppercase bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
+                    {selectedRequest.paidVia || selectedRequest.method || "UPI"}
+                  </span>
+                </div>
+
+                {selectedRequest.bankDetails?.upiId ? (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">UPI ID:</span>
+                    <div className="flex items-center gap-1">
+                      <span className="font-mono text-xs font-semibold text-purple-900 bg-white px-2 py-0.5 rounded border border-purple-200">
+                        {selectedRequest.bankDetails?.upiId}
+                      </span>
+                      <button
+                        onClick={() => handleCopy(selectedRequest.bankDetails?.upiId, `det_upi_${selectedRequest._id}`)}
+                        className="p-1 text-gray-400 hover:text-purple-700 cursor-pointer"
+                      >
+                        {copiedId === `det_upi_${selectedRequest._id}` ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {selectedRequest.bankDetails?.accountNumber ? (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Account Number:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-xs font-semibold text-gray-900 bg-white px-2 py-0.5 rounded border border-gray-200">
+                          {selectedRequest.bankDetails?.accountNumber}
+                        </span>
+                        <button
+                          onClick={() => handleCopy(selectedRequest.bankDetails?.accountNumber, `det_acc_${selectedRequest._id}`)}
+                          className="p-1 text-gray-400 hover:text-emerald-600 cursor-pointer"
+                        >
+                          {copiedId === `det_acc_${selectedRequest._id}` ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">IFSC Code:</span>
+                      <span className="font-mono text-xs font-semibold text-gray-800">
+                        {selectedRequest.bankDetails?.ifsc || "N/A"}
+                      </span>
+                    </div>
+                    {selectedRequest.bankDetails?.bankName && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Bank Name:</span>
+                        <span className="font-semibold text-xs text-gray-800">
+                          {selectedRequest.bankDetails.bankName}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : null}
+
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Account Holder Name:</span>
+                  <span className="font-semibold text-gray-900">
+                    {selectedRequest.bankDetails?.accountHolder || selectedRequest.restaurantProfile?.name || "Restaurant"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Transaction Tracking & Audit Trail */}
+              <div className="p-4 bg-slate-50 rounded-xl space-y-2 border border-slate-200">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">Transaction Audit & Reference</h4>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">UTR / Reference ID:</span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded border border-gray-300">
+                      {selectedRequest.utrNumber || selectedRequest.transactionId || "N/A"}
+                    </span>
+                    {(selectedRequest.utrNumber || selectedRequest.transactionId) && (
+                      <button
+                        onClick={() => handleCopy(selectedRequest.utrNumber || selectedRequest.transactionId, `det_utr_${selectedRequest._id}`)}
+                        className="p-1 text-gray-400 hover:text-emerald-600 cursor-pointer"
+                      >
+                        {copiedId === `det_utr_${selectedRequest._id}` ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Admin Note / Reason:</span>
+                  <span className="font-medium text-gray-800 italic max-w-[220px] text-right">
+                    {selectedRequest.adminNote || "No additional notes provided."}
+                  </span>
+                </div>
+
+                {selectedRequest.approvedBy && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Approved By:</span>
+                    <span className="font-semibold text-gray-800">{selectedRequest.approvedBy}</span>
+                  </div>
+                )}
+
+                {selectedRequest.rejectedBy && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Rejected By:</span>
+                    <span className="font-semibold text-rose-700">{selectedRequest.rejectedBy}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Requested On:</span>
+                  <span className="font-medium text-gray-700">
+                    {new Date(selectedRequest.createdAt).toLocaleString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true
+                    })}
+                  </span>
+                </div>
+
+                {selectedRequest.processedAt && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Processed On:</span>
+                    <span className="font-medium text-gray-700">
+                      {new Date(selectedRequest.processedAt).toLocaleString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true
+                      })}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end pt-3 border-t">
+              <button onClick={closeRequestModal} className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-sm font-semibold transition cursor-pointer">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

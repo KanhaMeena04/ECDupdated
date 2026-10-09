@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Visibility, DirectionsCar, Person } from "@mui/icons-material";
-import { Dialog, DialogTitle, DialogContent, IconButton, Button } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, IconButton, Button, Alert, CircularProgress } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import {
   usePendingRiders,
@@ -15,11 +15,21 @@ function PendingRiderTable({ searchQuery = "" }) {
   const { verifyRider } = useVerifyRider();
   const { verifyVehicle } = useVerifyRiderVehicle();
   const navigate = useNavigate();
-  let rejectRider = false;
+
   const [open, setOpen] = useState(false);
   const [selectedRiderId, setSelectedRiderId] = useState(null);
+  const [alertInfo, setAlertInfo] = useState({
+    show: false,
+    message: "",
+    severity: "success",
+  });
+  const [actionLoadingId, setActionLoadingId] = useState(null);
 
   const { rider, loading: riderLoading, error: riderError } = useRiderDetails(selectedRiderId);
+
+  const showAlert = (message, severity = "success") => {
+    setAlertInfo({ show: true, message, severity });
+  };
 
   const filteredDrivers = Array.isArray(drivers) ? drivers.filter((driver) => {
     if (!searchQuery || !searchQuery.trim()) return true;
@@ -39,29 +49,76 @@ function PendingRiderTable({ searchQuery = "" }) {
     setSelectedRiderId(null);
   };
 
-  const handleVerifyRider = async (id) => {
-    await verifyRider({ riderId: id, status: "approved" });
-    await fetchPendingRiders(); // refresh pending list
-  };
+  const handleVerifyRider = async (driver) => {
+    const riderId = driver._id;
+    const riderName = driver.user?.name || driver.name || "Rider Partner";
+    setActionLoadingId(`${riderId}-rider`);
 
-  const handleVerifyVehicle = async (driver) => {
-    await verifyVehicle({ riderId: driver._id, status: "approved" });
-    await fetchPendingRiders();
+    try {
+      await verifyRider({ riderId, status: "approved" });
+      await fetchPendingRiders();
 
-    // Navigate only if both rider and vehicle verified
-    const isRiderVerified = driver.riderVerified === true;
-    const isVehicleVerified = true; // just verified now
-    if (isRiderVerified && isVehicleVerified) {
-      navigate("/driver-list");
+      const isVehicleVerified =
+        driver.vehicleVerified === true ||
+        driver.vehicle?.vehicleApproval?.status === "approved";
+
+      if (isVehicleVerified) {
+        showAlert(`🎉 ${riderName} is fully verified and approved! Moving to All Riders list...`, "success");
+        setTimeout(() => {
+          navigate("/driver-list");
+        }, 1400);
+      } else {
+        showAlert(`👤 Rider Partner verified successfully for ${riderName}! (Awaiting Vehicle Verification)`, "success");
+      }
+    } catch (err) {
+      console.error("Verify rider failed:", err);
+      showAlert(err.message || "Failed to verify rider partner.", "error");
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
-  const handleRejectRider = async (id) => {
+  const handleVerifyVehicle = async (driver) => {
+    const riderId = driver._id;
+    const riderName = driver.user?.name || driver.name || "Rider Partner";
+    setActionLoadingId(`${riderId}-vehicle`);
+
     try {
-      await verifyRider({ riderId: id, status: "rejected", reason: "Rejected by admin" });
+      await verifyVehicle({ riderId, status: "approved" });
       await fetchPendingRiders();
-    } catch (e) {
-      console.error(e);
+
+      const isRiderVerified = driver.riderVerified === true;
+
+      if (isRiderVerified) {
+        showAlert(`🎉 Vehicle verified for ${riderName}! Rider is fully approved. Moving to All Riders list...`, "success");
+        setTimeout(() => {
+          navigate("/driver-list");
+        }, 1400);
+      } else {
+        showAlert(`🚗 Vehicle verified successfully for ${riderName}! (Awaiting Rider Verification)`, "success");
+      }
+    } catch (err) {
+      console.error("Verify vehicle failed:", err);
+      showAlert(err.message || "Failed to verify vehicle.", "error");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRejectRider = async (driver) => {
+    const riderId = driver._id;
+    const riderName = driver.user?.name || driver.name || "Rider Partner";
+    setActionLoadingId(`${riderId}-reject`);
+
+    try {
+      await verifyRider({ riderId, status: "rejected", reason: "Rejected by admin" });
+      await fetchPendingRiders();
+      showAlert(`❌ ${riderName} verification request has been rejected.`, "error");
+    } catch (err) {
+      console.error("Reject rider failed:", err);
+      showAlert(err.message || "Failed to reject rider.", "error");
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -70,6 +127,18 @@ function PendingRiderTable({ searchQuery = "" }) {
 
   return (
     <>
+      {alertInfo.show && (
+        <div className="mb-4">
+          <Alert
+            severity={alertInfo.severity}
+            onClose={() => setAlertInfo({ ...alertInfo, show: false })}
+            className="shadow-sm border font-semibold text-sm"
+          >
+            {alertInfo.message}
+          </Alert>
+        </div>
+      )}
+
       <div className="overflow-x-auto bg-white shadow-md rounded-lg">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-gray-100 uppercase text-xs">
@@ -125,33 +194,47 @@ function PendingRiderTable({ searchQuery = "" }) {
                   <td className="p-4 border">
                     <div className="flex flex-col gap-2">
                       <button
-                        onClick={() => handleVerifyRider(driver._id)}
-                        disabled={riderVerified}
-                        className={`px-2 py-1 rounded text-xs border ${
+                        onClick={() => handleVerifyRider(driver)}
+                        disabled={riderVerified || actionLoadingId === `${driver._id}-rider`}
+                        className={`px-3 py-1.5 rounded text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all ${
                           riderVerified
-                            ? "bg-gray-100 text-gray-400"
-                            : "bg-blue-50 text-blue-600 border-blue-200"
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
                         }`}
                       >
-                        <Person fontSize="small" /> Verify Rider
+                        {actionLoadingId === `${driver._id}-rider` ? (
+                          <CircularProgress size={12} color="inherit" />
+                        ) : (
+                          <Person fontSize="small" />
+                        )}
+                        {riderVerified ? "Rider Verified" : "Verify Rider"}
                       </button>
 
                       <button
                         onClick={() => handleVerifyVehicle(driver)}
-                        disabled={vehicleVerified}
-                        className={`px-2 py-1 rounded text-xs border ${
+                        disabled={vehicleVerified || actionLoadingId === `${driver._id}-vehicle`}
+                        className={`px-3 py-1.5 rounded text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all ${
                           vehicleVerified
-                            ? "bg-gray-100 text-gray-400"
-                            : "bg-purple-50 text-purple-600 border-purple-200"
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            : "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
                         }`}
                       >
-                        <DirectionsCar fontSize="small" /> Verify Vehicle
+                        {actionLoadingId === `${driver._id}-vehicle` ? (
+                          <CircularProgress size={12} color="inherit" />
+                        ) : (
+                          <DirectionsCar fontSize="small" />
+                        )}
+                        {vehicleVerified ? "Vehicle Verified" : "Verify Vehicle"}
                       </button>
 
                       <button
-                        onClick={() => handleRejectRider(driver._id)}
-                        className="px-2 py-1 rounded text-xs border bg-red-50 text-red-600 border-red-200"
+                        onClick={() => handleRejectRider(driver)}
+                        disabled={actionLoadingId === `${driver._id}-reject`}
+                        className="px-3 py-1.5 rounded text-xs font-semibold border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 flex items-center justify-center gap-1.5 transition-all"
                       >
+                        {actionLoadingId === `${driver._id}-reject` ? (
+                          <CircularProgress size={12} color="inherit" />
+                        ) : null}
                         Reject Rider
                       </button>
                     </div>

@@ -279,7 +279,7 @@ class _RiderSupportChatScreenState extends State<RiderSupportChatScreen> {
                               margin: const EdgeInsets.only(bottom: 12),
                               constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
                               child: Column(
-                                crossAxisAlignment: isUser ? CrossEndAxisAlignment : CrossAxisAlignment.start,
+                                crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

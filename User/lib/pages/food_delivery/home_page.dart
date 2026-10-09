@@ -199,6 +199,7 @@ class _HomeTabState extends State<_HomeTab> {
   bool _isLoadingRestaurants = true;
   bool _hasInitialized = false; // guard against repeated API calls
   Function(dynamic)? _restaurantSocketCallback;
+  Function(dynamic)? _cmsSocketCallback;
   Timer? _shuffleTimer;
   int _shuffleSeed = 0;
   double? _lastLat;
@@ -248,7 +249,6 @@ class _HomeTabState extends State<_HomeTab> {
     _restaurantSocketCallback = (data) {
       debugPrint('HomePage received restaurantStatusUpdated: $data');
       if (mounted && data != null) {
-        // Handle case where socket.io might wrap in array
         final Map<String, dynamic>? payload = (data is List && data.isNotEmpty) 
             ? (data.first as Map<String, dynamic>?) 
             : (data is Map<String, dynamic> ? data : (data is Map ? Map<String, dynamic>.from(data) : null));
@@ -257,13 +257,10 @@ class _HomeTabState extends State<_HomeTab> {
           final restaurantId = payload['restaurantId'].toString();
           final isOnline = payload['isOnline'] == true || payload['isOnline'] == 'true';
           
-          debugPrint('Updating restaurant $restaurantId to online: $isOnline');
-          
           setState(() {
             for (var i = 0; i < _restaurants.length; i++) {
               if (_restaurants[i].id == restaurantId) {
                 _restaurants[i] = _restaurants[i].copyWith(isOnline: isOnline);
-                debugPrint('Found and updated restaurant in list!');
               }
             }
           });
@@ -271,6 +268,14 @@ class _HomeTabState extends State<_HomeTab> {
       }
     };
     SocketService.onRestaurantStatusUpdated(_restaurantSocketCallback!);
+
+    _cmsSocketCallback = (data) {
+      debugPrint('HomePage received home_cms:updated event -> Refreshing CMS layout & data!');
+      if (mounted) {
+        _refreshData();
+      }
+    };
+    SocketService.on('home_cms:updated', _cmsSocketCallback!);
   }
 
   @override
@@ -278,6 +283,9 @@ class _HomeTabState extends State<_HomeTab> {
     _shuffleTimer?.cancel();
     if (_restaurantSocketCallback != null) {
       SocketService.offRestaurantStatusUpdated(_restaurantSocketCallback);
+    }
+    if (_cmsSocketCallback != null) {
+      SocketService.off('home_cms:updated', _cmsSocketCallback);
     }
     super.dispose();
   }
@@ -1714,18 +1722,16 @@ class _HomeTabState extends State<_HomeTab> {
                           (r) => r.id == ctaTarget,
                           orElse: () => Restaurant(
                             id: ctaTarget,
+                            slug: ctaTarget,
                             name: title.isNotEmpty ? title : 'Restaurant',
-                            address: '',
+                            imageUrl: imageUrl,
                             rating: 4.5,
                             reviewCount: 100,
-                            deliveryTime: '25-30 min',
-                            distance: '1.5 km',
+                            distanceKm: 1.5,
+                            deliveryTimeMin: 25,
                             deliveryCharge: 0,
-                            image: imageUrl,
-                            cuisines: const [],
-                            isVeg: false,
-                            isFeatured: false,
-                            tags: const [],
+                            cuisine: '',
+                            menu: const [],
                           ),
                         );
                         Navigator.push(
@@ -1757,7 +1763,7 @@ class _HomeTabState extends State<_HomeTab> {
 
   String _getCategoryPriceTag(Category category) {
     final double sp = category.startingPrice;
-    if (sp > 0 && sp != 28) {
+    if (sp > 0) {
       return 'FROM ₹${sp.toInt()}';
     }
     final name = category.title.toLowerCase();
@@ -1774,8 +1780,90 @@ class _HomeTabState extends State<_HomeTab> {
     if (name.contains('chinese') || name.contains('noodle')) return 'FROM ₹49';
     if (name.contains('momo')) return 'FROM ₹29';
     if (name.contains('beverage') || name.contains('drink') || name.contains('shake')) return 'FROM ₹25';
-    if (sp > 0) return 'FROM ₹${sp.toInt()}';
     return 'FROM ₹49';
+  }
+
+  Widget _buildDynamicCmsSection(Map<String, dynamic> sec, bool isDark) {
+    final title = sec['title']?.toString().trim() ?? '';
+    final subtitle = sec['subtitle']?.toString().trim() ?? '';
+    final imageUrl = sec['imageUrl']?.toString().trim() ?? '';
+    final ctaText = sec['ctaText']?.toString().trim() ?? '';
+
+    if (title.isEmpty && imageUrl.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title.isNotEmpty)
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              ),
+            ),
+          ],
+          if (imageUrl.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SafeImage(
+                imageUrl,
+                height: 140,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ],
+          if (ctaText.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  ctaText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _buildTab(BuildContext context, String title, bool isActive, bool isDark, int index) {

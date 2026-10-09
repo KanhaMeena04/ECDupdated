@@ -41,5 +41,17 @@ class SettingsApiService {
       debugPrint("Settings fetch error: $e");
     }
     return null;
+  static Future<Map<String, dynamic>?> fetchCmsPolicy(String slug) async {
+    if (kFrontendPreviewMode) return null;
+    try {
+      final response = await http.get(Uri.parse('${AppConstants.baseUrl}/cms/$slug')).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is Map<String, dynamic>) return data;
+      }
+    } catch (e) {
+      debugPrint("CMS Policy fetch error ($slug): $e");
+    }
+    return null;
   }
 }

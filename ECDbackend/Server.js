@@ -186,6 +186,8 @@ app.use('/api/v1/riders', riderRoutes);
 app.use('/api/drivers', riderRoutes);
 app.use('/api/v1/drivers', riderRoutes);
 
+app.use('/api/cms', cmsRoutes);
+app.use('/api/v1/cms', cmsRoutes);
 app.use('/api/admin/cms', adminCmsRoutes); // Must come BEFORE /api/admin
 app.use('/api/admin/reports', reportRoutes); // Must come BEFORE /api/admin
 app.use('/api/admin', adminRoutes);

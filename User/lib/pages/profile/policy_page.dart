@@ -4,9 +4,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/settings_api_service.dart';
 import 'support_chat_page.dart';
 
-// â”€â”€ Data models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Data models ─────────────────────────────────────────────────────────────
 
 class PolicySection {
   final String heading;
@@ -20,7 +21,7 @@ class PolicySection {
   });
 }
 
-// â”€â”€ Reusable PolicyPage widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Reusable PolicyPage widget ─────────────────────────────────────────────
 
 class PolicyPage extends StatefulWidget {
   final String title;
@@ -42,6 +43,50 @@ class PolicyPage extends StatefulWidget {
 
 class _PolicyPageState extends State<PolicyPage> {
   final Set<int> _expanded = {};
+  late List<PolicySection> _activeSections;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeSections = widget.sections;
+    _fetchCmsContent();
+  }
+
+  Future<void> _fetchCmsContent() async {
+    String slug = 'privacy-policy';
+    final t = widget.title.toLowerCase();
+    if (t.contains('terms')) {
+      slug = 'terms-conditions';
+    } else if (t.contains('about')) {
+      slug = 'about-us';
+    } else if (t.contains('faq')) {
+      slug = 'faq';
+    }
+
+    try {
+      final res = await SettingsApiService.fetchCmsPolicy(slug);
+      if (res != null && mounted) {
+        final policy = res['policy'] ?? res['data'] ?? res;
+        if (policy is Map && policy['sections'] is List) {
+          final List<dynamic> secs = policy['sections'];
+          final dynamicSecs = secs.map((s) {
+            return PolicySection(
+              heading: s['heading']?.toString() ?? s['title']?.toString() ?? '',
+              content: s['content']?.toString() ?? s['body']?.toString() ?? '',
+            );
+          }).where((s) => s.heading.isNotEmpty || s.content.isNotEmpty).toList();
+
+          if (dynamicSecs.isNotEmpty) {
+            setState(() {
+              _activeSections = dynamicSecs;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching CMS policy for $slug: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,8 +178,8 @@ class _PolicyPageState extends State<PolicyPage> {
           const SizedBox(height: 20),
 
           // â”€â”€ Expandable sections â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-          ...List.generate(widget.sections.length, (index) {
-            final section = widget.sections[index];
+          ...List.generate(_activeSections.length, (index) {
+            final section = _activeSections[index];
             final isExpanded = _expanded.contains(index);
 
             return Container(

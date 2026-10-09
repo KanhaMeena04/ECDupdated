@@ -89,10 +89,11 @@ class _ContactSupportPageState extends State<ContactSupportPage> {
         msg = Map<String, dynamic>.from(data);
       }
 
-      if (msg != null) {
-        final text = (msg['message'] ?? msg['text'] ?? '').toString();
-        final sender = (msg['sender'] ?? 'admin').toString();
-        final id = msg['_id']?.toString() ?? '${DateTime.now().millisecondsSinceEpoch}';
+      final msgMap = msg;
+      if (msgMap != null) {
+        final text = (msgMap['message'] ?? msgMap['text'] ?? '').toString();
+        final sender = (msgMap['sender'] ?? 'admin').toString();
+        final id = msgMap['_id']?.toString() ?? '${DateTime.now().millisecondsSinceEpoch}';
 
         // Check if message already exists
         final alreadyExists = _messages.any((m) => m['id'] == id || (m['text'] == text && m['sender'] == sender));
@@ -104,7 +105,7 @@ class _ContactSupportPageState extends State<ContactSupportPage> {
               'isUser': sender == 'user',
               'isSystem': sender == 'system',
               'text': text,
-              'time': _formatTimestamp(msg['createdAt']),
+              'time': _formatTimestamp(msgMap['createdAt']),
             });
           });
           _scrollToBottom();
