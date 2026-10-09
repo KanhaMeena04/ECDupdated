@@ -529,9 +529,23 @@ const useAddRestaurant = (initialValues, successCallback) => {
 const useRestaurantListForAdmin = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const abortRef = useRef(null);
 
-  const handleRestaurantListForAdmin = useCallback(async (searchQuery = "") => {
-    setLoading(true);
+  const handleRestaurantListForAdmin = useCallback(async (searchQuery = "", options = {}) => {
+    const isBackground = options && typeof options === "object" ? Boolean(options.isBackground) : false;
+
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    abortRef.current = new AbortController();
+
+    if (!isBackground && data === null) {
+      setLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
+
     try {
       const token = localStorage.getItem("token");
       const url = searchQuery
@@ -541,50 +555,77 @@ const useRestaurantListForAdmin = () => {
       const res = await axios.get(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         withCredentials: true,
+        signal: abortRef.current.signal,
       });
-      setData(res.data);
+
+      if (res.data) {
+        setData(res.data);
+      }
     } catch (err) {
-      console.error("Failed to load restaurants:", err);
+      if (err.name !== "CanceledError" && !axios.isCancel?.(err)) {
+        console.error("Failed to load restaurants:", err);
+      }
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  }, []);
+  }, [data]);
 
   useEffect(() => {
     handleRestaurantListForAdmin();
-  }, [handleRestaurantListForAdmin]);
+  }, []);
 
   return {
     data,
-    loading,
+    loading: loading && (data === null || (Array.isArray(data) && data.length === 0)),
+    isRefreshing,
     handleRestaurantListForAdmin,
   };
 };
 
 const useActiveRestaurantListForAdmin = () => {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const abortRef = useRef(null);
 
-  const handleActiveRestaurantListForAdmin = useCallback(async () => {
-    setLoading(true);
+  const handleActiveRestaurantListForAdmin = useCallback(async (options = {}) => {
+    const isBackground = options && typeof options === "object" ? Boolean(options.isBackground) : false;
+
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    abortRef.current = new AbortController();
+
+    if (!isBackground && data === null) {
+      setLoading(true);
+    }
+
     try {
       const res = await axios.get(
         `${API_BASE_URL}/api/restaurants/admin/list/active`,
-        { withCredentials: true }
+        { withCredentials: true, signal: abortRef.current.signal }
       );
-      setData(res.data || []);
+      if (res.data) {
+        setData(res.data || []);
+      }
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Fetch failed");
+      if (err.name !== "CanceledError" && !axios.isCancel?.(err)) {
+        toast.error(err?.response?.data?.message || "Fetch failed");
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [data]);
 
   useEffect(() => {
     handleActiveRestaurantListForAdmin();
-  }, [handleActiveRestaurantListForAdmin]);
+  }, []);
 
-  return { data, loading, handleActiveRestaurantListForAdmin };
+  return {
+    data: data || [],
+    loading: loading && (!data || data.length === 0),
+    handleActiveRestaurantListForAdmin
+  };
 };
 
 

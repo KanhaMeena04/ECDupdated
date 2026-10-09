@@ -318,6 +318,16 @@ app.use('/api/v1/training', trainingRoutes);
 
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.get('/health', (req, res) => {
+  const mongoose = require('mongoose');
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  res.status(200).json({
+    status: 'ok',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    database: dbStatus
+  });
+});
 app.get('/', (req, res) => {
   res.send('Food Delivery API is running...');
 });

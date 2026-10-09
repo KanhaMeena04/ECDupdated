@@ -221,6 +221,22 @@ export default function CatalogMasterControl() {
     }
   };
 
+  // Handler: Add Restaurant Offer Submit
+  const handleAddOfferSubmit = async () => {
+    try {
+      if (!offerModal.restaurantId) {
+        showAlert("No restaurant selected for offer", "error");
+        return;
+      }
+      await api.post(`/api/restaurants/${offerModal.restaurantId}/offers`, offerForm);
+      showAlert("Offer added successfully to restaurant!");
+      setOfferModal({ open: false, restaurantId: null });
+      fetchRestaurants();
+    } catch (err) {
+      showAlert(err?.response?.data?.message || "Failed to add offer", "error");
+    }
+  };
+
   // Handler: Product Status (OOS, Veg, Featured)
   const handleProductStatusToggle = async (id, fields) => {
     try {

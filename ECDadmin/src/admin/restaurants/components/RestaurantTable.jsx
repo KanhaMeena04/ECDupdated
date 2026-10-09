@@ -46,7 +46,7 @@ export default function RestaurantTable({ columns, rows = [], loading = false, c
         </TableHead>
 
         <TableBody>
-          {loading ? (
+          {loading && rows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={columns.length} align="center" sx={{ py: 6 }}>
                 <CircularProgress size={32} sx={{ color: "#00a67e" }} />

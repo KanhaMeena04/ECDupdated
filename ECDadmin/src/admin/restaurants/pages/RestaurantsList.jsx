@@ -61,27 +61,31 @@ export default function RestaurantsList() {
   // Search trigger to backend
   useEffect(() => {
     const timer = setTimeout(() => {
-      handleRestaurantListForAdmin(searchTerm);
+      handleRestaurantListForAdmin(searchTerm, { isBackground: Boolean(data && data.length > 0) });
     }, 300);
     return () => clearTimeout(timer);
-  }, [handleRestaurantListForAdmin, searchTerm]);
+  }, [searchTerm, data, handleRestaurantListForAdmin]);
 
-  // Periodic auto-sync & window focus refresh so changes from mobile app reflect dynamically
+  // Periodic auto-sync & window focus refresh so changes from mobile app reflect dynamically without screen flicker
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
-        handleRestaurantListForAdmin(searchTerm);
+        handleRestaurantListForAdmin(searchTerm, { isBackground: true });
       }
-    }, 15000);
+    }, 25000);
 
-    const onFocus = () => handleRestaurantListForAdmin(searchTerm);
+    const onFocus = () => {
+      if (document.visibilityState === "visible") {
+        handleRestaurantListForAdmin(searchTerm, { isBackground: true });
+      }
+    };
     window.addEventListener("focus", onFocus);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };
-  }, [handleRestaurantListForAdmin, searchTerm]);
+  }, [searchTerm, handleRestaurantListForAdmin]);
 
   /* -------------------- DYNAMIC STATUS TOGGLE -------------------- */
   const handleToggleStatus = useCallback(
