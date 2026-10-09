@@ -37,8 +37,7 @@ exports.getSuggestions = async (req, res) => {
         const restaurantQuery = {
             'name.en': regex,
             isActive: { $ne: false },
-            restaurantApproved: { $ne: false },
-            isTemporarilyClosed: { $ne: true }
+            restaurantApproved: { $ne: false }
         };
         if (hasCoords) {
             restaurantQuery.location = {
@@ -59,7 +58,7 @@ exports.getSuggestions = async (req, res) => {
         const { isWithinRestaurantRadius } = require('../utils/locationUtils');
         const restaurants = await query.limit(restaurantLimit);
         const filteredRestaurants = restaurants.filter((restaurant) => 
-            isRestaurantOpenNow(restaurant) && (!hasCoords || isWithinRestaurantRadius(restaurant, parsedLat, parsedLng))
+            !hasCoords || isWithinRestaurantRadius(restaurant, parsedLat, parsedLng)
         );
         const riderRadiusMeters = parsedRiderRadiusKm * 1000;
         const restaurantsWithAvailability = await Promise.all(
@@ -181,7 +180,6 @@ exports.globalSearch = async (req, res) => {
         let restaurantQuery = {
             isActive: { $ne: false },
             restaurantApproved: { $ne: false },
-            isTemporarilyClosed: { $ne: true },
             ...(regex ? {
                 $or: [
                     { 'name.en': regex },
@@ -215,7 +213,7 @@ exports.globalSearch = async (req, res) => {
         }
         const restaurants = await query;
         const filteredRestaurants = hasCoords
-            ? restaurants.filter((restaurant) => isRestaurantOpenNow(restaurant) && isWithinRestaurantRadius(restaurant, parsedLat, parsedLng))
+            ? restaurants.filter((restaurant) => isWithinRestaurantRadius(restaurant, parsedLat, parsedLng))
             : restaurants;
         const riderRadiusMeters = parsedRiderRadiusKm * 1000;
         const restaurantsWithAvailability = await Promise.all(
@@ -345,7 +343,6 @@ exports.getSearchLanding = async (req, res) => {
             const restaurantQuery = {
                 restaurantApproved: { $ne: false },
                 isActive: { $ne: false },
-                isTemporarilyClosed: { $ne: true },
                 location: {
                     $near: {
                         $geometry: { type: 'Point', coordinates: [parsedLng, parsedLat] },
@@ -357,9 +354,7 @@ exports.getSearchLanding = async (req, res) => {
                 .sort({ location: 1 })
                 .limit(50) // Show 30-50 restaurants in delivery area
                 .select('_id name image bannerImage rating deliveryTime address area isFreeDelivery location timing isTemporarilyClosed menuApproved verificationStatus');
-            const openRestaurants = restaurants.filter((restaurant) =>
-                isRestaurantOpenNow(restaurant)
-            );
+            const openRestaurants = restaurants;
             const restaurantsWithAvailability = await Promise.all(
                 openRestaurants.map(async (restaurant) => {
                     const coordinates = restaurant.location?.coordinates;

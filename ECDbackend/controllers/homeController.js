@@ -35,7 +35,6 @@ const normalizeProductName = (name) => {
 };
 const buildRestaurantBaseQuery = () => ({
   isActive: { $ne: false },
-  isTemporarilyClosed: { $ne: true },
   restaurantApproved: { $ne: false }
 });
 const buildBestSellerMap = async (restaurantIds) => {
@@ -681,9 +680,8 @@ exports.getRecommendedRestaurants = async (req, res) => {
         .select("name image bannerImage rating deliveryTime address city area cuisine isFreeDelivery minOrderValue location isActive isTemporarilyClosed menuApproved verificationStatus timing priceRange")
         .lean();
     }
-    const { isRestaurantOpenNow } = require('../utils/restaurantAvailability');
     const { isWithinRestaurantRadius } = require('../utils/locationUtils');
-    const openRestaurants = restaurants.filter(r => isRestaurantOpenNow(r) && (!hasCoords || isWithinRestaurantRadius(r, userLat, userLng)));
+    const openRestaurants = restaurants.filter(r => !hasCoords || isWithinRestaurantRadius(r, userLat, userLng));
     const restaurantIds = collectRestaurantIds([openRestaurants]).map((id) =>
       new mongoose.Types.ObjectId(id)
     );
@@ -780,9 +778,8 @@ exports.getExploreRestaurants = async (req, res) => {
       .limit(parseInt(limit))
       .select("name image bannerImage rating deliveryTime address city area cuisine isFreeDelivery minOrderValue location isActive isTemporarilyClosed menuApproved verificationStatus timing priceRange")
       .lean();
-    const { isRestaurantOpenNow } = require('../utils/restaurantAvailability');
     const { isWithinRestaurantRadius } = require('../utils/locationUtils');
-    const openRestaurants = restaurants.filter(r => isRestaurantOpenNow(r) && (!hasCoords || isWithinRestaurantRadius(r, userLat, userLng)));
+    const openRestaurants = restaurants.filter(r => !hasCoords || isWithinRestaurantRadius(r, userLat, userLng));
     const restaurantIds = collectRestaurantIds([openRestaurants]).map((id) =>
       new mongoose.Types.ObjectId(id)
     );

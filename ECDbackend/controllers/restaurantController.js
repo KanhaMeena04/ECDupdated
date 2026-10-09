@@ -2219,7 +2219,6 @@ exports.getAllRestaurants = async (req, res) => {
     const baseQuery = {
       restaurantApproved: { $ne: false },
       isActive: { $ne: false },
-      isTemporarilyClosed: { $ne: true },
     };
 
     // If GPS coordinates are provided, enforce 25 KM (25,000 meters) radius query on MongoDB 2dsphere location index
