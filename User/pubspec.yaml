@@ -1,7 +1,7 @@
 name: ecdkart_app
 description: "ECDKART Food Delivery App"
 publish_to: 'none'
-version: 1.0.27+28
+version: 1.0.28+29
 
 environment:
   sdk: ^3.5.0

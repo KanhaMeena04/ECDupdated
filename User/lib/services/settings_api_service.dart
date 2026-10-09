@@ -41,6 +41,8 @@ class SettingsApiService {
       debugPrint("Settings fetch error: $e");
     }
     return null;
+  }
+
   static Future<Map<String, dynamic>?> fetchCmsPolicy(String slug) async {
     if (kFrontendPreviewMode) return null;
     try {

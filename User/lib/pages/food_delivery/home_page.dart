@@ -24,6 +24,7 @@ import '../../providers/theme_provider.dart';
 import 'widgets/filters_bottom_sheet.dart';
 import '../../services/popular_dish_data.dart';
 import '../../services/restaurant_api_service.dart';
+import '../../services/category_service.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/location_provider.dart';
@@ -1656,12 +1657,14 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   Widget _buildDynamicCmsSection(Map<String, dynamic> sec, bool isDark) {
-    final title = sec['title']?.toString() ?? '';
-    final subtitle = sec['subtitle']?.toString() ?? '';
-    final imageUrl = sec['imageUrl']?.toString() ?? '';
-    final ctaText = sec['ctaText']?.toString() ?? '';
-    final ctaAction = sec['ctaAction']?.toString() ?? 'none';
-    final ctaTarget = sec['ctaTarget']?.toString() ?? '';
+    final title = sec['title']?.toString().trim() ?? '';
+    final subtitle = sec['subtitle']?.toString().trim() ?? '';
+    final imageUrl = sec['imageUrl']?.toString().trim() ?? '';
+    final ctaText = sec['ctaText']?.toString().trim() ?? '';
+    final ctaAction = sec['ctaAction']?.toString().trim() ?? 'none';
+    final ctaTarget = sec['ctaTarget']?.toString().trim() ?? '';
+
+    if (title.isEmpty && imageUrl.isEmpty) return const SizedBox.shrink();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -1786,88 +1789,6 @@ class _HomeTabState extends State<_HomeTab> {
     return 'FROM ₹49';
   }
 
-  Widget _buildDynamicCmsSection(Map<String, dynamic> sec, bool isDark) {
-    final title = sec['title']?.toString().trim() ?? '';
-    final subtitle = sec['subtitle']?.toString().trim() ?? '';
-    final imageUrl = sec['imageUrl']?.toString().trim() ?? '';
-    final ctaText = sec['ctaText']?.toString().trim() ?? '';
-
-    if (title.isEmpty && imageUrl.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (title.isNotEmpty)
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-          if (subtitle.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-              ),
-            ),
-          ],
-          if (imageUrl.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: SafeImage(
-                imageUrl,
-                height: 140,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ],
-          if (ctaText.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  ctaText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 
   Widget _buildTab(BuildContext context, String title, bool isActive, bool isDark, int index) {
     return Expanded(
