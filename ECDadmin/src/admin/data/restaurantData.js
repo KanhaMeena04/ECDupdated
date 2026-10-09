@@ -99,8 +99,8 @@ export const getRestaurantColumns = ({
     {
       key: "restaurantId",
       label: "Restaurant ID",
-      render: (row) => {
-        const idVal = row.restaurantId || "RNT001";
+      render: (row, idx) => {
+        const idVal = row.restaurantId || (row._id ? `RNT${row._id.slice(-3).toUpperCase()}` : `RNT${String(idx + 1).padStart(3, '0')}`);
         return (
           <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
             {idVal}

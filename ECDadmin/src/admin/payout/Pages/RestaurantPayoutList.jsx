@@ -278,8 +278,50 @@ export default function RestaurantPayoutList() {
     setUtrNumber("");
   };
 
+  // Date helper functions to prevent runtime RangeError: Invalid time value
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "N/A";
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+  };
+
+  const formatTime = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true
+    });
+  };
+
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "N/A";
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true
+    });
+  };
+
+  // Safe array references
+  const safeRequests = Array.isArray(requests) ? requests : [];
+  const safeLedgers = Array.isArray(ledgers) ? ledgers : [];
+
   // Filter requests based on search query
-  const filteredRequests = requests.filter((r) => {
+  const filteredRequests = safeRequests.filter((r) => {
+    if (!r) return false;
     const name = r.restaurantProfile?.name || r.bankDetails?.accountHolder || r.user?.name || "";
     const phone = r.bankDetails?.phone || r.restaurantProfile?.contactNumber || r.user?.mobile || "";
     const restId = r.restaurantDisplayId || r.restaurant?._id || "";
@@ -299,16 +341,16 @@ export default function RestaurantPayoutList() {
   });
 
   // Calculate Request KPIs
-  const totalReqCount = requests.length;
-  const pendingReqCount = requests.filter((r) => r.status === "pending").length;
-  const approvedReqCount = requests.filter((r) => r.status === "approved" || r.status === "processed").length;
-  const rejectedReqCount = requests.filter((r) => r.status === "rejected").length;
-  const totalPendingReqAmount = requests
-    .filter((r) => r.status === "pending")
-    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-  const totalPaidReqAmount = requests
-    .filter((r) => r.status === "approved" || r.status === "processed")
-    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  const totalReqCount = safeRequests.length;
+  const pendingReqCount = safeRequests.filter((r) => r && r.status === "pending").length;
+  const approvedReqCount = safeRequests.filter((r) => r && (r.status === "approved" || r.status === "processed")).length;
+  const rejectedReqCount = safeRequests.filter((r) => r && r.status === "rejected").length;
+  const totalPendingReqAmount = safeRequests
+    .filter((r) => r && r.status === "pending")
+    .reduce((sum, r) => sum + (Number(r?.amount) || 0), 0);
+  const totalPaidReqAmount = safeRequests
+    .filter((r) => r && (r.status === "approved" || r.status === "processed"))
+    .reduce((sum, r) => sum + (Number(r?.amount) || 0), 0);
 
   const getStatusColorClass = (status) => {
     switch (status) {
@@ -704,18 +746,10 @@ export default function RestaurantPayoutList() {
                           {/* Date & Time */}
                           <td className="py-4 px-4 text-xs text-gray-500">
                             <div className="font-medium text-gray-700">
-                              {new Date(req.createdAt).toLocaleDateString("en-IN", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric"
-                              })}
+                              {formatDate(req.createdAt)}
                             </div>
                             <div className="text-[11px] text-gray-400 mt-0.5">
-                              {new Date(req.createdAt).toLocaleTimeString("en-IN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: true
-                              })}
+                              {formatTime(req.createdAt)}
                             </div>
                           </td>
 
@@ -1484,14 +1518,7 @@ export default function RestaurantPayoutList() {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Requested On:</span>
                   <span className="font-medium text-gray-700">
-                    {new Date(selectedRequest.createdAt).toLocaleString("en-IN", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true
-                    })}
+                    {formatDateTime(selectedRequest.createdAt)}
                   </span>
                 </div>
 
@@ -1499,14 +1526,7 @@ export default function RestaurantPayoutList() {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Processed On:</span>
                     <span className="font-medium text-gray-700">
-                      {new Date(selectedRequest.processedAt).toLocaleString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true
-                      })}
+                      {formatDateTime(selectedRequest.processedAt)}
                     </span>
                   </div>
                 )}

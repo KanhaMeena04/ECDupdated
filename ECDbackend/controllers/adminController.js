@@ -364,9 +364,9 @@ exports.getOrdersDashboard = async (req, res) => {
       const restName = safeString(order.restaurant?.name) || safeString(order.restaurantName) || 'Restaurant';
       const customerName = safeString(order.customer?.name) || safeString(order.customerName) || 'Customer';
 
-      const cleanRestId = order.restaurantId || (order.restaurant?.restaurantId ? String(order.restaurant.restaurantId).replace(/^REST_\d+_\d+/, 'RNT001') : 'RNT001');
-      const cleanCustId = order.customerId || order.customer?.customerId || 'C001';
-      const cleanRiderId = order.riderId || order.rider?.riderId || (order.rider ? 'RDR001' : null);
+      const cleanRestId = order.restaurantId || order.restaurant?.restaurantId || (order.restaurant?._id ? `RNT${order.restaurant._id.toString().slice(-3).toUpperCase()}` : 'RNT001');
+      const cleanCustId = order.customerId || order.customer?.customerId || (order.customer?._id ? `C${order.customer._id.toString().slice(-3).toUpperCase()}` : 'C001');
+      const cleanRiderId = order.riderId || order.rider?.riderId || (order.rider?._id ? `RDR${order.rider._id.toString().slice(-3).toUpperCase()}` : null);
 
       const riderName = order.rider?.name || order.rider?.user?.name || order.riderName || null;
       const riderPhone = order.rider?.mobile || order.rider?.phone || order.rider?.user?.mobile || order.riderPhone || null;

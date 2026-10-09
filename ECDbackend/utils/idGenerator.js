@@ -158,70 +158,158 @@ async function ensureRiderId(rider) {
 }
 
 /**
- * Backfills any existing database records missing the formatted sequential ID.
+ * Backfills and re-aligns any existing database records missing or duplicate formatted sequential IDs.
  */
 async function backfillMissingIds() {
   try {
-    console.log("[idGenerator] Checking and backfilling missing Rider, Restaurant, and Customer formatted IDs...");
+    console.log("[idGenerator] Checking and re-aligning Rider, Restaurant, and Customer formatted IDs...");
     const Restaurant = getModel("Restaurant");
     const Rider = getModel("Rider");
     const User = getModel("User");
+    const Counter = getModel("Counter");
 
-    // 1. Backfill Restaurants
+    // 1. Re-align Restaurants (RNT001, RNT002, RNT003...)
     if (Restaurant) {
-      const restaurants = await Restaurant.find({
-        $or: [
-          { restaurantId: { $exists: false } },
-          { restaurantId: null },
-          { restaurantId: "" },
-          { restaurantId: { $not: /^RNT\d+/i } }
-        ]
-      }).sort({ createdAt: 1, _id: 1 });
+      const allRestaurants = await Restaurant.find({}).sort({ createdAt: 1, _id: 1 });
+      const usedIds = new Set();
+      let index = 1;
 
-      for (const rest of restaurants) {
-        const newId = await getNextRestaurantId();
-        await Restaurant.findByIdAndUpdate(rest._id, { restaurantId: newId });
-        console.log(`[idGenerator] Assigned restaurantId ${newId} to restaurant "${rest.name?.en || rest.name || rest._id}"`);
+      for (const rest of allRestaurants) {
+        const currentId = rest.restaurantId ? String(rest.restaurantId).toUpperCase() : "";
+        const isDuplicateOrDefault = !currentId ||
+          (currentId === "RNT001" && index > 1) ||
+          usedIds.has(currentId) ||
+          !/^RNT\d+/i.test(currentId);
+
+        let finalId = currentId;
+        if (isDuplicateOrDefault) {
+          let numStr = String(index).padStart(3, "0");
+          let candidateId = `RNT${numStr}`;
+          while (usedIds.has(candidateId)) {
+            index++;
+            numStr = String(index).padStart(3, "0");
+            candidateId = `RNT${numStr}`;
+          }
+          finalId = candidateId;
+          await Restaurant.findByIdAndUpdate(rest._id, { restaurantId: finalId });
+          console.log(`[idGenerator] Re-aligned restaurantId ${finalId} for restaurant "${rest.name?.en || rest.name || rest._id}"`);
+        }
+
+        usedIds.add(finalId);
+        index++;
+      }
+
+      // Sync Counter sequence to highest number used
+      let maxNum = 0;
+      for (const id of usedIds) {
+        const numPart = parseInt(id.replace(/^RNT/i, ""), 10);
+        if (!isNaN(numPart) && numPart > maxNum) {
+          maxNum = numPart;
+        }
+      }
+      if (Counter && maxNum > 0) {
+        await Counter.findByIdAndUpdate(
+          "restaurant",
+          { $set: { seq: maxNum } },
+          { upsert: true, new: true }
+        );
       }
     }
 
-    // 2. Backfill Riders
+    // 2. Re-align Riders (RDR001, RDR002, RDR003...)
     if (Rider) {
-      const riders = await Rider.find({
-        $or: [
-          { riderId: { $exists: false } },
-          { riderId: null },
-          { riderId: "" },
-          { riderId: { $not: /^RDR\d+/i } }
-        ]
-      }).sort({ createdAt: 1, _id: 1 });
+      const allRiders = await Rider.find({}).sort({ createdAt: 1, _id: 1 });
+      const usedRiderIds = new Set();
+      let rIndex = 1;
 
-      for (const r of riders) {
-        const newId = await getNextRiderId();
-        await Rider.findByIdAndUpdate(r._id, { riderId: newId });
-        console.log(`[idGenerator] Assigned riderId ${newId} to rider "${r.name || r._id}"`);
+      for (const r of allRiders) {
+        const currentId = r.riderId ? String(r.riderId).toUpperCase() : "";
+        const isDuplicateOrDefault = !currentId ||
+          (currentId === "RDR001" && rIndex > 1) ||
+          usedRiderIds.has(currentId) ||
+          !/^RDR\d+/i.test(currentId);
+
+        let finalId = currentId;
+        if (isDuplicateOrDefault) {
+          let numStr = String(rIndex).padStart(3, "0");
+          let candidateId = `RDR${numStr}`;
+          while (usedRiderIds.has(candidateId)) {
+            rIndex++;
+            numStr = String(rIndex).padStart(3, "0");
+            candidateId = `RDR${numStr}`;
+          }
+          finalId = candidateId;
+          await Rider.findByIdAndUpdate(r._id, { riderId: finalId });
+          console.log(`[idGenerator] Re-aligned riderId ${finalId} for rider "${r.name || r._id}"`);
+        }
+
+        usedRiderIds.add(finalId);
+        rIndex++;
+      }
+
+      let maxRiderNum = 0;
+      for (const id of usedRiderIds) {
+        const numPart = parseInt(id.replace(/^RDR/i, ""), 10);
+        if (!isNaN(numPart) && numPart > maxRiderNum) {
+          maxRiderNum = numPart;
+        }
+      }
+      if (Counter && maxRiderNum > 0) {
+        await Counter.findByIdAndUpdate(
+          "rider",
+          { $set: { seq: maxRiderNum } },
+          { upsert: true, new: true }
+        );
       }
     }
 
-    // 3. Backfill Customers/Users
+    // 3. Re-align Customers/Users (C001, C002, C003...)
     if (User) {
-      const users = await User.find({
-        $or: [
-          { customerId: { $exists: false } },
-          { customerId: null },
-          { customerId: "" },
-          { customerId: { $not: /^C\d+/i } }
-        ]
-      }).sort({ createdAt: 1, _id: 1 });
+      const allUsers = await User.find({}).sort({ createdAt: 1, _id: 1 });
+      const usedUserIds = new Set();
+      let uIndex = 1;
 
-      for (const u of users) {
-        const newId = await getNextCustomerId();
-        await User.findByIdAndUpdate(u._id, { customerId: newId });
-        console.log(`[idGenerator] Assigned customerId ${newId} to user "${u.name || u.mobile || u._id}"`);
+      for (const u of allUsers) {
+        const currentId = u.customerId ? String(u.customerId).toUpperCase() : "";
+        const isDuplicateOrDefault = !currentId ||
+          (currentId === "C001" && uIndex > 1) ||
+          usedUserIds.has(currentId) ||
+          !/^C\d+/i.test(currentId);
+
+        let finalId = currentId;
+        if (isDuplicateOrDefault) {
+          let numStr = String(uIndex).padStart(3, "0");
+          let candidateId = `C${numStr}`;
+          while (usedUserIds.has(candidateId)) {
+            uIndex++;
+            numStr = String(uIndex).padStart(3, "0");
+            candidateId = `C${numStr}`;
+          }
+          finalId = candidateId;
+          await User.findByIdAndUpdate(u._id, { customerId: finalId });
+        }
+
+        usedUserIds.add(finalId);
+        uIndex++;
+      }
+
+      let maxUserNum = 0;
+      for (const id of usedUserIds) {
+        const numPart = parseInt(id.replace(/^C/i, ""), 10);
+        if (!isNaN(numPart) && numPart > maxUserNum) {
+          maxUserNum = numPart;
+        }
+      }
+      if (Counter && maxUserNum > 0) {
+        await Counter.findByIdAndUpdate(
+          "customer",
+          { $set: { seq: maxUserNum } },
+          { upsert: true, new: true }
+        );
       }
     }
 
-    console.log("[idGenerator] Formatted ID check and backfill complete.");
+    console.log("[idGenerator] Formatted ID check, re-alignment, and backfill complete.");
   } catch (err) {
     console.error("[idGenerator] Error in backfillMissingIds:", err.message);
   }

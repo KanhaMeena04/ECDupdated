@@ -139,7 +139,11 @@ const getStatusBadgeConfig = (statusStr) => {
 const cleanId = (id, fallback) => {
   if (!id) return fallback;
   const str = String(id).trim();
-  if (str.startsWith("REST_")) return "RNT001";
+  if (str.startsWith("REST_")) {
+    const parts = str.split("_");
+    const lastPart = parts[parts.length - 1];
+    return lastPart ? `RNT${lastPart.slice(-3).padStart(3, '0')}` : fallback;
+  }
   return str.replace(/^#+/, "");
 };
 

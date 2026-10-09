@@ -852,7 +852,7 @@ exports.getMyOrders = async (req, res) => {
       orderObj.orderNumber = ordNumber;
       orderObj.orderId = ordNumber;
       orderObj.customerId = orderObj.customerId || req.user.customerId || "C001";
-      orderObj.restaurantId = orderObj.restaurantId || orderObj.restaurant?.restaurantId || "RNT001";
+      orderObj.restaurantId = orderObj.restaurantId || orderObj.restaurant?.restaurantId || (orderObj.restaurant?._id ? `RNT${orderObj.restaurant._id.toString().slice(-3).toUpperCase()}` : "RNT001");
       if (orderObj.rider) {
         orderObj.riderId = orderObj.riderId || orderObj.rider?.riderId || "RDR001";
       }

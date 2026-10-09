@@ -2483,7 +2483,7 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
       .sort({ createdAt: -1 })
       .catch(() => []);
 
-    let formattedData = restaurants.map((rest) => {
+    let formattedData = restaurants.map((rest, idx) => {
       // Dynamic live status: Active only when isActive !== false AND isOnline !== false AND !isTemporarilyClosed
       const isOnline = rest.isOnline !== false;
       const isActive = rest.isActive !== false && rest.status !== "Inactive";
@@ -2505,10 +2505,14 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
       const ownerName = (rest.owner && typeof rest.owner === 'object' && rest.owner.name) ? rest.owner.name : (rest.ownerName || `${restName} Owner`);
       const emailVal = rest.email || (rest.owner && typeof rest.owner === 'object' ? rest.owner.email : '') || (contactVal !== '-' ? `${contactVal.replace(/[^0-9]/g, '')}@ecdkart.com` : '-');
 
+      const resolvedRestId = (rest.restaurantId && /^RNT\d+/i.test(rest.restaurantId) && (idx === 0 || rest.restaurantId !== 'RNT001'))
+        ? rest.restaurantId.toUpperCase()
+        : `RNT${String(idx + 1).padStart(3, '0')}`;
+
       return {
         _id: rest._id,
         id: rest._id,
-        restaurantId: rest.restaurantId || 'RNT001',
+        restaurantId: resolvedRestId,
         name: restName,
         email: emailVal,
         address: `${rest.address || ''}${rest.city ? (rest.address ? ', ' : '') + rest.city : ''}${rest.state ? ', ' + rest.state : ''}`,

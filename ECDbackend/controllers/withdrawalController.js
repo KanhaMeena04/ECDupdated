@@ -22,7 +22,10 @@ exports.getAllWithdrawals = async (req, res) => {
     }
 
     if (requestType === 'restaurant') {
-      query.requestType = 'restaurant';
+      query.$or = [
+        { requestType: 'restaurant' },
+        { restaurant: { $exists: true, $ne: null } }
+      ];
     } else if (requestType === 'rider') {
       query.$or = [
         { requestType: 'rider' },
@@ -40,6 +43,7 @@ exports.getAllWithdrawals = async (req, res) => {
       .limit(limit)
       .sort({ createdAt: -1 });
 
+    const mongoose = require('mongoose');
     const enriched = (await Promise.all(requests.map(async (doc) => {
       const obj = doc.toObject();
 
@@ -59,13 +63,21 @@ exports.getAllWithdrawals = async (req, res) => {
         if (!rest && doc.user) {
           rest = await Restaurant.findOne({ owner: doc.user._id || doc.user }).select('_id name logo email contactNumber owner bankDetails upi settlementCycle walletBalance');
         }
-        if (!rest) return null; // Exclude if no restaurant profile exists
+        if (!rest && doc.restaurant) {
+          if (mongoose.Types.ObjectId.isValid(doc.restaurant)) {
+            rest = await Restaurant.findById(doc.restaurant).select('_id name logo email contactNumber owner bankDetails upi settlementCycle walletBalance');
+          }
+        }
 
         const w = rest ? await RestaurantWallet.findOne({ restaurant: rest._id }) : null;
-        obj.restaurantProfile = rest || null;
+        obj.restaurantProfile = rest || {
+          name: doc.user?.name || 'Restaurant Partner',
+          contactNumber: doc.user?.mobile || '',
+          email: doc.user?.email || ''
+        };
         obj.walletBalance = w?.balance ?? rest?.walletBalance ?? doc.user?.walletBalance ?? 0;
         obj.totalEarnings = w?.totalEarnings ?? rest?.totalEarnings ?? 0;
-        obj.restaurantDisplayId = rest ? (rest.restaurantId || `REST-${rest._id.toString().slice(-6).toUpperCase()}`) : 'N/A';
+        obj.restaurantDisplayId = rest ? (rest.restaurantId || `REST-${rest._id.toString().slice(-6).toUpperCase()}`) : (doc.user?._id ? `USR-${doc.user._id.toString().slice(-6).toUpperCase()}` : 'N/A');
 
         const restBank = rest?.bankDetails || {};
         obj.bankDetails = {
@@ -136,10 +148,28 @@ exports.createRestaurantWithdrawal = async (req, res) => {
     }
 
     let restaurant = null;
+    const mongoose = require('mongoose');
     if (restaurantId) {
-      restaurant = await Restaurant.findById(restaurantId);
-    } else if (userId) {
-      restaurant = await Restaurant.findOne({ owner: userId });
+      if (mongoose.Types.ObjectId.isValid(restaurantId)) {
+        restaurant = await Restaurant.findById(restaurantId);
+      }
+      if (!restaurant) {
+        restaurant = await Restaurant.findOne({
+          $or: [
+            { restaurantId: restaurantId },
+            { contactNumber: restaurantId },
+            { owner: restaurantId }
+          ]
+        });
+      }
+    }
+    if (!restaurant && userId) {
+      restaurant = await Restaurant.findOne({
+        $or: [
+          { owner: userId },
+          { _id: userId }
+        ]
+      });
     }
 
     if (!restaurant) {
@@ -161,7 +191,7 @@ exports.createRestaurantWithdrawal = async (req, res) => {
     }
 
     const mergedBankDetails = {
-      accountHolder: bankDetails?.accountHolder || restaurant.bankDetails?.accountName || restaurant.name,
+      accountHolder: bankDetails?.accountHolder || restaurant.bankDetails?.accountName || restaurant.bankDetails?.accountHolder || restaurant.name,
       bankName: bankDetails?.bankName || restaurant.bankDetails?.bankName || '',
       accountNumber: bankDetails?.accountNumber || restaurant.bankDetails?.accountNumber || '',
       ifsc: bankDetails?.ifsc || bankDetails?.ifscCode || restaurant.bankDetails?.ifsc || restaurant.bankDetails?.routingNumber || '',
