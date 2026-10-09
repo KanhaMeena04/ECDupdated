@@ -2646,11 +2646,11 @@ exports.verifyRider = async (req, res) => {
     const newStatus = status || 'approved';
     if (newStatus === 'approved') {
       rider.riderVerified = true;
-      rider.verificationStatus = 'approved';
-      if (rider.vehicle) {
-        rider.vehicle.vehicleVerified = true;
-        if (!rider.vehicle.vehicleApproval) rider.vehicle.vehicleApproval = {};
-        rider.vehicle.vehicleApproval.status = 'approved';
+      const isVehicleOk = rider.vehicleVerified === true || rider.vehicle?.vehicleVerified === true || rider.vehicle?.vehicleApproval?.status === 'approved';
+      if (isVehicleOk) {
+        rider.verificationStatus = 'approved';
+      } else {
+        rider.verificationStatus = 'pending';
       }
       if (rider.bankDetails) {
         rider.bankDetails.verified = true;

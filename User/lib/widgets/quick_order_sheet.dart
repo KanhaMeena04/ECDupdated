@@ -93,26 +93,7 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
         }
       }
 
-      if (items.isEmpty) {
-        final popularDishes = await RestaurantApiService.getPopularDishes();
-        items = popularDishes
-            .map((item) => Product(
-                  id: item.id,
-                  name: item.name,
-                  description: item.description,
-                  price: item.price > 0 ? item.price : 149.0,
-                  image: item.imageUrl,
-                  category: item.category.isNotEmpty ? item.category : 'General',
-                  rating: item.rating > 0 ? item.rating : 4.5,
-                  isVeg: item.isVeg,
-                  restaurantId: nearbyRestaurants.isNotEmpty ? nearbyRestaurants.first.id : 'rest_main',
-                  restaurantName: nearbyRestaurants.isNotEmpty ? nearbyRestaurants.first.name : 'Restaurant',
-                  restaurantImageUrl: nearbyRestaurants.isNotEmpty ? nearbyRestaurants.first.imageUrl : item.imageUrl,
-                ))
-            .toList();
-      }
-
-      // 3. Shuffle dishes randomly for real-time recommendation variety
+      // 3. Shuffle nearby dishes randomly for real-time recommendation variety
       items.shuffle();
 
       if (mounted) {
@@ -309,12 +290,15 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'No dishes found',
+                              _allProducts.isEmpty
+                                  ? 'No dishes available from nearby restaurants\n(within 25 km radius)'
+                                  : 'No dishes found matching search',
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                               ),
+                              textAlign: TextAlign.center,
                             ),
                           ],
                         ),

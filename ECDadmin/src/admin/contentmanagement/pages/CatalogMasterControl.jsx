@@ -144,44 +144,20 @@ export default function CatalogMasterControl() {
   };
 
   useEffect(() => {
-    if (activeTab === 0) fetchRestaurants();
-    if (activeTab === 1) fetchCategories();
-    if (activeTab === 2) {
+    if (activeTab === 0) fetchCategories();
+    if (activeTab === 1) {
       fetchRestaurants();
       fetchCategories();
       fetchProducts();
     }
-    if (activeTab === 3) fetchAuditLogs();
+    if (activeTab === 2) fetchAuditLogs();
   }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 2) {
+    if (activeTab === 1) {
       fetchProducts();
     }
   }, [selectedRestaurant, selectedCategory, searchQuery]);
-
-  // Handler: Restaurant Master Control Switch
-  const handleRestaurantControl = async (id, fields) => {
-    try {
-      await api.put(`/api/catalog/restaurants/${id}/master-control`, fields);
-      showAlert("Restaurant master control updated!");
-      fetchRestaurants();
-    } catch (err) {
-      showAlert(err.response?.data?.message || "Failed to update restaurant", "error");
-    }
-  };
-
-  // Handler: Add Restaurant Offer
-  const handleAddOfferSubmit = async () => {
-    try {
-      await api.post(`/api/catalog/restaurants/${offerModal.restaurantId}/offers`, offerForm);
-      showAlert("Offer created successfully!");
-      setOfferModal({ open: false, restaurantId: null });
-      fetchRestaurants();
-    } catch (err) {
-      showAlert("Failed to add offer", "error");
-    }
-  };
 
   // Handler: Category Toggle & Save
   const handleCategoryToggle = async (cat) => {
@@ -265,7 +241,7 @@ export default function CatalogMasterControl() {
             Catalog & Product Master Control Tower
           </Typography>
           <Typography variant="body2" sx={{ color: "#6B7280" }}>
-            Central Control Tower for Restaurants, Categories, Menu Items, Price Overrides & Audit Logs
+            Central Control Tower for Categories, Menu Items, Price Overrides & Audit Logs
           </Typography>
         </Box>
         <Chip
@@ -295,7 +271,6 @@ export default function CatalogMasterControl() {
             "& .Mui-selected": { color: PRIMARY_COLOR },
           }}
         >
-          <Tab icon={<Store />} iconPosition="start" label="Restaurant Master Control" />
           <Tab icon={<Category />} iconPosition="start" label="Categories & Subcategories" />
           <Tab icon={<RestaurantMenu />} iconPosition="start" label="Menu Items & Price Overrides" />
           <Tab icon={<History />} iconPosition="start" label="Audit Logs" />
@@ -303,114 +278,18 @@ export default function CatalogMasterControl() {
       </Card>
 
       {/* ------------------------------------------------------------- */}
-      {/* TAB 0: RESTAURANT MASTER CONTROL */}
+      {/* TAB 0: CATEGORY & SUBCATEGORY MASTER CONTROL */}
       {/* ------------------------------------------------------------- */}
       {activeTab === 0 && (
-        <Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Restaurant Directory & Availability Controls ({restaurants.length})
-            </Typography>
-            <IconButton onClick={fetchRestaurants} color="primary">
-              <Refresh />
-            </IconButton>
-          </Box>
-
-          {loading ? (
-            <Box sx={{ textAlign: "center", py: 5 }}><CircularProgress color="success" /></Box>
-          ) : (
-            <Grid container spacing={3}>
-              {restaurants.map((r) => {
-                const name = typeof r.name === "object" ? r.name.en : r.name;
-                const isOverridden = r.adminOverride?.isOverridden;
-
-                return (
-                  <Grid item xs={12} md={6} lg={4} key={r._id}>
-                    <Card sx={{ borderRadius: 3, height: "100%", border: isOverridden ? `2px solid ${ACCENT_COLOR}` : "1px solid #E5E7EB" }}>
-                      <CardContent>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-                          <Typography variant="h6" sx={{ fontWeight: 700, fontSize: "1.1rem" }}>
-                            {name}
-                          </Typography>
-                          {isOverridden && (
-                            <Tooltip title="Admin Override Active">
-                              <Chip label="Admin Override" size="small" sx={{ bgcolor: "#FFFBEB", color: ACCENT_COLOR, fontWeight: 700 }} />
-                            </Tooltip>
-                          )}
-                        </Box>
-
-                        <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                          {r.city} • Prep: {r.estimatedPreparationTime || 15} mins • Comm: {r.adminCommission}%
-                        </Typography>
-
-                        <Box sx={{ bgcolor: "#F9FAFB", p: 1.5, borderRadius: 2, mb: 2 }}>
-                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Featured on User Home</Typography>
-                            <Switch
-                              checked={r.isFeatured || false}
-                              onChange={(e) => handleRestaurantControl(r._id, { isFeatured: e.target.checked })}
-                              color="success"
-                              size="small"
-                            />
-                          </Box>
-
-                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Online Status (Accepting Orders)</Typography>
-                            <Switch
-                              checked={r.isOnline !== false}
-                              onChange={(e) => handleRestaurantControl(r._id, { isOnline: e.target.checked })}
-                              color="success"
-                              size="small"
-                            />
-                          </Box>
-
-                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Account Active</Typography>
-                            <Switch
-                              checked={r.isActive !== false}
-                              onChange={(e) => handleRestaurantControl(r._id, { isActive: e.target.checked })}
-                              color="success"
-                              size="small"
-                            />
-                          </Box>
-                        </Box>
-
-                        <Box sx={{ display: "flex", gap: 1 }}>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<LocalOffer />}
-                            onClick={() => setOfferModal({ open: true, restaurantId: r._id })}
-                            sx={{ borderColor: PRIMARY_COLOR, color: PRIMARY_COLOR }}
-                          >
-                            Add Offer ({r.offers?.length || 0})
-                          </Button>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                );
-              })}
-            </Grid>
-          )}
-        </Box>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* TAB 1: CATEGORIES & SUBCATEGORIES */}
-      {/* ------------------------------------------------------------- */}
-      {/* TAB 1: CATEGORY & SUBCATEGORY MASTER CONTROL */}
-      {/* ------------------------------------------------------------- */}
-      {activeTab === 1 && (
         <Box>
           <CategoryTable />
         </Box>
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* TAB 2: MENU ITEMS & PRICE OVERRIDES */}
+      {/* TAB 1: MENU ITEMS & PRICE OVERRIDES */}
       {/* ------------------------------------------------------------- */}
-      {activeTab === 2 && (
+      {activeTab === 1 && (
         <Box>
           {/* Filters Bar */}
           <Card sx={{ p: 2, mb: 3, borderRadius: 3 }}>
@@ -578,9 +457,9 @@ export default function CatalogMasterControl() {
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* TAB 3: AUDIT LOGS */}
+      {/* TAB 2: AUDIT LOGS */}
       {/* ------------------------------------------------------------- */}
-      {activeTab === 3 && (
+      {activeTab === 2 && (
         <Box>
           <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
