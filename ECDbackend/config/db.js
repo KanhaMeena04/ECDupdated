@@ -5,7 +5,7 @@ const dns = require('dns');
 // Configure DNS resolvers for SRV records if possible
 try {
   dns.setServers(['1.1.1.1', '8.8.8.8']);
-} catch (e) {}
+} catch (e) { }
 
 // Connection event monitoring
 mongoose.connection.on('error', (err) => {
@@ -86,7 +86,7 @@ async function cleanupLegacyIndexes() {
           idx.name === 'restaurantKey_1'
         ) {
           console.log(`🧹 Dropping legacy conflict index: ${idx.name}`);
-          await restCollection.dropIndex(idx.name).catch(() => {});
+          await restCollection.dropIndex(idx.name).catch(() => { });
         }
       }
     }
