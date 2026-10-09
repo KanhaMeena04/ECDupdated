@@ -3758,7 +3758,7 @@ exports.getRestaurantProfileById = async (req, res) => {
     const { id } = req.params;
     let restaurant = null;
     if (id && mongoose.Types.ObjectId.isValid(id)) {
-      restaurant = await Restaurant.findById(id).populate("owner", "name email mobile");
+      restaurant = await Restaurant.findById(id).populate("owner", "name email mobile pin");
     }
     if (!restaurant) {
       restaurant = await Restaurant.findOne({
@@ -3766,49 +3766,43 @@ exports.getRestaurantProfileById = async (req, res) => {
           { restaurantId: id },
           { slug: id }
         ]
-      }).populate("owner", "name email mobile");
+      }).populate("owner", "name email mobile pin");
     }
     if (!restaurant) {
       return res.status(404).json({ success: false, message: "Restaurant not found" });
     }
+    const rawRest = restaurant.toObject ? restaurant.toObject() : { ...restaurant };
     const restName = (typeof restaurant.name === "object" ? restaurant.name.en : restaurant.name) || "Your Restaurant";
     return res.status(200).json({
       success: true,
       name: restName,
       restaurant: {
-        _id: restaurant._id,
-        restaurantId: restaurant.restaurantId,
+        ...rawRest,
         name: restaurant.name,
-        description: restaurant.description,
-        restaurantType: restaurant.restaurantType,
-        image: restaurant.image,
-        bannerImage: restaurant.bannerImage,
-        restaurantImages: restaurant.restaurantImages || [],
-        cuisine: restaurant.cuisine,
-        address: restaurant.address,
-        city: restaurant.city,
-        area: restaurant.area,
-        location: restaurant.location,
-        contactNumber: restaurant.contactNumber,
-        email: restaurant.email,
-        verificationStatus: restaurant.verificationStatus,
-        restaurantApproved: restaurant.restaurantApproved,
-        isActive: restaurant.isActive,
-        deliveryTime: restaurant.deliveryTime,
-        packagingCharge: restaurant.packagingCharge,
+        brand: rawRest.brand || restName,
         rating: normalizeRatingOutput(restaurant.rating),
-        totalOrders: restaurant.totalOrders,
-        totalEarnings: restaurant.totalEarnings,
-        documents: restaurant.documents,
-        bankDetails: restaurant.bankDetails,
-        timing: restaurant.timing,
-        menu: restaurant.menu
+        owner: restaurant.owner ? {
+          _id: restaurant.owner._id,
+          name: restaurant.owner.name,
+          email: restaurant.owner.email,
+          mobile: restaurant.owner.mobile,
+          pin: restaurant.owner.pin
+        } : null,
+        ownerName: restaurant.owner?.name || rawRest.ownerName || "",
+        ownerEmail: restaurant.owner?.email || rawRest.ownerEmail || "",
+        ownerMobile: restaurant.owner?.mobile || rawRest.ownerMobile || restaurant.contactNumber || "",
+        phone: restaurant.contactNumber || rawRest.phone || "",
+        pin: restaurant.owner?.pin || rawRest.pin || "1234"
       }
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+exports.getRestaurantById = exports.getRestaurantProfileById;
+exports.getRestaurantByIdAdmin = exports.getRestaurantProfileById;
+
 
 exports.getRestaurantStatusCheck = async (req, res) => {
   try {

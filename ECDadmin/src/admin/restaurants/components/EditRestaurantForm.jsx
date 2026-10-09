@@ -77,10 +77,28 @@ const EditRestaurantForm = () => {
     return "Both";
   };
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <CircularProgress sx={{ color: "#00a67e" }} />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <AlertCircle className="w-12 h-12 text-red-500 mb-3" />
+        <Typography variant="h6" className="font-bold text-gray-800 mb-2">
+          {error || "Restaurant details could not be loaded"}
+        </Typography>
+        <Button 
+          variant="contained" 
+          onClick={() => window.location.reload()}
+          sx={{ mt: 2, backgroundColor: "#ed2026", "&:hover": { backgroundColor: "#c8171c" } }}
+        >
+          Retry
+        </Button>
       </div>
     );
   }
