@@ -2,13 +2,23 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const dns = require('dns');
 
-// Disable command buffering so queries fail/fallback instantly instead of hanging for 30s when DB is offline/reconnecting
-mongoose.set('bufferCommands', false);
-
 // Configure DNS resolvers for SRV records if possible
 try {
   dns.setServers(['1.1.1.1', '8.8.8.8']);
 } catch (e) {}
+
+// Connection event monitoring
+mongoose.connection.on('error', (err) => {
+  console.error('⚠️ Mongoose connection error:', err.message);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ Mongoose connection lost. Retrying automatically...');
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('✅ Mongoose reconnected to MongoDB Atlas!');
+});
 
 const connectDB = async () => {
   const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
@@ -20,14 +30,21 @@ const connectDB = async () => {
   }
 
   const connectionOptions = {
-    serverSelectionTimeoutMS: 4000,
-    connectTimeoutMS: 4000,
-    socketTimeoutMS: 10000,
-    family: 4, // Use IPv4, skip IPv6 try delays
+    autoIndex: true,
+    maxPoolSize: 50,             // Maintain up to 50 socket connections
+    minPoolSize: 5,              // Maintain at least 5 socket connections
+    serverSelectionTimeoutMS: 30000, // 30s for Atlas server selection / primary election
+    socketTimeoutMS: 45000,      // Close sockets after 45s of inactivity
+    connectTimeoutMS: 30000,     // 30s for initial TCP/TLS handshake
+    heartbeatFrequencyMS: 10000, // Health check every 10 seconds
+    maxIdleTimeMS: 30000,        // Close idle socket connections after 30s
+    retryWrites: true,
+    retryReads: true,
+    family: 4,                   // Use IPv4 to avoid IPv6 delays
   };
 
   try {
-    console.log('📡 [MongoDB] Connecting to ECDKART-TEST Atlas using environment configuration...');
+    console.log('📡 [MongoDB] Connecting to ECDKART Atlas Cloud DB...');
 
     const conn = await mongoose.connect(mongoUri, connectionOptions);
 
