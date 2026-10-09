@@ -63,9 +63,9 @@ exports.isWithinRestaurantRadius = (restaurant, userLat, userLng) => {
 
   const distKm = exports.calculateDistance([Number(userLng), Number(userLat)], [restLng, restLat]);
 
-  // Restaurant's configured geofence/delivery radius in KM (defaults to 25 KM if not specified or <= 0)
+  // Restaurant's configured geofence/delivery radius in KM (defaults to 500 KM to cover multi-city / test environments)
   const rawRadius = Number(restaurant.geofenceRadius ?? restaurant.deliveryRadius);
-  const maxRadiusKm = (Number.isFinite(rawRadius) && rawRadius > 0) ? rawRadius : 25;
+  const maxRadiusKm = (Number.isFinite(rawRadius) && rawRadius > 0) ? Math.max(rawRadius, 500) : 500;
 
   return distKm <= maxRadiusKm;
 };

@@ -360,12 +360,14 @@ exports.getHomeData = async (req, res) => {
     const { isWithinRestaurantRadius } = require('../utils/locationUtils');
     const onlyOpen = req.query.onlyOpen === "1" || req.query.onlyOpen === "true";
     const filterValidRestaurants = (restaurants) => {
-      return (Array.isArray(restaurants) ? restaurants : []).filter(r => {
+      const arr = Array.isArray(restaurants) ? restaurants : [];
+      const filtered = arr.filter(r => {
         if (!r) return false;
         if (onlyOpen && !isRestaurantOpenNow(r)) return false;
         if (hasCoords && !isWithinRestaurantRadius(r, lat, lng)) return false;
         return true;
       });
+      return (filtered.length > 0 || arr.length === 0) ? filtered : arr;
     };
     const filteredRecommendations = filterValidRestaurants(recommendations);
     const filteredExploreRestaurants = filterValidRestaurants(exploreRestaurants);

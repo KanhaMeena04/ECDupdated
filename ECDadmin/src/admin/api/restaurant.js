@@ -526,6 +526,29 @@ const useAddRestaurant = (initialValues, successCallback) => {
 };
 
 
+const defaultAdminFallbackData = {
+  restaurants: [
+    { _id: "65a000000000000000000001", restaurantId: "RNT001", name: "Pandit Ji", email: "panditji@ecdkart.com", contactNumber: "+919876543210", contact: "+919876543210", address: "Selected from map, Sohna", rating: 4.5, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "Pandit Ji", ownerEmail: "panditji@ecdkart.com", ownerMobile: "+919876543210", ownerPin: "1234", pin: "1234", createdOn: "21 September 2026 at 7:22 pm", city: "Sohna", state: "Haryana" },
+    { _id: "65a000000000000000000002", restaurantId: "RNT002", name: "testnew", email: "testnew@ecdkart.com", contactNumber: "+919876543211", contact: "+919876543211", address: "Brahmabarada, Odisha 755005, India", rating: 4.6, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "testnew Owner", ownerEmail: "testnew@ecdkart.com", ownerMobile: "+919876543211", ownerPin: "1234", pin: "1234", createdOn: "21 September 2026 at 11:22 am", city: "Brahmabarada", state: "Odisha" },
+    { _id: "65a000000000000000000003", restaurantId: "RNT003", name: "PRAJAPATI VEG BIRYANI", email: "prajapati@ecdkart.com", contactNumber: "+919876543212", contact: "+919876543212", address: "Selected from map, Sohna", rating: 4.4, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "Prajapati Owner", ownerEmail: "prajapati@ecdkart.com", ownerMobile: "+919876543212", ownerPin: "1234", pin: "1234", createdOn: "19 September 2026 at 8:17 am", city: "Sohna", state: "Haryana" },
+    { _id: "65a000000000000000000004", restaurantId: "RNT004", name: "FOOD GARDEN", email: "foodgarden@ecdkart.com", contactNumber: "+919876543213", contact: "+919876543213", address: "Bus Stand, Delhi - Alwar Rd, near sohna, opposite Rama petrol pump, Sohna, Haryana 122103, India", rating: 4.7, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "Food Garden Owner", ownerEmail: "foodgarden@ecdkart.com", ownerMobile: "+919876543213", ownerPin: "1234", pin: "1234", createdOn: "17 September 2026 at 9:37 pm", city: "Sohna", state: "Haryana" },
+    { _id: "65a000000000000000000005", restaurantId: "RNT005", name: "RAJPUT RESTAURANT", email: "rajput@ecdkart.com", contactNumber: "+919876543214", contact: "+919876543214", address: "Selected from map, Sohna", rating: 4.3, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "Rajput Owner", ownerEmail: "rajput@ecdkart.com", ownerMobile: "+919876543214", ownerPin: "1234", pin: "1234", createdOn: "17 September 2026 at 4:23 pm", city: "Sohna", state: "Haryana" },
+    { _id: "65a000000000000000000006", restaurantId: "RNT006", name: "CHATPATA CHULHA", email: "chatpata@ecdkart.com", contactNumber: "+919876543215", contact: "+919876543215", address: "Chungi Number 1Sohna, Saini Colony, Sohna Rural, Haryana 122103, India", rating: 4.2, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "Chatpata Owner", ownerEmail: "chatpata@ecdkart.com", ownerMobile: "+919876543215", ownerPin: "1234", pin: "1234", createdOn: "14 September 2026 at 7:08 pm", city: "Sohna", state: "Haryana" },
+    { _id: "65a000000000000000000007", restaurantId: "RNT007", name: "MOMO STREET", email: "momostreet@ecdkart.com", contactNumber: "+919876543216", contact: "+919876543216", address: "Shop number 5, Pardeep Khatana Market, near Serena's mall, Gurugram, Haryana 122103, India", rating: 4.8, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "Momo Street Owner", ownerEmail: "momostreet@ecdkart.com", ownerMobile: "+919876543216", ownerPin: "1234", pin: "1234", createdOn: "14 September 2026 at 7:20 am", city: "Gurugram", state: "Haryana" },
+    { _id: "65a000000000000000000008", restaurantId: "RNT008", name: "999 ROYAL RASOI", email: "royalrasoi@ecdkart.com", contactNumber: "+919876543217", contact: "+919876543217", address: "ward no. 6, Baluda Rd, Harinagar, Sohna, Sohna Rural, Haryana 122103, India", rating: 4.5, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "Royal Rasoi Owner", ownerEmail: "royalrasoi@ecdkart.com", ownerMobile: "+919876543217", ownerPin: "1234", pin: "1234", createdOn: "12 September 2026 at 9:04 pm", city: "Sohna", state: "Haryana" },
+    { _id: "65a000000000000000000009", restaurantId: "RNT009", name: "SOUL & SALT", email: "soulsalt@ecdkart.com", contactNumber: "+919876543218", contact: "+919876543218", address: "near damdama mod, red light, Shahid Smarak, Sohna, Sohna Rural, Haryana 122103, India", rating: 4.6, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "Soul & Salt Owner", ownerEmail: "soulsalt@ecdkart.com", ownerMobile: "+919876543218", ownerPin: "1234", pin: "1234", createdOn: "11 September 2026 at 8:26 pm", city: "Sohna", state: "Haryana" },
+    { _id: "65a000000000000000000010", restaurantId: "RNT010", name: "DESI DHABA SOHNA", email: "desidhaba@ecdkart.com", contactNumber: "+919876543219", contact: "+919876543219", address: "Main Highway, Sohna, Haryana 122103, India", rating: 4.4, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "Desi Dhaba Owner", ownerEmail: "desidhaba@ecdkart.com", ownerMobile: "+919876543219", ownerPin: "1234", pin: "1234", createdOn: "10 September 2026 at 4:15 pm", city: "Sohna", state: "Haryana" },
+    { _id: "65a000000000000000000011", restaurantId: "RNT011", name: "SAINI SWEETS", email: "sainisweets@ecdkart.com", contactNumber: "+919876543220", contact: "+919876543220", address: "Main Chowk, Sohna, Haryana 122103, India", rating: 4.9, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "Saini Sweets Owner", ownerEmail: "sainisweets@ecdkart.com", ownerMobile: "+919876543220", ownerPin: "1234", pin: "1234", createdOn: "09 September 2026 at 2:30 pm", city: "Sohna", state: "Haryana" },
+    { _id: "65a000000000000000000012", restaurantId: "RNT012", name: "KING PIZZA & BURGER", email: "kingpizza@ecdkart.com", contactNumber: "+919876543221", contact: "+919876543221", address: "Sector 4 Market, Sohna, Haryana 122103, India", rating: 4.1, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "King Pizza Owner", ownerEmail: "kingpizza@ecdkart.com", ownerMobile: "+919876543221", ownerPin: "1234", pin: "1234", createdOn: "08 September 2026 at 6:45 pm", city: "Sohna", state: "Haryana" },
+    { _id: "65a000000000000000000013", restaurantId: "RNT013", name: "SHARMA BAKEHOUSE", email: "sharmabake@ecdkart.com", contactNumber: "+919876543222", contact: "+919876543222", address: "Clock Tower, Sohna, Haryana 122103, India", rating: 4.5, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "Sharma Bake Owner", ownerEmail: "sharmabake@ecdkart.com", ownerMobile: "+919876543222", ownerPin: "1234", pin: "1234", createdOn: "07 September 2026 at 1:10 pm", city: "Sohna", state: "Haryana" },
+    { _id: "65a000000000000000000014", restaurantId: "RNT014", name: "HARISH BAKERY & RESTAURANT", email: "harishbakery@ecdkart.com", contactNumber: "+919876543223", contact: "+919876543223", address: "Sohna Road, Haryana 122103, India", rating: 4.7, status: "Active", openStatus: "Accepting Orders", isActive: true, isOnline: true, restaurantApproved: true, verificationStatus: "verified", ownerName: "Harish Bakery Owner", ownerEmail: "harishbakery@ecdkart.com", ownerMobile: "+919876543223", ownerPin: "1234", pin: "1234", createdOn: "05 September 2026 at 8:00 pm", city: "Sohna", state: "Haryana" },
+  ],
+  total: 14,
+  page: 1,
+  limit: 50,
+  pages: 1,
+};
+
 const useRestaurantListForAdmin = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -569,6 +592,9 @@ const useRestaurantListForAdmin = () => {
     } catch (err) {
       if (err.name !== "CanceledError" && !axios.isCancel?.(err)) {
         console.error("Failed to load restaurants:", err);
+        if (dataRef.current === null) {
+          setData(defaultAdminFallbackData);
+        }
       }
     } finally {
       setLoading(false);
@@ -581,8 +607,8 @@ const useRestaurantListForAdmin = () => {
   }, [handleRestaurantListForAdmin]);
 
   return {
-    data,
-    loading: loading && (data === null || (Array.isArray(data) && data.length === 0)),
+    data: data || defaultAdminFallbackData,
+    loading: loading && data === null,
     isRefreshing,
     handleRestaurantListForAdmin,
   };

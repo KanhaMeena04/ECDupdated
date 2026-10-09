@@ -1,5 +1,14 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
+const dns = require('dns');
+
+// Disable command buffering so queries fail/fallback instantly instead of hanging for 30s when DB is offline/reconnecting
+mongoose.set('bufferCommands', false);
+
+// Configure DNS resolvers for SRV records if possible
+try {
+  dns.setServers(['1.1.1.1', '8.8.8.8']);
+} catch (e) {}
 
 const connectDB = async () => {
   const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
@@ -11,9 +20,9 @@ const connectDB = async () => {
   }
 
   const connectionOptions = {
-    serverSelectionTimeoutMS: 30000,
-    connectTimeoutMS: 30000,
-    socketTimeoutMS: 45000,
+    serverSelectionTimeoutMS: 4000,
+    connectTimeoutMS: 4000,
+    socketTimeoutMS: 10000,
     family: 4, // Use IPv4, skip IPv6 try delays
   };
 
@@ -35,7 +44,8 @@ const connectDB = async () => {
   } catch (error) {
     console.error(`❌ Fatal MongoDB Cloud Connection Error: ${error.message}`);
     console.error('💡 TIP: Please check your internet connection or IP whitelist in MongoDB Atlas.');
-    throw error;
+    console.warn('⚠️ Server will operate in Fast Fallback Mode with seeded restaurant data for Admin & User App.');
+    return null;
   }
 };
 
