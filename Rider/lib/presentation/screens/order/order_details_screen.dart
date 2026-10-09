@@ -460,7 +460,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                   context.read<DriverBloc>().add(
                                         UpdateOrderStatus(orderId: orderId, status: 'reached_store'),
                                       );
-                                } else if (deliveryStatus == 'reached_store') {
+                                } else if (deliveryStatus == 'reached_store' || deliveryStatus == 'reached_restaurant') {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('Please show your OTP to the restaurant so they can verify the pickup.')),
                                   );

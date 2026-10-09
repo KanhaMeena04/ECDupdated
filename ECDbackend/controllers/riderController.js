@@ -3617,6 +3617,14 @@ exports.riderArrivedRestaurant = async (req, res) => {
     )
       return res.status(403).json({ message: "Not assigned to you" });
     if (order.status !== "assigned") {
+      if (["reached_restaurant", "reached_store", "picked_up", "out_for_delivery", "on_the_way", "delivery_arrived", "delivered", "completed"].includes(order.status)) {
+        return res.status(200).json({
+          success: true,
+          message: `Order is already in status '${order.status}'`,
+          currentStatus: order.status,
+          order,
+        });
+      }
       return res.status(400).json({
         message: "Order must be in assigned status to mark restaurant arrival",
         currentStatus: order.status,

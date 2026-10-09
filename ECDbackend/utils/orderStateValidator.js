@@ -105,6 +105,29 @@ const VALID_DELIVERY_TRANSITIONS = {
   [DELIVERY_STATES.DELIVERED]: [],
   [DELIVERY_STATES.CANCELLED]: []
 };
+const ORDER_STATUS_HIERARCHY = {
+  "pending": 1,
+  "placed": 2,
+  "accepted": 3,
+  "preparing": 4,
+  "ready": 5,
+  "ready_for_pickup": 5,
+  "assigned": 6,
+  "rider_assigned": 6,
+  "reached_restaurant": 7,
+  "reached_store": 7,
+  "picked_up": 8,
+  "partner_picked": 8,
+  "out_for_delivery": 9,
+  "on_the_way": 9,
+  "reached_customer_location": 10,
+  "delivery_arrived": 10,
+  "delivered": 11,
+  "completed": 12,
+  "cancelled": 99,
+  "failed": 99
+};
+
 const validateOrderState = (currentState, newState, isAdmin = false) => {
   if (isAdmin) {
     if (currentState === ORDER_STATES.CANCELLED && newState !== ORDER_STATES.CANCELLED) {
@@ -113,6 +136,19 @@ const validateOrderState = (currentState, newState, isAdmin = false) => {
     return { valid: true, error: null };
   }
   if (currentState === newState) return { valid: true, error: null };
+
+  const currentLevel = ORDER_STATUS_HIERARCHY[currentState] || 0;
+  const newLevel = ORDER_STATUS_HIERARCHY[newState] || 0;
+
+  // If the order has already progressed past the requested newState (and neither is cancelled/failed)
+  if (currentLevel > 0 && newLevel > 0 && currentLevel > newLevel && currentState !== 'cancelled' && currentState !== 'failed') {
+    return {
+      valid: false,
+      isAlreadyAdvanced: true,
+      error: `Order status '${currentState}' is already ahead of requested status '${newState}'`
+    };
+  }
+
   const allowed = validTransitions[currentState] || [];
   if (!allowed.includes(newState)) {
     return {

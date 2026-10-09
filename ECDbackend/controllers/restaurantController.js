@@ -2288,18 +2288,25 @@ exports.getAllRestaurants = async (req, res) => {
       ];
     }
 
+    if (!hasUserCoords && (req.query.city || req.query.address)) {
+      const locStr = (req.query.city || req.query.address || '').trim();
+      if (locStr) {
+        const locRegex = new RegExp(locStr, 'i');
+        baseQuery.$or = [
+          { city: locRegex },
+          { area: locRegex },
+          { address: locRegex },
+          { 'location.address': locRegex },
+        ];
+      }
+    }
+
     let candidateRestaurants = [];
     try {
       candidateRestaurants = await Restaurant.find(baseQuery).limit(100).lean();
     } catch (err) {
-      const fallbackQuery = { ...baseQuery };
-      delete fallbackQuery.location;
-      candidateRestaurants = await Restaurant.find(fallbackQuery).limit(100).lean();
-    }
-    if (candidateRestaurants.length === 0 && hasUserCoords) {
-      const fallbackQuery = { ...baseQuery };
-      delete fallbackQuery.location;
-      candidateRestaurants = await Restaurant.find(fallbackQuery).limit(100).lean();
+      console.error("Error finding candidate restaurants:", err.message);
+      candidateRestaurants = [];
     }
 
     // 1. Preload categories map (ID -> Title)

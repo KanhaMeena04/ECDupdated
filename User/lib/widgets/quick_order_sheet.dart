@@ -58,12 +58,24 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
 
       // 2. Fetch restaurants strictly within 25km radius of user location
       final locProvider = Provider.of<LocationProvider>(context, listen: false);
-      final lat = locProvider.lat;
-      final lng = locProvider.lng;
+      double? lat = locProvider.lat;
+      double? lng = locProvider.lng;
+
+      if (lat == null || lng == null || (lat == 0 && lng == 0)) {
+        if (locProvider.location.isNotEmpty && locProvider.location != 'Select Location') {
+          final coords = await getCoordinatesFromAddress(locProvider.location);
+          if (coords != null) {
+            lat = coords['lat'];
+            lng = coords['lng'];
+          }
+        }
+      }
 
       final nearbyRestaurants = await RestaurantApiService.getRestaurants(
         lat: lat,
         lng: lng,
+        city: locProvider.location,
+        address: locProvider.subAddress,
       );
 
       List<Product> items = [];
@@ -77,6 +89,7 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
         }
 
         for (final menuItem in menu) {
+          if (menuItem.outOfStock) continue;
           items.add(Product(
             id: menuItem.id,
             name: menuItem.name,
@@ -315,157 +328,189 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
                               ? cart.items[cartItemIndex].quantity
                               : 0;
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 14),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFFAFAFA),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: isDark
-                                    ? Colors.grey.shade800
-                                    : const Color(0xFFE5E7EB),
+                          return InkWell(
+                            onTap: () {
+                              final restId = item.restaurantId;
+                              if (restId != null && restId.isNotEmpty) {
+                                Navigator.pop(context);
+                                context.push(
+                                  '${AppRoutes.restaurantDetail}/$restId',
+                                  extra: Restaurant(
+                                    id: restId,
+                                    name: item.restaurantName ?? 'Restaurant',
+                                    imageUrl: item.restaurantImageUrl ?? item.image,
+                                    rating: item.rating,
+                                    cuisine: 'Fast Food',
+                                  ),
+                                );
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(18),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 14),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFFAFAFA),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: isDark
+                                      ? Colors.grey.shade800
+                                      : const Color(0xFFE5E7EB),
+                                ),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                // Thumbnail Image
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: SafeImage(
-                                    item.image,
-                                    width: 80,
-                                    height: 80,
-                                    fit: BoxFit.cover,
+                              child: Row(
+                                children: [
+                                  // Thumbnail Image
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: SafeImage(
+                                      item.image,
+                                      width: 80,
+                                      height: 80,
+                                      fit: BoxFit.cover,
+                                    ),
                                   ),
-                                ),
 
-                                const SizedBox(width: 14),
+                                  const SizedBox(width: 14),
 
-                                // Food details
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // Veg Tag & Rating
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.circle,
-                                            size: 10,
-                                            color: item.isVeg ? Colors.green : Colors.red,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Icon(
-                                            Icons.star_rounded,
-                                            size: 14,
-                                            color: accentOrange,
-                                          ),
-                                          const SizedBox(width: 2),
-                                          Text(
-                                            '${item.rating}',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              color: isDark ? Colors.grey.shade300 : Colors.black87,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-
-                                      // Item Name
-                                      Text(
-                                        item.name,
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
-                                          color: isDark ? Colors.white : const Color(0xFF1F2937),
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 6),
-
-                                      // Price
-                                      Text(
-                                        '₹${item.price}',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w800,
-                                          color: primaryColor,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                // Add / Quantity Controller Button
-                                qtyInCart == 0
-                                    ? ElevatedButton(
-                                        onPressed: () {
-                                          cart.addItem(
-                                            item,
-                                            restaurantId: item.restaurantId ?? 'rest_main',
-                                            restaurantName: item.restaurantName ?? 'Restaurant',
-                                            restaurantImageUrl: item.restaurantImageUrl ?? item.image,
-                                            imageUrl: item.image,
-                                          );
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: primaryColor,
-                                          foregroundColor: Colors.white,
-                                          elevation: 0,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 18, vertical: 10),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'ADD',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      )
-                                    : Container(
-                                        height: 36,
-                                        decoration: BoxDecoration(
-                                          color: primaryColor,
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Row(
+                                  // Food details
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Veg Tag & Rating
+                                        Row(
                                           children: [
-                                            IconButton(
-                                              icon: const Icon(Icons.remove, size: 16, color: Colors.white),
-                                              constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
-                                              padding: EdgeInsets.zero,
-                                              onPressed: () {
-                                                cart.updateQuantity(item.id, qtyInCart - 1);
-                                              },
+                                            Icon(
+                                              Icons.circle,
+                                              size: 10,
+                                              color: item.isVeg ? Colors.green : Colors.red,
                                             ),
+                                            const SizedBox(width: 6),
+                                            Icon(
+                                              Icons.star_rounded,
+                                              size: 14,
+                                              color: accentOrange,
+                                            ),
+                                            const SizedBox(width: 2),
                                             Text(
-                                              '$qtyInCart',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 13,
+                                              '${item.rating}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: isDark ? Colors.grey.shade300 : Colors.black87,
                                               ),
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                                              constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
-                                              padding: EdgeInsets.zero,
-                                              onPressed: () {
-                                                cart.updateQuantity(item.id, qtyInCart + 1);
-                                              },
                                             ),
                                           ],
                                         ),
-                                      ),
-                              ],
+                                        const SizedBox(height: 4),
+
+                                        // Item Name
+                                        Text(
+                                          item.name,
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark ? Colors.white : const Color(0xFF1F2937),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        // Restaurant Name Tag
+                                        if (item.restaurantName != null && item.restaurantName!.isNotEmpty)
+                                          Text(
+                                            item.restaurantName!,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                              color: primaryColor,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        const SizedBox(height: 4),
+
+                                        // Price
+                                        Text(
+                                          '₹${item.price}',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w800,
+                                            color: primaryColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Add / Quantity Controller Button
+                                  qtyInCart == 0
+                                      ? ElevatedButton(
+                                          onPressed: () {
+                                            cart.addItem(
+                                              item,
+                                              restaurantId: item.restaurantId ?? 'rest_main',
+                                              restaurantName: item.restaurantName ?? 'Restaurant',
+                                              restaurantImageUrl: item.restaurantImageUrl ?? item.image,
+                                              imageUrl: item.image,
+                                            );
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: primaryColor,
+                                            foregroundColor: Colors.white,
+                                            elevation: 0,
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 18, vertical: 10),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'ADD',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        )
+                                      : Container(
+                                          height: 36,
+                                          decoration: BoxDecoration(
+                                            color: primaryColor,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(Icons.remove, size: 16, color: Colors.white),
+                                                constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
+                                                padding: EdgeInsets.zero,
+                                                onPressed: () {
+                                                  cart.updateQuantity(item.id, qtyInCart - 1);
+                                                },
+                                              ),
+                                              Text(
+                                                '$qtyInCart',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.add, size: 16, color: Colors.white),
+                                                constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
+                                                padding: EdgeInsets.zero,
+                                                onPressed: () {
+                                                  cart.updateQuantity(item.id, qtyInCart + 1);
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                ],
+                              ),
                             ),
                           );
                         },

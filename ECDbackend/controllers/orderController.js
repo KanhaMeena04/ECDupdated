@@ -1946,6 +1946,21 @@ exports.updateOrderStatus = async (req, res) => {
     const isAdmin = req.user?.role === "admin";
     const validation = validateOrderState(order.status, status, isAdmin);
     if (!validation.valid) {
+      if (validation.isAlreadyAdvanced) {
+        logger.info("Order status update ignored because order is already advanced", {
+          orderId: order._id,
+          currentStatus: order.status,
+          attemptedStatus: status,
+        });
+        return res.status(200).json({
+          success: true,
+          message: `Order status is already '${order.status}' which is ahead of '${status}'`,
+          currentStatus: order.status,
+          status: order.status,
+          order,
+        });
+      }
+
       logger.warn("Invalid order state transition attempted", {
         orderId: order._id,
         currentStatus: order.status,

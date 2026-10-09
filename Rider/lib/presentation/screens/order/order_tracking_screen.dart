@@ -375,6 +375,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   void _handleStatusTransition(BuildContext context) async {
     final orderId = (widget.order['_id'] ?? widget.order['orderId'] ?? '').toString();
+    final statusLower = _currentDeliveryStatus.toLowerCase();
+    
+    if (['picked_up', 'out_for_delivery', 'on_the_way', 'reached_customer_location', 'delivery_arrived', 'delivered'].contains(statusLower)) {
+      _isToRestaurant = false;
+    }
     
     if (_isToRestaurant) {
       if (_currentDeliveryStatus == 'accepted' || _currentDeliveryStatus == 'assigned') {
@@ -386,7 +391,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           _currentDeliveryStatus = 'reached_store';
           _isLoading = false;
         });
-      } else if (_currentDeliveryStatus == 'reached_store') {
+      } else if (_currentDeliveryStatus == 'reached_store' || _currentDeliveryStatus == 'reached_restaurant') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('🔑 Please tell the 4-digit OTP to the restaurant owner so they can verify and hand over the order.'),

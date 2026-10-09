@@ -622,9 +622,9 @@ class _CategoryFilteredOrderPageState
                                         onPressed: () {
                                           cart.addItem(
                                             item,
-                                            restaurantId: 'rest_1',
-                                            restaurantName: 'The Gourmet Kitchen',
-                                            restaurantImageUrl: 'assets/static/restraunt.jpg',
+                                            restaurantId: item.restaurantId ?? 'rest_main',
+                                            restaurantName: item.restaurantName ?? 'Restaurant',
+                                            restaurantImageUrl: item.restaurantImageUrl ?? item.image,
                                             imageUrl: item.image,
                                           );
                                         },
