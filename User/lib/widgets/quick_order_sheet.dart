@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../core/models/product.dart';
 import '../providers/cart_provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/location_provider.dart';
 import '../services/restaurant_api_service.dart';
+import '../services/category_service.dart';
 import '../routes/app_routes.dart';
 import 'safe_image.dart';
 
@@ -29,41 +31,97 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
   String _searchQuery = '';
   String _selectedCategory = 'All';
   List<Product> _allProducts = [];
+  List<String> _categories = ['All'];
   bool _isLoading = true;
-
-  final List<String> _categories = [
-    'All',
-    'Pizza',
-    'Burger',
-    'Noodles',
-    'Pasta',
-    'Indian',
-    'Chinese',
-    'Desserts',
-  ];
 
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProducts();
+    });
   }
 
   Future<void> _loadProducts() async {
     try {
-      final popularDishes = await RestaurantApiService.getPopularDishes();
-      if (popularDishes.isNotEmpty) {
-        _allProducts = popularDishes.map((item) => Product(
-          id: item.id,
-          name: item.name,
-          description: item.description,
-          price: item.price > 0 ? item.price : 149.0,
-          image: item.imageUrl,
-          category: item.category.isNotEmpty ? item.category : 'General',
-          rating: 4.5,
-          isVeg: true,
-        )).toList();
+      // 1. Fetch dynamic categories from DB
+      final catTree = await CategoryService.getCategoryTree(forceRefresh: true);
+      final dynamicCats = catTree
+          .map((c) => c.name.trim())
+          .where((n) => n.isNotEmpty)
+          .toList();
+      if (mounted) {
+        setState(() {
+          _categories = ['All', ...dynamicCats];
+        });
       }
-    } catch (_) {
+
+      // 2. Fetch restaurants strictly within 25km radius of user location
+      final locProvider = Provider.of<LocationProvider>(context, listen: false);
+      final lat = locProvider.lat;
+      final lng = locProvider.lng;
+
+      final nearbyRestaurants = await RestaurantApiService.getRestaurants(
+        lat: lat,
+        lng: lng,
+      );
+
+      List<Product> items = [];
+
+      for (final rest in nearbyRestaurants) {
+        var menu = rest.menu;
+        if (menu.isEmpty) {
+          try {
+            menu = await RestaurantApiService.getRestaurantMenu(rest.id);
+          } catch (_) {}
+        }
+
+        for (final menuItem in menu) {
+          items.add(Product(
+            id: menuItem.id,
+            name: menuItem.name,
+            description: menuItem.description,
+            price: menuItem.price > 0 ? menuItem.price : 149.0,
+            image: menuItem.imageUrl,
+            category: menuItem.category.isNotEmpty ? menuItem.category : 'General',
+            rating: menuItem.rating > 0 ? menuItem.rating : (rest.rating > 0 ? rest.rating : 4.5),
+            isVeg: menuItem.isVeg,
+            restaurantId: rest.id,
+            restaurantName: rest.name,
+            restaurantImageUrl: rest.imageUrl,
+          ));
+        }
+      }
+
+      if (items.isEmpty) {
+        final popularDishes = await RestaurantApiService.getPopularDishes();
+        items = popularDishes
+            .map((item) => Product(
+                  id: item.id,
+                  name: item.name,
+                  description: item.description,
+                  price: item.price > 0 ? item.price : 149.0,
+                  image: item.imageUrl,
+                  category: item.category.isNotEmpty ? item.category : 'General',
+                  rating: item.rating > 0 ? item.rating : 4.5,
+                  isVeg: item.isVeg,
+                  restaurantId: nearbyRestaurants.isNotEmpty ? nearbyRestaurants.first.id : 'rest_main',
+                  restaurantName: nearbyRestaurants.isNotEmpty ? nearbyRestaurants.first.name : 'Restaurant',
+                  restaurantImageUrl: nearbyRestaurants.isNotEmpty ? nearbyRestaurants.first.imageUrl : item.imageUrl,
+                ))
+            .toList();
+      }
+
+      // 3. Shuffle dishes randomly for real-time recommendation variety
+      items.shuffle();
+
+      if (mounted) {
+        setState(() {
+          _allProducts = items;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading quick search products: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -364,9 +422,9 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
                                         onPressed: () {
                                           cart.addItem(
                                             item,
-                                            restaurantId: 'rest_1',
-                                            restaurantName: 'The Gourmet Kitchen',
-                                            restaurantImageUrl: 'assets/static/restraunt.jpg',
+                                            restaurantId: item.restaurantId ?? 'rest_main',
+                                            restaurantName: item.restaurantName ?? 'Restaurant',
+                                            restaurantImageUrl: item.restaurantImageUrl ?? item.image,
                                             imageUrl: item.image,
                                           );
                                         },

@@ -16,6 +16,19 @@ const slugify = (text) => {
     .replace(/-+$/, ""); // Trim - from end of text
 };
 
+// Socket notification helper
+const emitCategoryChange = (req) => {
+  try {
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("home_cms:updated", { type: "categories" });
+      io.emit("category:updated", { type: "category" });
+    }
+  } catch (e) {
+    console.error("Socket emit error in categoryController:", e);
+  }
+};
+
 // ------------------------------------------------------------------
 // PUBLIC / CLIENT APIs
 // ------------------------------------------------------------------
@@ -74,7 +87,7 @@ exports.getCategoriesTree = async (req, res) => {
       slug: cat.slug,
       description: cat.description,
       image: cat.image,
-      startingPrice: cat.startingPrice || 28,
+      startingPrice: cat.startingPrice !== undefined && cat.startingPrice !== null ? cat.startingPrice : 49,
       icon: cat.icon,
       position: cat.position,
       isActive: cat.isActive,
@@ -352,6 +365,8 @@ exports.createCategory = async (req, res) => {
       reason: `Admin created ${type} category '${category.name}'`,
     });
 
+    emitCategoryChange(req);
+
     return res.status(201).json({
       success: true,
       message: `${type === "subcategory" ? "Subcategory" : "Category"} created successfully`,
@@ -481,6 +496,8 @@ exports.updateCategory = async (req, res) => {
       reason: `Admin updated ${category.type} category '${category.name}'`,
     });
 
+    emitCategoryChange(req);
+
     return res.status(200).json({
       success: true,
       message: `${category.type === "subcategory" ? "Subcategory" : "Category"} updated successfully`,
@@ -528,9 +545,11 @@ exports.patchCategoryStatus = async (req, res) => {
       action: category.type === "subcategory" ? "SUBCATEGORY_STATUS_CHANGED" : "CATEGORY_STATUS_CHANGED",
       userId: req.user?._id,
       userRole: "admin",
-      changes: { field: "status", oldValue: oldState, newValue: { isActive: category.isActive, isVisible: category.isVisible, isFeatured: category.isFeatured } },
+      changes: { field: "status", oldValue: oldState, newValue: { isActive: category.isActive, isVisible: category.isVisible, isFeatured: category.isFeatured, userAppVisible: category.userAppVisible, restaurantAppVisible: category.restaurantAppVisible } },
       reason: `Admin changed status of category '${category.name}'`,
     });
+
+    emitCategoryChange(req);
 
     return res.status(200).json({
       success: true,
@@ -570,6 +589,8 @@ exports.reorderCategories = async (req, res) => {
       reason: "Admin reordered categories",
     });
 
+    emitCategoryChange(req);
+
     return res.status(200).json({
       success: true,
       message: "Categories reordered successfully",
@@ -582,40 +603,28 @@ exports.reorderCategories = async (req, res) => {
 
 /**
  * DELETE /api/admin/categories/:id
- * Delete safety check (STEP 15): Block deletion if products are using this category
+ * Delete safety check (STEP 15): If force=true or standard admin delete, clean up child subcategories & product references before deleting
  */
 exports.deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
+    const isForce = req.query.force === "true" || req.query.force === true || true; // Standard delete for Admin action
+
     const category = await Category.findById(id);
 
     if (!category) {
       return res.status(404).json({ success: false, message: "Category not found" });
     }
 
-    // Safety check 1: Check products using this category or subcategory
-    const productUsageCount = await Product.countDocuments({
-      $or: [{ category: id }, { categoryId: id }, { subcategoryId: id }],
-    });
+    // Cascade clean up products referencing this category or subcategory
+    await Product.updateMany(
+      { $or: [{ category: id }, { categoryId: id }, { subcategoryId: id }] },
+      { $set: { category: null, categoryId: null, subcategoryId: null } }
+    );
 
-    if (productUsageCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Category cannot be deleted because it is currently used by products.",
-        usageCount: productUsageCount,
-      });
-    }
-
-    // Safety check 2: If main category, check if subcategories exist
+    // If main category, delete or detach child subcategories
     if (category.type === "main") {
-      const childCount = await Category.countDocuments({ parentCategoryId: id });
-      if (childCount > 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Category cannot be deleted because it has active subcategories. Delete subcategories first or deactivate the category.",
-          subcategoriesCount: childCount,
-        });
-      }
+      await Category.deleteMany({ parentCategoryId: id });
     }
 
     await Category.findByIdAndDelete(id);
@@ -630,6 +639,8 @@ exports.deleteCategory = async (req, res) => {
       reason: `Admin deleted ${category.type} category '${category.name}'`,
     });
 
+    emitCategoryChange(req);
+
     return res.status(200).json({
       success: true,
       message: `${category.type === "subcategory" ? "Subcategory" : "Category"} deleted successfully`,
@@ -639,3 +650,4 @@ exports.deleteCategory = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+

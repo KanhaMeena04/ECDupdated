@@ -172,11 +172,12 @@ const useMasterCategory = () => {
     setLoading(true);
     setError("");
     try {
-      const res = await axios.delete(`${API_BASE_URL}/api/admin/categories/${id}`, {
+      const res = await axios.delete(`${API_BASE_URL}/api/admin/categories/${id}?force=true`, {
         withCredentials: true,
       });
       setCategories((prev) => (Array.isArray(prev) ? prev.filter((c) => c._id !== id) : []));
       setSubcategories((prev) => (Array.isArray(prev) ? prev.filter((c) => c._id !== id) : []));
+      await fetchCategories();
       return res.data;
     } catch (err) {
       const msg = err.response?.data?.message || "Failed to delete category";
@@ -185,7 +186,7 @@ const useMasterCategory = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchCategories]);
 
   useEffect(() => {
     fetchCategories();

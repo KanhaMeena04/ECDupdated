@@ -46,14 +46,17 @@ class _FoodPreferencesPageState extends State<FoodPreferencesPage> {
   }
 
   Future<void> _loadDynamicCategories() async {
-    final categories = await CategoryService.getCategoryTree();
+    final categories = await CategoryService.getCategoryTree(forceRefresh: true);
     if (mounted) {
       setState(() {
-        _categoryItems = categories.map((c) => CategoryPrefItem(
-          id: c.id,
-          title: c.name,
-          imageUrl: c.image,
-        )).toList();
+        _categoryItems = categories
+            .where((c) => c.name.trim().isNotEmpty)
+            .map((c) => CategoryPrefItem(
+                  id: c.id,
+                  title: c.name,
+                  imageUrl: c.image,
+                ))
+            .toList();
         _isLoading = false;
       });
     }
@@ -169,16 +172,28 @@ class _FoodPreferencesPageState extends State<FoodPreferencesPage> {
 
             // 3-Column Category Grid
             Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                  childAspectRatio: 0.85,
-                ),
-                itemCount: _categoryItems.length,
-                itemBuilder: (context, index) {
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: primaryColor))
+                  : _categoryItems.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No preferences available',
+                            style: TextStyle(
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        )
+                      : GridView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            mainAxisSpacing: 14,
+                            crossAxisSpacing: 14,
+                            childAspectRatio: 0.85,
+                          ),
+                          itemCount: _categoryItems.length,
+                          itemBuilder: (context, index) {
                   final cat = _categoryItems[index];
                   final isSelected = _selectedCategories.contains(cat.title);
 

@@ -86,9 +86,15 @@ class CategoryService {
 
   static String get apiBaseUrl => AppConstants.baseUrl;
 
+  static void clearCache() {
+    _cachedCategoryTree = [];
+  }
+
   /// Fetches dynamic category tree from backend API
   static Future<List<CategoryItemModel>> getCategoryTree({bool forceRefresh = false}) async {
-    if (!forceRefresh && _cachedCategoryTree.isNotEmpty) {
+    if (forceRefresh) {
+      _cachedCategoryTree = [];
+    } else if (_cachedCategoryTree.isNotEmpty) {
       return _cachedCategoryTree;
     }
 

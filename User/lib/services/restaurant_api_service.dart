@@ -413,15 +413,21 @@ class RestaurantApiService {
       return _getMockCategories();
     }
     try {
-      final response = await http.get(Uri.parse(categoriesUrl)).timeout(const Duration(seconds: 15));
+      var response = await http.get(Uri.parse('$categoriesUrl/tree')).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) {
+        response = await http.get(Uri.parse('$categoriesUrl?type=main&isActive=true&userAppVisible=true')).timeout(const Duration(seconds: 15));
+      }
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         final List<dynamic> data = jsonResponse is Map
-            ? (jsonResponse['categories'] ?? jsonResponse['data'] ?? [])
+            ? (jsonResponse['data'] ?? jsonResponse['categories'] ?? [])
             : (jsonResponse is List ? jsonResponse : []);
 
         final list = data.where((e) => e != null && e is Map).map((item) {
           final json = item as Map;
+          if (json['isActive'] == false || json['userAppVisible'] == false) {
+            return null;
+          }
           String catTitle = '';
           if (json['title'] != null && json['title'].toString().trim().isNotEmpty) {
             catTitle = json['title'].toString().trim();
@@ -466,7 +472,7 @@ class RestaurantApiService {
             image: rawImg,
             startingPrice: priceVal,
           );
-        }).toList();
+        }).whereType<Category>().toList();
 
         if (list.isNotEmpty) return list;
       }

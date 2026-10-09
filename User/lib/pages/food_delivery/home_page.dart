@@ -270,12 +270,14 @@ class _HomeTabState extends State<_HomeTab> {
     SocketService.onRestaurantStatusUpdated(_restaurantSocketCallback!);
 
     _cmsSocketCallback = (data) {
-      debugPrint('HomePage received home_cms:updated event -> Refreshing CMS layout & data!');
+      debugPrint('HomePage received socket update event -> Clearing category cache & refreshing layout!');
+      CategoryService.clearCache();
       if (mounted) {
         _refreshData();
       }
     };
     SocketService.on('home_cms:updated', _cmsSocketCallback!);
+    SocketService.on('category:updated', _cmsSocketCallback!);
   }
 
   @override
@@ -286,6 +288,7 @@ class _HomeTabState extends State<_HomeTab> {
     }
     if (_cmsSocketCallback != null) {
       SocketService.off('home_cms:updated', _cmsSocketCallback);
+      SocketService.off('category:updated', _cmsSocketCallback);
     }
     super.dispose();
   }
