@@ -528,7 +528,7 @@ const useAddRestaurant = (initialValues, successCallback) => {
 
 const useRestaurantListForAdmin = () => {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const abortRef = useRef(null);
 
@@ -582,7 +582,7 @@ const useRestaurantListForAdmin = () => {
 
   return {
     data,
-    loading: loading && data === null,
+    loading: loading || data === null,
     isRefreshing,
     handleRestaurantListForAdmin,
   };

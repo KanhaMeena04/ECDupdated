@@ -2221,19 +2221,6 @@ exports.getAllRestaurants = async (req, res) => {
       isActive: { $ne: false },
     };
 
-    // If GPS coordinates are provided, enforce 25 KM (25,000 meters) radius query on MongoDB 2dsphere location index
-    if (hasUserCoords) {
-      baseQuery.location = {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: [rawLng, rawLat]
-          },
-          $maxDistance: 25000 // 25 KM = 25,000 meters
-        }
-      };
-    }
-
     if (req.query.category) {
       const catRegex = new RegExp(req.query.category, 'i');
       const matchingCats = await Category.find({
@@ -2302,14 +2289,24 @@ exports.getAllRestaurants = async (req, res) => {
 
     let candidateRestaurants = [];
     try {
-      candidateRestaurants = await Restaurant.find(baseQuery).limit(100).lean();
+      candidateRestaurants = await Restaurant.find(baseQuery).select("-menu").sort({ createdAt: -1 }).limit(100).lean();
     } catch (err) {
       console.error("Error finding candidate restaurants:", err.message);
       candidateRestaurants = [];
     }
 
-    // 1. Preload categories map (ID -> Title)
-    const allCats = await Category.find().lean();
+    const candidateIds = candidateRestaurants.map(r => r._id);
+
+    // 1. Preload categories map and products ONLY for candidate restaurants in parallel with fast projection
+    const [allCats, allProducts] = await Promise.all([
+      Category.find().select("title name").lean().catch(() => []),
+      Product.find({ restaurant: { $in: candidateIds }, available: { $ne: false } })
+        .select("name price sellingPrice mrp basePrice b2cPrice image imageUrl category subcategory isVeg foodType rating description restaurant")
+        .limit(150)
+        .lean()
+        .catch(() => [])
+    ]);
+
     const catMap = {};
     allCats.forEach(c => {
       const title = c.title || (typeof c.name === 'object' ? c.name.en : c.name) || '';
@@ -2318,8 +2315,6 @@ exports.getAllRestaurants = async (req, res) => {
       }
     });
 
-    // 2. Preload products (dishes) for all restaurants
-    const allProducts = await Product.find({ available: { $ne: false } }).lean();
     const restMenuMap = {};
     allProducts.forEach(p => {
       const rId = p.restaurant?.toString();
@@ -2351,7 +2346,7 @@ exports.getAllRestaurants = async (req, res) => {
       });
     });
 
-    const filteredRestaurants = [];
+    let filteredRestaurants = [];
 
     for (const restaurant of candidateRestaurants) {
       const coords = restaurant.location?.coordinates;
@@ -2360,25 +2355,26 @@ exports.getAllRestaurants = async (req, res) => {
         distance = calculateDistance([rawLng, rawLat], coords);
       }
 
-      // Enforce strict restaurant geofence radius check when GPS coordinates are provided
-      if (hasUserCoords) {
-        const rawRadius = Number(restaurant.geofenceRadius ?? restaurant.deliveryRadius);
-        const maxRadius = (Number.isFinite(rawRadius) && rawRadius > 0) ? rawRadius : 25;
-        if (distance === null || distance > maxRadius) {
-          continue; // EXCLUDE any restaurant strictly beyond its configured geofence radius
-        }
-      }
+      const rawRadius = Number(restaurant.geofenceRadius ?? restaurant.deliveryRadius);
+      const maxRadius = (Number.isFinite(rawRadius) && rawRadius > 0) ? rawRadius : 25;
+
+      const isWithinRadius = distance === null || distance <= maxRadius;
 
       filteredRestaurants.push({
         restaurant,
         distanceKm: distance !== null ? Number(distance.toFixed(1)) : 2.5,
+        isWithinRadius,
       });
     }
 
-    // Sort by distance (closest first)
-    filteredRestaurants.sort((a, b) => a.distanceKm - b.distanceKm);
+    // Filter by radius if any match, otherwise include all candidate restaurants so user always sees live restaurants
+    const strictlyWithinRadius = filteredRestaurants.filter(item => item.isWithinRadius);
+    const finalRestaurantsList = strictlyWithinRadius.length > 0 ? strictlyWithinRadius : filteredRestaurants;
 
-    const formattedRestaurants = filteredRestaurants.map(({ restaurant, distanceKm }) => {
+    // Sort by distance (closest first)
+    finalRestaurantsList.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    const formattedRestaurants = finalRestaurantsList.map(({ restaurant, distanceKm }) => {
       let menu = restMenuMap[restaurant._id.toString()] || [];
       if (menu.length === 0 && Array.isArray(restaurant.menu) && restaurant.menu.length > 0) {
         menu = restaurant.menu.map((item, idx) => ({
@@ -2479,13 +2475,19 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
 
     if (mongoose.connection.readyState === 1) {
       try {
-        total = await Restaurant.countDocuments(query).catch(() => 0);
-        restaurants = await Restaurant.find(query)
-          .populate("owner", "name email mobile pin")
-          .skip(skip)
-          .limit(limit)
-          .sort({ createdAt: -1, _id: -1 })
-          .catch(() => []);
+        const [totalCount, restList] = await Promise.all([
+          Restaurant.countDocuments(query).catch(() => 0),
+          Restaurant.find(query)
+            .select("-menu")
+            .populate("owner", "name email mobile pin")
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1, _id: -1 })
+            .lean()
+            .catch(() => [])
+        ]);
+        total = totalCount;
+        restaurants = restList;
       } catch (dbErr) {
         restaurants = [];
       }
