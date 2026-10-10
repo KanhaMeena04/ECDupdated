@@ -87,6 +87,15 @@ export default function RestaurantsList() {
     };
   }, [searchTerm, handleRestaurantListForAdmin]);
 
+  const computeIsActive = (r) => {
+    if (!r) return false;
+    if (r.status === "Inactive" || r.status === "inactive") return false;
+    if (r.isOnline === false) return false;
+    if (r.isTemporarilyClosed === true) return false;
+    if (r.isActive === false) return false;
+    return r.status === "Active" || r.status === "active" || r.isActive === true;
+  };
+
   /* -------------------- DYNAMIC STATUS TOGGLE -------------------- */
   const handleToggleStatus = useCallback(
     async (row) => {
@@ -96,7 +105,7 @@ export default function RestaurantsList() {
       const currentIsActive =
         statusOverrides[rowId] !== undefined
           ? statusOverrides[rowId] === "Active"
-          : row.status === "Active" || row.isActive === true;
+          : computeIsActive(row);
       const nextActive = !currentIsActive;
       const rName =
         typeof row.name === "object"
@@ -118,6 +127,7 @@ export default function RestaurantsList() {
             isActive: nextActive,
             isOnline: nextActive,
             isTemporarilyClosed: !nextActive,
+            status: nextActive ? "Active" : "Inactive",
           },
           {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -225,7 +235,7 @@ export default function RestaurantsList() {
         const isActive =
           override !== undefined
             ? override === "Active"
-            : item.status === "Active" || item.isActive === true;
+            : computeIsActive(item);
 
         const rawName = item.name;
         const rName =
@@ -289,7 +299,7 @@ export default function RestaurantsList() {
             isActive &&
             (item.openStatus === "Accepting Orders" ||
               item.openStatus === "Open" ||
-              item.isOnline !== false)
+              item.isOnline === true)
               ? "Accepting Orders"
               : "Closed / Offline",
           createdOn:

@@ -477,8 +477,8 @@ class _HomeTabState extends State<_HomeTab> {
 
       if (currentFetchId == _fetchCounter && mounted) {
         final validList = (reqLat != null && reqLng != null)
-            ? restaurants.where((r) => r.isServiceable && (r.geofenceRadius == null || r.distanceKm <= r.geofenceRadius!)).toList()
-            : restaurants;
+            ? restaurants.where((r) => r.isActive && r.isOnline && r.isServiceable && (r.geofenceRadius == null || r.distanceKm <= r.geofenceRadius!)).toList()
+            : restaurants.where((r) => r.isActive && r.isOnline).toList();
         setState(() {
           _restaurants = validList;
           _isLoadingRestaurants = false;

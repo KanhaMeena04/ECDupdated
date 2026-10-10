@@ -405,6 +405,38 @@ const useVerifyRider = () => {
     error,
   };
 }
+
+const useToggleRiderOnline = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const toggleRiderOnline = useCallback(async (riderId, nextOnline) => {
+    setLoading(true);
+    setError("");
+    try {
+      const token = localStorage.getItem("token");
+      const headers = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+      const res = await axios.put(
+        `${API_BASE_URL}/api/riders/admin/${riderId}/toggle-online`,
+        { isOnline: nextOnline, status: nextOnline ? "active" : "inactive" },
+        { headers, withCredentials: true }
+      );
+      return res.data;
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message;
+      setError(msg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { toggleRiderOnline, loading, error };
+};
+
 export {
   useRiders,
   useRiderDetails,
@@ -413,5 +445,6 @@ export {
   useCreateRider,
   usePendingRiders,
   useVerifyRider,
-  useVerifyRiderVehicle
+  useVerifyRiderVehicle,
+  useToggleRiderOnline
 };

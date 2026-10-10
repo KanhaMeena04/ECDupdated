@@ -40,6 +40,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
 
   late AnimationController _timerController;
   Timer? _pollingTimer;
+  Timer? _statusSyncTimer;
   StreamSubscription? _notificationSub;
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isRingtonePlaying = false;
@@ -131,6 +132,49 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       context.read<DriverBloc>().add(const LoadActiveOrders());
       NotificationService.syncWithdrawalNotifications();
       _startPollingActiveOrders();
+      _startStatusSync();
+    });
+  }
+
+  void _startStatusSync() {
+    _statusSyncTimer?.cancel();
+    _statusSyncTimer = Timer.periodic(const Duration(seconds: 8), (_) async {
+      if (!mounted) return;
+      try {
+        final res = await ApiService.getRiderStatus();
+        if (mounted && res['success'] == true && res['isOnline'] != null) {
+          final bool remoteOnline = res['isOnline'] == true;
+          if (_isOnline != remoteOnline) {
+            setState(() {
+              _isOnline = remoteOnline;
+            });
+            if (remoteOnline) {
+              await _startLocationTracking();
+              if (mounted) {
+                context.read<DriverBloc>().add(const LoadActiveOrders());
+                _startPollingActiveOrders();
+              }
+            } else {
+              await _stopLocationTracking();
+              _pollingTimer?.cancel();
+            }
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    remoteOnline
+                        ? 'Admin switched your duty status to ONLINE 🟢'
+                        : 'Admin switched your duty status to OFFLINE ⚪',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                  backgroundColor: remoteOnline ? const Color(0xFF00AA55) : Colors.redAccent,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          }
+        }
+      } catch (_) {}
     });
   }
 
@@ -388,6 +432,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     _stopLocationTracking();
     _timerController.dispose();
     _pollingTimer?.cancel();
+    _statusSyncTimer?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }

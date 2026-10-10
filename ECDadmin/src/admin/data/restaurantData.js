@@ -179,7 +179,11 @@ export const getRestaurantColumns = ({
       key: "status",
       label: "Status",
       render: (row) => {
-        const isActive = row.status === "Active" || row.isActive === true;
+        const isActive =
+          (row.status === "Active" || row.isActive === true) &&
+          row.status !== "Inactive" &&
+          row.isOnline !== false &&
+          !row.isTemporarilyClosed;
         const rowId = row._id || row.id;
         const isLoading = statusLoadingId === rowId;
 
@@ -214,9 +218,14 @@ export const getRestaurantColumns = ({
       key: "openStatus",
       label: "Open Status",
       render: (row) => {
+        const isActive =
+          (row.status === "Active" || row.isActive === true) &&
+          row.status !== "Inactive" &&
+          row.isOnline !== false &&
+          !row.isTemporarilyClosed;
         const isOpen =
-          (row.openStatus === "Accepting Orders" || row.openStatus === "Open") &&
-          (row.status === "Active" || row.isActive === true);
+          isActive &&
+          (row.openStatus === "Accepting Orders" || row.openStatus === "Open" || row.isOnline === true);
         return (
           <span
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${

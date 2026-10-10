@@ -54,6 +54,7 @@ const {
   getActiveRidersWithLocations,
   getRiderLiveTracking,
   driverToggleOnline,
+  toggleRiderOnlineByAdmin,
   driverReachedStore,
   driverDeleteAccount,
   driverCodInitiate,
@@ -167,6 +168,9 @@ router.put("/admin/:id/reject", protect, admin, rejectRider);
 router.patch("/admin/:id/reject", protect, admin, rejectRider);
 router.put("/admin/vehicle-verify/:id", protect, admin, verifyRiderVehicle);
 router.put("/admin/bank-verify/:id", protect, admin, verifyRiderBankDetails);
+router.put("/admin/:id/toggle-online", protect, admin, toggleRiderOnlineByAdmin);
+router.patch("/admin/:id/toggle-online", protect, admin, toggleRiderOnlineByAdmin);
+router.put("/admin/toggle-online/:id", protect, admin, toggleRiderOnlineByAdmin);
 router.delete("/admin/delete/:id", protect, admin, deleteRider);
 router.delete("/admin/:id", protect, admin, deleteRider);
 router.delete("/:id", protect, admin, deleteRider);

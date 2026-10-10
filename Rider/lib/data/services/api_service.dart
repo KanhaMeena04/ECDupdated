@@ -177,6 +177,23 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> getRiderStatus() async {
+    try {
+      final response = await http.get(
+        Uri.parse(ApiConstants.riderStatus),
+        headers: await _getHeaders(),
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data is Map<String, dynamic> ? data : {'success': true, 'data': data};
+      }
+      return {'success': false};
+    } catch (e) {
+      log("Error fetching rider status: $e");
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
   static Future<Map<String, dynamic>> markReachedStore([String? orderId]) async {
     try {
       final url = orderId != null

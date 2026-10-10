@@ -3044,6 +3044,8 @@ exports.toggleRestaurantActive = async (req, res) => {
     rest.status = nextOnline ? "Active" : "Inactive";
     await rest.save();
 
+    clearRestaurantsCache();
+
     const socketService = require('../services/socketService');
     const statusPayload = {
       restaurantId: rest._id.toString(),

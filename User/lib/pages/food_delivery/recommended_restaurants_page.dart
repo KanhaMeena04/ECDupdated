@@ -41,8 +41,8 @@ class _RecommendedRestaurantsPageState
       );
       if (mounted) {
         final validList = (loc.lat != null && loc.lng != null)
-            ? list.where((r) => r.isServiceable && (r.geofenceRadius == null || r.distanceKm <= r.geofenceRadius!)).toList()
-            : list;
+            ? list.where((r) => r.isActive && r.isOnline && r.isServiceable && (r.geofenceRadius == null || r.distanceKm <= r.geofenceRadius!)).toList()
+            : list.where((r) => r.isActive && r.isOnline).toList();
         setState(() {
           _restaurants = validList;
           _isLoading = false;

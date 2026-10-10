@@ -639,7 +639,16 @@ class RestaurantApiService {
     final distKm = _parseDouble(json['distanceKm'] ?? json['distance'] ?? json['distanceInKm'], 1.5);
     final rawGeo = json['geofenceRadius'] ?? json['deliveryRadius'] ?? json['serviceRadius'] ?? _cachedRestaurantRadius[rId];
     final double geoRadius = rawGeo != null ? _parseDouble(rawGeo, 25.0) : 25.0;
-    final bool isServiceable = json['isServiceable'] != null ? (json['isServiceable'] == true) : (distKm <= geoRadius);
+
+    final bool rawActive = json['isActive'] != false &&
+        json['status'] != 'Inactive' &&
+        json['status'] != 'inactive' &&
+        json['isTemporarilyClosed'] != true;
+    final bool rawOnline = json['isOnline'] != false;
+    final bool isActuallyActive = rawActive && rawOnline;
+
+    final bool isWithinGeofence = json['isServiceable'] != null ? (json['isServiceable'] == true) : (distKm <= geoRadius);
+    final bool isServiceable = isActuallyActive && isWithinGeofence;
 
     return Restaurant(
       id: rId,
@@ -653,8 +662,8 @@ class RestaurantApiService {
       deliveryCharge: _parseDouble(json['deliveryCharge'] ?? json['shippingFee'], 0.0),
       cuisine: parsedCuisine,
       menu: menuItems,
-      isActive: json['isActive'] != false,
-      isOnline: json['isOnline'] != false,
+      isActive: isActuallyActive,
+      isOnline: isActuallyActive,
       geofenceRadius: geoRadius,
       isServiceable: isServiceable,
     );

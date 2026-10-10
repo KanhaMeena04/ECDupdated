@@ -4844,15 +4844,109 @@ exports.driverToggleOnline = async (req, res) => {
     }
     let riderDoc = await Rider.findOne({ user: req.user._id });
     if (!riderDoc) return res.status(404).json({ success: false, message: "User not found" });
-    riderDoc.isOnline = !riderDoc.isOnline;
-    riderDoc.isAvailable = riderDoc.isOnline;
+
+    let nextOnline;
+    if (req.body && req.body.isOnline !== undefined) {
+      nextOnline = Boolean(req.body.isOnline);
+    } else if (req.body && req.body.status !== undefined) {
+      nextOnline = ['online', 'active'].includes(String(req.body.status).toLowerCase());
+    } else {
+      nextOnline = !riderDoc.isOnline;
+    }
+
+    riderDoc.isOnline = nextOnline;
+    riderDoc.isAvailable = nextOnline;
     riderDoc.verificationStatus = 'approved';
     riderDoc.riderVerified = true;
-    riderDoc.status = riderDoc.isOnline ? "active" : "inactive";
+    riderDoc.status = nextOnline ? "active" : "inactive";
     await riderDoc.save();
+
+    // Keep User model in sync
+    await User.findByIdAndUpdate(req.user._id, { isOnline: nextOnline }).catch(() => {});
+
+    // Broadcast dynamic live update via WebSockets to Admin and ecosystem
+    try {
+      const socketService = require('../services/socketService');
+      const payload = {
+        riderId: riderDoc._id.toString(),
+        userId: req.user._id.toString(),
+        isOnline: riderDoc.isOnline,
+        isAvailable: riderDoc.isAvailable,
+        status: riderDoc.status
+      };
+      socketService.emitToAdmin('rider:duty_status', payload);
+      socketService.emitToAdmin('riderStatusUpdated', payload);
+      socketService.emitToAll('rider:duty_status', payload);
+    } catch (_) {}
+
     return res.status(200).json({ success: true, isOnline: riderDoc.isOnline, status: riderDoc.status, rider: riderDoc });
   } catch (error) {
     return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.toggleRiderOnlineByAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    let riderDoc = await Rider.findById(id);
+    if (!riderDoc) {
+      riderDoc = await Rider.findOne({ user: id });
+    }
+    if (!riderDoc) {
+      return res.status(404).json({ success: false, message: "Rider not found" });
+    }
+
+    let nextOnline;
+    if (req.body && req.body.isOnline !== undefined) {
+      nextOnline = Boolean(req.body.isOnline);
+    } else if (req.body && req.body.status !== undefined) {
+      nextOnline = ['online', 'active'].includes(String(req.body.status).toLowerCase());
+    } else {
+      nextOnline = !riderDoc.isOnline;
+    }
+
+    riderDoc.isOnline = nextOnline;
+    riderDoc.isAvailable = nextOnline;
+    riderDoc.status = nextOnline ? "active" : "inactive";
+    if (nextOnline) {
+      riderDoc.verificationStatus = 'approved';
+      riderDoc.riderVerified = true;
+    }
+    await riderDoc.save();
+
+    if (riderDoc.user) {
+      await User.findByIdAndUpdate(riderDoc.user, { isOnline: nextOnline }).catch(() => {});
+    }
+
+    // Broadcast live event to Rider App, Admin, and User App
+    try {
+      const socketService = require('../services/socketService');
+      const payload = {
+        riderId: riderDoc._id.toString(),
+        userId: riderDoc.user ? riderDoc.user.toString() : null,
+        isOnline: riderDoc.isOnline,
+        isAvailable: riderDoc.isAvailable,
+        status: riderDoc.status
+      };
+      if (riderDoc.user) {
+        socketService.emitToRider(riderDoc.user.toString(), 'rider:duty_status', payload);
+        socketService.emitToRider(riderDoc.user.toString(), 'duty_status_changed', payload);
+      }
+      socketService.emitToRider(riderDoc._id.toString(), 'rider:duty_status', payload);
+      socketService.emitToAdmin('rider:duty_status', payload);
+      socketService.emitToAdmin('riderStatusUpdated', payload);
+      socketService.emitToAll('rider:duty_status', payload);
+    } catch (_) {}
+
+    return res.status(200).json({
+      success: true,
+      isOnline: riderDoc.isOnline,
+      isAvailable: riderDoc.isAvailable,
+      status: riderDoc.status,
+      rider: riderDoc
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
