@@ -2201,6 +2201,11 @@ exports.settlementReport = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+let _restaurantsCache = null;
+let _restaurantsCacheTime = 0;
+const RESTAURANTS_CACHE_TTL = 60 * 1000; // 60 seconds
+
 exports.getAllRestaurants = async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -2289,55 +2294,78 @@ exports.getAllRestaurants = async (req, res) => {
     }
 
     let candidateRestaurants = [];
-    try {
-      candidateRestaurants = await Restaurant.find(baseQuery).limit(100).lean();
-    } catch (err) {
-      console.error("Error finding candidate restaurants:", err.message);
-      candidateRestaurants = [];
-    }
-
-    // 1. Preload categories map (ID -> Title)
-    const allCats = await Category.find().lean();
     const catMap = {};
-    allCats.forEach(c => {
-      const title = c.title || (typeof c.name === 'object' ? c.name.en : c.name) || '';
-      if (title) {
-        catMap[c._id.toString()] = title;
-      }
-    });
-
-    // 2. Preload products (dishes) for all restaurants
-    const allProducts = await Product.find({ available: { $ne: false } }).lean();
     const restMenuMap = {};
-    allProducts.forEach(p => {
-      const rId = p.restaurant?.toString();
-      if (!rId) return;
-      if (!restMenuMap[rId]) restMenuMap[rId] = [];
 
-      const catId = p.category?.toString() || '';
-      const catName = catMap[catId] || (typeof p.category === 'string' ? p.category : 'General');
-      const pName = typeof p.name === 'object' ? (p.name.en || p.name.hi || p.name.de || 'Item') : (p.name || 'Item');
-      const pPrice = Number(p.sellingPrice || p.price || p.basePrice || p.b2cPrice || 0);
-      const pMrp = Number(p.mrp || p.originalPrice || (pPrice > 0 ? Math.round(pPrice * 1.3) : 0));
+    const isSimpleList = !req.query.category && !searchTerm;
+    const now = Date.now();
 
-      restMenuMap[rId].push({
-        _id: p._id,
-        id: p._id.toString(),
-        name: pName,
-        price: pPrice,
-        sellingPrice: pPrice,
-        mrp: pMrp,
-        originalPrice: pMrp,
-        image: p.image || p.imageUrl || '',
-        imageUrl: p.image || p.imageUrl || '',
-        category: catName,
-        categoryId: catId,
-        subcategory: p.subcategory || '',
-        isVeg: p.isVeg !== false,
-        rating: Number(p.rating || 4.5),
-        description: typeof p.description === 'object' ? (p.description.en || '') : (p.description || ''),
+    if (isSimpleList && _restaurantsCache && (now - _restaurantsCacheTime < RESTAURANTS_CACHE_TTL)) {
+      candidateRestaurants = _restaurantsCache.candidateRestaurants;
+      Object.assign(restMenuMap, _restaurantsCache.restMenuMap);
+    } else {
+      try {
+        candidateRestaurants = await Restaurant.find(baseQuery).limit(100).lean();
+      } catch (err) {
+        console.error("Error finding candidate restaurants:", err.message);
+        candidateRestaurants = [];
+      }
+
+      // 1. Preload categories map (ID -> Title)
+      const allCats = await Category.find().lean();
+      allCats.forEach(c => {
+        const title = c.title || (typeof c.name === 'object' ? c.name.en : c.name) || '';
+        if (title) {
+          catMap[c._id.toString()] = title;
+        }
       });
-    });
+
+      // 2. Preload products (dishes) for candidate restaurants only with lean projection
+      const candidateIds = candidateRestaurants.map(r => r._id);
+      const allProducts = candidateIds.length > 0
+        ? await Product.find({
+            restaurant: { $in: candidateIds },
+            available: { $ne: false },
+          })
+            .select('restaurant name price sellingPrice mrp originalPrice image imageUrl category categoryId subcategory isVeg rating description')
+            .lean()
+        : [];
+
+      allProducts.forEach(p => {
+        const rId = p.restaurant?.toString();
+        if (!rId) return;
+        if (!restMenuMap[rId]) restMenuMap[rId] = [];
+
+        const catId = p.category?.toString() || '';
+        const catName = catMap[catId] || (typeof p.category === 'string' ? p.category : 'General');
+        const pName = typeof p.name === 'object' ? (p.name.en || p.name.hi || p.name.de || 'Item') : (p.name || 'Item');
+        const pPrice = Number(p.sellingPrice || p.price || p.basePrice || p.b2cPrice || 0);
+        const pMrp = Number(p.mrp || p.originalPrice || (pPrice > 0 ? Math.round(pPrice * 1.3) : 0));
+
+        restMenuMap[rId].push({
+          _id: p._id,
+          id: p._id.toString(),
+          name: pName,
+          price: pPrice,
+          sellingPrice: pPrice,
+          mrp: pMrp,
+          originalPrice: pMrp,
+          image: p.image || p.imageUrl || '',
+          imageUrl: p.image || p.imageUrl || '',
+          category: catName,
+          categoryId: catId,
+          subcategory: p.subcategory || '',
+          isVeg: p.isVeg !== false,
+          rating: Number(p.rating || 4.5),
+          description: typeof p.description === 'object' ? (p.description.en || '') : (p.description || ''),
+        });
+      });
+
+      if (isSimpleList && candidateRestaurants.length > 0) {
+        _restaurantsCache = { candidateRestaurants, restMenuMap };
+        _restaurantsCacheTime = now;
+      }
+    }
 
     const withDistances = candidateRestaurants.map(restaurant => {
       const coords = restaurant.location?.coordinates;

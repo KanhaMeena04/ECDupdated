@@ -246,11 +246,11 @@ class RestaurantApiService {
       
       http.Response response;
       try {
-        response = await http.get(uri).timeout(const Duration(seconds: 15));
+        response = await http.get(uri).timeout(const Duration(seconds: 35));
       } catch (e) {
-        debugPrint('First fetch attempt failed ($e), retrying in 2 seconds for Render cold start...');
+        debugPrint('First fetch attempt failed ($e), retrying for Render cold start...');
         await Future.delayed(const Duration(seconds: 2));
-        response = await http.get(uri).timeout(const Duration(seconds: 25));
+        response = await http.get(uri).timeout(const Duration(seconds: 45));
       }
       
       if (response.statusCode == 200) {
