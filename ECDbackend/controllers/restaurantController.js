@@ -2502,10 +2502,30 @@ exports.getAllRestaurants = async (req, res) => {
       return formatted;
     });
 
+    const allProducts = [];
+    formattedRestaurants.forEach(r => {
+      (r.menu || []).forEach(item => {
+        allProducts.push({
+          ...item,
+          restaurantId: r._id,
+          restaurantName: r.name,
+          restaurantImage: r.image || r.logo || '',
+          restaurantRating: r.rating?.average || r.rating || 4.5,
+          isServiceable: r.isServiceable,
+          distanceKm: r.distanceKm,
+        });
+      });
+    });
+
     return res.status(200).json({
       success: true,
       count: formattedRestaurants.length,
       restaurants: formattedRestaurants,
+      products: allProducts,
+      results: {
+        restaurants: formattedRestaurants,
+        products: allProducts,
+      }
     });
   } catch (error) {
     console.error("Error in getAllRestaurants:", error);

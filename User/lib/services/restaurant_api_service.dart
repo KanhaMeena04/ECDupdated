@@ -376,7 +376,7 @@ class RestaurantApiService {
     return _getMockMenuItems();
   }
 
-  static Future<List<Restaurant>> searchRestaurants(String query) async {
+  static Future<List<Restaurant>> searchRestaurants(String query, {double? lat, double? lng}) async {
     if (kFrontendPreviewMode) {
       final q = query.toLowerCase();
       return _getMockRestaurants().where((r) {
@@ -387,20 +387,34 @@ class RestaurantApiService {
       }).toList();
     }
     try {
-      final response = await http.get(Uri.parse('$restaurantsUrl/search?query=$query'));
+      final encodedQuery = Uri.encodeComponent(query.trim());
+      String urlStr = '$restaurantsUrl/search?query=$encodedQuery&q=$encodedQuery';
+      if (lat != null && lng != null && lat != 0 && lng != 0) {
+        urlStr += '&lat=$lat&lng=$lng';
+      }
+      var response = await http.get(Uri.parse(urlStr)).timeout(const Duration(seconds: 12));
       debugPrint('API Response [searchRestaurants]: ${response.statusCode}');
       
+      if (response.statusCode != 200) {
+        final fallbackUrl = '$apiBaseUrl/search?query=$encodedQuery&q=$encodedQuery${(lat != null && lng != null && lat != 0 && lng != 0) ? '&lat=$lat&lng=$lng' : ''}';
+        response = await http.get(Uri.parse(fallbackUrl)).timeout(const Duration(seconds: 12));
+      }
+
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-        final List<dynamic> restaurantsJson = jsonResponse['restaurants'] ?? [];
-        return restaurantsJson.map((json) => _fromJsonToRestaurant(json)).toList();
+        final dynamic rawList = (jsonResponse is Map)
+            ? (jsonResponse['restaurants'] ?? jsonResponse['results']?['restaurants'] ?? [])
+            : (jsonResponse is List ? jsonResponse : []);
+        if (rawList is List) {
+          return rawList.map((json) => _fromJsonToRestaurant(Map<String, dynamic>.from(json))).toList();
+        }
       } else {
-        throw Exception('Failed to search restaurants: ${response.statusCode}');
+        debugPrint('Search restaurants non-200: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Error searching restaurants: $e');
-      return [];
     }
+    return [];
   }
 
   static Future<List<String>> getSuggestions(String query) async {
@@ -413,27 +427,32 @@ class RestaurantApiService {
       return allNames.where((n) => n.toLowerCase().contains(q)).toList();
     }
     try {
-      final response = await http.get(Uri.parse('$restaurantsUrl/suggestions?query=$query'));
+      final encoded = Uri.encodeComponent(query.trim());
+      var response = await http.get(Uri.parse('$restaurantsUrl/suggestions?query=$encoded&q=$encoded')).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) {
+        response = await http.get(Uri.parse('$apiBaseUrl/search/suggestions?query=$encoded&q=$encoded')).timeout(const Duration(seconds: 8));
+      }
       debugPrint('API Response [getSuggestions]: ${response.statusCode}');
       
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-        final suggestionsRaw = jsonResponse['suggestions'] ?? [];
+        final dynamic suggestionsRaw = (jsonResponse is Map)
+            ? (jsonResponse['suggestions'] ?? jsonResponse['data'] ?? [])
+            : jsonResponse;
         
         if (suggestionsRaw is List) {
           return suggestionsRaw.map((s) {
-            if (s is Map) return s['name']?.toString() ?? s['title']?.toString() ?? '';
+            if (s is Map) {
+              return s['text']?.toString() ?? s['name']?.toString() ?? s['title']?.toString() ?? '';
+            }
             return s?.toString() ?? '';
           }).where((s) => s.trim().isNotEmpty).toList();
         }
-        return [];
-      } else {
-        throw Exception('Failed to get suggestions: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Error fetching suggestions: $e');
-      return [];
     }
+    return [];
   }
 
   static Future<List<Category>> getCategories() async {

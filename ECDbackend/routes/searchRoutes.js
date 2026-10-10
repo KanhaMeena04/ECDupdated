@@ -1,14 +1,16 @@
 const express = require("express");
 const router = express.Router();
-const { protect } = require("../middleware/authMiddleware"); // Assuming you have this
+const { protect, optionalAuth } = require("../middleware/authMiddleware");
 const {
   globalSearch,
   getSuggestions,
   getSearchLanding,
   clearSearchHistory,
 } = require("../controllers/searchController");
-router.get("/landing", protect, getSearchLanding);
+const { getAllRestaurants } = require("../controllers/restaurantController");
+
+router.get("/landing", optionalAuth, getSearchLanding);
 router.get("/suggestions", getSuggestions);
-router.get("/", protect, globalSearch); // /api/search?q=...
+router.get("/", optionalAuth, getAllRestaurants); // /api/search?q=... or ?query=...
 router.delete("/history", protect, clearSearchHistory);
 module.exports = router;

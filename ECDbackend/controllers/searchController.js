@@ -26,16 +26,21 @@ const applyMinRatingFilter = (query, minRating) => {
 };
 exports.getSuggestions = async (req, res) => {
     try {
-        const { q, lat, lng, radiusKm, riderRadiusKm } = req.query;
-        if (!q) return res.status(200).json([]);
+        const queryStr = (req.query.q || req.query.query || req.query.search || '').trim();
+        if (!queryStr) return res.status(200).json({ suggestions: [], data: [] });
+        const { lat, lng, radiusKm, riderRadiusKm } = req.query;
         const parsedLat = Number(lat);
         const parsedLng = Number(lng);
-        const parsedRadiusKm = Number(radiusKm || 10);
+        const parsedRadiusKm = Number(radiusKm || 25);
         const parsedRiderRadiusKm = Number(riderRadiusKm || 5);
-        const hasCoords = Number.isFinite(parsedLat) && Number.isFinite(parsedLng);
-        const regex = new RegExp(q, 'i'); // Case-insensitive
+        const hasCoords = Number.isFinite(parsedLat) && Number.isFinite(parsedLng) && (parsedLat !== 0 || parsedLng !== 0);
+        const regex = new RegExp(queryStr, 'i'); // Case-insensitive
         const restaurantQuery = {
-            'name.en': regex,
+            $or: [
+                { 'name.en': regex },
+                { name: regex },
+                { cuisine: regex }
+            ],
             isActive: { $ne: false },
             restaurantApproved: { $ne: false },
             isTemporarilyClosed: { $ne: true }
@@ -110,37 +115,52 @@ exports.getSuggestions = async (req, res) => {
             availableRestaurants.map((entry) => entry.restaurant._id.toString())
         );
         const foods = await Product.find(
-            { 'name.en': regex, available: true, isApproved: true, isRejected: { $ne: true } },
-            { 'name.en': 1, image: 1, restaurant: 1 }
-        ).populate('restaurant', 'name').limit(5);
+            {
+                $or: [{ 'name.en': regex }, { name: regex }],
+                available: { $ne: false },
+                isRejected: { $ne: true }
+            },
+            { 'name': 1, image: 1, restaurant: 1 }
+        ).populate('restaurant', 'name').limit(8);
         const suggestions = [
-            ...availableRestaurants.map(entry => ({
-                type: 'restaurant',
-                text: entry.restaurant.name.en,
-                id: entry.restaurant._id,
-                image: entry.restaurant.image,
-                bannerImage: entry.restaurant.bannerImage,
-                ...(entry.estimatedDeliveryTime !== null
-                    ? {
-                        estimatedDeliveryTime: entry.estimatedDeliveryTime,
-                        riderAvailability: entry.nearbyRiderCount,
-                        pickupMinutes: entry.pickupMinutes,
-                        distanceKm: entry.distanceKm
-                    }
-                    : {})
-            })),
-            ...foods.filter((food) => {
-                if (!hasCoords) return true;
-                const restId = food.restaurant?._id?.toString();
-                return restId && allowedRestaurantIds.has(restId);
-            }).map(f => ({
-                type: 'dish',
-                text: f.name.en,
-                id: f._id,
-                image: f.image,
-                restaurantId: f.restaurant?._id || null,
-                restaurantName: f.restaurant?.name || null
-            }))
+            ...availableRestaurants.map(entry => {
+                const rName = typeof entry.restaurant?.name === 'object'
+                    ? (entry.restaurant.name.en || Object.values(entry.restaurant.name)[0] || 'Restaurant')
+                    : (entry.restaurant?.name || 'Restaurant');
+                return {
+                    type: 'restaurant',
+                    text: rName,
+                    name: rName,
+                    id: entry.restaurant._id,
+                    image: entry.restaurant.image,
+                    bannerImage: entry.restaurant.bannerImage,
+                    ...(entry.estimatedDeliveryTime !== null
+                        ? {
+                            estimatedDeliveryTime: entry.estimatedDeliveryTime,
+                            riderAvailability: entry.nearbyRiderCount,
+                            pickupMinutes: entry.pickupMinutes,
+                            distanceKm: entry.distanceKm
+                        }
+                        : {})
+                };
+            }),
+            ...foods.map(f => {
+                const fName = typeof f.name === 'object'
+                    ? (f.name.en || Object.values(f.name)[0] || 'Dish')
+                    : (f.name || 'Dish');
+                const rName = f.restaurant
+                    ? (typeof f.restaurant.name === 'object' ? (f.restaurant.name.en || Object.values(f.restaurant.name)[0] || '') : f.restaurant.name)
+                    : '';
+                return {
+                    type: 'dish',
+                    text: fName,
+                    name: fName,
+                    id: f._id,
+                    image: f.image,
+                    restaurantId: f.restaurant?._id || null,
+                    restaurantName: rName
+                };
+            })
         ];
         res.status(200).json(suggestions);
     } catch (error) {

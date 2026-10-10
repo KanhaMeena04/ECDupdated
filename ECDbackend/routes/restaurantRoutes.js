@@ -60,6 +60,8 @@ const {
 
 router.get('/', getAllRestaurants);
 router.get('/list', getAllRestaurants);
+router.get('/search', optionalAuth, getAllRestaurants);
+router.get('/suggestions', require('../controllers/searchController').getSuggestions);
 router.get('/menu/:restaurantId', optionalAuth, getMenu);
 router.get('/status/check', getRestaurantStatusCheck);
 router.get('/:id/status', getRestaurantStatusCheck);

@@ -10,6 +10,8 @@ import '../../core/models/restaurant_models.dart';
 import '../../routes/app_routes.dart';
 import '../food_delivery/restaurant_detail_screen.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/location_provider.dart';
+import '../../providers/cart_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/category_service.dart';
@@ -109,10 +111,11 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _performSearch(String query) async {
-    if (query.trim().isEmpty) return;
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return;
     
     _focusNode.unfocus();
-    _saveSearch(query);
+    _saveSearch(cleanQuery);
     
     setState(() {
       _isLoading = true;
@@ -120,7 +123,19 @@ class _SearchPageState extends State<SearchPage> {
       _suggestions = [];
     });
 
-    final results = await RestaurantApiService.searchRestaurants(query);
+    double? lat;
+    double? lng;
+    try {
+      final locProvider = Provider.of<LocationProvider>(context, listen: false);
+      lat = locProvider.lat;
+      lng = locProvider.lng;
+    } catch (_) {}
+
+    final results = await RestaurantApiService.searchRestaurants(
+      cleanQuery,
+      lat: lat,
+      lng: lng,
+    );
     
     if (mounted) {
       setState(() {
@@ -128,6 +143,20 @@ class _SearchPageState extends State<SearchPage> {
         _isLoading = false;
       });
     }
+  }
+
+  static String _stem(String s) {
+    var lower = s.trim().toLowerCase();
+    if (lower.endsWith('ies') && lower.length > 4) {
+      return lower.substring(0, lower.length - 3) + 'y';
+    }
+    if (lower.endsWith('es') && lower.length > 3) {
+      return lower.substring(0, lower.length - 2);
+    }
+    if (lower.endsWith('s') && !lower.endsWith('ss') && lower.length > 2) {
+      return lower.substring(0, lower.length - 1);
+    }
+    return lower;
   }
 
   List<Restaurant> get _filteredResults {
@@ -400,31 +429,89 @@ class _SearchPageState extends State<SearchPage> {
   Widget _buildResultsList() {
     final isDark = context.read<ThemeProvider>().isDarkMode;
     final results = _filteredResults;
-    if (results.isEmpty) {
-       return Center(child: Text('No results match your filters', style: TextStyle(color: Colors.grey)));
-    }
 
-    final query = _searchController.text.toLowerCase();
+    final rawQ = _searchController.text.trim().toLowerCase();
+    final qStem = _stem(rawQ);
     List<Map<String, dynamic>> matchingItems = [];
+    final Set<String> seenItemIds = {};
+
     for (var r in results) {
       for (var item in r.menu) {
-        if (item.name.toLowerCase().contains(query)) {
+        final itemName = item.name.toLowerCase();
+        final itemCat = item.category.toLowerCase();
+        final itemDesc = item.description.toLowerCase();
+        final isMatch = rawQ.isEmpty ||
+            itemName.contains(rawQ) ||
+            itemName.contains(qStem) ||
+            itemCat.contains(rawQ) ||
+            itemCat.contains(qStem) ||
+            itemDesc.contains(rawQ);
+
+        if (isMatch && !seenItemIds.contains(item.id)) {
+          seenItemIds.add(item.id);
           matchingItems.add({'item': item, 'restaurant': r});
         }
       }
+    }
+
+    // Fallback: If no dishes specifically matched by name/category but restaurants were found, show the dishes of those restaurants
+    if (matchingItems.isEmpty && results.isNotEmpty) {
+      for (var r in results) {
+        for (var item in r.menu) {
+          if (!seenItemIds.contains(item.id)) {
+            seenItemIds.add(item.id);
+            matchingItems.add({'item': item, 'restaurant': r});
+          }
+        }
+      }
+    }
+
+    // Apply quick filters to matching food items as well:
+    if (_selectedFilter == 'Veg Only') {
+      matchingItems = matchingItems.where((m) => (m['item'] as MenuItem).isVeg).toList();
+    } else if (_selectedFilter == 'Rating 4.0+') {
+      matchingItems = matchingItems.where((m) => (m['item'] as MenuItem).rating >= 4.0).toList();
+    } else if (_selectedFilter == 'Fast Delivery') {
+      matchingItems = matchingItems.where((m) => (m['restaurant'] as Restaurant).deliveryTimeMin <= 30).toList();
+    }
+
+    if (results.isEmpty && matchingItems.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search_off_rounded, size: 80, color: isDark ? Colors.grey[700] : Colors.grey[300]),
+              const SizedBox(height: 16),
+              Text(
+                'No matching dishes or restaurants',
+                style: AppTextStyles.h3.copyWith(color: isDark ? Colors.white : Colors.black),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Try searching for pizza, burger, biryani, or explore popular cuisines.',
+                style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         if (matchingItems.isNotEmpty) ...[
-          Text('Food Items', style: AppTextStyles.h3.copyWith(color: isDark ? Colors.white : Colors.black)),
+          Text('Food Items (${matchingItems.length})', style: AppTextStyles.h3.copyWith(color: isDark ? Colors.white : Colors.black)),
           const SizedBox(height: 10),
           ...matchingItems.map((data) => _buildFoodItemCard(data['item'] as MenuItem, data['restaurant'] as Restaurant, isDark)),
           const SizedBox(height: 20),
         ],
         if (results.isNotEmpty) ...[
-          Text('Restaurants', style: AppTextStyles.h3.copyWith(color: isDark ? Colors.white : Colors.black)),
+          Text('Restaurants (${results.length})', style: AppTextStyles.h3.copyWith(color: isDark ? Colors.white : Colors.black)),
           const SizedBox(height: 10),
           ...results.map((r) => _buildRestaurantCard(r, isDark)),
         ]
@@ -551,6 +638,18 @@ class _SearchPageState extends State<SearchPage> {
                     ],
                   ),
                   const SizedBox(height: 6),
+                  // Restaurant Name
+                  Text(
+                    restaurant.name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF248C70),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
                   // Description
                   Text(
                     item.description.isNotEmpty ? item.description : 'Delicious and freshly prepared ${item.name}',
@@ -598,12 +697,25 @@ class _SearchPageState extends State<SearchPage> {
                       ElevatedButton(
                         onPressed: !restaurant.isActive
                             ? null
-                            : () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => RestaurantDetailScreen(restaurant: restaurant),
+                            : () {
+                                final cart = Provider.of<CartProvider>(context, listen: false);
+                                cart.addItem(
+                                  item.toProduct(),
+                                  restaurantId: restaurant.id,
+                                  restaurantName: restaurant.name,
+                                  restaurantImageUrl: restaurant.imageUrl,
+                                  imageUrl: item.imageUrl,
+                                );
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${item.name} added to cart!'),
+                                    duration: const Duration(seconds: 1),
+                                    backgroundColor: const Color(0xFF248C70),
+                                    behavior: SnackBarBehavior.floating,
                                   ),
-                                ),
+                                );
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: restaurant.isActive ? const Color(0xFF248C70) : Colors.grey[400],
                           foregroundColor: Colors.white,
