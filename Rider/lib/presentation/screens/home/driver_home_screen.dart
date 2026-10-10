@@ -998,7 +998,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
           activeOrder['deliveryAddress'] ?? activeOrder['address'] ?? activeOrder['customer']?['address']
         );
         final deliveryAddress = rawDeliveryAddr.isNotEmpty ? rawDeliveryAddr : 'Customer Location';
-        final earnings = (activeOrder['driverEarnings'] ?? activeOrder['deliveryCharge'] ?? 50.0).toStringAsFixed(2);
+        final earnings = ((activeOrder['driverEarnings'] ?? activeOrder['riderEarning'] ?? activeOrder['deliveryFee'] ?? activeOrder['deliveryCharge'] ?? 0.0) as num).toDouble().toStringAsFixed(2);
         final orderAmount = (activeOrder['payableAmount'] ?? activeOrder['totalAmount'] ?? 0.0).toStringAsFixed(2);
         final customerName = activeOrder['customer']?['name'] ?? 'Customer';
         final paymentMode = (activeOrder['paymentTransaction'] != null && (activeOrder['paymentTransaction']['provider'] == 'cod' || activeOrder['paymentTransaction']['provider'] == 'Cash on Delivery')) || activeOrder['paymentMethod'] == 'Cash on Delivery' || activeOrder['paymentMethod'] == 'COD' ? 'Cash on Delivery' : 'Online / UPI';
@@ -2086,8 +2086,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     );
     final customerAddress = rawCustAddr.isNotEmpty ? rawCustAddr : 'Customer Address';
 
-    final rawEarn = order['driverEarnings'] ?? order['deliveryCharge'] ?? order['earning'] ?? 25.0;
-    final double earnVal = (rawEarn is num) ? rawEarn.toDouble() : (double.tryParse(rawEarn.toString()) ?? 25.0);
+    final rawEarn = order['driverEarnings'] ?? order['riderEarning'] ?? order['deliveryFee'] ?? order['deliveryCharge'] ?? order['earning'] ?? 0.0;
+    final double earnVal = (rawEarn is num) ? rawEarn.toDouble() : (double.tryParse(rawEarn.toString()) ?? 0.0);
 
     final rawTotal = order['payableAmount'] ?? order['totalAmount'] ?? '0.00';
     final String totalStr = (rawTotal is num) ? rawTotal.toStringAsFixed(2) : rawTotal.toString();

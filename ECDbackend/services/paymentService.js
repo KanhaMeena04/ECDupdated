@@ -330,67 +330,101 @@ async function processCODDelivery(orderId) {
   if (order.paymentMethod !== 'cod') throw new Error('Not a COD order');
   if (order.status !== 'delivered') throw new Error('Order not yet delivered');
   const restaurant = order.restaurant;
-  const distanceInfo = calculateDeliveryCharges(order.deliveryDistanceKm || 0);
-  let riderWallet = await RiderWallet.findOne({ rider: order.rider._id });
-  if (!riderWallet) {
-    riderWallet = await RiderWallet.create({ rider: order.rider._id });
+  const isPickup = order.orderType === 'self_pickup' || order.orderType === 'pickup' || order.isSelfPickup === true;
+
+  // Accurate amounts from order & system configuration
+  const itemTotal = Number(order.itemTotal || 0);
+  const packagingFee = Number(order.packagingFee || 0);
+  const deliveryFee = isPickup ? 0 : Number(order.deliveryFee || 0);
+  const tip = isPickup ? 0 : Number(order.tip || 0);
+  const orderAmount = Number(order.totalAmount || 0);
+
+  // Admin commission & Restaurant net payable
+  const commissionPercent = restaurant?.adminCommission || DEFAULT_COMMISSION_PERCENT;
+  const adminCommission = Number(order.adminCommission ?? Math.round(((itemTotal * commissionPercent) / 100) * 100) / 100);
+  const restaurantNet = Number(order.restaurantCommission ?? Math.max(0, Math.round((itemTotal + packagingFee - adminCommission) * 100) / 100));
+
+  // Rider earnings (0 for self_pickup)
+  const riderCommission = isPickup ? 0 : Number(order.riderCommission ?? Math.round(deliveryFee * 0.7 * 100) / 100);
+  const riderEarning = isPickup ? 0 : Number(order.driverEarnings ?? order.riderEarning ?? (riderCommission + tip));
+
+  let wasFrozen = false;
+  let riderWallet = null;
+
+  // 1. Process Rider Wallet if delivery order and rider assigned
+  if (!isPickup && order.rider) {
+    const riderId = order.rider._id || order.rider;
+    riderWallet = await RiderWallet.findOne({ rider: riderId });
+    if (!riderWallet) {
+      riderWallet = await RiderWallet.create({ rider: riderId });
+    }
+    riderWallet.cashInHand += orderAmount;
+    wasFrozen = typeof riderWallet.checkAndFreeze === 'function' ? riderWallet.checkAndFreeze() : false;
+    riderWallet.totalEarnings += riderEarning;
+    riderWallet.availableBalance += riderEarning;
+    await riderWallet.save();
+
+    await PaymentTransaction.create({
+      order: order._id,
+      rider: riderId,
+      restaurant: restaurant._id,
+      user: order.customer,
+      type: 'cod_collected',
+      amount: orderAmount,
+      deliveryDistanceKm: order.deliveryDistanceKm || 0,
+      breakdown: {
+        orderAmount,
+        commissionPercent,
+        commissionAmount: adminCommission,
+        deliveryFee,
+        restaurantNet,
+        riderEarning,
+        tip,
+        platformEarning: adminCommission + (deliveryFee * 0.3),
+      },
+      note: `COD collected for order #${order.orderNumber || order._id.toString().slice(-6)}`,
+      status: 'completed'
+    });
   }
+
+  // 2. Process Restaurant Wallet
   let restaurantWallet = await RestaurantWallet.findOne({ restaurant: restaurant._id });
   if (!restaurantWallet) {
     restaurantWallet = await RestaurantWallet.create({ restaurant: restaurant._id });
   }
-  const commissionPercent = restaurant.adminCommission || DEFAULT_COMMISSION_PERCENT;
-  const orderAmount = order.totalAmount;
-  const commissionAmount = (orderAmount * commissionPercent) / 100;
-  const restaurantNet = orderAmount - commissionAmount - distanceInfo.totalDeliveryFee;
-  
-  riderWallet.cashInHand += orderAmount;
-  const wasFrozen = riderWallet.checkAndFreeze();
-  riderWallet.totalEarnings += distanceInfo.riderEarning;
-  riderWallet.availableBalance += distanceInfo.riderEarning;
-  await riderWallet.save();
-  
-  // Update restaurant wallet
-  restaurantWallet.balance += Math.max(0, restaurantNet);
-  restaurantWallet.totalEarnings += Math.max(0, restaurantNet);
-  restaurantWallet.pendingAmount += Math.max(0, restaurantNet);
-  await restaurantWallet.save();
-  
-  // Track admin commission
+
+  if (isPickup) {
+    // For self-pickup COD, customer paid cash directly at counter to restaurant
+    // Restaurant collected orderAmount in cash, so they owe adminCommission to platform
+    restaurantWallet.balance -= adminCommission;
+    restaurantWallet.totalEarnings += restaurantNet;
+    await restaurantWallet.save();
+  } else {
+    // For delivery COD, rider collected cash, platform credits restaurantNet to restaurant wallet
+    restaurantWallet.balance += Math.max(0, restaurantNet);
+    restaurantWallet.totalEarnings += Math.max(0, restaurantNet);
+    restaurantWallet.pendingAmount += Math.max(0, restaurantNet);
+    await restaurantWallet.save();
+  }
+
+  // 3. Track Admin Commission
   const adminWallet = await AdminCommissionWallet.getInstance();
-  adminWallet.balance += commissionAmount;
-  adminWallet.totalCommission += commissionAmount;
-  adminWallet.commissionFromRestaurants += commissionAmount;
+  adminWallet.balance += adminCommission;
+  adminWallet.totalCommission += adminCommission;
+  adminWallet.commissionFromRestaurants += adminCommission;
   adminWallet.lastUpdated = new Date();
   await adminWallet.save();
+
+  // 4. Update Order fields
   order.cashCollected = orderAmount;
   order.cashCollectedAt = new Date();
-  order.riderEarning = distanceInfo.riderEarning;
-  order.adminCommission = commissionAmount;
-  order.restaurantCommission = Math.max(0, restaurantNet);
+  order.riderEarning = riderEarning;
+  order.driverEarnings = riderEarning;
+  order.riderCommission = riderCommission;
+  order.adminCommission = adminCommission;
+  order.restaurantCommission = restaurantNet;
   await order.save();
-  await PaymentTransaction.create({
-    order: order._id,
-    rider: order.rider._id,
-    restaurant: restaurant._id,
-    user: order.customer,
-    type: 'cod_collected',
-    amount: orderAmount,
-    deliveryDistanceKm: distanceInfo.distanceKm,
-    isLongDistance: distanceInfo.isLongDistance,
-    breakdown: {
-      orderAmount,
-      commissionPercent,
-      commissionAmount,
-      deliveryFee: distanceInfo.totalDeliveryFee,
-      distanceSurcharge: distanceInfo.surcharge,
-      restaurantNet: Math.max(0, restaurantNet),
-      riderEarning: distanceInfo.riderEarning,
-      platformEarning: commissionAmount + distanceInfo.totalDeliveryFee,
-    },
-    note: `COD collected. ${distanceInfo.isLongDistance ? `Long distance (${distanceInfo.distanceKm}km), surcharge ₹${distanceInfo.surcharge}` : ''}`,
-    status: 'completed'
-  });
+
   await PaymentTransaction.create({
     order: order._id,
     restaurant: restaurant._id,
@@ -399,33 +433,41 @@ async function processCODDelivery(orderId) {
     breakdown: {
       orderAmount,
       commissionPercent,
-      commissionAmount,
+      commissionAmount: adminCommission,
       restaurantNet: Math.max(0, restaurantNet),
     },
-    note: `Commission auto-credited for order #${order._id.toString().slice(-6)}`,
+    note: `Earnings credited for order #${order.orderNumber || order._id.toString().slice(-6)}`,
     status: 'completed'
   });
+
+  // 5. Automatically create/sync SettlementLedger
+  try {
+    const SettlementLedger = require('../models/SettlementLedger');
+    await SettlementLedger.createFromOrder(order, restaurant);
+  } catch (settleErr) {
+    console.error('Failed to create settlement ledger on COD:', settleErr.message);
+  }
+
   return {
     success: true,
     riderFrozen: wasFrozen,
-    riderWallet: {
+    riderWallet: riderWallet ? {
       cashInHand: riderWallet.cashInHand,
       cashLimit: riderWallet.cashLimit,
       isFrozen: riderWallet.isFrozen,
       frozenReason: riderWallet.frozenReason,
-      riderEarning: distanceInfo.riderEarning
-    },
+      riderEarning
+    } : null,
     restaurantWallet: {
       balance: restaurantWallet.balance,
       credited: Math.max(0, restaurantNet)
     },
     breakdown: {
       orderAmount,
-      commissionAmount: commissionAmount.toFixed(2),
-      deliveryFee: distanceInfo.totalDeliveryFee,
-      distanceSurcharge: distanceInfo.surcharge,
+      commissionAmount: adminCommission.toFixed(2),
+      deliveryFee,
       restaurantNet: Math.max(0, restaurantNet).toFixed(2),
-      riderEarning: distanceInfo.riderEarning,
+      riderEarning,
     }
   };
 }
@@ -433,66 +475,111 @@ async function processOnlineDelivery(orderId) {
   const order = await Order.findById(orderId).populate('restaurant').populate('rider');
   if (!order) throw new Error('Order not found');
   const restaurant = order.restaurant;
-  const distanceInfo = calculateDeliveryCharges(order.deliveryDistanceKm || 0);
-  let riderWallet = await RiderWallet.findOne({ rider: order.rider._id });
-  if (!riderWallet) riderWallet = await RiderWallet.create({ rider: order.rider._id });
+  const isPickup = order.orderType === 'self_pickup' || order.orderType === 'pickup' || order.isSelfPickup === true;
+
+  // Accurate amounts from order & system configuration
+  const itemTotal = Number(order.itemTotal || 0);
+  const packagingFee = Number(order.packagingFee || 0);
+  const deliveryFee = isPickup ? 0 : Number(order.deliveryFee || 0);
+  const tip = isPickup ? 0 : Number(order.tip || 0);
+  const orderAmount = Number(order.totalAmount || 0);
+
+  // Admin commission & Restaurant net payable
+  const commissionPercent = restaurant?.adminCommission || DEFAULT_COMMISSION_PERCENT;
+  const adminCommission = Number(order.adminCommission ?? Math.round(((itemTotal * commissionPercent) / 100) * 100) / 100);
+  const restaurantNet = Number(order.restaurantCommission ?? Math.max(0, Math.round((itemTotal + packagingFee - adminCommission) * 100) / 100));
+
+  // Rider earnings (0 for self_pickup)
+  const riderCommission = isPickup ? 0 : Number(order.riderCommission ?? Math.round(deliveryFee * 0.7 * 100) / 100);
+  const riderEarning = isPickup ? 0 : Number(order.driverEarnings ?? order.riderEarning ?? (riderCommission + tip));
+
+  let riderWallet = null;
+
+  // 1. Process Rider Wallet if delivery order and rider assigned
+  if (!isPickup && order.rider) {
+    const riderId = order.rider._id || order.rider;
+    riderWallet = await RiderWallet.findOne({ rider: riderId });
+    if (!riderWallet) riderWallet = await RiderWallet.create({ rider: riderId });
+    riderWallet.totalEarnings += riderEarning;
+    riderWallet.availableBalance += riderEarning;
+    await riderWallet.save();
+
+    await PaymentTransaction.create({
+      order: order._id,
+      rider: riderId,
+      restaurant: restaurant._id,
+      user: order.customer,
+      type: order.paymentMethod === 'wallet' ? 'wallet_payment' : 'online_payment',
+      amount: orderAmount,
+      deliveryDistanceKm: order.deliveryDistanceKm || 0,
+      breakdown: {
+        orderAmount,
+        commissionPercent,
+        commissionAmount: adminCommission,
+        deliveryFee,
+        restaurantNet,
+        riderEarning,
+        tip,
+        platformEarning: adminCommission + (deliveryFee * 0.3)
+      },
+      status: 'completed'
+    });
+  }
+
+  // 2. Process Restaurant Wallet (Platform collected online money, credits restaurantNet to restaurant wallet)
   let restaurantWallet = await RestaurantWallet.findOne({ restaurant: restaurant._id });
   if (!restaurantWallet) restaurantWallet = await RestaurantWallet.create({ restaurant: restaurant._id });
-  const commissionPercent = restaurant.adminCommission || DEFAULT_COMMISSION_PERCENT;
-  const orderAmount = order.totalAmount;
-  const commissionAmount = (orderAmount * commissionPercent) / 100;
-  const restaurantNet = orderAmount - commissionAmount - distanceInfo.totalDeliveryFee;
-  
-  riderWallet.totalEarnings += distanceInfo.riderEarning;
-  riderWallet.availableBalance += distanceInfo.riderEarning;
-  await riderWallet.save();
-  
-  // Update restaurant wallet
   restaurantWallet.balance += Math.max(0, restaurantNet);
   restaurantWallet.totalEarnings += Math.max(0, restaurantNet);
   restaurantWallet.pendingAmount += Math.max(0, restaurantNet);
   await restaurantWallet.save();
-  
-  // Track admin commission
+
+  // 3. Track Admin Commission
   const adminWallet = await AdminCommissionWallet.getInstance();
-  adminWallet.balance += commissionAmount;
-  adminWallet.totalCommission += commissionAmount;
-  adminWallet.commissionFromRestaurants += commissionAmount;
+  adminWallet.balance += adminCommission;
+  adminWallet.totalCommission += adminCommission;
+  adminWallet.commissionFromRestaurants += adminCommission;
   adminWallet.lastUpdated = new Date();
   await adminWallet.save();
-  order.riderEarning = distanceInfo.riderEarning;
-  order.adminCommission = commissionAmount;
-  order.restaurantCommission = Math.max(0, restaurantNet);
+
+  // 4. Update Order fields
+  order.riderEarning = riderEarning;
+  order.driverEarnings = riderEarning;
+  order.riderCommission = riderCommission;
+  order.adminCommission = adminCommission;
+  order.restaurantCommission = restaurantNet;
   await order.save();
+
   await PaymentTransaction.create({
     order: order._id,
-    rider: order.rider._id,
     restaurant: restaurant._id,
-    user: order.customer,
-    type: order.paymentMethod === 'wallet' ? 'wallet_payment' : 'online_payment',
-    amount: orderAmount,
-    deliveryDistanceKm: distanceInfo.distanceKm,
-    isLongDistance: distanceInfo.isLongDistance,
+    type: 'restaurant_commission',
+    amount: Math.max(0, restaurantNet),
     breakdown: {
       orderAmount,
       commissionPercent,
-      commissionAmount,
-      deliveryFee: distanceInfo.totalDeliveryFee,
-      distanceSurcharge: distanceInfo.surcharge,
+      commissionAmount: adminCommission,
       restaurantNet: Math.max(0, restaurantNet),
-      riderEarning: distanceInfo.riderEarning,
-      platformEarning: commissionAmount + distanceInfo.totalDeliveryFee
     },
+    note: `Earnings credited for order #${order.orderNumber || order._id.toString().slice(-6)}`,
     status: 'completed'
   });
+
+  // 5. Automatically create/sync SettlementLedger
+  try {
+    const SettlementLedger = require('../models/SettlementLedger');
+    await SettlementLedger.createFromOrder(order, restaurant);
+  } catch (settleErr) {
+    console.error('Failed to create settlement ledger on online:', settleErr.message);
+  }
+
   return {
     success: true,
     breakdown: {
       orderAmount,
-      commissionAmount,
-      restaurantNet: Math.max(0, restaurantNet),
-      riderEarning: distanceInfo.riderEarning,
-      distanceSurcharge: distanceInfo.surcharge,
+      commissionAmount: adminCommission.toFixed(2),
+      restaurantNet: Math.max(0, restaurantNet).toFixed(2),
+      riderEarning,
     }
   };
 }

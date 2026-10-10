@@ -561,21 +561,22 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final walletData = data['data']?['wallet'] ?? data['wallet'] ?? data['data'] ?? data;
-        final bal = (walletData['availableBalance'] as num?)?.toDouble() ?? (data['data']?['balance'] as num?)?.toDouble() ?? 230.0;
+        final bal = (walletData['availableBalance'] as num?)?.toDouble() ?? (data['data']?['balance'] as num?)?.toDouble() ?? 0.0;
+        final totalEarn = (walletData['totalEarnings'] as num?)?.toDouble() ?? 0.0;
         return {
           'success': true,
           'data': {
-            'balance': bal > 0 ? bal : 230.0,
+            'balance': bal,
             'billable_hours': data['data']?['billable_hours'] ?? "0.0",
             'today_orders': data['data']?['today_orders'] ?? 0,
             'recent_requests': data['data']?['recent_requests'] ?? []
           },
           'wallet': {
-            'availableBalance': bal > 0 ? bal : 230.0,
-            'cashInHand': walletData['cashInHand'] ?? 0.0,
-            'cashLimit': walletData['cashLimit'] ?? 2000.0,
+            'availableBalance': bal,
+            'cashInHand': (walletData['cashInHand'] as num?)?.toDouble() ?? 0.0,
+            'cashLimit': (walletData['cashLimit'] as num?)?.toDouble() ?? 2000.0,
             'isFrozen': walletData['isFrozen'] ?? false,
-            'totalEarnings': walletData['totalEarnings'] ?? 230.0,
+            'totalEarnings': totalEarn,
             'transactions': walletData['transactions'] ?? []
           }
         };
@@ -586,17 +587,17 @@ class ApiService {
     return {
       "success": true,
       "data": {
-        "balance": 230.0,
+        "balance": 0.0,
         "billable_hours": "0.0",
         "today_orders": 0,
         "recent_requests": []
       },
       "wallet": {
-        "availableBalance": 230.0,
+        "availableBalance": 0.0,
         "cashInHand": 0.0,
         "cashLimit": 2000.0,
         "isFrozen": false,
-        "totalEarnings": 230.0,
+        "totalEarnings": 0.0,
         "transactions": []
       }
     };

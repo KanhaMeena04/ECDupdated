@@ -62,6 +62,7 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
         }
 
         double totalRev = 0.0;
+        double totalComm = 0.0;
         final List<dynamic> generatedTxns = [];
 
         for (var o in rawOrders) {
@@ -71,12 +72,20 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
           final dateStr = o['createdAt'] ?? DateTime.now().toIso8601String();
 
           if (status == 'delivered' || status == 'picked_up' || status == 'completed') {
-            totalRev += payable;
-            final comm = payable * 0.10;
+            final restEarning = (o['restaurantCommission'] != null)
+                ? (o['restaurantCommission'] as num).toDouble()
+                : (payable * 0.80);
+            final comm = (o['adminCommission'] != null)
+                ? (o['adminCommission'] as num).toDouble()
+                : (payable * 0.20);
+
+            totalRev += restEarning;
+            totalComm += comm;
+
             generatedTxns.add({
               'id': 'TXN_${ordId.toString().length > 6 ? ordId.toString().substring(ordId.toString().length - 6) : ordId}',
               'type': 'credit',
-              'amount': payable,
+              'amount': restEarning,
               'status': 'completed',
               'createdAt': dateStr,
               'description': 'Order #$ordId Payment Received',
@@ -87,13 +96,12 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
               'amount': comm,
               'status': 'completed',
               'createdAt': dateStr,
-              'description': 'Platform Fee (10%) for Order #$ordId',
+              'description': 'Platform Commission for Order #$ordId',
             });
           }
         }
 
-        final double totalComm = totalRev * 0.10;
-        final double avail = totalRev - totalComm;
+        final double avail = totalRev;
 
         if (mounted) {
           setState(() {

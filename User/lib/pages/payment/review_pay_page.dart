@@ -75,16 +75,17 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     final restaurantId = cart.restaurantId;
 
     double fetchedFee = widget.deliveryFee;
-    if (cart.orderType == 'pickup') {
+    if (cart.isSelfPickup) {
       fetchedFee = 0.0;
     } else if (restaurantId != null) {
       final feeResult =
           await OrderApiService.calculateDeliveryFee(restaurantId, lat, lng);
-      if (feeResult != null && feeResult['deliveryCharge'] != null) {
-        fetchedFee = (feeResult['deliveryCharge'] as num).toDouble();
+      if (feeResult != null && (feeResult['deliveryCharge'] != null || feeResult['deliveryFee'] != null || feeResult['fee'] != null)) {
+        fetchedFee = ((feeResult['deliveryCharge'] ?? feeResult['deliveryFee'] ?? feeResult['fee']) as num).toDouble();
       }
     }
 
+    cart.setDeliveryFee(fetchedFee);
     if (mounted) {
       setState(() {
         _dynamicDeliveryFee = fetchedFee;
@@ -512,7 +513,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
         : null;
 
     final locProvider = context.read<LocationProvider>();
-    if (cart.orderType != 'pickup' && !locProvider.isServiceable) {
+    if (!cart.isSelfPickup && !locProvider.isServiceable) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1322,7 +1323,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (cart.orderType == 'pickup') ...[
+                  if (cart.isSelfPickup) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: const [
@@ -1469,7 +1470,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
             const SizedBox(height: 12),
 
             // ── 2. Tip your rider Section (CMS Driven) ─────────────────────
-            if (cart.isTipEnabled && cart.orderType != 'pickup')
+            if (cart.isTipEnabled && !cart.isSelfPickup)
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.all(16),
@@ -1584,46 +1585,51 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                   _billRow('Item total', '₹${cart.totalAmount.toStringAsFixed(0)}'),
                   const SizedBox(height: 10),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Delivery partner fee (up to 4 km)',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF4B5563),
+                  if (cart.isSelfPickup) ...[
+                    _billRow('Delivery fee', 'Free (Self Pickup)'),
+                    const SizedBox(height: 10),
+                  ] else ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Delivery partner fee (up to 4 km)',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF4B5563),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Goes to them for their time and effort',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: Colors.grey.shade500,
+                            const SizedBox(height: 2),
+                            Text(
+                              'Goes to them for their time and effort',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: Colors.grey.shade500,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        _dynamicDeliveryFee == 0
-                            ? 'Free'
-                            : '₹${_dynamicDeliveryFee.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: _dynamicDeliveryFee == 0
-                              ? AppColors.primary
-                              : const Color(0xFF1F2937),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
+                        Text(
+                          _dynamicDeliveryFee == 0
+                              ? 'Free'
+                              : '₹${_dynamicDeliveryFee.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: _dynamicDeliveryFee == 0
+                                ? AppColors.primary
+                                : const Color(0xFF1F2937),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                  ],
 
                   if (cart.isPlatformFeeEnabled) ...[
                     _billRow('Platform fee', '₹${cart.platformFee.toStringAsFixed(2)}'),

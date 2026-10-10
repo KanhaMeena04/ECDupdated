@@ -4629,8 +4629,8 @@ exports.getMyActiveOrder = async (req, res) => {
           platformFee: Number(order.platformFee || 0),
           discount: Number(order.discount || 0),
           tip: Number(order.tip || 0),
-          driverEarnings: Number(order.riderEarning || ((order.deliveryFee || 0) * 0.7)),
-          riderEarning: Number(order.riderEarning || ((order.deliveryFee || 0) * 0.7)),
+          driverEarnings: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * 0.7) + (order.tip || 0))),
+          riderEarning: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * 0.7) + (order.tip || 0))),
           paymentMethod: order.paymentMethod,
           paymentStatus: order.paymentStatus,
           bill: {
@@ -4648,8 +4648,8 @@ exports.getMyActiveOrder = async (req, res) => {
             total: Number(order.totalAmount || 0),
             payableAmount: Number(order.payableAmount || order.totalAmount || 0),
             toPay: Number(order.totalAmount || 0),
-            riderEarning: Number(order.riderEarning || 0) + Number(order.tip || 0),
-            driverEarnings: Number(order.riderEarning || 0) + Number(order.tip || 0),
+            riderEarning: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * 0.7) + (order.tip || 0))),
+            driverEarnings: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * 0.7) + (order.tip || 0))),
             inrAmount: `₹${Number(order.totalAmount || 0).toFixed(2)}`
           },
           items: (order.items || []).map(item => ({
@@ -4658,9 +4658,9 @@ exports.getMyActiveOrder = async (req, res) => {
             price: item.price
           })),
           earnings: {
-            riderEarning: order.riderEarning || 0,
-            tip: order.tip || 0,
-            total: (order.riderEarning || 0) + (order.tip || 0)
+            riderEarning: Number(order.riderCommission ?? ((order.deliveryFee || 0) * 0.7)),
+            tip: Number(order.tip || 0),
+            total: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * 0.7) + (order.tip || 0)))
           },
           distances: distanceInfo,
           nextAction,
@@ -4774,8 +4774,8 @@ exports.getMyActiveOrder = async (req, res) => {
           platformFee: Number(o.platformFee || 0),
           discount: Number(o.discount || 0),
           tip: Number(o.tip || 0),
-          driverEarnings: Number(o.riderEarning || ((o.deliveryFee || 0) * 0.7)),
-          riderEarning: Number(o.riderEarning || ((o.deliveryFee || 0) * 0.7)),
+          driverEarnings: Number(o.driverEarnings ?? o.riderEarning ?? (((o.deliveryFee || 0) * 0.7) + (o.tip || 0))),
+          riderEarning: Number(o.driverEarnings ?? o.riderEarning ?? (((o.deliveryFee || 0) * 0.7) + (o.tip || 0))),
           paymentMethod: o.paymentMethod,
           paymentStatus: o.paymentStatus,
           bill: {
@@ -4793,8 +4793,8 @@ exports.getMyActiveOrder = async (req, res) => {
             total: Number(o.totalAmount || 0),
             payableAmount: Number(o.payableAmount || o.totalAmount || 0),
             toPay: Number(o.totalAmount || 0),
-            riderEarning: Number(o.riderEarning || 0) + Number(o.tip || 0),
-            driverEarnings: Number(o.riderEarning || 0) + Number(o.tip || 0),
+            riderEarning: Number(o.driverEarnings ?? o.riderEarning ?? (((o.deliveryFee || 0) * 0.7) + (o.tip || 0))),
+            driverEarnings: Number(o.driverEarnings ?? o.riderEarning ?? (((o.deliveryFee || 0) * 0.7) + (o.tip || 0))),
             inrAmount: `₹${Number(o.totalAmount || 0).toFixed(2)}`
           },
           items: (o.items || []).map(item => ({

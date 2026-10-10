@@ -114,7 +114,8 @@ exports.validateCoupon = async (req, res) => {
     if (bill.couponError) {
       return res.status(400).json({ success: false, valid: false, message: bill.couponError });
     }
-    return res.json({ success: true, valid: true, message: "Coupon is valid", discountAmount: bill.discountAmount || 0, bill, coupon: { code: resolvedCode.toUpperCase(), discount: bill.discountAmount || 0 } });
+    const discountAmount = bill.discount !== undefined ? bill.discount : (bill.discountAmount || 0);
+    return res.json({ success: true, valid: true, message: "Coupon is valid", discountAmount, bill, coupon: { code: resolvedCode.toUpperCase(), discount: discountAmount } });
   } catch (err) {
     return res.status(500).json({ success: false, message: "Server error." });
   }

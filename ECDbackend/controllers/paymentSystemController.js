@@ -64,8 +64,8 @@ exports.getRiderWallet = async (req, res) => {
         wallet: {
           cashInHand: wallet.cashInHand,
           cashLimit: wallet.cashLimit,
-          availableBalance: (wallet.availableBalance && wallet.availableBalance > 0) ? wallet.availableBalance : 230,
-          totalEarnings: (wallet.totalEarnings && wallet.totalEarnings > 0) ? wallet.totalEarnings : 230,
+          availableBalance: Number(wallet.availableBalance || 0),
+          totalEarnings: Number(wallet.totalEarnings || 0),
           isFrozen: wallet.isFrozen,
           frozenReason: wallet.frozenReason,
           frozenAt: wallet.frozenAt,
@@ -241,18 +241,7 @@ exports.triggerWeeklyPayout = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
-exports.calculateDeliveryFee = async (req, res) => {
-  try {
-    const { distanceKm } = req.body;
-    if (distanceKm === undefined) {
-      return res.status(400).json({ success: false, message: 'distanceKm is required' });
-    }
-    const result = calculateDeliveryCharges(parseFloat(distanceKm));
-    return res.status(200).json({ success: true, data: result });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-};
+
 exports.getAllTransactions = async (req, res) => {
   try {
     const { page = 1, limit = 20, type } = req.query;
@@ -339,9 +328,55 @@ exports.getAllRiderWallets = async (req, res) => {
 
 exports.calculateDeliveryFee = async (req, res) => {
   try {
-    const { distanceKm, distance, userLocation, restaurantLocation } = req.body || {};
+    const {
+      distanceKm,
+      distance,
+      userLocation,
+      restaurantLocation,
+      restaurantId,
+      lat,
+      lng,
+      latitude,
+      longitude,
+      orderType,
+      isSelfPickup
+    } = req.body || {};
+
+    const isPickup = orderType === 'self_pickup' || orderType === 'pickup' || orderType === 'takeaway' || isSelfPickup === true;
+    if (isPickup) {
+      return res.status(200).json({
+        success: true,
+        deliveryFee: 0,
+        deliveryCharge: 0,
+        fee: 0,
+        distanceKm: 0,
+        isSelfPickup: true,
+        data: { totalDeliveryFee: 0, baseDeliveryFee: 0, surcharge: 0 }
+      });
+    }
+
     let dist = parseFloat(distanceKm || distance) || 0;
-    if (!dist && userLocation && restaurantLocation) {
+
+    // Check if coordinates provided via restaurantId & user lat/lng
+    const userLat = parseFloat(lat ?? latitude ?? userLocation?.latitude ?? userLocation?.lat);
+    const userLng = parseFloat(lng ?? longitude ?? userLocation?.longitude ?? userLocation?.lng);
+
+    if (!dist && restaurantId && !isNaN(userLat) && !isNaN(userLng)) {
+      try {
+        const restaurant = await Restaurant.findById(restaurantId).select('location baseDeliveryFee perKmCharge maxDeliveryFee adminOverride');
+        if (restaurant && restaurant.location?.coordinates && restaurant.location.coordinates.length === 2) {
+          const [rLon, rLat] = restaurant.location.coordinates;
+          const R = 6371;
+          const dLat = (userLat - rLat) * Math.PI / 180;
+          const dLon = (userLng - rLon) * Math.PI / 180;
+          const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(rLat * Math.PI / 180) * Math.cos(userLat * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          dist = Math.round(R * c * 100) / 100;
+        }
+      } catch (_) {}
+    } else if (!dist && userLocation && restaurantLocation) {
       const lat1 = userLocation.latitude || userLocation.lat;
       const lon1 = userLocation.longitude || userLocation.lng;
       const lat2 = restaurantLocation.latitude || restaurantLocation.lat;
@@ -354,15 +389,39 @@ exports.calculateDeliveryFee = async (req, res) => {
                   Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
                   Math.sin(dLon/2) * Math.sin(dLon/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        dist = R * c;
+        dist = Math.round(R * c * 100) / 100;
       }
     }
-    const charges = calculateDeliveryCharges(dist);
+
+    // Dynamic Delivery Fee from Central Admin Setting
+    let finalFee = 40;
+    try {
+      const AdminSetting = require('../models/AdminSetting');
+      const adminSetting = await AdminSetting.getSettings();
+      if (adminSetting?.deliveryFeeConfig?.enabled === false) {
+        finalFee = 0;
+      } else {
+        const { calculateSlabDeliveryFee } = require('../services/priceCalculator');
+        const slabResult = calculateSlabDeliveryFee(dist, adminSetting.deliveryFeeConfig);
+        finalFee = slabResult.fee;
+      }
+    } catch (_) {
+      const charges = calculateDeliveryCharges(dist);
+      finalFee = charges.totalDeliveryFee || 40;
+    }
+
     return res.status(200).json({
       success: true,
-      deliveryFee: charges.totalDeliveryFee,
-      fee: charges.totalDeliveryFee,
-      data: charges
+      deliveryCharge: finalFee,
+      deliveryFee: finalFee,
+      fee: finalFee,
+      distanceKm: dist,
+      isSelfPickup: false,
+      data: {
+        totalDeliveryFee: finalFee,
+        deliveryFee: finalFee,
+        distanceKm: dist
+      }
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

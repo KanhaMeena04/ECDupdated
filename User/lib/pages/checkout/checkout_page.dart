@@ -179,6 +179,7 @@ class _CheckoutFlowState extends State<CheckoutFlow> {
     final orderData = {
       'restaurantId': cart.restaurantId,
       'orderType': _isSelfPickup ? 'self_pickup' : 'delivery',
+      'isSelfPickup': _isSelfPickup,
       'items': cart.items
           .map((i) => {
                 'productId': i.product.id,
@@ -191,6 +192,8 @@ class _CheckoutFlowState extends State<CheckoutFlow> {
       if (_deliveryPhone != null && _deliveryPhone!.isNotEmpty) 'deliveryPhone': _deliveryPhone,
       'paymentMethod': _selectedPayment == 1 ? 'online' : (_selectedPayment == 2 ? 'card' : 'cod'),
       'totalPrice': _isSelfPickup ? (widget.total - widget.deliveryFee).clamp(0.0, 99999.0) : widget.total,
+      'deliveryFee': _isSelfPickup ? 0.0 : widget.deliveryFee,
+      'tipAmount': _isSelfPickup ? 0.0 : cart.tipAmount,
       'status': 'pending',
     };
 

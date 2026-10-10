@@ -217,6 +217,10 @@ const calculateBill = async (
   orderType = "delivery"
 ) => {
   try {
+    const rawType = (orderType || cart?.orderType || "").toString().toLowerCase();
+    const effectiveOrderType = (rawType === "self_pickup" || rawType === "pickup" || rawType === "takeaway" || cart?.isSelfPickup === true)
+      ? "self_pickup"
+      : "delivery";
     const safeItems = Array.isArray(cart?.items)
       ? cart.items.filter((item) => item && (item.restaurant || item.product))
       : [];
@@ -285,7 +289,7 @@ const calculateBill = async (
       couponCode: cart.couponCode || null,
       deliveryDistance,
       tip,
-      orderType
+      orderType: effectiveOrderType
     });
 
     if (!pricingResult.success) {
@@ -416,21 +420,36 @@ exports.placeOrder = async (req, res) => {
     try {
       bill = await calculateBill(cart, req.user._id, deliveryAddress, orderType);
     } catch (billErr) {
+      let sysSettings = null;
+      try {
+        const AdminSetting = require("../models/AdminSetting");
+        sysSettings = await AdminSetting.getSettings();
+      } catch (_) {}
       const subtotal = req.body.subtotal || cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const deliveryFee = isSelfPickup ? 0 : (req.body.deliveryFee !== undefined ? req.body.deliveryFee : 10);
+      const deliveryFee = isSelfPickup ? 0 : (req.body.deliveryFee !== undefined ? Number(req.body.deliveryFee) : (sysSettings?.deliveryFeeConfig?.baseFee || 0));
+      const gstPercent = sysSettings?.taxConfig?.enabled !== false ? (sysSettings?.taxConfig?.gstPercent ?? 5) : 0;
+      const tax = Math.round(((subtotal * gstPercent) / 100) * 100) / 100;
+      const packaging = sysSettings?.packagingFeeConfig?.enabled !== false ? (sysSettings?.packagingFeeConfig?.globalPackagingFee || 0) : 0;
+      const platformFee = sysSettings?.platformFeeConfig?.enabled !== false ? (sysSettings?.platformFeeConfig?.fee || 0) : 0;
+      const discount = Number(req.body.discount || 0);
+      const tip = isSelfPickup ? 0 : Number(req.body.tip || 0);
+      const commRate = Number(restaurant.adminCommission || sysSettings?.commissionConfig?.globalCommissionPercent || 20);
+      const adminCommissionAmount = Math.round(((subtotal * commRate) / 100) * 100) / 100;
+      const restaurantNetPayable = Math.max(0, Math.round((subtotal + packaging - adminCommissionAmount) * 100) / 100);
+      const toPay = req.body.totalAmount || Math.max(0, Math.round((subtotal + tax + packaging + deliveryFee + platformFee - discount + tip) * 100) / 100);
       bill = {
         itemTotal: subtotal,
-        tax: Math.round(subtotal * 0.05 * 100) / 100,
-        packaging: 0,
+        tax,
+        packaging,
         deliveryFee,
-        platformFee: 5,
-        discount: req.body.discount || 0,
-        toPay: req.body.totalAmount || (subtotal + deliveryFee + 5),
-        tip: req.body.tip || 0,
-        appliedCommissionRate: 20,
-        adminCommissionAmount: Math.round(subtotal * 0.2 * 100) / 100,
-        restaurantNetPayable: Math.round(subtotal * 0.8 * 100) / 100,
-        deliveryDistance: 2.5,
+        platformFee,
+        discount,
+        toPay,
+        tip,
+        appliedCommissionRate: commRate,
+        adminCommissionAmount,
+        restaurantNetPayable,
+        deliveryDistance: 0,
         sources: {},
         appliedCoupon: req.body.couponCode || null,
         isRadiusExceeded: false
@@ -509,10 +528,11 @@ exports.placeOrder = async (req, res) => {
       ? "Waiting for payment to be completed via Stripe."
       : "Your order has been placed";
     
-    const adminCommission = bill.adminCommissionAmount !== undefined ? bill.adminCommissionAmount : Math.round(bill.itemTotal * 0.2 * 100) / 100;
-    const restaurantCommission = bill.restaurantNetPayable !== undefined ? bill.restaurantNetPayable : Math.round((bill.itemTotal - adminCommission) * 100) / 100;
-    const riderCommission = bill.deliveryFee * 0.7;
-    const riderEarning = Math.round((riderCommission + tipAmount) * 100) / 100;
+    const commRate = Number(restaurant.adminCommission || bill.appliedCommissionRate || 20);
+    const adminCommission = bill.adminCommissionAmount !== undefined ? bill.adminCommissionAmount : Math.round(((bill.itemTotal * commRate) / 100) * 100) / 100;
+    const restaurantCommission = bill.restaurantNetPayable !== undefined ? bill.restaurantNetPayable : Math.max(0, Math.round((bill.itemTotal + (bill.packaging || 0) - adminCommission) * 100) / 100);
+    const riderCommission = isSelfPickup ? 0 : Math.round((bill.deliveryFee * 0.7) * 100) / 100;
+    const riderEarning = isSelfPickup ? 0 : Math.round((riderCommission + tipAmount) * 100) / 100;
     const pickupOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const deliveryOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const otpExpiry = 100 * 60 * 1000; // 100 minutes
@@ -4586,6 +4606,30 @@ exports.verifySelfPickupOTP = async (req, res) => {
       description: "Self-pickup code verified by restaurant. Order handed over."
     });
     await order.save();
+
+    // Trigger financial settlement & Restaurant earnings for self-pickup
+    try {
+      const { processCODDelivery, processOnlineDelivery } = require('../services/paymentService');
+      const Restaurant = require('../models/Restaurant');
+      if (order.paymentMethod === 'cod') {
+        processCODDelivery(order._id).catch(err =>
+          logger.error("COD self-pickup payment processing failed", { orderId: order._id, error: err.message })
+        );
+      } else {
+        processOnlineDelivery(order._id).catch(err =>
+          logger.error("Online self-pickup payment processing failed", { orderId: order._id, error: err.message })
+        );
+      }
+      Restaurant.findByIdAndUpdate(order.restaurant, {
+        $inc: {
+          totalEarnings: order.restaurantCommission || 0,
+          totalDeliveries: 1,
+          successfulOrders: 1,
+        }
+      }).catch(err => logger.error("Restaurant stat update failed on self-pickup", { restaurantId: order.restaurant, error: err.message }));
+    } catch (payErr) {
+      logger.error("Failed to trigger payment processing on self-pickup handover", { orderId: order._id, error: payErr.message });
+    }
 
     const { sendNotification } = require("../utils/notificationService");
     const socketService = require("../services/socketService");

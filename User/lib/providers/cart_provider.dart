@@ -35,8 +35,16 @@ class CartProvider with ChangeNotifier {
 
   void setOrderType(String type) {
     _orderType = type;
+    if (isSelfPickup) {
+      _selectedTip = 0.0;
+    }
     notifyListeners();
     _saveCartToPrefs();
+  }
+
+  void setDeliveryFee(double fee) {
+    _deliveryFee = isSelfPickup ? 0.0 : fee;
+    notifyListeners();
   }
 
   void setPickupTime(String? time) {
@@ -51,6 +59,7 @@ class CartProvider with ChangeNotifier {
     _pickupTimeSlot = timeSlot;
     _pickupTime = timeSlot;
     _orderType = 'pickup';
+    _selectedTip = 0.0;
     notifyListeners();
     _saveCartToPrefs();
   }
@@ -104,17 +113,17 @@ class CartProvider with ChangeNotifier {
   double get platformFee => _isPlatformFeeEnabled ? _platformFee : 0.0;
   double get packagingFee => _isPackagingFeeEnabled ? _packagingFee : 0.0;
   double get gstAmount => _isTaxEnabled ? (totalAmount * (_gstPercent / 100)) : 0.0;
-  double get tipAmount => _isTipEnabled ? _selectedTip : 0.0;
+  double get tipAmount => (isSelfPickup || !_isTipEnabled) ? 0.0 : _selectedTip;
   List<double> get tipOptions => _tipOptions;
-  bool get isTipEnabled => _isTipEnabled;
+  bool get isTipEnabled => _isTipEnabled && !isSelfPickup;
   bool get isPlatformFeeEnabled => _isPlatformFeeEnabled;
   bool get isPackagingFeeEnabled => _isPackagingFeeEnabled;
   bool get isTaxEnabled => _isTaxEnabled;
-  bool get isDeliveryFeeEnabled => _isDeliveryFeeEnabled;
-  double get selectedTip => _selectedTip;
+  bool get isDeliveryFeeEnabled => _isDeliveryFeeEnabled && !isSelfPickup;
+  double get selectedTip => isSelfPickup ? 0.0 : _selectedTip;
 
   void setSelectedTip(double tip) {
-    _selectedTip = tip;
+    _selectedTip = isSelfPickup ? 0.0 : tip;
     notifyListeners();
   }
 
@@ -566,13 +575,18 @@ class CartProvider with ChangeNotifier {
 
   // ── Delivery Fee ──────────────────────────────────────────────────────────
   Future<void> calculateDeliveryFee(double lat, double lng) async {
+    if (isSelfPickup) {
+      _deliveryFee = 0.0;
+      notifyListeners();
+      return;
+    }
     if (_restaurantId == null) return;
     
     try {
       final result = await OrderApiService.calculateDeliveryFee(_restaurantId!, lat, lng);
       if (result != null && result['success'] == true) {
-        // Backend returns deliveryCharge
-        _deliveryFee = (result['deliveryCharge'] as num?)?.toDouble() ?? 40.0;
+        final fee = (result['deliveryCharge'] ?? result['deliveryFee'] ?? result['fee'] as num?)?.toDouble() ?? 40.0;
+        _deliveryFee = isSelfPickup ? 0.0 : fee;
         notifyListeners();
       }
     } catch (e) {

@@ -30,7 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isUploadingAvatar = false;
   String? _uploadedAvatarUrl;
   bool _isCodLoading = false;
-  double _walletBalance = 230.0;
+  double _walletBalance = 0.0;
   String _workHours = "0.0";
   int _todayOrders = 0;
   List<dynamic> _recentRequests = [];
@@ -153,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final rawBal = (result['data']?['balance'] ?? result['data']?['wallet']?['availableBalance'] ?? result['wallet']?['availableBalance']) as num?;
         final bal = rawBal?.toDouble() ?? 0.0;
         setState(() {
-          _walletBalance = bal > 0 ? bal : 230.0;
+          _walletBalance = bal;
           _workHours = result['data']?['billable_hours']?.toString() ?? "0.0";
           _todayOrders = (result['data']?['today_orders'] as num?)?.toInt() ?? 0;
           _recentRequests = result['data']?['recent_requests'] as List? ?? [];
