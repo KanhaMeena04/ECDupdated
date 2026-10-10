@@ -146,9 +146,7 @@ export const menuItems: MenuItemType[] = [
   { text: 'CMS', icon: <Article />, path: '/user-app-cms', permission: 'CMSControlTower' },
   { text: 'Reports & Analytics', icon: <BarChart />, path: '/profit-loss-report', permission: 'Reports' },
 
-  { text: 'Rule Engine', icon: <Tune />, path: '/rule-engine', permission: 'RuleEngine' },
   { text: 'Feature Flags', icon: <Flag />, path: '/feature-flags', permission: 'RuleEngine' },
-  { text: 'Scheduled Changes', icon: <Schedule />, path: '/scheduled-changes', permission: 'RuleEngine' },
 
   {
     text: 'Master Settings',
