@@ -734,6 +734,21 @@ class RestaurantApiService {
         pCategory = json['category'].toString();
       }
     }
+    final isHexId = pCategory.length == 24 && RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(pCategory);
+    if (pCategory == 'General' || isHexId) {
+      if (json['categoryId'] is Map) {
+        final cMap = json['categoryId'];
+        pCategory = cMap['name'] is Map
+            ? (cMap['name']['en']?.toString() ?? cMap['name'].values.first?.toString() ?? pCategory)
+            : (cMap['name']?.toString() ?? cMap['title']?.toString() ?? pCategory);
+      } else if (json['categoryName'] != null && json['categoryName'].toString().trim().isNotEmpty) {
+        pCategory = json['categoryName'].toString().trim();
+      } else if (json['subcategory'] is Map && json['subcategory']['name'] != null) {
+        pCategory = json['subcategory']['name'].toString().trim();
+      } else if (json['subcategory'] != null && json['subcategory'].toString().trim().isNotEmpty) {
+        pCategory = json['subcategory'].toString().trim();
+      }
+    }
 
     final String rawImg = (json['image'] ?? json['imageUrl'] ?? '').toString().trim();
     final String itemImageUrl = (rawImg.isNotEmpty && rawImg != 'null')

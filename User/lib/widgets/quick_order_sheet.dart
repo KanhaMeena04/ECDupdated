@@ -49,14 +49,24 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
     try {
       // 1. Fetch dynamic categories from DB
       final catTree = await CategoryService.getCategoryTree(forceRefresh: true);
-      final dynamicCats = catTree
-          .map((c) => c.name.trim())
-          .where((n) => n.isNotEmpty)
-          .toList();
-      if (mounted) {
-        setState(() {
-          _categories = ['All', ...dynamicCats];
-        });
+      final Map<String, String> catIdToNameMap = {};
+      final Set<String> dynamicCats = {};
+
+      for (final c in catTree) {
+        final cName = c.name.trim();
+        if (cName.isNotEmpty) {
+          dynamicCats.add(cName);
+          if (c.id.isNotEmpty) catIdToNameMap[c.id.toLowerCase()] = cName;
+          if (c.slug.isNotEmpty) catIdToNameMap[c.slug.toLowerCase()] = cName;
+        }
+        for (final sub in c.subcategories) {
+          final sName = sub.name.trim();
+          if (sName.isNotEmpty) {
+            dynamicCats.add(sName);
+            if (sub.id.isNotEmpty) catIdToNameMap[sub.id.toLowerCase()] = sName;
+            if (sub.slug.isNotEmpty) catIdToNameMap[sub.slug.toLowerCase()] = sName;
+          }
+        }
       }
 
       // 2. Fetch restaurants strictly within 25km radius of user location
@@ -95,13 +105,36 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
 
         for (final menuItem in menu) {
           if (menuItem.outOfStock) continue;
+
+          String resolvedCat = menuItem.category.trim();
+          final isHexId = resolvedCat.length == 24 && RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(resolvedCat);
+          if (catIdToNameMap.containsKey(resolvedCat.toLowerCase())) {
+            resolvedCat = catIdToNameMap[resolvedCat.toLowerCase()]!;
+          } else if (catIdToNameMap.containsKey(menuItem.subcategory.toLowerCase())) {
+            resolvedCat = catIdToNameMap[menuItem.subcategory.toLowerCase()]!;
+          }
+
+          if (resolvedCat.isEmpty || resolvedCat == 'General' || isHexId) {
+            if (menuItem.subcategory.trim().isNotEmpty && menuItem.subcategory.length != 24) {
+              resolvedCat = menuItem.subcategory.trim();
+            } else {
+              for (final c in dynamicCats) {
+                if (menuItem.name.toLowerCase().contains(c.toLowerCase())) {
+                  resolvedCat = c;
+                  break;
+                }
+              }
+            }
+          }
+          if (resolvedCat.isEmpty) resolvedCat = 'General';
+
           items.add(Product(
             id: menuItem.id,
             name: menuItem.name,
             description: menuItem.description,
             price: menuItem.price > 0 ? menuItem.price : 149.0,
             image: menuItem.imageUrl,
-            category: menuItem.category.isNotEmpty ? menuItem.category : 'General',
+            category: resolvedCat,
             rating: menuItem.rating > 0 ? menuItem.rating : (rest.rating > 0 ? rest.rating : 4.5),
             isVeg: menuItem.isVeg,
             restaurantId: rest.id,
@@ -114,10 +147,53 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
       // 3. Shuffle nearby dishes randomly for real-time recommendation variety
       items.shuffle();
 
+      // Collect all dynamic categories:
+      // Include all categories from DB category tree plus any unique categories from loaded dishes
+      final Map<String, String> deduplicatedCats = {};
+      void addCategory(String rawCat) {
+        final trimmed = rawCat.trim();
+        if (trimmed.isEmpty || trimmed == 'General' || (trimmed.length == 24 && RegExp(r'^[0-9a-fA-F]{24}$').hasMatch(trimmed))) return;
+        final stemKey = _stem(trimmed);
+        if (!deduplicatedCats.containsKey(stemKey)) {
+          final titleCased = trimmed.split(' ').map((w) {
+            if (w.isEmpty) return '';
+            return '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}';
+          }).join(' ');
+          deduplicatedCats[stemKey] = titleCased;
+        }
+      }
+
+      for (final c in dynamicCats) {
+        addCategory(c);
+      }
+      for (final p in items) {
+        addCategory(p.category);
+      }
+
+      // Prioritize categories that actually have matching dishes so clicking them immediately shows results
+      final List<String> matchingCategories = [];
+      final List<String> otherCategories = [];
+
+      for (final catName in deduplicatedCats.values) {
+        final hasDishes = items.any((p) => _matchesCategory(p, catName));
+        if (hasDishes) {
+          matchingCategories.add(catName);
+        } else {
+          otherCategories.add(catName);
+        }
+      }
+
+      final List<String> finalCategoryList = [
+        'All',
+        ...matchingCategories,
+        ...otherCategories,
+      ];
+
       if (mounted) {
         setState(() {
           _allProducts = items;
           _restaurantMap = restMap;
+          _categories = finalCategoryList;
         });
       }
     } catch (e) {
@@ -129,13 +205,121 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
     }
   }
 
+  static String _stem(String s) {
+    var lower = s.trim().toLowerCase();
+    if (lower.endsWith('ies') && lower.length > 4) {
+      return lower.substring(0, lower.length - 3) + 'y';
+    }
+    if (lower.endsWith('es') && lower.length > 3) {
+      return lower.substring(0, lower.length - 2);
+    }
+    if (lower.endsWith('s') && !lower.endsWith('ss') && lower.length > 2) {
+      return lower.substring(0, lower.length - 1);
+    }
+    return lower;
+  }
+
+  bool _matchesCategory(Product p, String selectedCat) {
+    if (selectedCat == 'All') return true;
+
+    final target = selectedCat.trim().toLowerCase();
+    final targetStem = _stem(target);
+
+    final pCat = p.category.trim().toLowerCase();
+    final pCatStem = _stem(pCat);
+
+    final pName = p.name.trim().toLowerCase();
+    final pDesc = p.description.trim().toLowerCase();
+
+    // 1. Direct or substring category match
+    if (pCat == target || pCat.contains(target) || target.contains(pCat)) {
+      return true;
+    }
+
+    // 2. Stem match on category (e.g. "burgers" <-> "burger", "pizzas" <-> "pizza")
+    if (pCatStem == targetStem || pCat.contains(targetStem) || targetStem.contains(pCatStem)) {
+      return true;
+    }
+
+    // 3. Name match on target keyword or stem
+    if (pName.contains(target) || pName.contains(targetStem)) {
+      return true;
+    }
+
+    // 4. Description match on target keyword or stem
+    if (targetStem.length >= 3 && (pDesc.contains(target) || pDesc.contains(targetStem))) {
+      return true;
+    }
+
+    // 5. Semantic keyword mapping for popular food groups:
+    if (targetStem.contains('burger') && (pName.contains('burger') || pCat.contains('burger') || pName.contains('patty') || pCat.contains('patty'))) {
+      return true;
+    }
+    if (targetStem.contains('pizza') && (pName.contains('pizza') || pCat.contains('pizza') || pCat.contains('italian'))) {
+      return true;
+    }
+    if (targetStem.contains('biryani') && (pName.contains('biryani') || pCat.contains('biryani') || pName.contains('pulao') || pCat.contains('pulao'))) {
+      return true;
+    }
+    if (targetStem.contains('sandwich') && (pName.contains('sandwich') || pCat.contains('sandwich') || pName.contains('toast'))) {
+      return true;
+    }
+    if (targetStem.contains('roll') && (pName.contains('roll') || pCat.contains('roll') || pName.contains('wrap') || pName.contains('kathi') || pName.contains('frankie'))) {
+      return true;
+    }
+    if (targetStem.contains('noodle') || targetStem.contains('chowmein') || targetStem.contains('chinese')) {
+      if (pName.contains('noodle') || pName.contains('chowmein') || pName.contains('manchurian') || pCat.contains('chinese') || pCat.contains('noodle')) {
+        return true;
+      }
+    }
+    if (targetStem.contains('beverage') || targetStem.contains('drink') || targetStem.contains('shake')) {
+      if (pCat.contains('beverage') || pCat.contains('drink') || pCat.contains('shake') ||
+          pName.contains('shake') || pName.contains('coffee') || pName.contains('juice') || pName.contains('mojito') || pName.contains('coke') || pName.contains('pepsi') || pName.contains('tea')) {
+        return true;
+      }
+    }
+    if (targetStem.contains('dessert') || targetStem.contains('sweet')) {
+      if (pCat.contains('dessert') || pCat.contains('sweet') || pCat.contains('ice cream') || pCat.contains('bakery') ||
+          pName.contains('cake') || pName.contains('pastry') || pName.contains('ice cream') || pName.contains('gulab jamun') || pName.contains('brownie') || pName.contains('halwa')) {
+        return true;
+      }
+    }
+    if (targetStem.contains('thali') || targetStem.contains('meal')) {
+      if (pName.contains('thali') || pCat.contains('thali') || pName.contains('meal') || pCat.contains('meal')) {
+        return true;
+      }
+    }
+    if (targetStem.contains('momo')) {
+      if (pName.contains('momo') || pCat.contains('momo') || pName.contains('dimsum')) {
+        return true;
+      }
+    }
+    if (targetStem.contains('chicken') && (pName.contains('chicken') || pCat.contains('chicken'))) {
+      return true;
+    }
+    if (targetStem.contains('paneer') && (pName.contains('paneer') || pCat.contains('paneer'))) {
+      return true;
+    }
+    if (targetStem.contains('dosa') || targetStem.contains('south')) {
+      if (pName.contains('dosa') || pName.contains('idli') || pName.contains('uttapam') || pCat.contains('south')) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   List<Product> get _filteredProducts {
     return _allProducts.where((p) {
-      final matchesSearch = _searchQuery.isEmpty ||
-          p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          p.category.toLowerCase().contains(_searchQuery.toLowerCase());
-      final matchesCat = _selectedCategory == 'All' ||
-          p.category.toLowerCase() == _selectedCategory.toLowerCase();
+      final query = _searchQuery.trim().toLowerCase();
+      final matchesSearch = query.isEmpty ||
+          p.name.toLowerCase().contains(query) ||
+          p.category.toLowerCase().contains(query) ||
+          p.description.toLowerCase().contains(query) ||
+          (p.restaurantName != null && p.restaurantName!.toLowerCase().contains(query));
+
+      final matchesCat = _matchesCategory(p, _selectedCategory);
+
       return matchesSearch && matchesCat;
     }).toList();
   }

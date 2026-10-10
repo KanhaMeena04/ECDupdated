@@ -35,9 +35,11 @@ class CategoryItemModel {
     }
     final priceVal = double.tryParse((json['startingPrice'] ?? json['price'] ?? json['fromPrice'] ?? 0).toString()) ?? 0.0;
     return CategoryItemModel(
-      id: json['_id'] ?? json['id'] ?? '',
-      name: json['name'] ?? 'Category',
-      slug: json['slug'] ?? '',
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      name: json['name'] is Map
+          ? (json['name']['en']?.toString() ?? json['name']['de']?.toString() ?? json['name'].values.first?.toString() ?? 'Category')
+          : (json['name']?.toString() ?? 'Category'),
+      slug: json['slug']?.toString() ?? '',
       description: json['description'] ?? '',
       image: (json['image'] != null && json['image'].toString().startsWith('http'))
           ? json['image']
@@ -69,9 +71,11 @@ class SubcategoryItemModel {
 
   factory SubcategoryItemModel.fromJson(Map<String, dynamic> json) {
     return SubcategoryItemModel(
-      id: json['_id'] ?? json['id'] ?? '',
-      name: json['name'] ?? '',
-      slug: json['slug'] ?? '',
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      name: json['name'] is Map
+          ? (json['name']['en']?.toString() ?? json['name']['de']?.toString() ?? json['name'].values.first?.toString() ?? '')
+          : (json['name']?.toString() ?? ''),
+      slug: json['slug']?.toString() ?? '',
       description: json['description'] ?? '',
       image: (json['image'] != null && json['image'].toString().startsWith('http'))
           ? json['image']
