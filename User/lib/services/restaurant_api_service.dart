@@ -21,6 +21,7 @@ class RestaurantApiService {
   static String get popularDishesUrl => '$apiBaseUrl/popular-dishes';
   static String get bannersUrl => '$apiBaseUrl/banners';
   static String get homeSectionsUrl => '$apiBaseUrl/home/sections';
+  static final Map<String, double> _cachedRestaurantRadius = {};
 
   static Future<List<Map<String, dynamic>>> getHomeScreenSections() async {
     if (kFrontendPreviewMode) {
@@ -261,6 +262,33 @@ class RestaurantApiService {
         } else if (jsonResponse is Map) {
           restaurantsJson = jsonResponse['restaurants'] ?? jsonResponse['data'] ?? [];
         }
+
+        // Ensure each restaurant has its accurate live geofence radius from details
+        await Future.wait(restaurantsJson.map((item) async {
+          if (item is Map) {
+            final rId = item['_id']?.toString() ?? item['id']?.toString() ?? item['slug']?.toString();
+            final hasRadius = item['geofenceRadius'] != null || item['deliveryRadius'] != null;
+            if (!hasRadius && rId != null && rId.isNotEmpty) {
+              try {
+                final detailUri = Uri.parse('$restaurantsUrl/details/$rId');
+                final dRes = await http.get(detailUri).timeout(const Duration(seconds: 4));
+                if (dRes.statusCode == 200) {
+                  final dJson = jsonDecode(dRes.body);
+                  final rData = dJson is Map ? (dJson['restaurant'] ?? dJson) : null;
+                  if (rData is Map && rData['geofenceRadius'] != null) {
+                    final r = _parseDouble(rData['geofenceRadius'], 10.0);
+                    item['geofenceRadius'] = r;
+                    item['deliveryRadius'] = r;
+                    _cachedRestaurantRadius[rId] = r;
+                  }
+                }
+              } catch (_) {}
+            } else if (hasRadius && rId != null) {
+              _cachedRestaurantRadius[rId] = _parseDouble(item['geofenceRadius'] ?? item['deliveryRadius'], 10.0);
+            }
+          }
+        }));
+
         final list = restaurantsJson.map((json) => _fromJsonToRestaurant(json)).toList();
         return list;
       }
@@ -607,20 +635,28 @@ class RestaurantApiService {
       }
     }
 
+    final rId = json['_id']?.toString() ?? json['id']?.toString() ?? '';
+    final distKm = _parseDouble(json['distanceKm'] ?? json['distance'] ?? json['distanceInKm'], 1.5);
+    final rawGeo = json['geofenceRadius'] ?? json['deliveryRadius'] ?? json['serviceRadius'] ?? _cachedRestaurantRadius[rId];
+    final double geoRadius = rawGeo != null ? _parseDouble(rawGeo, 25.0) : 25.0;
+    final bool isServiceable = json['isServiceable'] != null ? (json['isServiceable'] == true) : (distKm <= geoRadius);
+
     return Restaurant(
-      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      id: rId,
       slug: json['slug']?.toString() ?? '',
       name: rName,
       imageUrl: json['coverImage']?.toString() ?? json['logo']?.toString() ?? json['image']?.toString() ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600',
       rating: parsedRating,
       reviewCount: _parseInt(json['totalReviews'] != null && json['totalReviews'] > 0 ? json['totalReviews'] : (json['orderCount'] ?? json['reviewCount'] ?? json['totalReviews']), 120),
-      distanceKm: _parseDouble(json['distanceKm'] ?? json['distance'] ?? json['distanceInKm'], 1.5),
+      distanceKm: distKm,
       deliveryTimeMin: _parseInt(json['deliveryTimeMin'] ?? json['deliveryTime'] ?? json['prepTime'] ?? json['estimatedPreparationTime'], 25),
       deliveryCharge: _parseDouble(json['deliveryCharge'] ?? json['shippingFee'], 0.0),
       cuisine: parsedCuisine,
       menu: menuItems,
       isActive: json['isActive'] != false,
       isOnline: json['isOnline'] != false,
+      geofenceRadius: geoRadius,
+      isServiceable: isServiceable,
     );
   }
 

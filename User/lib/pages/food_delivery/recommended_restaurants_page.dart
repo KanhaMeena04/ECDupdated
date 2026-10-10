@@ -40,8 +40,11 @@ class _RecommendedRestaurantsPageState
         lng: loc.lng,
       );
       if (mounted) {
+        final validList = (loc.lat != null && loc.lng != null)
+            ? list.where((r) => r.isServiceable && (r.geofenceRadius == null || r.distanceKm <= r.geofenceRadius!)).toList()
+            : list;
         setState(() {
-          _restaurants = list;
+          _restaurants = validList;
           _isLoading = false;
         });
       }

@@ -339,6 +339,16 @@ const useEditRestaurantProfile = (restaurantId) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === "geofenceRadius" || name === "deliveryRadius" || name === "serviceRadius") {
+      const numVal = Number(value) || 0;
+      setData((prev) => ({
+        ...prev,
+        geofenceRadius: numVal,
+        deliveryRadius: numVal,
+        serviceRadius: numVal,
+      }));
+      return;
+    }
     if (name.includes(".")) {
       setData((prev) => updateNestedField(prev, name, value));
     } else {
@@ -355,10 +365,16 @@ const useEditRestaurantProfile = (restaurantId) => {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
+      const payload = {
+        ...data,
+        geofenceRadius: Number(data.geofenceRadius ?? data.deliveryRadius ?? 10) || 10,
+        deliveryRadius: Number(data.geofenceRadius ?? data.deliveryRadius ?? 10) || 10,
+        serviceRadius: Number(data.geofenceRadius ?? data.deliveryRadius ?? 10) || 10,
+      };
       try {
-        await axios.put(`${API_BASE_URL}/api/restaurants/admin/${restaurantId}`, data, { headers, withCredentials: true });
+        await axios.put(`${API_BASE_URL}/api/restaurants/admin/${restaurantId}`, payload, { headers, withCredentials: true });
       } catch (adminPutErr) {
-        await axios.put(`${API_BASE_URL}/api/restaurants/${restaurantId}`, data, { headers, withCredentials: true });
+        await axios.put(`${API_BASE_URL}/api/restaurants/${restaurantId}`, payload, { headers, withCredentials: true });
       }
       toast.success("Restaurant Updated Successfully!");
       navigate("/restaurants");

@@ -71,6 +71,8 @@ class Restaurant {
   final List<MenuItem> menu;
   final bool isActive;
   final bool isOnline;
+  final double? geofenceRadius;
+  final bool isServiceable;
 
   const Restaurant({
     required this.id,
@@ -86,6 +88,8 @@ class Restaurant {
     required this.menu,
     this.isActive = true,
     this.isOnline = false,
+    this.geofenceRadius,
+    this.isServiceable = true,
   });
 
   double get distance => distanceKm;
@@ -104,6 +108,8 @@ class Restaurant {
     List<MenuItem>? menu,
     bool? isActive,
     bool? isOnline,
+    double? geofenceRadius,
+    bool? isServiceable,
   }) {
     return Restaurant(
       id: id ?? this.id,
@@ -119,6 +125,8 @@ class Restaurant {
       menu: menu ?? this.menu,
       isActive: isActive ?? this.isActive,
       isOnline: isOnline ?? this.isOnline,
+      geofenceRadius: geofenceRadius ?? this.geofenceRadius,
+      isServiceable: isServiceable ?? this.isServiceable,
     );
   }
 }

@@ -49,6 +49,14 @@ const normalizeCuisine = (value) => {
   }
   return value;
 };
+let _restaurantsCache = null;
+let _restaurantsCacheTime = 0;
+const RESTAURANTS_CACHE_TTL = 60 * 1000; // 60 seconds
+const clearRestaurantsCache = () => {
+  _restaurantsCache = null;
+  _restaurantsCacheTime = 0;
+};
+exports.clearRestaurantsCache = clearRestaurantsCache;
 const normalizeTranslation = (value) => {
   const parsed = parseIfString(value);
   if (!parsed) return parsed;
@@ -1141,7 +1149,13 @@ exports.updateRestaurant = async (req, res) => {
       "city",
       "area",
       "location",
+      "latitude",
+      "longitude",
+      "lat",
+      "lng",
       "geofenceRadius",
+      "deliveryRadius",
+      "serviceRadius",
       "isOnline",
       "isActive",
       "isTemporarilyClosed",
@@ -1153,6 +1167,8 @@ exports.updateRestaurant = async (req, res) => {
       "email",
       "deliveryTime",
       "geofenceRadius",
+      "deliveryRadius",
+      "serviceRadius",
       "deliveringZones",
       "deliveryType",
       "paymentMethods",
@@ -1184,6 +1200,27 @@ exports.updateRestaurant = async (req, res) => {
     allowed.forEach((field) => {
       if (updates[field] !== undefined) sanitized[field] = updates[field];
     });
+
+    if (updates.geofenceRadius !== undefined || updates.deliveryRadius !== undefined || updates.serviceRadius !== undefined) {
+      const radiusVal = Number(updates.geofenceRadius ?? updates.deliveryRadius ?? updates.serviceRadius);
+      if (!isNaN(radiusVal) && radiusVal > 0) {
+        sanitized.geofenceRadius = radiusVal;
+        sanitized.deliveryRadius = radiusVal;
+        sanitized.serviceRadius = radiusVal;
+      }
+    }
+
+    if (updates.location !== undefined) {
+      sanitized.location = normalizeGeoLocation(updates.location);
+    } else if (updates.latitude !== undefined || updates.longitude !== undefined || updates.lat !== undefined || updates.lng !== undefined) {
+      sanitized.location = normalizeGeoLocation({ latitude: updates.latitude || updates.lat, longitude: updates.longitude || updates.lng });
+    }
+    if (sanitized.location && Array.isArray(sanitized.location.coordinates) && sanitized.location.coordinates.length === 2) {
+      sanitized.lng = sanitized.location.coordinates[0];
+      sanitized.lat = sanitized.location.coordinates[1];
+      sanitized.longitude = sanitized.location.coordinates[0];
+      sanitized.latitude = sanitized.location.coordinates[1];
+    }
 
     if (updates.autoApproveMenu !== undefined) {
       sanitized.autoApproveMenu = updates.autoApproveMenu === true || updates.autoApproveMenu === "true";
@@ -1291,6 +1328,8 @@ exports.updateRestaurant = async (req, res) => {
       { new: true, runValidators: true },
     );
 
+    clearRestaurantsCache();
+
     try {
       const socketService = require("../services/socketService");
       const payload = {
@@ -1300,6 +1339,10 @@ exports.updateRestaurant = async (req, res) => {
         isSelfPickupEnabled: updatedRestaurant.isSelfPickupEnabled,
         isOnline: updatedRestaurant.isOnline,
         isActive: updatedRestaurant.isActive,
+        geofenceRadius: updatedRestaurant.geofenceRadius,
+        deliveryRadius: updatedRestaurant.geofenceRadius,
+        serviceRadius: updatedRestaurant.geofenceRadius,
+        location: updatedRestaurant.location,
       };
       socketService.emitToAll("restaurant:profile_updated", payload);
       socketService.emitToRestaurant(updatedRestaurant._id.toString(), "restaurant:profile_updated", payload);
@@ -2202,10 +2245,6 @@ exports.settlementReport = async (req, res) => {
   }
 };
 
-let _restaurantsCache = null;
-let _restaurantsCacheTime = 0;
-const RESTAURANTS_CACHE_TTL = 60 * 1000; // 60 seconds
-
 exports.getAllRestaurants = async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -2377,26 +2416,56 @@ exports.getAllRestaurants = async (req, res) => {
       } else if (restaurant.lat != null && restaurant.lng != null && Number.isFinite(Number(restaurant.lat)) && Number.isFinite(Number(restaurant.lng))) {
         rLat = Number(restaurant.lat);
         rLng = Number(restaurant.lng);
+      } else if (restaurant.latitude != null && restaurant.longitude != null && Number.isFinite(Number(restaurant.latitude)) && Number.isFinite(Number(restaurant.longitude))) {
+        rLat = Number(restaurant.latitude);
+        rLng = Number(restaurant.longitude);
       }
+
       if (hasUserCoords && rLat != null && rLng != null) {
         distance = calculateDistance([rawLng, rawLat], [rLng, rLat]);
       }
+
+      const rawRadius = restaurant.geofenceRadius ?? restaurant.deliveryRadius ?? restaurant.serviceRadius ?? 5;
+      const restRadius = (Number(rawRadius) > 0 && !isNaN(Number(rawRadius))) ? Number(rawRadius) : 5;
+
+      const hasValidDistance = distance !== null && !isNaN(distance);
+      const isServiceable = hasValidDistance ? (distance <= restRadius) : true;
+
       return {
         restaurant,
-        distanceKm: distance !== null ? Number(distance.toFixed(1)) : 2.5,
+        distanceKm: hasValidDistance ? Number(distance.toFixed(1)) : 2.5,
+        serviceRadius: restRadius,
+        hasDistance: hasValidDistance,
+        isServiceable,
       };
     });
 
     // Sort by distance (closest first)
     withDistances.sort((a, b) => a.distanceKm - b.distanceKm);
 
-    // If restaurants are found within 25 km, prioritize nearby restaurants.
-    // If user is testing APK remotely (outside 25 km), show all available restaurants sorted by distance
-    // so user and testers never see an empty blank screen!
-    const nearby = withDistances.filter(r => r.distanceKm <= 25);
-    const filteredRestaurants = nearby.length > 0 ? nearby : withDistances;
+    // Strictly enforce restaurant delivery geofence radius when user coordinates are present!
+    // If restaurant radius is reduced/updated (e.g., to 1 KM), only users within 1 KM will see it.
+    let filteredRestaurants;
+    if (hasUserCoords) {
+      filteredRestaurants = withDistances.filter(r => {
+        if (r.hasDistance) {
+          return r.distanceKm <= r.serviceRadius;
+        }
+        return false;
+      });
 
-    const formattedRestaurants = filteredRestaurants.map(({ restaurant, distanceKm }) => {
+      // Special QA/tester fallback ONLY when user coordinates are testing remotely in another state/city (> 100 km away):
+      if (filteredRestaurants.length === 0 && withDistances.length > 0) {
+        const closestDistance = withDistances[0].distanceKm;
+        if (closestDistance > 100) {
+          filteredRestaurants = withDistances;
+        }
+      }
+    } else {
+      filteredRestaurants = withDistances;
+    }
+
+    const formattedRestaurants = filteredRestaurants.map(({ restaurant, distanceKm, serviceRadius, isServiceable }) => {
       let menu = restMenuMap[restaurant._id.toString()] || [];
       if (menu.length === 0 && Array.isArray(restaurant.menu) && restaurant.menu.length > 0) {
         menu = restaurant.menu.map((item, idx) => ({
@@ -2425,6 +2494,10 @@ exports.getAllRestaurants = async (req, res) => {
       formatted.deliveryTime = restaurant.deliveryTime ? Number(restaurant.deliveryTime) : Math.max(15, computedTime);
       formatted.deliveryTimeMin = formatted.deliveryTime;
       formatted.deliveryTimeFormatted = `${Math.max(10, formatted.deliveryTime - 5)}-${formatted.deliveryTime + 5} mins`;
+      formatted.geofenceRadius = serviceRadius;
+      formatted.deliveryRadius = serviceRadius;
+      formatted.serviceRadius = serviceRadius;
+      formatted.isServiceable = isServiceable;
       formatted.menu = menu;
       return formatted;
     });

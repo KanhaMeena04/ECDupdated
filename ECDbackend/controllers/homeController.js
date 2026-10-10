@@ -169,6 +169,11 @@ const decorateRestaurants = ({
           restaurantLong
         );
         result.distanceKm = Number(distanceKm.toFixed(2));
+        result.distance = result.distanceKm;
+        const radius = Number(restaurant.geofenceRadius || restaurant.deliveryRadius || restaurant.serviceRadius || 5);
+        result.geofenceRadius = radius;
+        result.deliveryRadius = radius;
+        result.isServiceable = result.distanceKm <= radius;
       }
     }
     return result;

@@ -98,6 +98,13 @@ exports.getSuggestions = async (req, res) => {
         );
         const availableRestaurants = restaurantsWithAvailability
             .filter(Boolean)
+            .filter((entry) => {
+                if (hasCoords && entry.distanceKm !== null) {
+                    const radius = Number(entry.restaurant.geofenceRadius || entry.restaurant.deliveryRadius || entry.restaurant.serviceRadius || 5);
+                    if (entry.distanceKm > radius) return false;
+                }
+                return true;
+            })
             .slice(0, 5);
         const allowedRestaurantIds = new Set(
             availableRestaurants.map((entry) => entry.restaurant._id.toString())
@@ -254,6 +261,10 @@ exports.globalSearch = async (req, res) => {
         const formattedRestaurants = restaurantsWithAvailability
             .filter(Boolean)
             .filter((entry) => {
+                if (hasCoords && entry.distanceKm !== null) {
+                    const radius = Number(entry.restaurant.geofenceRadius || entry.restaurant.deliveryRadius || entry.restaurant.serviceRadius || 5);
+                    if (entry.distanceKm > radius) return false;
+                }
                 if (!maxDeliveryTime) return true;
                 return entry.estimatedDeliveryTime <= Number(maxDeliveryTime);
             })
@@ -378,6 +389,13 @@ exports.getSearchLanding = async (req, res) => {
             );
             nearbyRestaurants = restaurantsWithAvailability
                 .filter(Boolean)
+                .filter((entry) => {
+                    if (hasCoords && entry.distanceKm !== null) {
+                        const radius = Number(entry.restaurant.geofenceRadius || entry.restaurant.deliveryRadius || entry.restaurant.serviceRadius || 5);
+                        if (entry.distanceKm > radius) return false;
+                    }
+                    return true;
+                })
                 .map((entry) => ({
                     ...formatRestaurantForUser(entry.restaurant),
                     estimatedDeliveryTime: entry.estimatedDeliveryTime,

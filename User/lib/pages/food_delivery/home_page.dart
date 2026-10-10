@@ -476,12 +476,15 @@ class _HomeTabState extends State<_HomeTab> {
       );
 
       if (currentFetchId == _fetchCounter && mounted) {
+        final validList = (reqLat != null && reqLng != null)
+            ? restaurants.where((r) => r.isServiceable && (r.geofenceRadius == null || r.distanceKm <= r.geofenceRadius!)).toList()
+            : restaurants;
         setState(() {
-          _restaurants = restaurants;
+          _restaurants = validList;
           _isLoadingRestaurants = false;
         });
 
-        debugPrint('RESTAURANT_PARSE_LOG\nbackend count = ${restaurants.length}\nparsed count = ${restaurants.length}\nstate count = ${_restaurants.length}\nUI count = ${_displayRestaurants.length}');
+        debugPrint('RESTAURANT_PARSE_LOG\nbackend count = ${restaurants.length}\nparsed count = ${validList.length}\nstate count = ${_restaurants.length}\nUI count = ${_displayRestaurants.length}');
       }
     } catch (e) {
       if (currentFetchId == _fetchCounter && mounted) {

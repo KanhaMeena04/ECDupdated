@@ -88,6 +88,13 @@ exports.formatRestaurantForUser = (restaurant, userLat = null, userLng = null) =
     restaurantApproved: restaurant.restaurantApproved !== false,
     menuApproved: restaurant.menuApproved !== false,
     verificationStatus: restaurant.verificationStatus || 'verified',
+    geofenceRadius: Number(restaurant.geofenceRadius ?? restaurant.deliveryRadius ?? restaurant.serviceRadius ?? 5) || 5,
+    deliveryRadius: Number(restaurant.geofenceRadius ?? restaurant.deliveryRadius ?? restaurant.serviceRadius ?? 5) || 5,
+    serviceRadius: Number(restaurant.geofenceRadius ?? restaurant.deliveryRadius ?? restaurant.serviceRadius ?? 5) || 5,
+    location: restaurant.location,
+    latitude: restaurant.location?.coordinates?.[1] ?? restaurant.lat ?? restaurant.latitude,
+    longitude: restaurant.location?.coordinates?.[0] ?? restaurant.lng ?? restaurant.longitude,
+    isServiceable: dist <= (Number(restaurant.geofenceRadius ?? restaurant.deliveryRadius ?? restaurant.serviceRadius ?? 5) || 5),
     timing: restaurant.timing,
     offers: restaurant.offers || []
   };
