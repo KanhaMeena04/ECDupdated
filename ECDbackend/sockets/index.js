@@ -30,29 +30,52 @@ module.exports = (io) => {
       socket.lastLocationBroadcast = Date.now();
     }
 
-    socket.on('join:restaurant', (restaurantId) => {
-      if (restaurantId) {
-        socket.join(`restaurant:${restaurantId}`);
-        socket.join(`restaurant_${restaurantId}`);
-        socket.join('restaurants');
-        console.log(`🍽️ Socket ${socket.id} joined restaurant room: ${restaurantId}`);
+    const handleJoinRestaurant = (restId) => {
+      if (!restId) return;
+      const cleanId = String(restId).replace(/^restaurant[_:]?/, '');
+      socket.join(`restaurant:${cleanId}`);
+      socket.join(`restaurant_${cleanId}`);
+      socket.join(String(restId));
+      socket.join('restaurants');
+      console.log(`🍽️ Socket ${socket.id} joined restaurant rooms for: ${cleanId}`);
+    };
+
+    socket.on('join:restaurant', handleJoinRestaurant);
+    socket.on('restaurant:join', handleJoinRestaurant);
+    socket.on('joinRestaurant', handleJoinRestaurant);
+
+    socket.on('joinRoom', (room) => {
+      if (!room) return;
+      socket.join(room);
+      if (String(room).startsWith('restaurant') || String(room).includes('restaurant_')) {
+        handleJoinRestaurant(room);
       }
+      console.log(`📡 Socket ${socket.id} joined room: ${room}`);
     });
-    socket.on('restaurant:join', (restaurantId) => {
-      if (restaurantId) {
-        socket.join(`restaurant:${restaurantId}`);
-        socket.join(`restaurant_${restaurantId}`);
-        socket.join('restaurants');
-        console.log(`🍽️ Socket ${socket.id} joined restaurant room: ${restaurantId}`);
+
+    socket.on('joinOrder', (orderOrRoom) => {
+      if (!orderOrRoom) return;
+      socket.join(orderOrRoom);
+      if (String(orderOrRoom).startsWith('restaurant')) {
+        handleJoinRestaurant(orderOrRoom);
+      } else {
+        const cleanId = String(orderOrRoom).replace(/^order[_:]?/, '');
+        socket.join(`order:${cleanId}`);
+        socket.join(`order_${cleanId}`);
       }
+      console.log(`📦 Socket ${socket.id} joined order/room: ${orderOrRoom}`);
     });
 
     socket.on('join:order', (orderId) => {
+      if (!orderId) return;
       socket.join(`order:${orderId}`);
+      socket.join(`order_${orderId}`);
       console.log(`📦 User ${socket.userId} joined order: ${orderId}`);
     });
     socket.on('leave:order', (orderId) => {
+      if (!orderId) return;
       socket.leave(`order:${orderId}`);
+      socket.leave(`order_${orderId}`);
       console.log(`📦 User ${socket.userId} left order: ${orderId}`);
     });
 

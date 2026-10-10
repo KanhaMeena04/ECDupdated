@@ -143,12 +143,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             'Content-Type': 'application/json',
             if (token.isNotEmpty) 'Authorization': 'Bearer $token',
           },
-        ).timeout(const Duration(seconds: 6));
+        ).timeout(const Duration(seconds: 15));
         if (oRes.statusCode == 200) {
           final oData = jsonDecode(oRes.body);
           List<dynamic> list = [];
           if (oData is List) list = oData;
           else if (oData['orders'] is List) list = oData['orders'];
+          else if (oData['data'] is List) list = oData['data'];
 
           double rev = 0.0;
           for (var o in list) {

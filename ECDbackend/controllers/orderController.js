@@ -503,11 +503,16 @@ exports.placeOrder = async (req, res) => {
       return sendError(res, 400, paymentFailure ? paymentFailure.reason : "Payment failed");
     }
     const isOnlineOrder = paymentMethod === "online";
-    const initialStatus = isOnlineOrder ? "pending" : "placed";
-    const initialStatusLabel = isOnlineOrder ? "Awaiting Payment" : "Order Placed";
-    const initialStatusDesc = isOnlineOrder
-      ? "Waiting for payment to be completed via Stripe."
-      : "Your order has been placed";
+    const isExplicitlyPaid = req.body.paymentStatus === "paid" || req.body.isPaid === true || Boolean(paymentId) || req.body.paid === true;
+    if (isOnlineOrder && isExplicitlyPaid) {
+      paymentStatus = "paid";
+    }
+    const requiresExternalGateway = isOnlineOrder && !isExplicitlyPaid && (req.body.requiresGateway === true || req.body.externalGateway === true);
+    const initialStatus = requiresExternalGateway ? "pending" : "placed";
+    const initialStatusLabel = initialStatus === "pending" ? "Awaiting Payment" : "Order Placed";
+    const initialStatusDesc = initialStatus === "pending"
+      ? "Waiting for payment to be completed via gateway."
+      : "Your order has been placed and confirmed";
     
     const adminCommission = bill.adminCommissionAmount !== undefined ? bill.adminCommissionAmount : Math.round(bill.itemTotal * 0.2 * 100) / 100;
     const restaurantCommission = bill.restaurantNetPayable !== undefined ? bill.restaurantNetPayable : Math.round((bill.itemTotal - adminCommission) * 100) / 100;
@@ -652,7 +657,7 @@ exports.placeOrder = async (req, res) => {
       } catch (notifErr) {}
     }
 
-    if (isOnlineOrder) {
+    if (requiresExternalGateway) {
       return res.status(201).json({
         success: true,
         message: "Order created. Complete payment to confirm.",
@@ -4130,67 +4135,6 @@ exports.notifyCustomerArrived = async (req, res) => {
   }
 };
 
-exports.getOrdersForRestaurantById = async (req, res) => {
-  try {
-    const paramId = req.params.id;
-    let targetRestId = null;
-
-    if (isValidObjectId(paramId)) {
-      const restDoc = await Restaurant.findById(paramId).select('_id');
-      if (restDoc) {
-        targetRestId = restDoc._id;
-      } else {
-        const restByOwner = await Restaurant.findOne({ owner: paramId }).select('_id');
-        if (restByOwner) targetRestId = restByOwner._id;
-      }
-    }
-
-    if (!targetRestId && typeof paramId === 'string') {
-      const cleanPhone = paramId.replace(/\D/g, '');
-      if (cleanPhone.length >= 10) {
-        const restByPhone = await Restaurant.findOne({
-          $or: [
-            { contactNumber: new RegExp(cleanPhone.slice(-10)) },
-            { ownerMobile: new RegExp(cleanPhone.slice(-10)) },
-            { phone: new RegExp(cleanPhone.slice(-10)) }
-          ]
-        }).select('_id');
-        if (restByPhone) targetRestId = restByPhone._id;
-      }
-    }
-
-    if (targetRestId) {
-      const orders = await Order.find({ restaurant: targetRestId })
-        .populate("customer", "name email mobile phone")
-        .populate({ path: "rider", populate: { path: "user", select: "name mobile profilePic" } })
-        .sort({ createdAt: -1 });
-
-      const formattedOrders = orders.map((order) => {
-        const orderObj = order.toObject();
-        if (orderObj.items && Array.isArray(orderObj.items)) {
-          orderObj.items = orderObj.items.map(item => ({
-            ...item,
-            name: item.name || (item.product && item.product.name) || "Food Item",
-            image: item.image || (item.product && item.product.image) || "",
-            price: typeof item.price === 'number' ? item.price : ((item.product && typeof item.product.price === 'number') ? item.product.price : 0),
-            quantity: item.quantity || item.qty || 1
-          }));
-        }
-        return enrichOrderWithUnifiedPricing(orderObj);
-      });
-
-      return res.status(200).json({ success: true, orders: formattedOrders });
-    }
-
-    if (isValidObjectId(paramId)) {
-      return exports.getOrderDetailsRestaurant(req, res);
-    }
-
-    return res.status(200).json({ success: true, orders: [] });
-  } catch (error) {
-    return sendError(res, 500, "Error fetching orders", error.message);
-  }
-};
 
 exports.prepareOrderVendor = async (req, res) => {
   try {
@@ -4436,65 +4380,117 @@ exports.sendPickupOtpVendor = async (req, res) => {
 
 exports.getOrdersForRestaurantById = async (req, res) => {
   try {
-    const rawId = req.params.id || req.params.restaurantId;
+    const rawId = req.params.id || req.params.restaurantId || req.query.restaurantId;
     const id = (rawId && rawId !== "restaurant" && rawId !== "undefined" && rawId !== "null") ? rawId.toString().trim() : null;
-    let restaurant = null;
+    
+    // Collect all restaurant candidates
+    const matchedRestIds = new Set();
+    const matchedRestCodes = new Set();
 
-    if (id && mongoose.Types.ObjectId.isValid(id)) {
-      restaurant = await Restaurant.findById(id);
-    }
-
-    if (!restaurant && req.user) {
-      restaurant = await Restaurant.findOne({ owner: req.user._id });
-      if (!restaurant && req.user.mobile) {
-        restaurant = await Restaurant.findOne({
-          $or: [
-            { contactNumber: req.user.mobile },
-            { phone: req.user.mobile },
-            { email: req.user.email }
-          ]
-        });
+    // 1. Match by ID parameter if valid ObjectId or string code
+    if (id) {
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        matchedRestIds.add(new mongoose.Types.ObjectId(id));
+      } else {
+        matchedRestCodes.add(id);
+      }
+      const directRest = await Restaurant.findOne({
+        $or: [
+          ...(mongoose.Types.ObjectId.isValid(id) ? [{ _id: id }] : []),
+          { restaurantId: id },
+          { slug: id }
+        ]
+      });
+      if (directRest) {
+        matchedRestIds.add(directRest._id);
+        if (directRest.restaurantId) matchedRestCodes.add(directRest.restaurantId);
+        if (directRest.slug) matchedRestCodes.add(directRest.slug);
       }
     }
 
-    if (!restaurant && id) {
-      const cleanMobile = id.replace(/\D/g, "");
-      const ownerUser = cleanMobile.length >= 7 ? await User.findOne({ mobile: cleanMobile }) : null;
-      restaurant = await Restaurant.findOne({
-        $or: [
-          { restaurantId: id },
-          { slug: id },
-          ...(cleanMobile ? [{ contactNumber: cleanMobile }, { contactNumber: { $regex: cleanMobile } }, { phone: cleanMobile }] : []),
-          ...(ownerUser ? [{ owner: ownerUser._id }] : []),
-          ...(mongoose.Types.ObjectId.isValid(id) ? [{ _id: id }] : [])
-        ]
-      });
+    // 2. Match by Authenticated User (Owner)
+    if (req.user) {
+      const userRestCriteria = [];
+      if (req.user._id) userRestCriteria.push({ owner: req.user._id });
+      if (req.user.restaurant) {
+        if (mongoose.Types.ObjectId.isValid(req.user.restaurant)) {
+          userRestCriteria.push({ _id: req.user.restaurant });
+        }
+        userRestCriteria.push({ restaurantId: req.user.restaurant.toString() });
+      }
+      const uPhone = req.user.mobile || req.user.phone;
+      if (uPhone) {
+        const cleanUPhone = String(uPhone).replace(/\D/g, '').slice(-10);
+        if (cleanUPhone) {
+          userRestCriteria.push({ contactNumber: new RegExp(cleanUPhone) });
+          userRestCriteria.push({ phone: new RegExp(cleanUPhone) });
+        }
+      }
+      if (userRestCriteria.length > 0) {
+        const userRests = await Restaurant.find({ $or: userRestCriteria });
+        for (const r of userRests) {
+          matchedRestIds.add(r._id);
+          if (r.restaurantId) matchedRestCodes.add(r.restaurantId);
+          if (r.slug) matchedRestCodes.add(r.slug);
+        }
+      }
     }
 
-    if (!restaurant) {
-      restaurant = await Restaurant.findOne({
+    // 3. Match by phone number in id parameter if applicable
+    if (id && matchedRestIds.size === 0) {
+      const cleanPhone = id.replace(/\D/g, '').slice(-10);
+      if (cleanPhone.length >= 7) {
+        const phoneRests = await Restaurant.find({
+          $or: [
+            { contactNumber: new RegExp(cleanPhone) },
+            { phone: new RegExp(cleanPhone) },
+            { ownerMobile: new RegExp(cleanPhone) }
+          ]
+        });
+        for (const r of phoneRests) {
+          matchedRestIds.add(r._id);
+          if (r.restaurantId) matchedRestCodes.add(r.restaurantId);
+        }
+      }
+    }
+
+    // Build the query
+    const queryConditions = [];
+    if (matchedRestIds.size > 0) {
+      const idArray = Array.from(matchedRestIds);
+      queryConditions.push({ restaurant: { $in: idArray } });
+      queryConditions.push({ "restaurant._id": { $in: idArray } });
+    }
+    if (matchedRestCodes.size > 0) {
+      const codeArray = Array.from(matchedRestCodes);
+      queryConditions.push({ restaurantId: { $in: codeArray } });
+    }
+    if (id) {
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        queryConditions.push({ restaurant: new mongoose.Types.ObjectId(id) });
+      }
+      queryConditions.push({ restaurantId: id });
+    }
+
+    let query = {};
+    if (queryConditions.length > 0) {
+      query = { $or: queryConditions };
+    } else {
+      // Fallback: If no restaurant specified and no user, find the most active restaurant
+      const fallbackRest = await Restaurant.findOne({
         $or: [
           { "orderCount": { $gt: 0 } },
           { restaurantApproved: true }
         ]
       }).sort({ updatedAt: -1 });
-    }
-
-    let query = {};
-    if (restaurant) {
-      query = {
-        $or: [
-          { restaurant: restaurant._id },
-          { restaurantId: restaurant.restaurantId },
-          { restaurantId: restaurant._id.toString() },
-          { restaurant: restaurant._id.toString() },
-          ...(id ? [{ restaurantId: id }, { restaurant: id }] : [])
-        ]
-      };
-    } else if (id) {
-      query = mongoose.Types.ObjectId.isValid(id)
-        ? { $or: [{ restaurant: id }, { restaurantId: id }, { restaurant: id.toString() }] }
-        : { $or: [{ restaurantId: id }, { restaurant: id }] };
+      if (fallbackRest) {
+        query = {
+          $or: [
+            { restaurant: fallbackRest._id },
+            { restaurantId: fallbackRest.restaurantId || fallbackRest._id.toString() }
+          ]
+        };
+      }
     }
 
     const orders = await Order.find(query)
@@ -4512,7 +4508,7 @@ exports.getOrdersForRestaurantById = async (req, res) => {
       orderObj.backendId = orderObj._id ? orderObj._id.toString() : '';
       orderObj.id = ordNumber;
       orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
-      orderObj.restaurantId = orderObj.restaurantId || restaurant?.restaurantId || "RNT001";
+      orderObj.restaurantId = orderObj.restaurantId || "RNT001";
       if (orderObj.items && Array.isArray(orderObj.items)) {
         orderObj.items = orderObj.items.map(item => {
           const name = item.name || (item.product && (item.product.name?.en || item.product.name)) || "Food Item";

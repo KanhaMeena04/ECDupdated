@@ -44,7 +44,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           'Content-Type': 'application/json',
           if (token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 15));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -53,6 +53,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           rawOrders = data;
         } else if (data['orders'] is List) {
           rawOrders = data['orders'];
+        } else if (data['data'] is List) {
+          rawOrders = data['data'];
         }
 
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

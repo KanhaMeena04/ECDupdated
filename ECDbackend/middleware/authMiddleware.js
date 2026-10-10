@@ -169,13 +169,35 @@ const ensureOwnOrder = async (req, res, next) => {
 };
 const optionalAuth = async (req, res, next) => {
   try {
-    let token = req.cookies.token;
-    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    let token = req.cookies?.token;
+    if (!token && req.headers?.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
-    if (token) {
+    if (token && token !== 'null' && token !== 'undefined' && token !== '') {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded._id || decoded.id).select('-password');
+      const userId = decoded._id || decoded.id || decoded.userId;
+      let user = null;
+      if (userId) {
+        user = await User.findById(userId).select('-password');
+      }
+      if (!user && (decoded.restaurantId || decoded._id)) {
+        const Restaurant = require('../models/Restaurant');
+        const restDoc = await Restaurant.findById(decoded.restaurantId || decoded._id);
+        if (restDoc) {
+          user = {
+            _id: restDoc.owner || restDoc._id,
+            role: 'restaurant_owner',
+            restaurant: restDoc._id,
+            name: typeof restDoc.name === 'object' ? restDoc.name.en : restDoc.name,
+            phone: restDoc.contactNumber || restDoc.phone,
+            mobile: restDoc.contactNumber || restDoc.phone
+          };
+        }
+      }
+      if (user && decoded.restaurantId && !user.restaurant) {
+        user.restaurant = decoded.restaurantId;
+      }
+      req.user = user;
     }
   } catch (error) {
     // Silently continue for optional auth

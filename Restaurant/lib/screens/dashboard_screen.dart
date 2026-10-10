@@ -198,7 +198,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'Content-Type': 'application/json',
           if (token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 15));
 
       if (res.statusCode != 200 && token.isNotEmpty && ordersUrl.contains('/restaurant/')) {
         try {
@@ -209,7 +209,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
             },
-          ).timeout(const Duration(seconds: 8));
+          ).timeout(const Duration(seconds: 15));
         } catch (_) {}
       }
 
@@ -220,6 +220,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ordersList = data;
         } else if (data['orders'] is List) {
           ordersList = data['orders'];
+        } else if (data['data'] is List) {
+          ordersList = data['data'];
         }
 
         final parsedOrders = ordersList.map<Order>((json) => Order.fromJson(json)).toList();
@@ -841,6 +843,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return _orders.where((o) {
       final bool matchesType = _selectedOrderType == 'pickup' ? _isOrderPickupType(o) : !_isOrderPickupType(o);
       if (!matchesType) return false;
+      if (status == 'Placed') return o.status == 'Placed' || o.status == 'Pending' || o.status == 'Rider Assigned';
+      if (status == 'Preparing') return o.status == 'Preparing';
       if (status == 'Ready') return o.status == 'Ready' || o.status == 'Ready for Pickup';
       if (status == 'Delivered') return o.status == 'Delivered' || o.status == 'Handed Over' || o.status == 'Picked Up' || o.status == 'Completed';
       return o.status == status;
@@ -876,6 +880,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final isHandedOver = s == 'picked_up' || s == 'picked up' || s == 'out_for_delivery' || s == 'out for delivery' || s == 'on_the_way' || s == 'on the way' || s == 'handed_over' || s == 'handed over' || s == 'handovered' || s == 'delivered' || s == 'completed';
         return !isHandedOver;
       }
+      if (_selectedStatusFilter == 'Placed') return o.status == 'Placed' || o.status == 'Pending' || o.status == 'Rider Assigned';
       if (_selectedStatusFilter == 'Ready') return o.status == 'Ready' || o.status == 'Ready for Pickup';
       if (_selectedStatusFilter == 'Delivered') return o.status == 'Delivered' || o.status == 'Handed Over' || o.status == 'Picked Up' || o.status == 'Completed';
       return o.status == _selectedStatusFilter;

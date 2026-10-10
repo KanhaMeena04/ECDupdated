@@ -60,13 +60,14 @@ class _PickupOrdersScreenState extends State<PickupOrdersScreen> {
           'Content-Type': 'application/json',
           if (token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 15));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         List<dynamic> rawOrders = [];
         if (data is List) rawOrders = data;
         else if (data['orders'] is List) rawOrders = data['orders'];
+        else if (data['data'] is List) rawOrders = data['data'];
 
         final List<Order> parsedList = [];
         double rev = 0.0;

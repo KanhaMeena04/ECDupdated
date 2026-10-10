@@ -542,7 +542,10 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
 
     final orderData = {
       'restaurantId': cart.restaurantId ?? '',
+      'restaurant': cart.restaurantId ?? '',
       'paymentMethod': isCod ? 'cod' : 'online',
+      'paymentStatus': isCod ? 'pending' : 'paid',
+      'isPaid': !isCod,
       'items': cart.items
           .map((item) => ({
                 'product': item.product.id,

@@ -50,7 +50,7 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
           'Content-Type': 'application/json',
           if (token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 15));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -59,6 +59,8 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
           rawOrders = data;
         } else if (data['orders'] is List) {
           rawOrders = data['orders'];
+        } else if (data['data'] is List) {
+          rawOrders = data['data'];
         }
 
         double totalRev = 0.0;
