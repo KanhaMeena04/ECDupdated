@@ -58,10 +58,27 @@ exports.getRestaurantSettlements = async (req, res) => {
       count: 0
     };
 
+    const resolveName = (raw) => {
+      if (!raw) return "";
+      if (typeof raw === "string") return raw.trim();
+      if (typeof raw === "object") {
+        return raw.en || Object.values(raw).find(v => typeof v === "string" && v.trim()) || "";
+      }
+      return String(raw);
+    };
+
+    const formattedLedgers = ledgers.map(l => {
+      const obj = l.toObject ? l.toObject() : { ...l };
+      if (obj.restaurant && typeof obj.restaurant === 'object') {
+        obj.restaurant.name = resolveName(obj.restaurant.name) || 'Restaurant Partner';
+      }
+      return obj;
+    });
+
     return res.status(200).json({
       success: true,
       summary,
-      ledgers,
+      ledgers: formattedLedgers,
       total,
       page: parseInt(page),
       pages: Math.ceil(total / parseInt(limit))

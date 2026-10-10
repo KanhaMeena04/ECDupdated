@@ -24,6 +24,22 @@ import PageHeader from "../../components/PageHeader";
 import { API_BASE_URL } from "../../../utils/utils";
 import { toast } from "react-hot-toast";
 
+// Robust string helper to safely handle strings, numbers, and multilingual translation objects { en: "..." }
+const resolveString = (val) => {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "string") return val.trim();
+  if (typeof val === "number") return String(val);
+  if (typeof val === "object") {
+    if (val.en && typeof val.en === "string") return val.en.trim();
+    const firstVal = Object.values(val).find(
+      (v) => (typeof v === "string" && v.trim().length > 0) || typeof v === "number"
+    );
+    if (firstVal !== undefined) return String(firstVal).trim();
+    return "";
+  }
+  return String(val).trim();
+};
+
 export default function RestaurantPayoutList() {
   const [activeTab, setActiveTab] = useState("requests"); // 'requests' | 'ledger'
 
@@ -322,13 +338,33 @@ export default function RestaurantPayoutList() {
   // Filter requests based on search query
   const filteredRequests = safeRequests.filter((r) => {
     if (!r) return false;
-    const name = r.restaurantProfile?.name || r.bankDetails?.accountHolder || r.user?.name || "";
-    const phone = r.bankDetails?.phone || r.restaurantProfile?.contactNumber || r.user?.mobile || "";
-    const restId = r.restaurantDisplayId || r.restaurant?._id || "";
-    const upi = r.bankDetails?.upiId || "";
-    const accNum = r.bankDetails?.accountNumber || "";
-    const ifsc = r.bankDetails?.ifsc || "";
-    const query = searchQuery.toLowerCase();
+    const name = resolveString(
+      r.restaurantProfile?.name ||
+      r.restaurant?.name ||
+      r.bankDetails?.accountHolder ||
+      r.user?.name
+    );
+    const phone = resolveString(
+      r.bankDetails?.phone ||
+      r.restaurantProfile?.contactNumber ||
+      r.user?.mobile
+    );
+    const restId = resolveString(
+      r.restaurantDisplayId ||
+      r.restaurant?.restaurantId ||
+      r.restaurant?._id ||
+      r.restaurant
+    );
+    const upi = resolveString(
+      r.bankDetails?.upiId ||
+      r.bankDetails?.upi ||
+      r.restaurant?.upi
+    );
+    const accNum = resolveString(r.bankDetails?.accountNumber);
+    const ifsc = resolveString(r.bankDetails?.ifsc || r.bankDetails?.ifscCode);
+    const query = (searchQuery || "").toLowerCase().trim();
+
+    if (!query) return true;
 
     return (
       name.toLowerCase().includes(query) ||
@@ -588,24 +624,25 @@ export default function RestaurantPayoutList() {
                   <tbody className="divide-y divide-gray-100">
                     {filteredRequests.map((req, idx) => {
                       const restName =
-                        req.restaurantProfile?.name ||
-                        req.bankDetails?.accountHolder ||
-                        req.user?.name ||
+                        resolveString(req.restaurantProfile?.name) ||
+                        resolveString(req.restaurant?.name) ||
+                        resolveString(req.bankDetails?.accountHolder) ||
+                        resolveString(req.user?.name) ||
                         "Restaurant Partner";
                       const restPhone =
-                        req.bankDetails?.phone ||
-                        req.restaurantProfile?.contactNumber ||
-                        req.user?.mobile ||
+                        resolveString(req.bankDetails?.phone) ||
+                        resolveString(req.restaurantProfile?.contactNumber) ||
+                        resolveString(req.user?.mobile) ||
                         "N/A";
                       const restDisplayId =
-                        req.restaurantDisplayId ||
-                        (req.restaurant?._id ? `REST-${req.restaurant._id.slice(-6).toUpperCase()}` : null) ||
-                        (req.user?._id ? `USR-${req.user._id.slice(-6).toUpperCase()}` : "N/A");
-                      const upiId = req.bankDetails?.upiId || req.user?.upi || "";
-                      const accNum = req.bankDetails?.accountNumber || "";
-                      const ifsc = req.bankDetails?.ifsc || "";
-                      const bankName = req.bankDetails?.bankName || "";
-                      const accHolder = req.bankDetails?.accountHolder || restName;
+                        resolveString(req.restaurantDisplayId) ||
+                        (req.restaurant?._id ? `REST-${String(req.restaurant._id).slice(-6).toUpperCase()}` : null) ||
+                        (req.user?._id ? `USR-${String(req.user._id).slice(-6).toUpperCase()}` : "N/A");
+                      const upiId = resolveString(req.bankDetails?.upiId || req.user?.upi);
+                      const accNum = resolveString(req.bankDetails?.accountNumber);
+                      const ifsc = resolveString(req.bankDetails?.ifsc || req.bankDetails?.ifscCode);
+                      const bankName = resolveString(req.bankDetails?.bankName);
+                      const accHolder = resolveString(req.bankDetails?.accountHolder) || restName;
 
                       const isPending = req.status === "pending";
                       const isApproved = req.status === "approved" || req.status === "processed";
@@ -941,12 +978,12 @@ export default function RestaurantPayoutList() {
                     {ledgers.map((row) => (
                       <tr key={row._id} className="hover:bg-gray-50 transition">
                         <td className="py-3.5 px-4 font-mono font-semibold text-xs text-gray-900">
-                          {row.settlementId || row._id.slice(-8).toUpperCase()}
+                          {row.settlementId || (row._id ? String(row._id).slice(-8).toUpperCase() : "N/A")}
                         </td>
 
                         <td className="py-3.5 px-4 font-semibold text-gray-900">
                           <div className="flex items-center justify-between gap-2">
-                            <span>{row.restaurant?.name || "N/A"}</span>
+                            <span>{resolveString(row.restaurant?.name) || "Restaurant Partner"}</span>
                             <button
                               onClick={() => {
                                 setSelectedRestaurantForCycle(row.restaurant);
@@ -962,7 +999,7 @@ export default function RestaurantPayoutList() {
                         </td>
 
                         <td className="py-3.5 px-4 font-mono text-xs text-gray-600">
-                          {row.order?.orderNumber || row.order?._id?.slice(-8) || "N/A"}
+                          {row.order?.orderNumber || (row.order?._id ? String(row.order._id).slice(-8).toUpperCase() : "N/A")}
                         </td>
 
                         <td className="py-3.5 px-4">
@@ -1036,17 +1073,19 @@ export default function RestaurantPayoutList() {
                 <div className="flex justify-between">
                   <span className="text-gray-500">Restaurant Name:</span>
                   <span className="font-semibold text-gray-900">
-                    {selectedRequest.restaurantProfile?.name || selectedRequest.bankDetails?.accountHolder}
+                    {resolveString(selectedRequest.restaurantProfile?.name || selectedRequest.restaurant?.name || selectedRequest.bankDetails?.accountHolder || "Restaurant Partner")}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Restaurant Phone:</span>
-                  <span className="font-semibold text-gray-900">{selectedRequest.bankDetails?.phone || selectedRequest.restaurantProfile?.contactNumber}</span>
+                  <span className="font-semibold text-gray-900">
+                    {resolveString(selectedRequest.bankDetails?.phone || selectedRequest.restaurantProfile?.contactNumber || "N/A")}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Restaurant ID:</span>
                   <span className="font-mono text-xs font-semibold text-gray-800">
-                    {selectedRequest.restaurantDisplayId || selectedRequest.restaurant?._id}
+                    {resolveString(selectedRequest.restaurantDisplayId || selectedRequest.restaurant?._id || "N/A")}
                   </span>
                 </div>
                 <div className="flex justify-between border-t pt-2 mt-2">
@@ -1173,7 +1212,9 @@ export default function RestaurantPayoutList() {
               <p className="text-gray-600">
                 Are you sure you want to reject the payout request of{" "}
                 <span className="font-bold text-gray-900">₹{Number(selectedRequest.amount).toLocaleString()}</span> for{" "}
-                <span className="font-bold text-gray-900">{selectedRequest.restaurantProfile?.name || selectedRequest.bankDetails?.accountHolder}</span>?
+                <span className="font-bold text-gray-900">
+                  {resolveString(selectedRequest.restaurantProfile?.name || selectedRequest.restaurant?.name || selectedRequest.bankDetails?.accountHolder || "Restaurant Partner")}
+                </span>?
               </p>
 
               <div>
@@ -1222,12 +1263,14 @@ export default function RestaurantPayoutList() {
               <div className="bg-gray-50 p-3.5 rounded-xl border space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Restaurant:</span>
-                  <span className="font-semibold text-gray-900">{selectedLedger.restaurant?.name}</span>
+                  <span className="font-semibold text-gray-900">
+                    {resolveString(selectedLedger.restaurant?.name) || "Restaurant Partner"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Order ID / Number:</span>
                   <span className="font-mono text-xs font-semibold text-gray-800">
-                    {selectedLedger.order?.orderNumber || selectedLedger.order?._id}
+                    {selectedLedger.order?.orderNumber || (selectedLedger.order?._id ? String(selectedLedger.order._id).slice(-8).toUpperCase() : "N/A")}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -1300,7 +1343,7 @@ export default function RestaurantPayoutList() {
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-scaleUp">
             <h3 className="text-base font-bold text-gray-800 mb-1">Configure Settlement Cycle</h3>
-            <p className="text-xs text-gray-500 mb-4">{selectedRestaurantForCycle.name}</p>
+            <p className="text-xs text-gray-500 mb-4">{resolveString(selectedRestaurantForCycle?.name) || "Restaurant Partner"}</p>
 
             <div className="space-y-3">
               <label className="block text-xs font-semibold text-gray-700">Select Operating Cycle</label>
@@ -1381,19 +1424,19 @@ export default function RestaurantPayoutList() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500">Restaurant Name:</span>
                   <span className="font-semibold text-gray-900">
-                    {selectedRequest.restaurantProfile?.name || selectedRequest.bankDetails?.accountHolder || "Restaurant Partner"}
+                    {resolveString(selectedRequest.restaurantProfile?.name || selectedRequest.restaurant?.name || selectedRequest.bankDetails?.accountHolder || "Restaurant Partner")}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Contact Number:</span>
                   <span className="font-semibold text-gray-900">
-                    {selectedRequest.bankDetails?.phone || selectedRequest.restaurantProfile?.contactNumber || selectedRequest.user?.mobile || "N/A"}
+                    {resolveString(selectedRequest.bankDetails?.phone || selectedRequest.restaurantProfile?.contactNumber || selectedRequest.user?.mobile || "N/A")}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Restaurant ID:</span>
                   <span className="font-mono text-xs font-semibold text-gray-800">
-                    {selectedRequest.restaurantDisplayId || selectedRequest.restaurant?._id || "N/A"}
+                    {resolveString(selectedRequest.restaurantDisplayId || selectedRequest.restaurant?._id || "N/A")}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -1468,7 +1511,7 @@ export default function RestaurantPayoutList() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Account Holder Name:</span>
                   <span className="font-semibold text-gray-900">
-                    {selectedRequest.bankDetails?.accountHolder || selectedRequest.restaurantProfile?.name || "Restaurant"}
+                    {resolveString(selectedRequest.bankDetails?.accountHolder || selectedRequest.restaurantProfile?.name || selectedRequest.restaurant?.name || "Restaurant Partner")}
                   </span>
                 </div>
               </div>

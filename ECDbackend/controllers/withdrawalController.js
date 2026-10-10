@@ -69,11 +69,23 @@ exports.getAllWithdrawals = async (req, res) => {
           }
         }
 
+        const resolveName = (raw) => {
+          if (!raw) return "";
+          if (typeof raw === "string") return raw.trim();
+          if (typeof raw === "object") {
+            return raw.en || Object.values(raw).find(v => typeof v === "string" && v.trim()) || "";
+          }
+          return String(raw);
+        };
+
         const w = rest ? await RestaurantWallet.findOne({ restaurant: rest._id }) : null;
-        obj.restaurantProfile = rest || {
-          name: doc.user?.name || 'Restaurant Partner',
-          contactNumber: doc.user?.mobile || '',
-          email: doc.user?.email || ''
+        const resolvedRestName = rest ? (resolveName(rest.name) || 'Restaurant Partner') : (doc.user?.name || 'Restaurant Partner');
+        obj.restaurantProfile = {
+          _id: rest?._id || doc.restaurant,
+          name: resolvedRestName,
+          logo: rest?.logo || rest?.image || '',
+          contactNumber: String(rest?.contactNumber || rest?.phone || doc.user?.mobile || ''),
+          email: String(rest?.email || doc.user?.email || '')
         };
         obj.walletBalance = w?.balance ?? rest?.walletBalance ?? doc.user?.walletBalance ?? 0;
         obj.totalEarnings = w?.totalEarnings ?? rest?.totalEarnings ?? 0;
@@ -81,12 +93,12 @@ exports.getAllWithdrawals = async (req, res) => {
 
         const restBank = rest?.bankDetails || {};
         obj.bankDetails = {
-          accountHolder: obj.bankDetails?.accountHolder || restBank.accountName || restBank.accountHolder || rest?.name || doc.user?.name || 'Restaurant Owner',
-          bankName: obj.bankDetails?.bankName || restBank.bankName || 'Bank',
-          accountNumber: obj.bankDetails?.accountNumber || restBank.accountNumber || '',
-          ifsc: obj.bankDetails?.ifsc || obj.bankDetails?.ifscCode || restBank.ifsc || restBank.ifscCode || restBank.routingNumber || '',
-          upiId: obj.bankDetails?.upiId || obj.bankDetails?.upi || rest?.upi || doc.user?.upi || '',
-          phone: obj.bankDetails?.phone || rest?.contactNumber || doc.user?.mobile || ''
+          accountHolder: resolveName(obj.bankDetails?.accountHolder || restBank.accountName || restBank.accountHolder || resolvedRestName || doc.user?.name || 'Restaurant Owner'),
+          bankName: String(obj.bankDetails?.bankName || restBank.bankName || 'Bank'),
+          accountNumber: String(obj.bankDetails?.accountNumber || restBank.accountNumber || ''),
+          ifsc: String(obj.bankDetails?.ifsc || obj.bankDetails?.ifscCode || restBank.ifsc || restBank.ifscCode || restBank.routingNumber || ''),
+          upiId: String(obj.bankDetails?.upiId || obj.bankDetails?.upi || rest?.upi || doc.user?.upi || ''),
+          phone: String(obj.bankDetails?.phone || rest?.contactNumber || doc.user?.mobile || '')
         };
       } else {
         let r = doc.rider;
@@ -190,13 +202,23 @@ exports.createRestaurantWithdrawal = async (req, res) => {
       });
     }
 
+    const resolveRestName = (raw) => {
+      if (!raw) return "";
+      if (typeof raw === "string") return raw.trim();
+      if (typeof raw === "object") {
+        return raw.en || Object.values(raw).find(v => typeof v === "string" && v.trim()) || "";
+      }
+      return String(raw);
+    };
+    const rNameClean = resolveRestName(restaurant.name) || 'Restaurant Partner';
+
     const mergedBankDetails = {
-      accountHolder: bankDetails?.accountHolder || restaurant.bankDetails?.accountName || restaurant.bankDetails?.accountHolder || restaurant.name,
-      bankName: bankDetails?.bankName || restaurant.bankDetails?.bankName || '',
-      accountNumber: bankDetails?.accountNumber || restaurant.bankDetails?.accountNumber || '',
-      ifsc: bankDetails?.ifsc || bankDetails?.ifscCode || restaurant.bankDetails?.ifsc || restaurant.bankDetails?.routingNumber || '',
-      upiId: bankDetails?.upiId || bankDetails?.upi || restaurant.upi || '',
-      phone: bankDetails?.phone || restaurant.contactNumber || ''
+      accountHolder: resolveRestName(bankDetails?.accountHolder || restaurant.bankDetails?.accountName || restaurant.bankDetails?.accountHolder || rNameClean),
+      bankName: String(bankDetails?.bankName || restaurant.bankDetails?.bankName || ''),
+      accountNumber: String(bankDetails?.accountNumber || restaurant.bankDetails?.accountNumber || ''),
+      ifsc: String(bankDetails?.ifsc || bankDetails?.ifscCode || restaurant.bankDetails?.ifsc || restaurant.bankDetails?.routingNumber || ''),
+      upiId: String(bankDetails?.upiId || bankDetails?.upi || restaurant.upi || ''),
+      phone: String(bankDetails?.phone || restaurant.contactNumber || '')
     };
 
     const withdrawal = await Withdrawal.create({

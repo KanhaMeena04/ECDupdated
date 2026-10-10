@@ -226,30 +226,18 @@ export default function RecentOrders({
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-gray-200">
           {STATUS_TABS.map((tab) => {
             const isActive = activeFilter === tab.key;
-            const count = statusCounts[tab.badgeKey] !== undefined ? statusCounts[tab.badgeKey] : null;
 
             return (
               <button
                 key={tab.key}
                 onClick={() => handleTabClick(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center shrink-0 cursor-pointer ${
                   isActive
                     ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/20"
                     : "bg-white text-gray-600 border border-gray-200/80 hover:bg-gray-100/80 hover:text-gray-900"
                 }`}
               >
                 <span>{tab.label}</span>
-                {count !== null && (
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                      isActive
-                        ? "bg-white/25 text-white"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                )}
               </button>
             );
           })}
