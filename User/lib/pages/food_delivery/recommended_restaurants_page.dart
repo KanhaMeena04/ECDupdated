@@ -257,28 +257,6 @@ class _RecommendedRestaurantsPageState
                                           ),
                                         ),
                                       ),
-                                      // Best Seller Tag Overlay
-                                      Positioned(
-                                        left: 12,
-                                        bottom: 12,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFFDE8E8),
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                          child: const Text(
-                                            'Best Seller: Cheese Burst Pizza',
-                                            style: TextStyle(
-                                              color: Color(0xFFE02424),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
                                     ],
                                   ),
 
@@ -339,7 +317,7 @@ class _RecommendedRestaurantsPageState
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
-                                          '${r.distanceKm} km away   |   ${r.deliveryTimeMin}-${r.deliveryTimeMin + 10} minutes',
+                                          '${r.distanceKm < 1 && r.distanceKm > 0 ? '${(r.distanceKm * 1000).round()} m away' : '${r.distanceKm.toStringAsFixed(1)} km away'}  |  ${r.deliveryTimeMin > 0 ? '${r.deliveryTimeMin}-${r.deliveryTimeMin + 10} mins' : '20-30 mins'}',
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w500,

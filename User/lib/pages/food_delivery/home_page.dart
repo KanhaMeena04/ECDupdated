@@ -1865,7 +1865,7 @@ class _RecommendedRestaurantCard extends StatelessWidget {
           children: [
             // â”€â”€ Restaurant image â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Expanded(
-              flex: 5,
+              flex: 6,
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                 child: Stack(
@@ -1942,13 +1942,14 @@ class _RecommendedRestaurantCard extends StatelessWidget {
               ),
             ),
 
-            // â”€â”€ Info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Info ─────────────────────────────────────────────────────────────
             Expanded(
-              flex: 5,
+              flex: 4,
               child: Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1957,7 +1958,7 @@ class _RecommendedRestaurantCard extends StatelessWidget {
                           child: Text(
                             restaurant.name,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: isDark ? Colors.white : Colors.black87,
                             ),
@@ -1965,6 +1966,7 @@ class _RecommendedRestaurantCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        const SizedBox(width: 4),
                         Row(
                           children: [
                             const Icon(Icons.star, color: Colors.orange, size: 12),
@@ -1972,7 +1974,7 @@ class _RecommendedRestaurantCard extends StatelessWidget {
                             Text(
                               restaurant.rating.toStringAsFixed(1),
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                                 color: isDark ? Colors.white70 : Colors.black87,
                               ),
@@ -1981,43 +1983,26 @@ class _RecommendedRestaurantCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
                       restaurant.cuisine,
                       style: TextStyle(
-                        fontSize: 9,
+                        fontSize: 10,
                         color: Colors.grey.shade600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
-                      '1.2 km away  |  20-30 minutes',
+                      '${restaurant.distanceKm < 1 && restaurant.distanceKm > 0 ? '${(restaurant.distanceKm * 1000).round()} m away' : '${restaurant.distanceKm.toStringAsFixed(1)} km away'}  |  ${restaurant.deliveryTimeMin > 0 ? '${restaurant.deliveryTimeMin}-${restaurant.deliveryTimeMin + 10} mins' : '20-30 mins'}',
                       style: TextStyle(
-                        fontSize: 9,
-                        color: Colors.grey.shade600,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFDF4F4),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'Best Seller: Cheese Burst Pizza',
-                        style: TextStyle(
-                          fontSize: 8,
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                     ),
                   ],
                 ),

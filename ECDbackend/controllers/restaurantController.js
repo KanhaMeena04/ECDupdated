@@ -2368,10 +2368,18 @@ exports.getAllRestaurants = async (req, res) => {
     }
 
     const withDistances = candidateRestaurants.map(restaurant => {
-      const coords = restaurant.location?.coordinates;
       let distance = null;
-      if (hasUserCoords && Array.isArray(coords) && coords.length === 2 && Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
-        distance = calculateDistance([rawLng, rawLat], coords);
+      let rLng = null, rLat = null;
+      const coords = restaurant.location?.coordinates;
+      if (Array.isArray(coords) && coords.length === 2 && Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
+        rLng = Number(coords[0]);
+        rLat = Number(coords[1]);
+      } else if (restaurant.lat != null && restaurant.lng != null && Number.isFinite(Number(restaurant.lat)) && Number.isFinite(Number(restaurant.lng))) {
+        rLat = Number(restaurant.lat);
+        rLng = Number(restaurant.lng);
+      }
+      if (hasUserCoords && rLat != null && rLng != null) {
+        distance = calculateDistance([rawLng, rawLat], [rLng, rLat]);
       }
       return {
         restaurant,
@@ -2410,8 +2418,13 @@ exports.getAllRestaurants = async (req, res) => {
         }));
       }
       const formatted = formatRestaurantForUser(restaurant);
-      formatted.distanceKm = distanceKm;
-      formatted.deliveryTime = Math.max(15, Math.ceil(distanceKm * 3));
+      const prepTime = Number(restaurant.estimatedPreparationTime || restaurant.prepTime || 15);
+      const computedTime = prepTime + Math.round(distanceKm * 3);
+      formatted.distanceKm = Math.round(distanceKm * 10) / 10;
+      formatted.distance = formatted.distanceKm;
+      formatted.deliveryTime = restaurant.deliveryTime ? Number(restaurant.deliveryTime) : Math.max(15, computedTime);
+      formatted.deliveryTimeMin = formatted.deliveryTime;
+      formatted.deliveryTimeFormatted = `${Math.max(10, formatted.deliveryTime - 5)}-${formatted.deliveryTime + 5} mins`;
       formatted.menu = menu;
       return formatted;
     });

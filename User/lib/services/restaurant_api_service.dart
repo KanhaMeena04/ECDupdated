@@ -614,8 +614,8 @@ class RestaurantApiService {
       imageUrl: json['coverImage']?.toString() ?? json['logo']?.toString() ?? json['image']?.toString() ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600',
       rating: parsedRating,
       reviewCount: _parseInt(json['totalReviews'] != null && json['totalReviews'] > 0 ? json['totalReviews'] : (json['orderCount'] ?? json['reviewCount'] ?? json['totalReviews']), 120),
-      distanceKm: _parseDouble(json['distanceKm'] ?? json['distance'], 1.8),
-      deliveryTimeMin: _parseInt(json['deliveryTime'] ?? json['deliveryTimeMin'] ?? json['prepTime'], 25),
+      distanceKm: _parseDouble(json['distanceKm'] ?? json['distance'] ?? json['distanceInKm'], 1.5),
+      deliveryTimeMin: _parseInt(json['deliveryTimeMin'] ?? json['deliveryTime'] ?? json['prepTime'] ?? json['estimatedPreparationTime'], 25),
       deliveryCharge: _parseDouble(json['deliveryCharge'] ?? json['shippingFee'], 0.0),
       cuisine: parsedCuisine,
       menu: menuItems,
@@ -629,7 +629,14 @@ class RestaurantApiService {
     if (value == null) return defaultVal;
     if (value is double) return value;
     if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? defaultVal;
+    if (value is String) {
+      final parsed = double.tryParse(value);
+      if (parsed != null) return parsed;
+      final match = RegExp(r'\d+(\.\d+)?').firstMatch(value);
+      if (match != null) {
+        return double.tryParse(match.group(0)!) ?? defaultVal;
+      }
+    }
     return defaultVal;
   }
 
@@ -637,7 +644,14 @@ class RestaurantApiService {
     if (value == null) return defaultVal;
     if (value is int) return value;
     if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? defaultVal;
+    if (value is String) {
+      final parsed = int.tryParse(value);
+      if (parsed != null) return parsed;
+      final match = RegExp(r'\d+').firstMatch(value);
+      if (match != null) {
+        return int.tryParse(match.group(0)!) ?? defaultVal;
+      }
+    }
     return defaultVal;
   }
 
