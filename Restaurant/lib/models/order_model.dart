@@ -128,6 +128,8 @@ class Order {
     String cName = 'Customer';
     if (json['customer'] != null && json['customer'] is Map && json['customer']['name'] != null) {
       cName = json['customer']['name'].toString();
+    } else if (json['customerName'] != null && json['customerName'].toString().isNotEmpty) {
+      cName = json['customerName'].toString();
     }
 
     String oName = 'Items';
@@ -136,14 +138,19 @@ class Order {
     if (json['items'] != null && json['items'] is List && (json['items'] as List).isNotEmpty) {
       final rawList = json['items'] as List<dynamic>;
       parsedItems = rawList.map((item) {
-        if (item is Map<String, dynamic>) {
-          final prod = item['product'] is Map ? item['product'] as Map<String, dynamic> : {};
+        if (item is Map) {
+          final itemMap = item is Map<String, dynamic> ? item : Map<String, dynamic>.from(item);
+          final prod = itemMap['product'] is Map
+              ? (itemMap['product'] is Map<String, dynamic>
+                  ? itemMap['product'] as Map<String, dynamic>
+                  : Map<String, dynamic>.from(itemMap['product']))
+              : {};
           return {
-            'name': item['name']?.toString() ?? prod['name']?.toString() ?? 'Food Item',
-            'image': item['image']?.toString() ?? prod['image']?.toString() ?? '',
-            'price': (item['price'] as num?)?.toDouble() ?? (prod['price'] as num?)?.toDouble() ?? 0.0,
-            'quantity': (item['quantity'] as num? ?? item['qty'] as num? ?? 1).toInt(),
-            'variant': item['variant']?.toString() ?? item['variation']?['name']?.toString() ?? 'Standard',
+            'name': itemMap['name']?.toString() ?? prod['name']?.toString() ?? 'Food Item',
+            'image': itemMap['image']?.toString() ?? prod['image']?.toString() ?? '',
+            'price': (itemMap['price'] as num?)?.toDouble() ?? (prod['price'] as num?)?.toDouble() ?? 0.0,
+            'quantity': (itemMap['quantity'] as num? ?? itemMap['qty'] as num? ?? 1).toInt(),
+            'variant': itemMap['variant']?.toString() ?? itemMap['variation']?['name']?.toString() ?? 'Standard',
           };
         }
         return item;

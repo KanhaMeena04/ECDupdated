@@ -235,23 +235,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         // Detect new incoming orders for ringtone & alert popup
         if (_isFirstFetch) {
+          final unacknowledged = parsedOrders.where((o) => (o.status == 'Placed' || o.status == 'Pending')).toList();
           for (var o in parsedOrders) {
             _knownOrderIds.add(o.id);
+            if (o.backendId.isNotEmpty) _knownOrderIds.add(o.backendId);
           }
           _isFirstFetch = false;
+          if (unacknowledged.isNotEmpty) {
+            _showNewOrderAlertDialog(unacknowledged.first);
+          }
         } else {
-          final newIncoming = parsedOrders.where((o) => (o.status == 'Placed' || o.status == 'Pending') && !_knownOrderIds.contains(o.id)).toList();
+          final newIncoming = parsedOrders.where((o) =>
+            (o.status == 'Placed' || o.status == 'Pending') &&
+            !_knownOrderIds.contains(o.id) &&
+            (o.backendId.isEmpty || !_knownOrderIds.contains(o.backendId))
+          ).toList();
           if (newIncoming.isNotEmpty) {
             for (var o in newIncoming) {
               _knownOrderIds.add(o.id);
+              if (o.backendId.isNotEmpty) _knownOrderIds.add(o.backendId);
               _showNewOrderAlertDialog(o);
             }
           }
         }
 
+        // Merge: keep any real-time orders that were inserted via socket that may not yet be in parsedOrders
+        final Set<String> fetchedIds = parsedOrders.map((o) => o.id).toSet();
+        final Set<String> fetchedBackendIds = parsedOrders.where((o) => o.backendId.isNotEmpty).map((o) => o.backendId).toSet();
+        final List<Order> mergedOrders = List.from(parsedOrders);
+        for (var existing in _orders) {
+          if (!fetchedIds.contains(existing.id) &&
+              (existing.backendId.isEmpty || !fetchedBackendIds.contains(existing.backendId)) &&
+              (existing.status == 'Placed' || existing.status == 'Pending')) {
+            mergedOrders.insert(0, existing);
+          }
+        }
+
         if (mounted) {
           setState(() {
-            _orders = parsedOrders;
+            _orders = mergedOrders;
             _monthlyEarning = computedRevenue;
             _isLoadingOrders = false;
           });
@@ -304,8 +326,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (restId.isNotEmpty) {
       await RestaurantSocketService.init(restId, token);
       _newOrderSocketCallback = (data) {
-        if (mounted) {
-          debugPrint('Dashboard received live new order socket event!');
+        if (mounted && data != null) {
+          debugPrint('Dashboard received live new order socket event: $data');
+          try {
+            Map<String, dynamic>? orderMap;
+            if (data is Map<String, dynamic>) {
+              orderMap = (data['order'] is Map<String, dynamic>)
+                  ? (data['order'] as Map<String, dynamic>)
+                  : (data['order'] is Map
+                      ? Map<String, dynamic>.from(data['order'])
+                      : data);
+            } else if (data is Map) {
+              final converted = Map<String, dynamic>.from(data);
+              orderMap = (converted['order'] is Map)
+                  ? Map<String, dynamic>.from(converted['order'])
+                  : converted;
+            }
+
+            if (orderMap != null) {
+              final newOrder = Order.fromJson(orderMap);
+              final alreadyExists = _orders.any((o) =>
+                  (o.id.isNotEmpty && o.id == newOrder.id) ||
+                  (o.backendId.isNotEmpty && newOrder.backendId.isNotEmpty && o.backendId == newOrder.backendId));
+
+              if (!alreadyExists) {
+                setState(() {
+                  _orders.insert(0, newOrder);
+                  _knownOrderIds.add(newOrder.id);
+                  if (newOrder.backendId.isNotEmpty) {
+                    _knownOrderIds.add(newOrder.backendId);
+                  }
+                  if (_isOrderPickupType(newOrder)) {
+                    _selectedOrderType = 'pickup';
+                  } else {
+                    _selectedOrderType = 'delivery';
+                  }
+                  _selectedStatusFilter = 'All';
+                });
+                _showNewOrderAlertDialog(newOrder);
+              }
+            }
+          } catch (e) {
+            debugPrint('Error inserting real-time socket order: $e');
+          }
+
           _fetchLiveOrders(isSilent: true);
         }
       };
