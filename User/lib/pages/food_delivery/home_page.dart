@@ -847,7 +847,7 @@ class _HomeTabState extends State<_HomeTab> {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
     final locProvider = context.watch<LocationProvider>();
 
-    if (!locProvider.isServiceable) {
+    if (!locProvider.isServiceable && _restaurants.isEmpty && !_isLoadingRestaurants) {
       return const UnserviceableLocationPage();
     }
 

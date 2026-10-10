@@ -2222,19 +2222,6 @@ exports.getAllRestaurants = async (req, res) => {
       isTemporarilyClosed: { $ne: true },
     };
 
-    // If GPS coordinates are provided, enforce 25 KM (25,000 meters) radius query on MongoDB 2dsphere location index
-    if (hasUserCoords) {
-      baseQuery.location = {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: [rawLng, rawLat]
-          },
-          $maxDistance: 25000 // 25 KM = 25,000 meters
-        }
-      };
-    }
-
     if (req.query.category) {
       const catRegex = new RegExp(req.query.category, 'i');
       const matchingCats = await Category.find({
@@ -2352,30 +2339,26 @@ exports.getAllRestaurants = async (req, res) => {
       });
     });
 
-    const filteredRestaurants = [];
-
-    for (const restaurant of candidateRestaurants) {
+    const withDistances = candidateRestaurants.map(restaurant => {
       const coords = restaurant.location?.coordinates;
       let distance = null;
       if (hasUserCoords && Array.isArray(coords) && coords.length === 2 && Number.isFinite(coords[0]) && Number.isFinite(coords[1])) {
         distance = calculateDistance([rawLng, rawLat], coords);
       }
-
-      // Enforce strict 25 KM maximum radius check when GPS coordinates are provided
-      if (hasUserCoords) {
-        if (distance === null || distance > 25) {
-          continue; // EXCLUDE any restaurant strictly beyond 25 KM
-        }
-      }
-
-      filteredRestaurants.push({
+      return {
         restaurant,
         distanceKm: distance !== null ? Number(distance.toFixed(1)) : 2.5,
-      });
-    }
+      };
+    });
 
     // Sort by distance (closest first)
-    filteredRestaurants.sort((a, b) => a.distanceKm - b.distanceKm);
+    withDistances.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    // If restaurants are found within 25 km, prioritize nearby restaurants.
+    // If user is testing APK remotely (outside 25 km), show all available restaurants sorted by distance
+    // so user and testers never see an empty blank screen!
+    const nearby = withDistances.filter(r => r.distanceKm <= 25);
+    const filteredRestaurants = nearby.length > 0 ? nearby : withDistances;
 
     const formattedRestaurants = filteredRestaurants.map(({ restaurant, distanceKm }) => {
       let menu = restMenuMap[restaurant._id.toString()] || [];

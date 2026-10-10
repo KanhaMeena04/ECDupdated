@@ -166,9 +166,11 @@ router.all(['/check', '/check-serviceability'], async (req, res) => {
 
     return res.json({
       success: true,
-      isServiceable: false,
-      serviceable: false,
-      message: 'We are not providing service in your location right now. We are coming soon!',
+      isServiceable: true,
+      serviceable: true,
+      isOutsideZone: true,
+      area: allActive[0] || null,
+      message: 'Showing all active restaurants in ECDKART',
       serviceablePincodes: allActive.map(a => a.pincode),
       serviceableAreas: allActive.map(a => `${a.zone || a.city}, ${a.district} (${a.pincode})`)
     });
