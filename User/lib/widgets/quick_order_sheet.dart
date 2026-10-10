@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../core/models/product.dart';
+import '../core/models/restaurant_models.dart';
 import '../providers/cart_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/location_provider.dart';
 import '../services/restaurant_api_service.dart';
 import '../services/category_service.dart';
+import '../services/location_service.dart';
 import '../routes/app_routes.dart';
 import 'safe_image.dart';
 
@@ -31,6 +33,7 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
   String _searchQuery = '';
   String _selectedCategory = 'All';
   List<Product> _allProducts = [];
+  Map<String, Restaurant> _restaurantMap = {};
   List<String> _categories = ['All'];
   bool _isLoading = true;
 
@@ -79,8 +82,10 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
       );
 
       List<Product> items = [];
+      final Map<String, Restaurant> restMap = {};
 
       for (final rest in nearbyRestaurants) {
+        restMap[rest.id] = rest;
         var menu = rest.menu;
         if (menu.isEmpty) {
           try {
@@ -112,6 +117,7 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
       if (mounted) {
         setState(() {
           _allProducts = items;
+          _restaurantMap = restMap;
         });
       }
     } catch (e) {
@@ -333,14 +339,21 @@ class _QuickOrderSheetState extends State<QuickOrderSheet> {
                               final restId = item.restaurantId;
                               if (restId != null && restId.isNotEmpty) {
                                 Navigator.pop(context);
+                                final rest = _restaurantMap[restId];
                                 context.push(
                                   '${AppRoutes.restaurantDetail}/$restId',
-                                  extra: Restaurant(
+                                  extra: rest ?? Restaurant(
                                     id: restId,
+                                    slug: restId,
                                     name: item.restaurantName ?? 'Restaurant',
                                     imageUrl: item.restaurantImageUrl ?? item.image,
                                     rating: item.rating,
+                                    reviewCount: 0,
+                                    distanceKm: 0.0,
+                                    deliveryTimeMin: 30,
+                                    deliveryCharge: 0.0,
                                     cuisine: 'Fast Food',
+                                    menu: const [],
                                   ),
                                 );
                               }
