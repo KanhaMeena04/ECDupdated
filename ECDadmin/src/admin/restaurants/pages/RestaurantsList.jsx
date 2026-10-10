@@ -259,6 +259,7 @@ export default function RestaurantsList() {
         return {
           _id: itemId,
           id: itemId,
+          restaurantId: item.restaurantId,
           name: rName,
           ownerId: ownerName,
           ownerName: ownerName,

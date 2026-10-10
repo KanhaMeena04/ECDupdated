@@ -34,6 +34,7 @@ export default function ApproveRestaurants() {
 
     return data.restaurants.map((item) => ({
       id: item._id,                     // DataGrid expects `id`
+      restaurantId: item.restaurantId,
       name: item.name || "-",
       ownerId: item.ownerId || "-",
       address: item.address || "-",

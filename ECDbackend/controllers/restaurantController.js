@@ -2415,23 +2415,6 @@ exports.getAllRestaurants = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
-const demo14Fallback = [
-  { _id: "65a000000000000000000001", name: "Pandit Ji", email: "panditji@ecdkart.com", contactNumber: "+919876543210", contact: "+919876543210", address: "Selected from map, Sohna", rating: 4.5, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "Pandit Ji", ownerEmail: "panditji@ecdkart.com", ownerMobile: "+919876543210", ownerPin: "1234", pin: "1234", createdOn: "21 September 2026 at 7:22 pm", city: "Sohna", state: "Haryana" },
-  { _id: "65a000000000000000000002", name: "testnew", email: "testnew@ecdkart.com", contactNumber: "+919876543211", contact: "+919876543211", address: "Brahmabarada, Odisha 755005, India", rating: 4.6, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "testnew Owner", ownerEmail: "testnew@ecdkart.com", ownerMobile: "+919876543211", ownerPin: "1234", pin: "1234", createdOn: "21 September 2026 at 11:22 am", city: "Brahmabarada", state: "Odisha" },
-  { _id: "65a000000000000000000003", name: "PRAJAPATI VEG BIRYANI", email: "prajapati@ecdkart.com", contactNumber: "+919876543212", contact: "+919876543212", address: "Selected from map, Sohna", rating: 4.4, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "Prajapati Owner", ownerEmail: "prajapati@ecdkart.com", ownerMobile: "+919876543212", ownerPin: "1234", pin: "1234", createdOn: "19 September 2026 at 8:17 am", city: "Sohna", state: "Haryana" },
-  { _id: "65a000000000000000000004", name: "FOOD GARDEN", email: "foodgarden@ecdkart.com", contactNumber: "+919876543213", contact: "+919876543213", address: "Bus Stand, Delhi - Alwar Rd, near sohna, opposite Rama petrol pump, Sohna, Haryana 122103, India", rating: 4.7, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "Food Garden Owner", ownerEmail: "foodgarden@ecdkart.com", ownerMobile: "+919876543213", ownerPin: "1234", pin: "1234", createdOn: "17 September 2026 at 9:37 pm", city: "Sohna", state: "Haryana" },
-  { _id: "65a000000000000000000005", name: "RAJPUT RESTAURANT", email: "rajput@ecdkart.com", contactNumber: "+919876543214", contact: "+919876543214", address: "Selected from map, Sohna", rating: 4.3, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "Rajput Owner", ownerEmail: "rajput@ecdkart.com", ownerMobile: "+919876543214", ownerPin: "1234", pin: "1234", createdOn: "17 September 2026 at 4:23 pm", city: "Sohna", state: "Haryana" },
-  { _id: "65a000000000000000000006", name: "CHATPATA CHULHA", email: "chatpata@ecdkart.com", contactNumber: "+919876543215", contact: "+919876543215", address: "Chungi Number 1Sohna, Saini Colony, Sohna Rural, Haryana 122103, India", rating: 4.2, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "Chatpata Owner", ownerEmail: "chatpata@ecdkart.com", ownerMobile: "+919876543215", ownerPin: "1234", pin: "1234", createdOn: "14 September 2026 at 7:08 pm", city: "Sohna", state: "Haryana" },
-  { _id: "65a000000000000000000007", name: "MOMO STREET", email: "momostreet@ecdkart.com", contactNumber: "+919876543216", contact: "+919876543216", address: "Shop number 5, Pardeep Khatana Market, near Serena's mall, Gurugram, Haryana 122103, India", rating: 4.8, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "Momo Street Owner", ownerEmail: "momostreet@ecdkart.com", ownerMobile: "+919876543216", ownerPin: "1234", pin: "1234", createdOn: "14 September 2026 at 7:20 am", city: "Gurugram", state: "Haryana" },
-  { _id: "65a000000000000000000008", name: "999 ROYAL RASOI", email: "royalrasoi@ecdkart.com", contactNumber: "+919876543217", contact: "+919876543217", address: "ward no. 6, Baluda Rd, Harinagar, Sohna, Sohna Rural, Haryana 122103, India", rating: 4.5, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "Royal Rasoi Owner", ownerEmail: "royalrasoi@ecdkart.com", ownerMobile: "+919876543217", ownerPin: "1234", pin: "1234", createdOn: "12 September 2026 at 9:04 pm", city: "Sohna", state: "Haryana" },
-  { _id: "65a000000000000000000009", name: "SOUL & SALT", email: "soulsalt@ecdkart.com", contactNumber: "+919876543218", contact: "+919876543218", address: "near damdama mod, red light, Shahid Smarak, Sohna, Sohna Rural, Haryana 122103, India", rating: 4.6, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "Soul & Salt Owner", ownerEmail: "soulsalt@ecdkart.com", ownerMobile: "+919876543218", ownerPin: "1234", pin: "1234", createdOn: "11 September 2026 at 8:26 pm", city: "Sohna", state: "Haryana" },
-  { _id: "65a000000000000000000010", name: "DESI DHABA SOHNA", email: "desidhaba@ecdkart.com", contactNumber: "+919876543219", contact: "+919876543219", address: "Main Highway, Sohna, Haryana 122103, India", rating: 4.4, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "Desi Dhaba Owner", ownerEmail: "desidhaba@ecdkart.com", ownerMobile: "+919876543219", ownerPin: "1234", pin: "1234", createdOn: "10 September 2026 at 4:15 pm", city: "Sohna", state: "Haryana" },
-  { _id: "65a000000000000000000011", name: "SAINI SWEETS", email: "sainisweets@ecdkart.com", contactNumber: "+919876543220", contact: "+919876543220", address: "Main Chowk, Sohna, Haryana 122103, India", rating: 4.9, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "Saini Sweets Owner", ownerEmail: "sainisweets@ecdkart.com", ownerMobile: "+919876543220", ownerPin: "1234", pin: "1234", createdOn: "09 September 2026 at 2:30 pm", city: "Sohna", state: "Haryana" },
-  { _id: "65a000000000000000000012", name: "KING PIZZA & BURGER", email: "kingpizza@ecdkart.com", contactNumber: "+919876543221", contact: "+919876543221", address: "Sector 4 Market, Sohna, Haryana 122103, India", rating: 4.1, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "King Pizza Owner", ownerEmail: "kingpizza@ecdkart.com", ownerMobile: "+919876543221", ownerPin: "1234", pin: "1234", createdOn: "08 September 2026 at 6:45 pm", city: "Sohna", state: "Haryana" },
-  { _id: "65a000000000000000000013", name: "SHARMA BAKEHOUSE", email: "sharmabake@ecdkart.com", contactNumber: "+919876543222", contact: "+919876543222", address: "Clock Tower, Sohna, Haryana 122103, India", rating: 4.5, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "Sharma Bake Owner", ownerEmail: "sharmabake@ecdkart.com", ownerMobile: "+919876543222", ownerPin: "1234", pin: "1234", createdOn: "07 September 2026 at 1:10 pm", city: "Sohna", state: "Haryana" },
-  { _id: "65a000000000000000000014", name: "HARISH BAKERY & RESTAURANT", email: "harishbakery@ecdkart.com", contactNumber: "+919876543223", contact: "+919876543223", address: "Sohna Road, Haryana 122103, India", rating: 4.7, status: "Active", openStatus: "Accepting Orders", restaurantApproved: true, verificationStatus: "verified", ownerName: "Harish Bakery Owner", ownerEmail: "harishbakery@ecdkart.com", ownerMobile: "+919876543223", ownerPin: "1234", pin: "1234", createdOn: "05 September 2026 at 8:00 pm", city: "Sohna", state: "Haryana" },
-];
-
 exports.getAllRestaurantsForAdmin = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req, 50);
@@ -2478,12 +2461,10 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
         { "location.address": searchRegex },
         { restaurantKey: searchRegex },
         { pin: searchRegex },
+        { restaurantId: searchRegex },
         ...(matchedOwnerIds.length > 0 ? [{ owner: { $in: matchedOwnerIds } }] : []),
       ];
     }
-
-    const { backfillMissingIds } = require("../utils/idGenerator");
-    await backfillMissingIds().catch(() => {});
 
     const total = await Restaurant.countDocuments(query).catch(() => 0);
     const restaurants = await Restaurant.find(query)
@@ -2491,9 +2472,13 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1, _id: -1 })
-      .catch(() => []);
+      .lean()
+      .catch((err) => {
+        console.error("Restaurant.find error:", err.message);
+        return [];
+      });
 
-    let formattedData = restaurants.map((rest, idx) => {
+    const formattedData = restaurants.map((rest, idx) => {
       // Dynamic live status: Active only when isActive !== false AND isOnline !== false AND !isTemporarilyClosed
       const isOnline = rest.isOnline !== false;
       const isActive = rest.isActive !== false && rest.status !== "Inactive";
@@ -2515,9 +2500,14 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
       const ownerName = (rest.owner && typeof rest.owner === 'object' && rest.owner.name) ? rest.owner.name : (rest.ownerName || `${restName} Owner`);
       const emailVal = rest.email || (rest.owner && typeof rest.owner === 'object' ? rest.owner.email : '') || (contactVal !== '-' ? `${contactVal.replace(/[^0-9]/g, '')}@ecdkart.com` : '-');
 
-      const resolvedRestId = (rest.restaurantId && /^RNT\d+/i.test(rest.restaurantId))
-        ? rest.restaurantId.toUpperCase()
+      const resolvedRestId = (rest.restaurantId && typeof rest.restaurantId === 'string' && rest.restaurantId.trim())
+        ? rest.restaurantId.trim().toUpperCase()
         : `RNT${String(total - skip - idx).padStart(3, '0')}`;
+
+      const addressVal = rest.address || (rest.location && rest.location.address ? rest.location.address : '');
+      const cityVal = rest.city || '';
+      const stateVal = rest.state || '';
+      const fullAddress = `${addressVal}${cityVal ? (addressVal ? ', ' : '') + cityVal : ''}${stateVal ? ', ' + stateVal : ''}`;
 
       return {
         _id: rest._id,
@@ -2525,9 +2515,9 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
         restaurantId: resolvedRestId,
         name: restName,
         email: emailVal,
-        address: `${rest.address || ''}${rest.city ? (rest.address ? ', ' : '') + rest.city : ''}${rest.state ? ', ' + rest.state : ''}`,
-        city: rest.city || '',
-        state: rest.state || '',
+        address: fullAddress,
+        city: cityVal,
+        state: stateVal,
         contact: contactVal,
         contactNumber: contactVal,
         phone: contactVal,
@@ -2569,39 +2559,24 @@ exports.getAllRestaurantsForAdmin = async (req, res) => {
       };
     });
 
-    if (formattedData.length === 0) {
-      formattedData = demo14Fallback;
-      if (search) {
-        const s = search.toLowerCase();
-        formattedData = demo14Fallback.filter(r =>
-          (r.name && r.name.toLowerCase().includes(s)) ||
-          (r.ownerName && r.ownerName.toLowerCase().includes(s)) ||
-          (r.email && r.email.toLowerCase().includes(s)) ||
-          (r.contactNumber && r.contactNumber.toLowerCase().includes(s)) ||
-          (r.contact && r.contact.toLowerCase().includes(s)) ||
-          (r.address && r.address.toLowerCase().includes(s)) ||
-          (r.city && r.city.toLowerCase().includes(s)) ||
-          (r.state && r.state.toLowerCase().includes(s)) ||
-          (r.pin && r.pin.toLowerCase().includes(s))
-        );
-      }
-    }
-
-    res.status(200).json({
+    return res.status(200).json({
+      success: true,
       restaurants: formattedData,
-      total: formattedData.length,
+      total,
       page,
       limit,
-      pages: Math.ceil(formattedData.length / limit),
+      pages: Math.ceil(total / limit) || 1,
     });
   } catch (error) {
     console.error("Error in getAllRestaurantsForAdmin:", error);
-    res.status(200).json({
-      restaurants: demo14Fallback,
-      total: 14,
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch restaurants from database",
+      restaurants: [],
+      total: 0,
       page: 1,
       limit: 50,
-      pages: 1,
+      pages: 0,
     });
   }
 };
@@ -2950,23 +2925,7 @@ exports.toggleRestaurantActive = async (req, res) => {
   try {
     let rest = await Restaurant.findById(req.params.id);
     if (!rest) {
-      // Check if it matches fallback demo item to prevent 404 in demo mode
-      const demoItem = demo14Fallback.find(d => d._id === req.params.id || d.id === req.params.id);
-      if (demoItem) {
-        rest = new Restaurant({
-          _id: req.params.id,
-          name: demoItem.name,
-          email: demoItem.email,
-          contactNumber: demoItem.contactNumber,
-          phone: demoItem.contact,
-          address: demoItem.address,
-          isActive: true,
-          isOnline: true,
-          restaurantApproved: true,
-        });
-      } else {
-        return res.status(404).json({ message: "Restaurant not found" });
-      }
+      return res.status(404).json({ message: "Restaurant not found" });
     }
 
     let nextOnline;
