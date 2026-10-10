@@ -48,10 +48,14 @@ exports.formatRestaurantForUser = (restaurant, userLat = null, userLng = null) =
       ? restaurant.adminOverride.deliveryTime 
       : (restaurant.deliveryTime || computedDeliveryMin);
 
+  const cleanName = (typeof restaurant.name === 'object' && restaurant.name !== null)
+    ? (restaurant.name.en || Object.values(restaurant.name)[0] || 'Restaurant')
+    : (restaurant.name || 'Restaurant');
+
   return {
     _id: restaurant._id,
     id: restaurant._id,
-    name: restaurant.name,
+    name: cleanName,
     description: restaurant.description,
     restaurantType: restaurant.restaurantType,
     image: restaurant.image,

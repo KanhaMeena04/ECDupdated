@@ -118,8 +118,9 @@ class OrderApiService {
       };
     }
     try {
+      final cleanId = orderId.replaceAll('#', '').trim();
       final response = await http.get(
-        Uri.parse('$baseUrl/tracking/$orderId'),
+        Uri.parse('$baseUrl/tracking/$cleanId'),
         headers: await _getHeaders(),
       );
       if (response.statusCode == 200) {

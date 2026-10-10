@@ -2586,11 +2586,13 @@ exports.searchRidersForOrder = async (req, res) => {
 exports.trackOrder = async (req, res) => {
   try {
     const { calculateDistance, calculateETA } = require('../utils/locationUtils');
-    const orderId = req.params.id || req.params.orderId;
-    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
+    const rawId = (req.params.id || req.params.orderId || '').replace(/^#/, '').trim();
+    const isObjectId = mongoose.Types.ObjectId.isValid(rawId) && String(rawId).length === 24;
+    const escaped = rawId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const idRegex = new RegExp(escaped, 'i');
     const orderFilter = isObjectId
-      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
-      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+      ? { $or: [{ _id: new mongoose.Types.ObjectId(rawId) }, { orderId: rawId }, { orderNumber: rawId }, { orderNumber: idRegex }] }
+      : { $or: [{ orderId: rawId }, { orderNumber: rawId }, { orderNumber: idRegex }, { orderId: idRegex }] };
     const order = await Order.findOne(orderFilter)
       .populate("restaurant", "location name address phone contactNumber ownerPhone owner")
       .populate("rider", "user currentLocation vehicle contactNumber name")
@@ -2601,28 +2603,43 @@ exports.trackOrder = async (req, res) => {
     let distanceInfo = null;
     let driverLat = null;
     let driverLng = null;
-    let userLat = 22.7196;
-    let userLng = 75.8577;
-    let restLat = 22.7533;
-    let restLng = 75.8937;
+    let userLat = null;
+    let userLng = null;
+    let restLat = null;
+    let restLng = null;
 
-    if (order.restaurant?.location?.coordinates?.length === 2) {
+    if (Array.isArray(order.restaurant?.location?.coordinates) && order.restaurant.location.coordinates.length === 2) {
       restLng = Number(order.restaurant.location.coordinates[0]);
       restLat = Number(order.restaurant.location.coordinates[1]);
+    } else if (order.restaurant?.lat && order.restaurant?.lng) {
+      restLat = Number(order.restaurant.lat);
+      restLng = Number(order.restaurant.lng);
     } else if (order.restaurant) {
-      const restDoc = await Restaurant.findById(order.restaurant._id || order.restaurant).select('location');
-      if (restDoc?.location?.coordinates?.length === 2) {
+      const restDoc = await Restaurant.findById(order.restaurant._id || order.restaurant).select('location address lat lng');
+      if (Array.isArray(restDoc?.location?.coordinates) && restDoc.location.coordinates.length === 2) {
         restLng = Number(restDoc.location.coordinates[0]);
         restLat = Number(restDoc.location.coordinates[1]);
+      } else if (restDoc?.lat && restDoc?.lng) {
+        restLat = Number(restDoc.lat);
+        restLng = Number(restDoc.lng);
       }
     }
 
-    if (order.deliveryAddress?.coordinates?.length === 2) {
+    if (Array.isArray(order.deliveryAddress?.coordinates) && order.deliveryAddress.coordinates.length === 2) {
       userLng = Number(order.deliveryAddress.coordinates[0]);
       userLat = Number(order.deliveryAddress.coordinates[1]);
     } else if (order.deliveryAddress?.latitude && order.deliveryAddress?.longitude) {
       userLat = Number(order.deliveryAddress.latitude);
       userLng = Number(order.deliveryAddress.longitude);
+    } else if (order.deliveryAddress?.lat && order.deliveryAddress?.lng) {
+      userLat = Number(order.deliveryAddress.lat);
+      userLng = Number(order.deliveryAddress.lng);
+    } else if (Array.isArray(order.deliveryLocation?.coordinates) && order.deliveryLocation.coordinates.length === 2) {
+      userLng = Number(order.deliveryLocation.coordinates[0]);
+      userLat = Number(order.deliveryLocation.coordinates[1]);
+    } else if (order.user?.location?.coordinates?.length === 2) {
+      userLng = Number(order.user.location.coordinates[0]);
+      userLat = Number(order.user.location.coordinates[1]);
     }
 
     if (order.rider && order.rider.currentLocation?.coordinates?.length === 2) {
@@ -2631,25 +2648,23 @@ exports.trackOrder = async (req, res) => {
       liveLocation = order.rider.currentLocation;
     }
 
-    if (order.rider && order.rider.currentLocation && order.deliveryAddress) {
+    if (order.rider && driverLat && driverLng && userLat && userLng) {
       const riderCoords = [driverLng, driverLat];
       const customerCoords = [userLng, userLat];
       const restaurantCoords = [restLng, restLat];
-      if (driverLat && driverLng && userLat && userLng) {
-        const distanceToCustomer = calculateDistance(riderCoords, customerCoords);
-        const etaInfo = calculateETA(riderCoords, customerCoords, order.status);
-        let pickupDistance = null;
-        if (restLat && restLng) {
-          const distanceToRestaurant = calculateDistance(riderCoords, restaurantCoords);
-          pickupDistance = Math.round(distanceToRestaurant * 100) / 100;
-        }
-        distanceInfo = {
-          distanceToCustomer: Math.round(distanceToCustomer * 100) / 100,
-          distanceToRestaurant: pickupDistance,
-          etaMinutes: etaInfo.minutes,
-          etaDisplay: etaInfo.display
-        };
+      const distanceToCustomer = calculateDistance(riderCoords, customerCoords);
+      const etaInfo = calculateETA(riderCoords, customerCoords, order.status);
+      let pickupDistance = null;
+      if (restLat && restLng) {
+        const distanceToRestaurant = calculateDistance(riderCoords, restaurantCoords);
+        pickupDistance = Math.round(distanceToRestaurant * 100) / 100;
       }
+      distanceInfo = {
+        distanceToCustomer: Math.round(distanceToCustomer * 100) / 100,
+        distanceToRestaurant: pickupDistance,
+        etaMinutes: etaInfo.minutes,
+        etaDisplay: etaInfo.display
+      };
     }
 
     const formattedRestaurant = formatRestaurantForUser(order.restaurant);
@@ -2697,6 +2712,7 @@ exports.trackOrder = async (req, res) => {
         address: order.restaurant?.address || "",
         lat: restLat,
         lng: restLng,
+        location: (restLat && restLng) ? { type: 'Point', coordinates: [restLng, restLat] } : (order.restaurant?.location || null),
         ...formattedRestaurant
       },
       user: {
@@ -2716,7 +2732,7 @@ exports.trackOrder = async (req, res) => {
         addressLine: order.deliveryAddress?.addressLine || order.deliveryAddress?.address || "",
         lat: userLat,
         lng: userLng,
-        coordinates: [userLng, userLat]
+        coordinates: (userLat && userLng) ? [userLng, userLat] : []
       },
       order: order,
       supportPhone: "+91-9876543210",

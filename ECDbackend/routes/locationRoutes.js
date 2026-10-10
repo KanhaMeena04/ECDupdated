@@ -79,4 +79,79 @@ router.get('/place-details', async (req, res) => {
   }
 });
 
+// GET /api/location/directions?originLat=...&originLng=...&destLat=...&destLng=...
+router.get('/directions', async (req, res) => {
+  try {
+    const { originLat, originLng, destLat, destLng } = req.query;
+    if (!originLat || !originLng || !destLat || !destLng) {
+      return res.status(400).json({ success: false, message: 'originLat, originLng, destLat, and destLng required' });
+    }
+
+    // 1. Google Directions API
+    try {
+      const googleUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${originLat},${originLng}&destination=${destLat},${destLng}&mode=driving&key=${GOOGLE_API_KEY}`;
+      const googleData = await fetchGoogle(googleUrl);
+      if (googleData.status === 'OK' && googleData.routes && googleData.routes.length > 0) {
+        const polyline = googleData.routes[0].overview_polyline?.points;
+        const duration = googleData.routes[0].legs?.[0]?.duration?.text;
+        const distance = googleData.routes[0].legs?.[0]?.distance?.text;
+        return res.json({
+          success: true,
+          points: polyline,
+          duration,
+          distance,
+          source: 'google'
+        });
+      }
+    } catch (e) {
+      console.error('Google directions fetch error:', e.message);
+    }
+
+    // 2. High-speed OSRM fallback with User-Agent
+    try {
+      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=polyline`;
+      const osrmData = await new Promise((resolve, reject) => {
+        const reqOSRM = https.get(osrmUrl, {
+          headers: { 'User-Agent': 'ECDKartApp/1.0' },
+          timeout: 5000
+        }, (resp) => {
+          let body = '';
+          resp.on('data', chunk => body += chunk);
+          resp.on('end', () => {
+            try {
+              resolve(JSON.parse(body));
+            } catch (err) {
+              reject(err);
+            }
+          });
+        });
+        reqOSRM.on('error', reject);
+        reqOSRM.on('timeout', () => {
+          reqOSRM.destroy();
+          reject(new Error('OSRM timeout'));
+        });
+      });
+
+      if (osrmData.code === 'Ok' && osrmData.routes && osrmData.routes.length > 0) {
+        const polyline = osrmData.routes[0].geometry;
+        const distanceMeters = osrmData.routes[0].distance;
+        const durationSecs = osrmData.routes[0].duration;
+        return res.json({
+          success: true,
+          points: polyline,
+          duration: `${Math.round(durationSecs / 60)} mins`,
+          distance: `${(distanceMeters / 1000).toFixed(1)} km`,
+          source: 'osrm'
+        });
+      }
+    } catch (e) {
+      console.error('OSRM fetch error:', e.message);
+    }
+
+    return res.status(500).json({ success: false, message: 'Could not fetch road directions' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

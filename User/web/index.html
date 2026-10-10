@@ -116,6 +116,42 @@
   </script>
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCN7XqyxOj5lgr2uaMNrTOg6PzHTOGa0xU"></script>
+  <script>
+    window.fetchGoogleDirections = function(oLat, oLng, dLat, dLng) {
+      return new Promise(function(resolve) {
+        try {
+          if (!window.google || !window.google.maps) {
+            resolve('');
+            return;
+          }
+          var directionsService = new window.google.maps.DirectionsService();
+          directionsService.route({
+            origin: new window.google.maps.LatLng(oLat, oLng),
+            destination: new window.google.maps.LatLng(dLat, dLng),
+            travelMode: window.google.maps.TravelMode.DRIVING
+          }, function(response, status) {
+            if (status === 'OK' && response && response.routes && response.routes[0]) {
+              var poly = response.routes[0].overview_polyline;
+              if (poly && typeof poly === 'string' && poly.length > 5) {
+                resolve(poly);
+              } else if (response.routes[0].overview_path && response.routes[0].overview_path.length > 0) {
+                var pts = response.routes[0].overview_path.map(function(p) {
+                  return p.lat().toFixed(6) + ',' + p.lng().toFixed(6);
+                }).join('|');
+                resolve(pts);
+              } else {
+                resolve('');
+              }
+            } else {
+              resolve('');
+            }
+          });
+        } catch (err) {
+          resolve('');
+        }
+      });
+    };
+  </script>
 </head>
 
 <body>
