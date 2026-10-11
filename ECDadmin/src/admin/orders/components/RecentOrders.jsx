@@ -15,7 +15,6 @@ import {
   Refresh,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { useOrderDashboard } from "../../api/order";
 
 const STATUS_TABS = [
   { key: "all", label: "All", badgeKey: "all", color: "gray" },
@@ -142,17 +141,13 @@ export default function RecentOrders({
   const [searchQuery, setSearchQuery] = useState("");
 
   const activeFilter = propStatusFilter !== undefined ? propStatusFilter : internalStatusFilter;
-
-  // Fallback API hook if not supplied from parent OrderDashBoard
-  const dashboardApi = useOrderDashboard({ status: activeFilter });
-  const rawOrders = propRecentOrders || dashboardApi.recentOrders || [];
-  const statusCounts = propStatusCounts || dashboardApi.statusCounts || {};
+  const rawOrders = propRecentOrders || [];
+  const statusCounts = propStatusCounts || {};
 
   const handleTabClick = (key) => {
+    setInternalStatusFilter(key);
     if (onStatusChange) {
       onStatusChange(key);
-    } else {
-      setInternalStatusFilter(key);
     }
   };
 
@@ -192,6 +187,15 @@ export default function RecentOrders({
     return list;
   }, [rawOrders, activeFilter, searchQuery]);
 
+  const tabCounts = useMemo(() => {
+    const counts = { all: rawOrders.length };
+    rawOrders.forEach((ord) => {
+      const norm = (ord.normalizedStatus || "").toLowerCase();
+      counts[norm] = (counts[norm] || 0) + 1;
+    });
+    return counts;
+  }, [rawOrders]);
+
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-100 h-full flex flex-col">
       {/* Header Section */}
@@ -226,6 +230,7 @@ export default function RecentOrders({
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-gray-200">
           {STATUS_TABS.map((tab) => {
             const isActive = activeFilter === tab.key;
+            const count = tabCounts[tab.key] !== undefined ? tabCounts[tab.key] : (statusCounts && statusCounts[tab.badgeKey] !== undefined ? statusCounts[tab.badgeKey] : 0);
 
             return (
               <button
@@ -238,6 +243,15 @@ export default function RecentOrders({
                 }`}
               >
                 <span>{tab.label}</span>
+                {count > 0 && (
+                  <span
+                    className={`ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                      isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
               </button>
             );
           })}

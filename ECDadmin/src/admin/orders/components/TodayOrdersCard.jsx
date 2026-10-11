@@ -1,11 +1,6 @@
-// TodayOrdersCard.tsx
+import React from "react";
 
-import {useOrderDashboard} from "../../api/order";
-
-export default function TodayOrdersCard({ todayOrders: propTodayOrders }) {
-  const { todayOrders: apiTodayOrders } = useOrderDashboard();
-  const todayOrders = propTodayOrders || apiTodayOrders;
-
+export default function TodayOrdersCard({ todayOrders }) {
   if (!todayOrders) return null;
 
   return (

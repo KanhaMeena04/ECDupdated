@@ -10,6 +10,15 @@ const { admin, isInitialized } = require("../config/firebaseConfig");
 const socketService = require("../services/socketService");
 const { sendNotification } = require("../utils/notificationService");
 const { getPaginationParams } = require('../utils/pagination');
+const safeString = (val, fallback = '') => {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'string') return val.trim() || fallback;
+  if (typeof val === 'number') return String(val);
+  if (typeof val === 'object') {
+    return val.en || val.hi || val.name || val.title || (Object.values(val).find(v => typeof v === 'string') || fallback);
+  }
+  return String(val) || fallback;
+};
 const normalizeTranslation = (value) => {
   if (!value) return null;
   if (typeof value === "string") return { en: value };
@@ -232,44 +241,79 @@ exports.getOrdersDashboard = async (req, res) => {
       ...statusMap.picked_up,
     ];
 
-    let totalCount = await Order.countDocuments(matchQuery);
+    // If 'today' or any filter yields 0 orders, check if DB has any orders and fallback to 'all' time so dashboard displays real data instead of blank 0s
     let activePeriodLabel = period;
+    let periodTitle = "Today";
+    if (period === "weekly") periodTitle = "Weekly";
+    else if (period === "monthly") periodTitle = "Monthly";
+    else if (period === "yearly") periodTitle = "Yearly";
+    else if (period === "custom") periodTitle = "Selected Period";
+    else if (period === "all") periodTitle = "All Time";
 
-    // Fallback: If 'today' filter yields 0 orders, check if DB has any orders and fallback to 'all' time so dashboard displays real data instead of blank 0s
-    if (totalCount === 0 && (period === "today" || period === "daily")) {
-      const dbTotal = await Order.countDocuments({});
-      if (dbTotal > 0) {
-        matchQuery = {};
-        totalCount = dbTotal;
-        activePeriodLabel = "all";
+    if (period === "today" || period === "daily") {
+      const todayCount = await Order.countDocuments(matchQuery);
+      if (todayCount === 0) {
+        const totalDbOrders = await Order.countDocuments({});
+        if (totalDbOrders > 0) {
+          matchQuery = {};
+          activePeriodLabel = "all";
+          periodTitle = "All Time";
+        }
       }
     }
 
-    const [
-      completedCount,
-      cancelledCount,
-      processingCount,
-      newCount,
-      pendingCount,
-      acceptedCount,
-      preparingCount,
-      assignedCount,
-      readyCount,
-      pickedUpCount,
-      deliveredCount
-    ] = await Promise.all([
-      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.delivered } }),
-      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.cancelled } }),
-      Order.countDocuments({ ...matchQuery, status: { $in: processingStatuses } }),
-      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.pending } }),
-      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.pending } }),
-      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.accepted } }),
-      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.preparing } }),
-      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.assigned } }),
-      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.ready } }),
-      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.picked_up } }),
-      Order.countDocuments({ ...matchQuery, status: { $in: statusMap.delivered } }),
+    // Single fast aggregation for period stats
+    const statsAgg = await Order.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: { $toLower: "$status" },
+          count: { $sum: 1 },
+          amount: { $sum: "$totalAmount" }
+        }
+      }
     ]);
+
+    let totalCount = 0;
+    let totalRevenue = 0;
+    let completedCount = 0;
+    let cancelledCount = 0;
+    let processingCount = 0;
+    let newCount = 0;
+    let pendingCount = 0;
+    let acceptedCount = 0;
+    let preparingCount = 0;
+    let assignedCount = 0;
+    let readyCount = 0;
+    let pickedUpCount = 0;
+
+    statsAgg.forEach((g) => {
+      const st = g._id || '';
+      const c = g.count || 0;
+      const amt = g.amount || 0;
+      totalCount += c;
+      totalRevenue += amt;
+
+      if (statusMap.delivered.includes(st)) completedCount += c;
+      else if (statusMap.cancelled.includes(st)) cancelledCount += c;
+
+      if (processingStatuses.includes(st)) processingCount += c;
+
+      if (statusMap.pending.includes(st)) {
+        newCount += c;
+        pendingCount += c;
+      } else if (statusMap.accepted.includes(st)) {
+        acceptedCount += c;
+      } else if (statusMap.preparing.includes(st)) {
+        preparingCount += c;
+      } else if (statusMap.assigned.includes(st)) {
+        assignedCount += c;
+      } else if (statusMap.ready.includes(st)) {
+        readyCount += c;
+      } else if (statusMap.picked_up.includes(st)) {
+        pickedUpCount += c;
+      }
+    });
 
     const statusCounts = {
       all: totalCount,
@@ -280,29 +324,121 @@ exports.getOrdersDashboard = async (req, res) => {
       ready: readyCount,
       picked_up: pickedUpCount,
       cancelled: cancelledCount,
-      delivered: deliveredCount,
+      delivered: completedCount,
     };
 
-    let orderFilter = { ...matchQuery };
-    if (filterStatus && filterStatus !== 'all' && statusMap[filterStatus]) {
-      orderFilter.status = { $in: statusMap[filterStatus] };
+    // Global live status counts (independent of period, for live order tabs)
+    const liveCountsAgg = await Order.aggregate([
+      {
+        $group: {
+          _id: { $toLower: "$status" },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const liveStatusCounts = {
+      all: 0,
+      pending: 0,
+      accepted: 0,
+      preparing: 0,
+      assigned: 0,
+      ready: 0,
+      picked_up: 0,
+      cancelled: 0,
+      delivered: 0,
+    };
+
+    liveCountsAgg.forEach((g) => {
+      const st = g._id || '';
+      const c = g.count || 0;
+      liveStatusCounts.all += c;
+      if (statusMap.pending.includes(st)) liveStatusCounts.pending += c;
+      else if (statusMap.accepted.includes(st)) liveStatusCounts.accepted += c;
+      else if (statusMap.preparing.includes(st)) liveStatusCounts.preparing += c;
+      else if (statusMap.assigned.includes(st)) liveStatusCounts.assigned += c;
+      else if (statusMap.ready.includes(st)) liveStatusCounts.ready += c;
+      else if (statusMap.picked_up.includes(st)) liveStatusCounts.picked_up += c;
+      else if (statusMap.delivered.includes(st)) liveStatusCounts.delivered += c;
+      else if (statusMap.cancelled.includes(st)) liveStatusCounts.cancelled += c;
+    });
+
+    // Dynamic Timeline Aggregation for Graph Chart
+    let chartLabels = [];
+    let chartOrders = [];
+    let chartCompleted = [];
+    let chartCancelled = [];
+    let chartRevenue = [];
+
+    const timelineAgg = await Order.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }
+          },
+          count: { $sum: 1 },
+          completed: {
+            $sum: {
+              $cond: [{ $in: [{ $toLower: "$status" }, statusMap.delivered] }, 1, 0]
+            }
+          },
+          cancelled: {
+            $sum: {
+              $cond: [{ $in: [{ $toLower: "$status" }, statusMap.cancelled] }, 1, 0]
+            }
+          },
+          revenue: { $sum: "$totalAmount" }
+        }
+      },
+      { $sort: { _id: 1 } },
+      { $limit: 15 }
+    ]);
+
+    if (timelineAgg.length > 1) {
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      chartLabels = timelineAgg.map((t) => {
+        const d = new Date(t._id);
+        if (!isNaN(d.getTime())) {
+          return `${d.getDate()} ${monthNames[d.getMonth()]}`;
+        }
+        return t._id;
+      });
+      chartOrders = timelineAgg.map((t) => t.count);
+      chartCompleted = timelineAgg.map((t) => t.completed);
+      chartCancelled = timelineAgg.map((t) => t.cancelled);
+      chartRevenue = timelineAgg.map((t) => Math.round(t.revenue || 0));
+    } else if (timelineAgg.length === 1) {
+      chartLabels = ["12 AM", "3 AM", "6 AM", "9 AM", "12 PM", "3 PM", "6 PM", "9 PM"];
+      chartOrders = new Array(8).fill(0);
+      chartCompleted = new Array(8).fill(0);
+      chartCancelled = new Array(8).fill(0);
+      chartRevenue = new Array(8).fill(0);
+
+      const dayOrders = await Order.find(matchQuery, "createdAt status totalAmount").lean();
+      dayOrders.forEach((o) => {
+        const h = new Date(o.createdAt).getHours();
+        const slot = Math.min(7, Math.floor(h / 3));
+        chartOrders[slot] += 1;
+        chartRevenue[slot] += Math.round(Number(o.totalAmount || 0));
+        const st = (o.status || '').toLowerCase();
+        if (statusMap.delivered.includes(st)) chartCompleted[slot] += 1;
+        if (statusMap.cancelled.includes(st)) chartCancelled[slot] += 1;
+      });
+    } else {
+      chartLabels = ["12 AM", "3 AM", "6 AM", "9 AM", "12 PM", "3 PM", "6 PM", "9 PM"];
+      chartOrders = [0, 0, 0, 0, 0, 0, 0, 0];
+      chartCompleted = [0, 0, 0, 0, 0, 0, 0, 0];
+      chartCancelled = [0, 0, 0, 0, 0, 0, 0, 0];
+      chartRevenue = [0, 0, 0, 0, 0, 0, 0, 0];
     }
 
-    const recentOrders = await Order.find(orderFilter)
-      .populate('customer', 'name mobile email customerId address')
-      .populate('restaurant', 'name phone contactNumber address city restaurantId')
-      .populate('rider', 'name mobile phone riderId vehicle')
-      .populate({ path: 'rider', populate: { path: 'user', select: 'name mobile' } })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
-
     let periodTitle = "Today";
-    if (activePeriodLabel === "weekly") periodTitle = "Weekly";
-    else if (activePeriodLabel === "monthly") periodTitle = "Monthly";
-    else if (activePeriodLabel === "yearly") periodTitle = "Yearly";
-    else if (activePeriodLabel === "custom") periodTitle = "Selected Period";
-    else if (activePeriodLabel === "all") periodTitle = "All Time";
+    if (period === "weekly") periodTitle = "Weekly";
+    else if (period === "monthly") periodTitle = "Monthly";
+    else if (period === "yearly") periodTitle = "Yearly";
+    else if (period === "custom") periodTitle = "Selected Period";
+    else if (period === "all") periodTitle = "All Time";
 
     const stats = [
       { label: `${periodTitle} Orders`, value: totalCount, type: 'today' },
@@ -312,9 +448,10 @@ exports.getOrdersDashboard = async (req, res) => {
     ];
 
     const todayOrders = {
-      period: activePeriodLabel,
+      period: period,
       periodTitle: periodTitle,
       total: totalCount,
+      totalRevenue: totalRevenue,
       completedPercent: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
       breakdown: [
         { label: 'New Orders', value: newCount },
@@ -322,6 +459,21 @@ exports.getOrdersDashboard = async (req, res) => {
         { label: 'Cancelled Orders', value: cancelledCount }
       ]
     };
+
+    // Recent orders: always retrieve recent orders stream
+    let recentQuery = {};
+    if (filterStatus && filterStatus !== 'all' && statusMap[filterStatus]) {
+      recentQuery.status = { $in: statusMap[filterStatus] };
+    }
+
+    const recentOrders = await Order.find(recentQuery)
+      .populate('customer', 'name mobile email customerId address')
+      .populate('restaurant', 'name phone contactNumber address city restaurantId')
+      .populate('rider', 'name mobile phone riderId vehicle')
+      .populate({ path: 'rider', populate: { path: 'user', select: 'name mobile' } })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
 
     const formattedRecentOrders = recentOrders.map(order => {
       const rawStatus = (order.status || '').toLowerCase();
@@ -361,8 +513,8 @@ exports.getOrdersDashboard = async (req, res) => {
         normalizedStatus === 'delivered' ? 'Delivered' :
         (order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1).replace(/_/g, ' ') : 'Pending');
 
-      const restName = safeString(order.restaurant?.name) || safeString(order.restaurantName) || 'Restaurant';
-      const customerName = safeString(order.customer?.name) || safeString(order.customerName) || 'Customer';
+      const restName = (order.restaurant && order.restaurant.name) || order.restaurantName || 'Restaurant';
+      const customerName = (order.customer && order.customer.name) || order.customerName || 'Customer';
 
       const cleanRestId = order.restaurantId || order.restaurant?.restaurantId || (order.restaurant?._id ? `RNT${order.restaurant._id.toString().slice(-3).toUpperCase()}` : 'RNT001');
       const cleanCustId = order.customerId || order.customer?.customerId || (order.customer?._id ? `C${order.customer._id.toString().slice(-3).toUpperCase()}` : 'C001');
@@ -419,6 +571,14 @@ exports.getOrdersDashboard = async (req, res) => {
       stats,
       todayOrders,
       statusCounts,
+      liveStatusCounts,
+      chartData: {
+        labels: chartLabels,
+        orders: chartOrders,
+        completed: chartCompleted,
+        cancelled: chartCancelled,
+        revenue: chartRevenue,
+      },
       recentOrders: formattedRecentOrders
     });
   } catch (error) {

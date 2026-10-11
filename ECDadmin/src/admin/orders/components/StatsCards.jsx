@@ -5,7 +5,6 @@ import {
   AccessTime,
   EventNote,
 } from "@mui/icons-material";
-import {useOrderDashboard} from "../../api/order";
 
 const iconMap = {
   today: EventNote,
@@ -14,9 +13,7 @@ const iconMap = {
   processing: AccessTime,
 };
 
-export default function StatsCards({ stats: propStats }) {
-  const { stats: apiStats } = useOrderDashboard();
-  const stats = propStats || apiStats;
+export default function StatsCards({ stats = [] }) {
 
   return (
     <div className="stats-cards-wrapper sm:mt-12 md:mt-0 border bg-white rounded-lg">

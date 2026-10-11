@@ -133,6 +133,14 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', sta
   const [todayOrders, setTodayOrders] = useState(INITIAL_TODAY_ORDERS);
   const [recentOrders, setRecentOrders] = useState([]);
   const [statusCounts, setStatusCounts] = useState(INITIAL_STATUS_COUNTS);
+  const [liveStatusCounts, setLiveStatusCounts] = useState(INITIAL_STATUS_COUNTS);
+  const [chartData, setChartData] = useState({
+    labels: [],
+    orders: [],
+    completed: [],
+    cancelled: [],
+    revenue: [],
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
@@ -151,6 +159,12 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', sta
       setRecentOrders(Array.isArray(data.recentOrders) ? data.recentOrders : []);
       if (data.statusCounts) {
         setStatusCounts(data.statusCounts);
+      }
+      if (data.liveStatusCounts) {
+        setLiveStatusCounts(data.liveStatusCounts);
+      }
+      if (data.chartData) {
+        setChartData(data.chartData);
       }
     } catch (err) {
       console.error("Dashboard fetch failed:", err);
@@ -173,7 +187,17 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', sta
     return () => clearInterval(interval);
   }, [fetchDashboard]);
 
-  return { stats, todayOrders, recentOrders, statusCounts, loading, error, refetch: () => fetchDashboard(false) };
+  return {
+    stats,
+    todayOrders,
+    recentOrders,
+    statusCounts,
+    liveStatusCounts,
+    chartData,
+    loading,
+    error,
+    refetch: () => fetchDashboard(false)
+  };
 };
 
 export { useAdminOrders, useAdminOrderDetails, useOrderDashboard };
