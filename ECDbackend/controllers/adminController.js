@@ -10,15 +10,6 @@ const { admin, isInitialized } = require("../config/firebaseConfig");
 const socketService = require("../services/socketService");
 const { sendNotification } = require("../utils/notificationService");
 const { getPaginationParams } = require('../utils/pagination');
-const safeString = (val, fallback = '') => {
-  if (val === null || val === undefined) return fallback;
-  if (typeof val === 'string') return val.trim() || fallback;
-  if (typeof val === 'number') return String(val);
-  if (typeof val === 'object') {
-    return val.en || val.hi || val.name || val.title || (Object.values(val).find(v => typeof v === 'string') || fallback);
-  }
-  return String(val) || fallback;
-};
 const normalizeTranslation = (value) => {
   if (!value) return null;
   if (typeof value === "string") return { en: value };
@@ -432,13 +423,6 @@ exports.getOrdersDashboard = async (req, res) => {
       chartCancelled = [0, 0, 0, 0, 0, 0, 0, 0];
       chartRevenue = [0, 0, 0, 0, 0, 0, 0, 0];
     }
-
-    let periodTitle = "Today";
-    if (period === "weekly") periodTitle = "Weekly";
-    else if (period === "monthly") periodTitle = "Monthly";
-    else if (period === "yearly") periodTitle = "Yearly";
-    else if (period === "custom") periodTitle = "Selected Period";
-    else if (period === "all") periodTitle = "All Time";
 
     const stats = [
       { label: `${periodTitle} Orders`, value: totalCount, type: 'today' },
