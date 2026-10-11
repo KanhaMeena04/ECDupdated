@@ -15,7 +15,8 @@ import 'package:ecdkart_app/routes/app_routes.dart';
 
 class RegisterPage extends StatefulWidget {
   final String? initialMobile;
-  const RegisterPage({super.key, this.initialMobile});
+  final bool isPhoneVerified;
+  const RegisterPage({super.key, this.initialMobile, this.isPhoneVerified = false});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -272,6 +273,33 @@ class _RegisterPageState extends State<RegisterPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid 10-digit mobile number')),
       );
+      return;
+    }
+
+    if (widget.isPhoneVerified) {
+      // Mobile is already verified with OTP on login screen!
+      setState(() => _isLoading = true);
+      final fullName = '$firstName $lastName'.trim();
+      final updateSuccess = await UserApiService.updateProfile(fullName, email: email, phone: mobile);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (mounted) {
+        context.read<UserProvider>().setUserInfo(
+              name: fullName,
+              email: email,
+              phone: mobile,
+            );
+        context.read<UserProvider>().fetchProfile();
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Welcome, $fullName! Registration completed successfully.'),
+          backgroundColor: const Color(0xFF248C70),
+        ),
+      );
+      context.go(AppRoutes.home);
       return;
     }
 
@@ -533,6 +561,20 @@ class _RegisterPageState extends State<RegisterPage> {
                       hint: 'Enter Mobile Number',
                       keyboardType: TextInputType.phone,
                       maxLength: 10,
+                      readOnly: widget.isPhoneVerified,
+                      suffixIcon: widget.isPhoneVerified
+                          ? const Padding(
+                              padding: EdgeInsets.only(right: 12),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle_rounded, color: Color(0xFF248C70), size: 18),
+                                  SizedBox(width: 4),
+                                  Text('Verified', style: TextStyle(color: Color(0xFF248C70), fontSize: 12, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            )
+                          : null,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       controller: _mobileController,
                     ),
@@ -561,9 +603,9 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         child: _isLoading
                             ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text(
-                                'Create Account',
-                                style: TextStyle(
+                            : Text(
+                                widget.isPhoneVerified ? 'Complete Registration' : 'Create Account',
+                                style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.2,
@@ -643,6 +685,8 @@ class _RegisterPageState extends State<RegisterPage> {
     int? maxLength,
     List<TextInputFormatter>? inputFormatters,
     Widget? prefixIcon,
+    Widget? suffixIcon,
+    bool readOnly = false,
     TextEditingController? controller,
     String? Function(String?)? validator,
   }) {
@@ -665,12 +709,14 @@ class _RegisterPageState extends State<RegisterPage> {
             keyboardType: keyboardType,
             maxLength: maxLength,
             inputFormatters: inputFormatters,
+            readOnly: readOnly,
             style: const TextStyle(fontSize: 14),
             decoration: InputDecoration(
               counterText: '',
               hintText: hint,
               hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
               prefixIcon: prefixIcon,
+              suffixIcon: suffixIcon,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -681,7 +727,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 borderSide: const BorderSide(color: Color(0xFF248C70), width: 1.5),
               ),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: readOnly ? Colors.grey.shade50 : Colors.white,
             ),
             validator: validator,
           ),

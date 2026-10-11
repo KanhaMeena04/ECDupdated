@@ -356,10 +356,6 @@ class ProfileTab extends StatelessWidget {
                         onTap: () => _showPaymentSettingsSheet(context, isDark),
                       ),
                       _GroupMenuItem(
-                        title: 'Change Password',
-                        onTap: () => _showChangePasswordDialog(context, isDark),
-                      ),
-                      _GroupMenuItem(
                         title: 'Delete Account',
                         isDestructive: true,
                         onTap: () => _showDeleteAccountDialog(context, isDark),
@@ -936,63 +932,6 @@ class ProfileTab extends StatelessWidget {
             const SizedBox(height: 16),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showChangePasswordDialog(BuildContext context, bool isDark) {
-    final oldPass = TextEditingController();
-    final newPass = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Change Password',
-            style: TextStyle(
-                color: isDark ? Colors.white : Colors.black,
-                fontWeight: FontWeight.bold,
-                fontSize: 16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: oldPass,
-              obscureText: true,
-              decoration: const InputDecoration(
-                  labelText: 'Current Password',
-                  hintText: 'Enter current password'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: newPass,
-              obscureText: true,
-              decoration: const InputDecoration(
-                  labelText: 'New Password', hintText: 'Enter new password'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Password updated successfully!'),
-                    backgroundColor: AppColors.primary),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white),
-            child: const Text('Update'),
-          ),
-        ],
       ),
     );
   }

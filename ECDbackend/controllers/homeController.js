@@ -573,6 +573,8 @@ exports.getBanners = async (req, res) => {
         targetModel: b.targetModel || (b.restaurant ? 'Restaurant' : undefined),
         restaurant: b.restaurant,
         city: b.city,
+        position: b.position !== undefined ? b.position : 0,
+        link: b.link || b.externalUrl || '',
         isActive: b.isActive !== false && b.isActive !== 'false'
       };
     });
@@ -588,7 +590,7 @@ exports.getBanners = async (req, res) => {
     return res.status(200).json({
       success: true,
       banners: [
-        { _id: 'ban_1', id: 'ban_1', title: 'Special Discount 50% Off', image: 'assets/static/b1.png', imageUrl: 'assets/static/b1.png', isActive: true }
+        { _id: 'ban_1', id: 'ban_1', title: 'Special Discount 50% Off', image: 'assets/static/b1.png', imageUrl: 'assets/static/b1.png', isActive: true, position: 0 }
       ],
       data: []
     });
@@ -598,10 +600,55 @@ exports.getBanners = async (req, res) => {
 exports.getPopularDishes = async (req, res) => {
   try {
     const Product = require('../models/Product');
+    const Order = require('../models/Order');
     const { formatProductForUser } = require('../utils/responseFormatter');
-    const products = await Product.find({ available: true, isApproved: true })
-      .limit(10)
+
+    // 1. Calculate top ordered products from delivered orders
+    let topProductIds = [];
+    try {
+      const popularOrders = await Order.aggregate([
+        { $match: { status: "delivered" } },
+        { $unwind: "$items" },
+        { $group: { _id: "$items.product", count: { $sum: "$items.quantity" } } },
+        { $sort: { count: -1 } },
+        { $limit: 15 }
+      ]);
+      topProductIds = popularOrders.map(p => p._id).filter(Boolean);
+    } catch (aggErr) {
+      console.warn("Popular dishes order aggregate error:", aggErr);
+    }
+
+    let products = [];
+    if (topProductIds.length > 0) {
+      products = await Product.find({
+        _id: { $in: topProductIds },
+        available: { $ne: false },
+        outOfStock: { $ne: true },
+        isApproved: { $ne: false }
+      })
+      .populate('restaurant', 'name image isOnline isActive isTemporarilyClosed location address cuisine')
+      .populate('category', 'name title')
       .lean();
+    }
+
+    // 2. Supplement or fallback with featured & high-rated available products
+    if (products.length < 10) {
+      const existingIds = products.map(p => p._id.toString());
+      const remainingLimit = 10 - products.length;
+      const additional = await Product.find({
+        _id: { $nin: existingIds },
+        available: { $ne: false },
+        outOfStock: { $ne: true },
+        isApproved: { $ne: false }
+      })
+      .sort({ isFeatured: -1, rating: -1, createdAt: -1 })
+      .limit(remainingLimit)
+      .populate('restaurant', 'name image isOnline isActive isTemporarilyClosed location address cuisine')
+      .populate('category', 'name title')
+      .lean();
+      products = [...products, ...additional];
+    }
+
     const formatted = products.map(p => formatProductForUser(p));
     res.status(200).json({
       success: true,

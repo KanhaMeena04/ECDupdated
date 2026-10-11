@@ -127,6 +127,19 @@ const safeText = (val: any, fallback = ''): string => {
   return String(val);
 };
 
+const getRelativeTime = (dateStr: string): string => {
+  if (!dateStr) return '';
+  try {
+    const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  } catch (_) {
+    return '';
+  }
+};
+
 interface HeaderProps {
   onToggleDashboard?: () => void;
   showToggleButton?: boolean;
@@ -165,9 +178,87 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
     } catch (_) {}
   }, []);
 
+  const markNotifAsRead = React.useCallback(async (notif: NotificationItem) => {
+    const existingReadIds: string[] = JSON.parse(localStorage.getItem('admin_read_notification_ids') || '[]');
+    const toAdd = [
+      notif.id,
+      notif.orderId,
+      notif.orderCode,
+      notif.orderCode ? notif.orderCode.replace('#', '') : ''
+    ].filter(Boolean);
+    const updated = Array.from(new Set([...existingReadIds, ...toAdd]));
+    localStorage.setItem('admin_read_notification_ids', JSON.stringify(updated));
+
+    setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - (notif.read ? 0 : 1)));
+
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await axios.post(`${API_BASE_URL}/api/admin/notifications/read/${notif.id}`, {}, { headers, withCredentials: true });
+    } catch (_) {}
+  }, []);
+
+  const handleMarkAllRead = React.useCallback(async (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    const now = Date.now();
+    localStorage.setItem('admin_notifications_mark_all_read_time', String(now));
+
+    const existingReadIds: string[] = JSON.parse(localStorage.getItem('admin_read_notification_ids') || '[]');
+    const toAdd: string[] = [];
+    notifications.forEach(n => {
+      if (n.id) toAdd.push(n.id);
+      if (n.orderId) toAdd.push(n.orderId);
+      if (n.orderCode) {
+        toAdd.push(n.orderCode);
+        toAdd.push(n.orderCode.replace('#', ''));
+      }
+    });
+    const updated = Array.from(new Set([...existingReadIds, ...toAdd]));
+    localStorage.setItem('admin_read_notification_ids', JSON.stringify(updated));
+
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await axios.post(`${API_BASE_URL}/api/admin/notifications/mark-all-read`, {}, { headers, withCredentials: true });
+    } catch (_) {}
+  }, [notifications]);
+
+  const handleClearNotif = (notif: NotificationItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const existingDismissed: string[] = JSON.parse(localStorage.getItem('admin_dismissed_notification_ids') || '[]');
+    const toAdd = [
+      notif.id,
+      notif.orderId,
+      notif.orderCode,
+      notif.orderCode ? notif.orderCode.replace('#', '') : ''
+    ].filter(Boolean);
+    const updated = Array.from(new Set([...existingDismissed, ...toAdd]));
+    localStorage.setItem('admin_dismissed_notification_ids', JSON.stringify(updated));
+
+    // Also mark as read
+    markNotifAsRead(notif);
+
+    setNotifications(prev => prev.filter(n => n.id !== notif.id));
+    setUnreadCount(prev => Math.max(0, prev - (notif.read ? 0 : 1)));
+  };
+
   const fetchLiveNotifications = React.useCallback(async () => {
     try {
       const readIds: string[] = JSON.parse(localStorage.getItem('admin_read_notification_ids') || '[]');
+      const dismissedIds: string[] = JSON.parse(localStorage.getItem('admin_dismissed_notification_ids') || '[]');
+      const markAllReadTime = Number(localStorage.getItem('admin_notifications_mark_all_read_time') || 0);
+
       const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       const headers: Record<string, string> = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -178,24 +269,49 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
       });
 
       if (res.data?.success && Array.isArray(res.data.notifications)) {
-        const cleaned: NotificationItem[] = res.data.notifications.map((n: any) => {
-          const notifId = String(n.id || n._id);
-          const isRead = readIds.includes(notifId) || n.read === true;
-          return {
-            ...n,
-            id: notifId,
-            orderId: String(n.orderId || n._id || ''),
-            orderCode: safeText(n.orderCode, 'Order'),
-            restaurantName: safeText(n.restaurantName, 'Restaurant'),
-            customerName: safeText(n.customerName, 'Customer'),
-            title: safeText(n.title, 'Notification'),
-            description: safeText(n.description, ''),
-            read: isRead,
-            type: n.type || 'order',
-            conversationId: n.conversationId || '',
-            linkUrl: n.linkUrl || '',
-          };
-        });
+        const cleaned: NotificationItem[] = res.data.notifications
+          .map((n: any) => {
+            const notifId = String(n.id || n._id || '');
+            const orderIdStr = String(n.orderId || n._id || '');
+            const orderCodeStr = safeText(n.orderCode, 'Order');
+            const cleanCode = orderCodeStr.replace('#', '');
+
+            // Filter out dismissed notifications
+            if (
+              dismissedIds.includes(notifId) ||
+              dismissedIds.includes(orderIdStr) ||
+              dismissedIds.includes(orderCodeStr) ||
+              dismissedIds.includes(cleanCode)
+            ) {
+              return null;
+            }
+
+            const notifTime = n.createdAt ? new Date(n.createdAt).getTime() : 0;
+            const isReadByTime = markAllReadTime > 0 && notifTime > 0 && notifTime <= markAllReadTime;
+            const isReadById =
+              readIds.includes(notifId) ||
+              readIds.includes(orderIdStr) ||
+              readIds.includes(orderCodeStr) ||
+              readIds.includes(cleanCode);
+            const isRead = isReadByTime || isReadById || n.read === true;
+
+            return {
+              ...n,
+              id: notifId,
+              orderId: orderIdStr,
+              orderCode: orderCodeStr,
+              restaurantName: safeText(n.restaurantName, 'Restaurant'),
+              customerName: safeText(n.customerName, 'Customer'),
+              title: safeText(n.title, 'Notification'),
+              description: safeText(n.description, ''),
+              read: isRead,
+              type: n.type || 'order',
+              conversationId: n.conversationId || '',
+              linkUrl: n.linkUrl || '',
+            };
+          })
+          .filter(Boolean) as NotificationItem[];
+
         setNotifications(cleaned);
         const unread = cleaned.filter((n: NotificationItem) => !n.read).length;
         setUnreadCount(unread);
@@ -205,6 +321,9 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
       // Fallback to order-dashboard
       try {
         const readIds: string[] = JSON.parse(localStorage.getItem('admin_read_notification_ids') || '[]');
+        const dismissedIds: string[] = JSON.parse(localStorage.getItem('admin_dismissed_notification_ids') || '[]');
+        const markAllReadTime = Number(localStorage.getItem('admin_notifications_mark_all_read_time') || 0);
+
         const token = localStorage.getItem('token') || sessionStorage.getItem('token');
         const headers: Record<string, string> = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -215,28 +334,54 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
         });
 
         if (fallback.data?.recentOrders && Array.isArray(fallback.data.recentOrders)) {
-          const list: NotificationItem[] = fallback.data.recentOrders.map((o: any) => {
-            const notifId = String(o._id || o.id);
-            const rName = safeText(o.restaurantName || o.restaurant?.name || o.restaurant, 'Restaurant');
-            const cName = safeText(o.customerName || o.customer?.name || o.customer, 'Customer');
-            const isPickup = o.orderType === 'self_pickup';
-            const isRead = readIds.includes(notifId) || ['delivered', 'cancelled'].includes(String(o.status).toLowerCase());
-            return {
-              id: notifId,
-              orderId: String(o._id || (o.id ? o.id.replace('#', '') : '')),
-              orderCode: String(o.orderCode || o.id),
-              restaurantName: rName,
-              customerName: cName,
-              title: `Order ${o.orderCode || o.id} • ${rName}`,
-              description: `${o.inrAmount || o.amount} • ${isPickup ? '🛍️ Pickup' : '🚴 Delivery'}`,
-              status: String(o.status || 'placed'),
-              orderType: o.orderType || 'delivery',
-              amount: Number(o.totalAmount || 0),
-              amountFormatted: String(o.inrAmount || o.amount || '₹0.00'),
-              createdAt: o.createdAt || new Date().toISOString(),
-              read: isRead,
-            };
-          });
+          const list: NotificationItem[] = fallback.data.recentOrders
+            .map((o: any) => {
+              const notifId = String(o._id || o.id || '');
+              const orderIdStr = String(o._id || (o.id ? o.id.replace('#', '') : ''));
+              const orderCodeStr = String(o.orderCode || o.id || 'Order');
+              const cleanCode = orderCodeStr.replace('#', '');
+
+              if (
+                dismissedIds.includes(notifId) ||
+                dismissedIds.includes(orderIdStr) ||
+                dismissedIds.includes(orderCodeStr) ||
+                dismissedIds.includes(cleanCode)
+              ) {
+                return null;
+              }
+
+              const rName = safeText(o.restaurantName || o.restaurant?.name || o.restaurant, 'Restaurant');
+              const cName = safeText(o.customerName || o.customer?.name || o.customer, 'Customer');
+              const isPickup = o.orderType === 'self_pickup';
+
+              const notifTime = o.createdAt ? new Date(o.createdAt).getTime() : 0;
+              const isReadByTime = markAllReadTime > 0 && notifTime > 0 && notifTime <= markAllReadTime;
+              const isDeliveredOrCancelled = ['delivered', 'cancelled'].includes(String(o.status).toLowerCase());
+              const isReadById =
+                readIds.includes(notifId) ||
+                readIds.includes(orderIdStr) ||
+                readIds.includes(orderCodeStr) ||
+                readIds.includes(cleanCode);
+              const isRead = isReadByTime || isReadById || isDeliveredOrCancelled;
+
+              return {
+                id: notifId,
+                orderId: orderIdStr,
+                orderCode: orderCodeStr,
+                restaurantName: rName,
+                customerName: cName,
+                title: `Order ${orderCodeStr} • ${rName}`,
+                description: `${o.inrAmount || o.amount} • ${isPickup ? '🛍️ Pickup' : '🚴 Delivery'}`,
+                status: String(o.status || 'placed'),
+                orderType: o.orderType || 'delivery',
+                amount: Number(o.totalAmount || 0),
+                amountFormatted: String(o.inrAmount || o.amount || '₹0.00'),
+                createdAt: o.createdAt || new Date().toISOString(),
+                read: isRead,
+              };
+            })
+            .filter(Boolean) as NotificationItem[];
+
           setNotifications(list);
           setUnreadCount(list.filter((n) => !n.read).length);
         }
@@ -244,59 +389,12 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
     }
   }, []);
 
-  const fetchSupportUnreadCount = React.useCallback(async () => {
-    try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+  const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
 
-      const res = await axios.get(`${API_BASE_URL}/api/support/admin/conversations?limit=1`, {
-        headers,
-        withCredentials: true,
-      });
-
-      if (res.data?.success && typeof res.data.totalUnread === 'number') {
-        const newCount = res.data.totalUnread;
-        if (prevSupportUnreadRef.current !== -1 && newCount > prevSupportUnreadRef.current) {
-          playSupportAlertChime();
-          toast('💬 New Customer Support Message Received!', {
-            icon: '💬',
-            duration: 5000,
-            style: {
-              borderRadius: '12px',
-              background: '#173F35',
-              color: '#ffffff',
-              fontSize: '13px',
-              fontWeight: 600,
-            },
-          });
-        }
-        prevSupportUnreadRef.current = newCount;
-        setSupportUnreadCount(newCount);
-      }
-    } catch (_) {}
-  }, [playSupportAlertChime]);
-
-  React.useEffect(() => {
-    fetchLiveNotifications();
-    fetchSupportUnreadCount();
-    const interval = setInterval(() => {
-      fetchLiveNotifications();
-      fetchSupportUnreadCount();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [fetchLiveNotifications, fetchSupportUnreadCount]);
-
-  const getRelativeTime = (dateStr: string) => {
-    if (!dateStr) return 'Just now';
-    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-    if (diff < 15) return 'Just now';
-    if (diff < 60) return `${diff}s ago`;
-    const mins = Math.floor(diff / 60);
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
+  const handleMenuClose = () => {
+    setAnchorEl(null);
   };
 
   const handleNotifClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -305,30 +403,6 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
 
   const handleNotifClose = () => {
     setNotifAnchorEl(null);
-  };
-
-  const handleMarkAllRead = () => {
-    const allIds = notifications.map(n => n.id);
-    const existingReadIds: string[] = JSON.parse(localStorage.getItem('admin_read_notification_ids') || '[]');
-    const updated = Array.from(new Set([...existingReadIds, ...allIds]));
-    localStorage.setItem('admin_read_notification_ids', JSON.stringify(updated));
-
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    setUnreadCount(0);
-  };
-
-  const handleClearNotif = (id: string | number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setNotifications(prev => prev.filter(n => n.id !== id));
-    setUnreadCount(prev => Math.max(0, prev - 1));
-  };
-
-  const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
   };
 
   const handleLogout = () => {
@@ -590,7 +664,7 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
 
             {/* Notifications Trigger */}
             <IconButton onClick={handleNotifClick} size="small" sx={{ p: 0.5 }}>
-              <Badge badgeContent={unreadCount} color="error">
+              <Badge badgeContent={unreadCount} color="error" invisible={unreadCount <= 0}>
                 <NotificationsRoundedIcon color="action" />
               </Badge>
             </IconButton>
@@ -639,7 +713,7 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
                 {unreadCount > 0 && (
                   <Typography 
                     variant="caption" 
-                    onClick={handleMarkAllRead}
+                    onClick={(e) => handleMarkAllRead(e)}
                     sx={{ color: '#248C70', fontWeight: 700, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
                   >
                     Mark all as read
@@ -660,13 +734,7 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
                     <ListItem 
                       key={notif.id}
                       onClick={() => {
-                        const existingReadIds: string[] = JSON.parse(localStorage.getItem('admin_read_notification_ids') || '[]');
-                        if (!existingReadIds.includes(notif.id)) {
-                          existingReadIds.push(notif.id);
-                          localStorage.setItem('admin_read_notification_ids', JSON.stringify(existingReadIds));
-                        }
-                        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
-                        setUnreadCount(prev => Math.max(0, prev - (notif.read ? 0 : 1)));
+                        markNotifAsRead(notif);
                         if (notif.type === 'support' || notif.linkUrl === '/support-chat') {
                           navigate('/support-chat', { state: { conversationId: notif.conversationId } });
                           handleNotifClose();
@@ -725,7 +793,7 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
 
                         <IconButton 
                           size="small" 
-                          onClick={(e) => handleClearNotif(notif.id, e)} 
+                          onClick={(e) => handleClearNotif(notif, e)} 
                           sx={{ color: 'gray', '&:hover': { color: 'error.main' }, p: 0.5 }}
                         >
                           <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.75rem' }}>✕</Typography>
@@ -738,7 +806,7 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+                            markNotifAsRead(notif);
                             if (notif.orderId) {
                               navigate(`/view-order/${notif.orderId}`);
                               handleNotifClose();

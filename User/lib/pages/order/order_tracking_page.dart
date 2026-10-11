@@ -89,6 +89,68 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     return widget.orderId;
   }
 
+  String get _dynamicGracePeriodText {
+    final slot = widget.pickupTimeSlot.isNotEmpty
+        ? widget.pickupTimeSlot
+        : (_trackingData?['pickupTimeSlot'] ?? _trackingData?['order']?['pickupTimeSlot'] ?? '').toString();
+
+    if (slot.isNotEmpty && slot.contains('-')) {
+      final parts = slot.split('-');
+      if (parts.length == 2) {
+        final endTimeStr = parts[1].trim();
+        return '⏱️ 15-Mins Grace Period: Order held warm at counter until $endTimeStr + 15m';
+      }
+    }
+
+    final createdAt = _trackingData?['createdAt'] != null
+        ? DateTime.tryParse(_trackingData!['createdAt'].toString())
+        : null;
+    final baseTime = createdAt ?? DateTime.now();
+    final graceTime = baseTime.add(const Duration(minutes: 30));
+    final hour = graceTime.hour % 12 == 0 ? 12 : graceTime.hour % 12;
+    final period = graceTime.hour >= 12 ? 'PM' : 'AM';
+    final min = graceTime.minute.toString().padLeft(2, '0');
+    return '⏱️ 15-Mins Grace Period: Order held warm at counter until $hour:$min $period';
+  }
+
+  double _calculateDistanceInKm(double lat1, double lon1, double lat2, double lon2) {
+    const p = 0.017453292519943295;
+    final a = 0.5 - math.cos((lat2 - lat1) * p) / 2 +
+        math.cos(lat1 * p) * math.cos(lat2 * p) *
+        (1 - math.cos((lon2 - lon1) * p)) / 2;
+    return 12742 * math.asin(math.sqrt(a));
+  }
+
+  String get _dynamicRestaurantDistanceText {
+    final distNum = _trackingData?['deliveryDistanceKm'] ??
+        _trackingData?['order']?['deliveryDistanceKm'] ??
+        _trackingData?['distance'] ??
+        _trackingData?['restaurant']?['distance'];
+    if (distNum != null && double.tryParse(distNum.toString()) != null) {
+      final d = double.parse(distNum.toString());
+      if (d > 0) return '📍 ${d.toStringAsFixed(1)} km';
+    }
+
+    try {
+      final restCoords = _trackingData?['restaurant']?['location']?['coordinates'] ??
+          _trackingData?['restaurant']?['coordinates'];
+      final userCoords = _trackingData?['deliveryAddress']?['coordinates'] ??
+          _trackingData?['userLocation']?['coordinates'];
+      if (restCoords is List && restCoords.length >= 2 && userCoords is List && userCoords.length >= 2) {
+        final rLon = (restCoords[0] as num).toDouble();
+        final rLat = (restCoords[1] as num).toDouble();
+        final uLon = (userCoords[0] as num).toDouble();
+        final uLat = (userCoords[1] as num).toDouble();
+        if (rLat != 0 && rLon != 0 && uLat != 0 && uLon != 0) {
+          final d = _calculateDistanceInKm(rLat, rLon, uLat, uLon);
+          if (d > 0) return '📍 ${d.toStringAsFixed(1)} km';
+        }
+      }
+    } catch (_) {}
+
+    return '📍 Pickup Store';
+  }
+
   AnimationController? _pulseController;
 
   AnimationController _getPulseController() {
@@ -895,7 +957,18 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
   void _callNumber(String phone) async {
     final cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
-    final Uri telUri = Uri(scheme: 'tel', path: cleanPhone.isNotEmpty ? cleanPhone : '9876543210');
+    if (cleanPhone.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Contact number is not available for this order.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    final Uri telUri = Uri(scheme: 'tel', path: cleanPhone);
     if (await canLaunchUrl(telUri)) {
       await launchUrl(telUri);
     } else {
@@ -1088,20 +1161,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     );
   }
 
-  void _callRider() async {
-    final Uri telUri = Uri(scheme: 'tel', path: '9876543210');
-    if (await canLaunchUrl(telUri)) {
-      await launchUrl(telUri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Calling Rahul Sharma (9876543210)...'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    }
+  void _callRider() {
+    final riderPhone = (_trackingData?['rider']?['phone'] ?? _trackingData?['driverPhone'] ?? '').toString();
+    _callNumber(riderPhone);
   }
 
   int _pickupStage = 1; // 0=Placed, 1=Preparing, 2=Ready, 3=Arrived, 4=Completed
@@ -1540,9 +1602,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                               ),
                             ),
                             const SizedBox(height: 2),
-                            const Text(
-                              '⏱️ 15-Mins Grace Period: Order held warm at counter until 10:00 AM',
-                              style: TextStyle(
+                            Text(
+                              _dynamicGracePeriodText,
+                              style: const TextStyle(
                                 fontSize: 11,
                                 color: Color(0xFF4B5563),
                                 fontWeight: FontWeight.w500,
@@ -1588,9 +1650,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                               color: AppColors.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text(
-                              '📍 2.1 km',
-                              style: TextStyle(
+                            child: Text(
+                              _dynamicRestaurantDistanceText,
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
                                 color: AppColors.primary,
@@ -1634,11 +1696,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                           const SizedBox(width: 10),
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () async {
-                                final url = Uri.parse('tel:+919876543210');
-                                if (await canLaunchUrl(url)) {
-                                  await launchUrl(url);
-                                }
+                              onPressed: () {
+                                final storePhone = (_trackingData?['restaurant']?['phone'] ?? '').toString();
+                                _callNumber(storePhone);
                               },
                               icon: const Icon(Icons.call, size: 18),
                               label: const Text('Call Store'),
@@ -2440,7 +2500,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     final rider = _trackingData?['rider'];
     final restaurant = _trackingData?['restaurant'] ?? {};
     final restName = _cleanRestaurantName(restaurant['name'] ?? widget.restaurantName);
-    final restPhone = (restaurant['phone'] ?? '+919876543210').toString();
+    final restPhone = (restaurant['phone'] ?? '').toString();
     final restAddress = (restaurant['address'] ?? '').toString();
 
     final hasRider = rider != null && (rider['name'] != null || rider['phone'] != null);
@@ -2624,16 +2684,32 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                 ),
               ),
               // Call Rider Button
-              IconButton(
-                onPressed: () => _callNumber(riderPhone),
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.phone, color: Colors.white, size: 18),
-                ),
+              Builder(
+                builder: (context) {
+                  final bool isCompletedOrder = status == 'delivered' || status == 'completed' || status == 'cancelled';
+                  return IconButton(
+                    onPressed: () {
+                      if (isCompletedOrder) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Order completed. Direct partner contact is disabled to protect privacy.'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        return;
+                      }
+                      _callNumber(riderPhone);
+                    },
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isCompletedOrder ? Colors.grey.shade400 : AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(isCompletedOrder ? Icons.phone_disabled : Icons.phone, color: Colors.white, size: 18),
+                    ),
+                  );
+                },
               ),
               // Support Chat Button
               IconButton(

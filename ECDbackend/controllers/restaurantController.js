@@ -2499,6 +2499,27 @@ exports.getAllRestaurants = async (req, res) => {
       formatted.serviceRadius = serviceRadius;
       formatted.isServiceable = isServiceable;
       formatted.menu = menu;
+
+      // Real dynamic starting price from DB menu items
+      const validPrices = menu.map(m => Number(m.price || m.sellingPrice || 0)).filter(p => p > 0);
+      const startingPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
+      formatted.startingPrice = startingPrice;
+      formatted.minPrice = startingPrice;
+      formatted.lowestPrice = startingPrice;
+
+      // Real comparative saving percent based on MRP vs Selling Price
+      let totalDiscountPercent = 0;
+      let discountedItemsCount = 0;
+      menu.forEach(m => {
+        const sp = Number(m.price || m.sellingPrice || 0);
+        const mrp = Number(m.mrp || m.originalPrice || 0);
+        if (sp > 0 && mrp > sp) {
+          totalDiscountPercent += ((mrp - sp) / mrp) * 100;
+          discountedItemsCount++;
+        }
+      });
+      formatted.savingPercent = discountedItemsCount > 0 ? Math.round(totalDiscountPercent / discountedItemsCount) : 40;
+      formatted.isFeatured = Boolean(restaurant.isFeatured || restaurant.isPromoted || restaurant.isAd);
       return formatted;
     });
 

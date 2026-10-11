@@ -20,6 +20,7 @@ import '../pages/profile/location_setup_page.dart';
 import '../pages/profile/unserviceable_location_page.dart';
 import '../pages/checkout/map_address_picker_page.dart';
 import '../pages/order/contact_support_page.dart';
+import '../pages/wishlist/wishlist_tab.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -175,6 +176,10 @@ class AppRoutes {
       GoRoute(
         path: location,
         builder: (context, state) => const MapAddressPickerPage(),
+      ),
+      GoRoute(
+        path: wishlist,
+        builder: (context, state) => const WishlistTab(),
       ),
       GoRoute(
         path: contactSupport,

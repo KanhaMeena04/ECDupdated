@@ -38,6 +38,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isFirstFetch = true;
   bool _isRingtonePlaying = false;
   Function(dynamic)? _newOrderSocketCallback;
+  int _unreadNotificationCount = 0;
+  Timer? _ringtoneTimeoutTimer;
+  int _ringPlayCount = 0;
 
   // Dynamic Restaurant Profile & Stats
   String _restaurantName = 'Loading...';
@@ -53,10 +56,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _initCurrentMonth();
     _loadLiveDashboardData();
     _setupSocketListener();
+    _fetchUnreadNotificationCount();
     // Live polling for incoming real customer orders every 5 seconds
     _livePollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) {
         _fetchLiveOrders(isSilent: true);
+        _fetchUnreadNotificationCount();
       }
     });
   }
@@ -67,6 +72,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       RestaurantSocketService.offNewOrder(_newOrderSocketCallback!);
     }
     _stopOrderRingtone();
+    _ringtoneTimeoutTimer?.cancel();
     _timer?.cancel();
     _livePollingTimer?.cancel();
     _audioPlayer.dispose();
@@ -341,20 +347,409 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       if (_isRingtonePlaying) return;
       _isRingtonePlaying = true;
-      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      _ringPlayCount = 1;
+      _ringtoneTimeoutTimer?.cancel();
+
+      // Clean 2-ring alert (stops automatically, no endless loop)
+      await _audioPlayer.setReleaseMode(ReleaseMode.release);
       await _audioPlayer.play(AssetSource('audio/ordertone.mpeg'));
+
+      _audioPlayer.onPlayerComplete.listen((_) async {
+        if (_isRingtonePlaying && _ringPlayCount < 2) {
+          _ringPlayCount++;
+          try {
+            await _audioPlayer.play(AssetSource('audio/ordertone.mpeg'));
+          } catch (_) {}
+        } else {
+          _isRingtonePlaying = false;
+        }
+      });
+
+      // Safety timeout: auto stop after 8 seconds max
+      _ringtoneTimeoutTimer = Timer(const Duration(seconds: 8), () {
+        _stopOrderRingtone();
+      });
     } catch (e) {
       debugPrint('Error playing ringtone: $e');
+      _isRingtonePlaying = false;
     }
   }
 
   void _stopOrderRingtone() async {
     try {
+      _ringtoneTimeoutTimer?.cancel();
       _isRingtonePlaying = false;
       await _audioPlayer.stop();
     } catch (e) {
       debugPrint('Error stopping ringtone: $e');
     }
+  }
+
+  Future<void> _fetchUnreadNotificationCount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? ApiConstants.authToken;
+      if (token.isEmpty) return;
+      final res = await http.get(
+        Uri.parse(ApiConstants.notifications),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200 && mounted) {
+        final data = jsonDecode(res.body);
+        final count = (data['unreadCount'] as num?)?.toInt() ?? 0;
+        setState(() {
+          _unreadNotificationCount = count;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<List<Map<String, dynamic>>> _loadRestaurantNotifications() async {
+    List<Map<String, dynamic>> result = [];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? ApiConstants.authToken;
+      if (token.isNotEmpty) {
+        final res = await http.get(
+          Uri.parse(ApiConstants.notifications),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ).timeout(const Duration(seconds: 5));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          if (data['notifications'] is List) {
+            for (var n in data['notifications']) {
+              if (n is Map) {
+                result.add(Map<String, dynamic>.from(n));
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Fallback/Supplement from active live orders so vendor always sees real-time order lifecycle
+    if (result.isEmpty && _orders.isNotEmpty) {
+      for (var o in _orders.take(15)) {
+        String title = 'Order #${o.id} - ${o.status}';
+        String message = 'Customer: ${o.customerName} • ₹${o.totalAmount.toStringAsFixed(2)}';
+        String type = 'order_status';
+
+        if (o.status == 'Placed' || o.status == 'Pending') {
+          title = '📦 New Order Received #${o.id}';
+          message = '${o.customerName} placed an order for ₹${o.totalAmount.toStringAsFixed(2)}';
+          type = 'order_new';
+        } else if (o.status == 'Preparing') {
+          title = '🍳 Order #${o.id} In Kitchen';
+          message = 'Food is currently being prepared.';
+          type = 'order_preparing';
+        } else if (o.status == 'Ready') {
+          title = o.isSelfPickup ? '🛍️ Order #${o.id} Ready for Self-Pickup' : '🛵 Order #${o.id} Ready for Rider';
+          message = o.isSelfPickup ? 'Customer will arrive at counter with OTP.' : 'Waiting for delivery partner pickup.';
+          type = 'order_ready';
+        } else if (o.status == 'Picked Up') {
+          title = '🚀 Order #${o.id} Handed Over';
+          message = 'Order is on the way with delivery partner.';
+          type = 'order_picked';
+        } else if (o.status == 'Delivered') {
+          title = '✅ Order #${o.id} Completed';
+          message = 'Delivered successfully to ${o.customerName}.';
+          type = 'order_delivered';
+        } else if (o.status == 'Cancelled') {
+          title = '❌ Order #${o.id} Cancelled';
+          message = 'Order has been cancelled.';
+          type = 'order_cancelled';
+        }
+
+        result.add({
+          '_id': o.id,
+          'title': title,
+          'message': message,
+          'type': type,
+          'createdAt': o.createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+          'isRead': false,
+          'order': o,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  Future<void> _markAllNotificationsAsRead() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? ApiConstants.authToken;
+      if (token.isNotEmpty) {
+        await http.patch(
+          Uri.parse(ApiConstants.markAllNotificationsRead),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ).timeout(const Duration(seconds: 4));
+      }
+      if (mounted) {
+        setState(() => _unreadNotificationCount = 0);
+      }
+    } catch (_) {}
+  }
+
+  void _showNotificationsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return FutureBuilder<List<Map<String, dynamic>>>(
+              future: _loadRestaurantNotifications(),
+              builder: (futureContext, snapshot) {
+                final isLoading = snapshot.connectionState == ConnectionState.waiting;
+                final notifications = snapshot.data ?? [];
+
+                return Container(
+                  height: MediaQuery.of(context).size.height * 0.75,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  child: Column(
+                    children: [
+                      // Drag handle
+                      Container(
+                        margin: const EdgeInsets.only(top: 10, bottom: 8),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      // Header
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryGreen.withOpacity(0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.notifications_rounded, color: AppColors.primaryGreen, size: 20),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Notifications',
+                                    style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                                  ),
+                                  Text(
+                                    'Real-time order & store updates',
+                                    style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (notifications.isNotEmpty)
+                              TextButton(
+                                onPressed: () async {
+                                  await _markAllNotificationsAsRead();
+                                  setSheetState(() {});
+                                  if (mounted) {
+                                    setState(() => _unreadNotificationCount = 0);
+                                  }
+                                },
+                                child: Text(
+                                  'Mark all read',
+                                  style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryGreen),
+                                ),
+                              ),
+                            IconButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      // Content
+                      Expanded(
+                        child: isLoading
+                            ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
+                            : notifications.isEmpty
+                                ? Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(32),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(20),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[100],
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Icon(Icons.notifications_none_rounded, size: 48, color: Colors.grey[400]),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            'No notifications yet',
+                                            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            'New order alerts, rider arrivals, and store updates will appear here in real time.',
+                                            textAlign: TextAlign.center,
+                                            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    itemCount: notifications.length,
+                                    separatorBuilder: (_, __) => const Divider(height: 1, indent: 60),
+                                    itemBuilder: (itemCtx, index) {
+                                      final item = notifications[index];
+                                      return _buildNotificationItem(item);
+                                    },
+                                  ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationItem(Map<String, dynamic> item) {
+    final title = (item['title'] ?? 'Order Notification').toString();
+    final message = (item['message'] ?? '').toString();
+    final isRead = item['isRead'] == true;
+    final type = (item['type'] ?? 'order_status').toString().toLowerCase();
+
+    IconData iconData = Icons.notifications_active_rounded;
+    Color iconColor = AppColors.primaryGreen;
+    Color bgColor = AppColors.primaryGreen.withOpacity(0.1);
+
+    if (type.contains('new') || title.contains('New Order') || title.contains('Placed')) {
+      iconData = Icons.shopping_bag_rounded;
+      iconColor = Colors.orange[800]!;
+      bgColor = Colors.orange.withOpacity(0.12);
+    } else if (type.contains('rider') || type.contains('picked') || title.contains('Rider') || title.contains('Picked')) {
+      iconData = Icons.delivery_dining_rounded;
+      iconColor = Colors.blue[700]!;
+      bgColor = Colors.blue.withOpacity(0.12);
+    } else if (type.contains('delivered') || type.contains('complete') || title.contains('Completed') || title.contains('Delivered')) {
+      iconData = Icons.check_circle_rounded;
+      iconColor = AppColors.primaryGreen;
+      bgColor = AppColors.primaryGreen.withOpacity(0.12);
+    } else if (type.contains('cancel') || title.contains('Cancel')) {
+      iconData = Icons.cancel_rounded;
+      iconColor = Colors.red[700]!;
+      bgColor = Colors.red.withOpacity(0.12);
+    }
+
+    String timeStr = '';
+    if (item['createdAt'] != null) {
+      try {
+        final dt = DateTime.parse(item['createdAt'].toString()).toLocal();
+        final diff = DateTime.now().difference(dt);
+        if (diff.inMinutes < 1) {
+          timeStr = 'Just now';
+        } else if (diff.inMinutes < 60) {
+          timeStr = '${diff.inMinutes}m ago';
+        } else if (diff.inHours < 24) {
+          timeStr = '${diff.inHours}h ago';
+        } else {
+          timeStr = '${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+        }
+      } catch (_) {}
+    }
+
+    return InkWell(
+      onTap: () {
+        if (item['order'] is Order) {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: item['order'] as Order)),
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: bgColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(iconData, color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (timeStr.isNotEmpty)
+                        Text(
+                          timeStr,
+                          style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey[500]),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    message,
+                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showNewOrderAlertDialog(Order newOrder) {
@@ -1113,37 +1508,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(width: 4),
 
-                // Notification Bell Button / Test Ringtone
+                // Notification Bell Button
                 GestureDetector(
-                  onTap: () {
-                    if (_isRingtonePlaying) {
-                      _stopOrderRingtone();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('🔊 Order ringtone stopped')),
-                      );
-                    } else {
-                      _playOrderRingtone();
-                      if (_orders.isNotEmpty) {
-                        _showNewOrderAlertDialog(_orders.first);
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('🔊 Ringtone Test Active (Tap bell again to stop)')),
-                        );
-                      }
-                    }
-                  },
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primaryGreen,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.notifications_active_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                  onTap: () => _showNotificationsSheet(context),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryGreen.withOpacity(0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.notifications_rounded,
+                          color: AppColors.primaryGreen,
+                          size: 22,
+                        ),
+                      ),
+                      if (_unreadNotificationCount > 0)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.redAccent,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 18,
+                              minHeight: 18,
+                            ),
+                            child: Text(
+                              _unreadNotificationCount > 9 ? '9+' : '$_unreadNotificationCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],

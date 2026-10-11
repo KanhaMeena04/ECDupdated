@@ -102,6 +102,9 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     if (mounted) {
       setState(() {
         _isCodEnabled = isEnabled;
+        if (cart.isSelfPickup && _selectedPaymentMethod == 'Cash on Delivery') {
+          _selectedPaymentMethod = 'UPI / GPay / PhonePe';
+        }
         _isLoadingSettings = false;
       });
     }
@@ -137,7 +140,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
       );
 
       if (result != null && result['success'] == true) {
-        _onOrderSuccess(_pendingOrderId ?? '7892020189');
+        final confirmedId = _pendingOrderId ?? result['orderId']?.toString() ?? response.orderId ?? '';
+        _onOrderSuccess(confirmedId);
       } else {
         setState(() => _isProcessing = false);
         _showError(result?['message'] ?? 'Payment verification failed');
@@ -156,13 +160,15 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
 
   void _onOrderSuccess(String orderId) {
     final cart = context.read<CartProvider>();
-    final restaurantName = cart.restaurantName ?? 'Cellar Door Restaurant';
+    final restaurantName = cart.restaurantName ?? 'Restaurant';
     final addressProvider = context.read<AddressProvider>();
     final selectedAddress = (addressProvider.addresses.isNotEmpty &&
             (_selectedAddressIndex ?? 0) < addressProvider.addresses.length)
         ? addressProvider.addresses[_selectedAddressIndex ?? 0]
-        : null;
-    final deliveryAddress = selectedAddress?.fullAddress ?? '102, Royal Palms, Vijay Nagar, Indore';
+        : (addressProvider.addresses.isNotEmpty ? addressProvider.addresses.first : null);
+    final deliveryAddress = cart.isSelfPickup
+        ? (cart.restaurantAddress ?? cart.restaurantName ?? 'Self Pickup at Restaurant')
+        : (selectedAddress?.fullAddress ?? 'Selected Delivery Address');
 
     final cartItems = cart.items
         .map((i) => ({
@@ -200,6 +206,17 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
   }
 
   void _proceedToPayment(double grandTotal) {
+    final cart = context.read<CartProvider>();
+    if (cart.isSelfPickup && _selectedPaymentMethod == 'Cash on Delivery') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Self-Pickup orders only support Online/Prepaid payment. Please choose an online payment method.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (_selectedPaymentMethod == 'Cash on Delivery') {
       try {
         final userProvider = context.read<UserProvider>();
@@ -574,15 +591,20 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
       final result = await context.read<OrderProvider>().placeOrder(orderData);
       if (result != null && result['success'] == true && result['orderId'] != null) {
         _pendingOrderId = result['orderId'].toString();
+        if (mounted) {
+          _onOrderSuccess(_pendingOrderId!);
+        }
       } else {
-        _pendingOrderId = '7892020189';
+        setState(() => _isProcessing = false);
+        if (mounted) {
+          _showError(result?['message'] ?? 'Failed to place order. Please try again.');
+        }
       }
-    } catch (_) {
-      _pendingOrderId = '7892020189';
-    }
-
-    if (mounted) {
-      _onOrderSuccess(_pendingOrderId!);
+    } catch (e) {
+      setState(() => _isProcessing = false);
+      if (mounted) {
+        _showError('Error placing order: $e');
+      }
     }
   }
 
@@ -981,34 +1003,59 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
 
                         const SizedBox(height: 14),
 
-                        // Group 3: Cash on Delivery (Default)
-                        if (_isCodEnabled)
-                          Builder(
-                            builder: (context) {
-                              final userProvider = context.watch<UserProvider>();
-                              final isCodBlocked = userProvider.isCodBlocked;
+                        // Group 3: Cash on Delivery
+                        Builder(
+                          builder: (context) {
+                            final cart = context.watch<CartProvider>();
+                            if (cart.isSelfPickup) {
                               return Container(
+                                padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: isCodBlocked ? Colors.red.withOpacity(0.3) : const Color(0xFFF3F4F6),
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
-                                  color: isCodBlocked ? Colors.red.withOpacity(0.04) : Colors.transparent,
+                                  color: Colors.blue.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
                                 ),
-                                child: RadioListTile<String>(
-                                  value: 'Cash on Delivery',
-                                  groupValue: tempSelected,
-                                  activeColor: AppColors.primary,
-                                  title: Row(
-                                    children: [
-                                      Text(
-                                        'Cash on Delivery',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: isCodBlocked ? Colors.grey : null,
-                                        ),
+                                child: Row(
+                                  children: const [
+                                    Icon(Icons.info_outline, size: 18, color: Colors.blue),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Self-Pickup orders require Online / Prepaid payment.',
+                                        style: TextStyle(fontSize: 12, color: Color(0xFF1E3A8A), fontWeight: FontWeight.w600),
                                       ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            if (!_isCodEnabled) return const SizedBox.shrink();
+
+                            final userProvider = context.watch<UserProvider>();
+                            final isCodBlocked = userProvider.isCodBlocked;
+                            return Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: isCodBlocked ? Colors.red.withOpacity(0.3) : const Color(0xFFF3F4F6),
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                color: isCodBlocked ? Colors.red.withOpacity(0.04) : Colors.transparent,
+                              ),
+                              child: RadioListTile<String>(
+                                value: 'Cash on Delivery',
+                                groupValue: tempSelected,
+                                activeColor: AppColors.primary,
+                                title: Row(
+                                  children: [
+                                    Text(
+                                      'Cash on Delivery',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: isCodBlocked ? Colors.grey : null,
+                                      ),
+                                    ),
                                       if (isCodBlocked) ...[
                                         const SizedBox(width: 8),
                                         Container(
@@ -1284,9 +1331,10 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
             ? addressProvider.addresses.first
             : null);
 
-    final displayAddress =
-        savedAddress?.fullAddress ?? '102, Royal Palms, Vijay Nagar, Indore';
-    final displayLabel = savedAddress?.label ?? 'Home';
+    final displayAddress = cart.isSelfPickup
+        ? (cart.restaurantAddress ?? cart.restaurantName ?? 'Self Pickup at Restaurant')
+        : (savedAddress?.fullAddress ?? 'Selected Delivery Address');
+    final displayLabel = cart.isSelfPickup ? 'Self Pickup Location' : (savedAddress?.label ?? 'Delivery Address');
 
     final grandTotal = CartProvider.safeNum(cart.finalAmount);
     final isCod = _selectedPaymentMethod == 'Cash on Delivery';

@@ -14,6 +14,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../routes/app_routes.dart';
 import '../../providers/user_provider.dart';
+import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -293,6 +294,32 @@ class _LoginPageState extends State<LoginPage>
         context.read<UserProvider>().fetchProfile();
       }
 
+      // If user does not exist in DB / is a new user:
+      // Open Registration form to fill details (Name, Email) and start session
+      if (result.isNewUser) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mobile verified! Please enter your details to complete registration.'),
+            backgroundColor: Color(0xFF248C70),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => RegisterPage(
+              initialMobile: phone,
+              isPhoneVerified: true,
+            ),
+          ),
+        );
+        return;
+      }
+
+      // If user already exists in DB:
+      // Directly log in, start session and navigate to Home!
       if (!mounted) return;
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -630,111 +657,14 @@ class _LoginPageState extends State<LoginPage>
             
             const SizedBox(height: 20),
 
-            // Mode Selector Pill (Mobile OTP vs Username/Password)
-            if (!_showOtp) ...[
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 24),
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => setState(() => _isPasswordLogin = false),
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: !_isPasswordLogin ? Colors.white : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: !_isPasswordLogin
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.06),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    )
-                                  ]
-                                : null,
-                          ),
-                          child: Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.phone_android_rounded, size: 16, color: !_isPasswordLogin ? const Color(0xFF248C70) : Colors.grey.shade600),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Mobile OTP',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: !_isPasswordLogin ? const Color(0xFF248C70) : Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => setState(() => _isPasswordLogin = true),
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: _isPasswordLogin ? Colors.white : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: _isPasswordLogin
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.06),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    )
-                                  ]
-                                : null,
-                          ),
-                          child: Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.person_rounded, size: 16, color: _isPasswordLogin ? const Color(0xFF248C70) : Colors.grey.shade600),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'User Name',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: _isPasswordLogin ? const Color(0xFF248C70) : Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            
-            // Form Section (Phone OTP or Username/Password or OTP verification)
+            // Form Section (Phone number entry or OTP verification)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 350),
                 child: _showOtp
                     ? _buildOtpSection(maskedPhone)
-                    : (_isPasswordLogin
-                        ? _buildUsernamePasswordSection()
-                        : _buildPhoneSection()),
+                    : _buildPhoneSection(),
               ),
             ),
             

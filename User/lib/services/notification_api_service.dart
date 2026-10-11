@@ -5,10 +5,15 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
+import 'socket_service.dart';
 
 class NotificationApiService {
   static String get apiBaseUrl => AppConstants.baseUrl;
   static String get notificationsUrl => '$apiBaseUrl/notifications';
+
+  /// Reactive unread count notifier for dynamic notification badge updates
+  static final ValueNotifier<int> unreadCountNotifier = ValueNotifier<int>(0);
+  static bool _isSocketListening = false;
 
   static Future<Map<String, String>> _getHeaders() async {
     final token = await AuthService.getToken();
@@ -38,18 +43,58 @@ class NotificationApiService {
     }
   }
 
+  /// Refreshes the unread count from the backend
+  static Future<int> refreshUnreadCount() async {
+    if (kFrontendPreviewMode) {
+      unreadCountNotifier.value = 0;
+      return 0;
+    }
+    try {
+      final token = await AuthService.getToken();
+      if (token == null || token.isEmpty) {
+        unreadCountNotifier.value = 0;
+        return 0;
+      }
+      final response = await http.get(
+        Uri.parse(notificationsUrl),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        int unread = 0;
+        if (data['unreadCount'] is num) {
+          unread = (data['unreadCount'] as num).toInt();
+        } else if (data['notifications'] is List) {
+          final list = data['notifications'] as List;
+          unread = list.where((item) => item['isRead'] != true).length;
+        }
+        unreadCountNotifier.value = unread;
+        return unread;
+      } else {
+        unreadCountNotifier.value = 0;
+      }
+    } catch (e) {
+      debugPrint('Error refreshing unread count: $e');
+    }
+    return unreadCountNotifier.value;
+  }
+
+  /// Listen for real-time notifications via WebSocket
+  static void listenToRealtimeNotifications() {
+    if (_isSocketListening) return;
+    _isSocketListening = true;
+    SocketService.on('notification:new', (_) {
+      refreshUnreadCount();
+    });
+    SocketService.on('notification', (_) {
+      refreshUnreadCount();
+    });
+  }
+
   static Future<List<Map<String, dynamic>>> getNotifications() async {
     if (kFrontendPreviewMode) {
-      return [
-        {
-          'id': '1',
-          'title': 'Welcome to ECDKART!',
-          'message': 'Explore top restaurants near you with free delivery.',
-          'type': 'system',
-          'createdAt': DateTime.now().subtract(const Duration(minutes: 10)).toIso8601String(),
-          'isRead': false,
-        }
-      ];
+      unreadCountNotifier.value = 0;
+      return [];
     }
     try {
       final response = await http.get(
@@ -60,25 +105,35 @@ class NotificationApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final list = data['notifications'] as List? ?? [];
+        if (data['unreadCount'] is num) {
+          unreadCountNotifier.value = (data['unreadCount'] as num).toInt();
+        } else {
+          unreadCountNotifier.value = list.where((item) => item['isRead'] != true).length;
+        }
         return list.map((item) => item as Map<String, dynamic>).toList();
       }
+      unreadCountNotifier.value = 0;
       return [];
     } catch (e) {
       debugPrint('Error fetching notifications: $e');
+      unreadCountNotifier.value = 0;
       return [];
     }
   }
 
   static Future<bool> markAllAsRead() async {
+    unreadCountNotifier.value = 0;
     if (kFrontendPreviewMode) return true;
     try {
       final response = await http.patch(
         Uri.parse('$notificationsUrl/mark-all-read'),
         headers: await _getHeaders(),
       );
+      unreadCountNotifier.value = 0;
       return response.statusCode == 200;
     } catch (e) {
       debugPrint('Error marking notifications as read: $e');
+      unreadCountNotifier.value = 0;
       return false;
     }
   }

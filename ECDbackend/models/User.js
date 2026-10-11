@@ -116,6 +116,7 @@ const userSchema = new mongoose.Schema(
     recentSearches: [{ type: String }],
     codActive: { type: Boolean, default: true },
     isCodBlocked: { type: Boolean, default: false },
+    lastNotificationsReadAt: { type: Date },
   },
   { timestamps: true }
 );

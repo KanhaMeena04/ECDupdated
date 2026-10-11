@@ -35,9 +35,10 @@ class _RecommendedRestaurantsPageState
   Future<void> _fetchRestaurants() async {
     try {
       final loc = context.read<LocationProvider>();
-      final list = await RestaurantApiService.getRestaurants(
+      final list = await RestaurantApiService.getRecommendedRestaurants(
         lat: loc.lat,
         lng: loc.lng,
+        city: loc.location,
       );
       if (mounted) {
         final validList = (loc.lat != null && loc.lng != null)
@@ -222,7 +223,7 @@ class _RecommendedRestaurantsPageState
                                         child: GestureDetector(
                                           onTap: () {
                                             final wishlist = context.read<WishlistProvider>();
-                                            wishlist.toggleRestaurantFavorite(r.id);
+                                            wishlist.toggleRestaurantFavorite(r.id, restaurant: r);
                                             final isNowFav = wishlist.isRestaurantFavorite(r.id);
                                             ScaffoldMessenger.of(context).hideCurrentSnackBar();
                                             ScaffoldMessenger.of(context).showSnackBar(

@@ -430,6 +430,19 @@ exports.getOrdersDashboard = async (req, res) => {
 exports.getAdminLiveNotifications = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 15;
+    
+    // Check when admin last marked all notifications as read
+    let lastReadTime = 0;
+    try {
+      const User = require('../models/User');
+      if (req.user?._id) {
+        const adminUser = await User.findById(req.user._id).select('lastNotificationsReadAt').lean();
+        if (adminUser?.lastNotificationsReadAt) {
+          lastReadTime = new Date(adminUser.lastNotificationsReadAt).getTime();
+        }
+      }
+    } catch (_) {}
+
     const orders = await Order.find({})
       .populate('restaurant', 'name logo address')
       .populate('customer', 'name mobile')
@@ -438,28 +451,33 @@ exports.getAdminLiveNotifications = async (req, res) => {
       .lean();
 
     const orderNotifications = orders.map((order) => {
-      const restaurantName = safeString(order.restaurant?.name) || safeString(order.restaurantName) || 'Restaurant';
-      const customerName = safeString(order.customer?.name) || safeString(order.customerName) || 'Customer';
+      const restaurantName = (order.restaurant && order.restaurant.name) || order.restaurantName || 'Restaurant';
+      const customerName = (order.customer && order.customer.name) || order.customerName || 'Customer';
 
-      const orderCode = order._id.toString().slice(-6).toUpperCase();
+      const rawCode = order.orderCode ? String(order.orderCode).replace('#', '') : order._id.toString().slice(-6);
+      const cleanCode = rawCode.toUpperCase();
       const orderTypeBadge = order.orderType === 'self_pickup' ? 'Self Pickup' : 'Delivery';
       const itemsCount = Array.isArray(order.items) ? order.items.length : 1;
       const amountStr = `₹${Number(order.totalAmount || 0).toFixed(2)}`;
+      
+      const isDeliveredOrCancelled = ['delivered', 'cancelled'].includes(order.status);
+      const isPastReadTime = lastReadTime > 0 && new Date(order.createdAt).getTime() <= lastReadTime;
+      const isRead = isDeliveredOrCancelled || isPastReadTime;
 
       return {
         id: order._id.toString(),
         orderId: order._id.toString(),
-        orderCode: `#${orderCode}`,
+        orderCode: `#${cleanCode}`,
         restaurantName,
         customerName,
-        title: `Order #${orderCode} • ${restaurantName}`,
+        title: `Order #${cleanCode} • ${restaurantName}`,
         description: `${amountStr} • ${itemsCount} items • ${orderTypeBadge}`,
         status: order.status,
         orderType: order.orderType || 'delivery',
         amount: Number(order.totalAmount || 0),
         amountFormatted: amountStr,
         createdAt: order.createdAt,
-        read: ['delivered', 'cancelled'].includes(order.status),
+        read: isRead,
         type: 'order',
       };
     });
@@ -475,43 +493,83 @@ exports.getAdminLiveNotifications = async (req, res) => {
 
       totalSupportUnread = unreadChats.reduce((sum, c) => sum + (c.unreadCountAdmin || 0), 0);
 
-      supportNotifications = unreadChats.map((c) => ({
-        id: `support_${c._id}`,
-        orderId: c.orderId || '',
-        orderCode: 'SUPPORT',
-        restaurantName: 'ECDKart Support',
-        customerName: c.userName || 'Customer',
-        title: `💬 Support: ${c.userName || 'Customer'}`,
-        description: c.lastMessage || 'New message received',
-        status: 'support',
-        orderType: 'support',
-        amount: 0,
-        amountFormatted: '',
-        createdAt: c.lastMessageAt || c.updatedAt,
-        read: false,
-        type: 'support',
-        conversationId: c._id.toString(),
-        linkUrl: '/support-chat',
-      }));
+      supportNotifications = unreadChats.map((c) => {
+        const isPastReadTime = lastReadTime > 0 && new Date(c.lastMessageAt || c.updatedAt).getTime() <= lastReadTime;
+        return {
+          id: `support_${c._id}`,
+          orderId: c.orderId || '',
+          orderCode: 'SUPPORT',
+          restaurantName: 'ECDKart Support',
+          customerName: c.userName || 'Customer',
+          title: `💬 Support: ${c.userName || 'Customer'}`,
+          description: c.lastMessage || 'New message received',
+          status: 'support',
+          orderType: 'support',
+          amount: 0,
+          amountFormatted: '',
+          createdAt: c.lastMessageAt || c.updatedAt,
+          read: isPastReadTime,
+          type: 'support',
+          conversationId: c._id.toString(),
+          linkUrl: '/support-chat',
+        };
+      });
     } catch (_) {}
 
     const combinedNotifications = [...supportNotifications, ...orderNotifications]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, limit);
 
-    const activeOrdersCount = await Order.countDocuments({
+    const activeOrdersFilter = {
       status: { $in: ['placed', 'accepted', 'preparation', 'ready', 'assigned', 'picked_up'] }
-    });
+    };
+    if (lastReadTime > 0) {
+      activeOrdersFilter.createdAt = { $gt: new Date(lastReadTime) };
+    }
+    const unreadOrdersCount = await Order.countDocuments(activeOrdersFilter);
+    const activeSupportUnread = supportNotifications.filter(s => !s.read).length;
 
     res.status(200).json({
       success: true,
-      unreadCount: activeOrdersCount + totalSupportUnread,
-      supportUnreadCount: totalSupportUnread,
+      unreadCount: unreadOrdersCount + activeSupportUnread,
+      supportUnreadCount: activeSupportUnread,
       notifications: combinedNotifications,
     });
   } catch (error) {
     console.error('Admin live notifications error:', error);
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.markAllAdminNotificationsRead = async (req, res) => {
+  try {
+    const User = require('../models/User');
+    if (req.user?._id) {
+      await User.findByIdAndUpdate(req.user._id, { $set: { lastNotificationsReadAt: new Date() } });
+    }
+    // Also reset unreadCountAdmin on support chats
+    try {
+      const SupportChat = require('../models/SupportChat');
+      await SupportChat.updateMany({}, { $set: { unreadCountAdmin: 0 } });
+    } catch (_) {}
+
+    return res.status(200).json({ success: true, message: 'All live notifications marked as read' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.markAdminNotificationRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (id && id.startsWith('support_')) {
+      const chatId = id.replace('support_', '');
+      const SupportChat = require('../models/SupportChat');
+      await SupportChat.findByIdAndUpdate(chatId, { $set: { unreadCountAdmin: 0 } });
+    }
+    return res.status(200).json({ success: true, message: 'Notification marked as read' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.getRestaurantMenuAdmin = async (req, res) => {

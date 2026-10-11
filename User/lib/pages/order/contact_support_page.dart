@@ -484,38 +484,61 @@ class _ContactSupportPageState extends State<ContactSupportPage> {
     });
   }
 
-  /// Quick Suggestion Chips
+  /// Quick Suggestion Chips - Standard Part B Support Reasons
   Widget _buildQuickReplies() {
-    final suggestions = [
-      'I have an issue with coupons',
-      'Where is my order?',
-      'Delay in delivery',
-      'Refund status',
+    final supportReasons = [
+      {'title': 'Order Late', 'icon': Icons.timer_outlined},
+      {'title': 'Wrong Item', 'icon': Icons.swap_horiz_rounded},
+      {'title': 'Missing Item', 'icon': Icons.remove_circle_outline_rounded},
+      {'title': 'Damaged/Leaking Packaging', 'icon': Icons.inventory_2_outlined},
+      {'title': 'Payment Deducted but Not Confirmed', 'icon': Icons.payment_rounded},
+      {'title': 'Cancellation/Refund Query', 'icon': Icons.currency_rupee_rounded},
     ];
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        children: suggestions.map((text) {
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ActionChip(
-              label: Text(text),
-              labelStyle: const TextStyle(
-                fontSize: 11,
-                color: Color(0xFF374151),
-                fontWeight: FontWeight.w600,
-              ),
-              backgroundColor: const Color(0xFFF3F4F6),
-              elevation: 0,
-              side: BorderSide.none,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              onPressed: () => _sendMessage(text),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          child: Text(
+            'SELECT ISSUE REASON:',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: Colors.grey.shade500,
+              letterSpacing: 0.5,
             ),
-          );
-        }).toList(),
-      ),
+          ),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: supportReasons.map((item) {
+              final text = item['title'] as String;
+              final icon = item['icon'] as IconData;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ActionChip(
+                  avatar: Icon(icon, size: 14, color: const Color(0xFF10B981)),
+                  label: Text(text),
+                  labelStyle: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF1F2937),
+                    fontWeight: FontWeight.w700,
+                  ),
+                  backgroundColor: const Color(0xFFF3F4F6),
+                  elevation: 0,
+                  side: const BorderSide(color: Color(0xFFE5E7EB)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  onPressed: () => _sendMessage('Issue Reason: $text'),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 

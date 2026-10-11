@@ -577,9 +577,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
                     ),
                     const SizedBox(height: 16),
-                    Text('Rider Order Handover Verification', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(widget.order.isSelfPickup ? 'Customer Pickup Verification' : 'Rider Order Handover Verification', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
-                    Text('Ask delivery partner for 4-digit pickup OTP', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
+                    Text(widget.order.isSelfPickup ? 'Ask customer for 4-digit pickup OTP' : 'Ask delivery partner for 4-digit pickup OTP', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
                     const SizedBox(height: 16),
                     TabBar(
                       labelColor: AppColors.primaryGreen,
@@ -600,7 +600,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'Enter 4-digit OTP provided by Rider',
+                                widget.order.isSelfPickup
+                                    ? 'Enter 4-digit OTP provided by Customer at counter'
+                                    : 'Enter 4-digit OTP provided by Rider',
                                 style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
                               ),
                               const SizedBox(height: 12),
@@ -616,7 +618,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                     counterText: '',
                                     hintText: '••••',
                                     hintStyle: TextStyle(color: Colors.grey[400]),
-                                    errorText: _otpError ? 'Invalid 4-digit OTP! Try again or ask rider.' : null,
+                                    errorText: _otpError
+                                        ? (widget.order.isSelfPickup
+                                            ? 'Invalid 4-digit OTP! Try again or ask customer.'
+                                            : 'Invalid 4-digit OTP! Try again or ask rider.')
+                                        : null,
                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
@@ -644,7 +650,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Text('Place rider QR code inside frame', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600])),
+                              Text(
+                                widget.order.isSelfPickup
+                                    ? 'Place customer QR code inside frame'
+                                    : 'Place rider QR code inside frame',
+                                style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
+                              ),
                             ],
                           ),
                         ],

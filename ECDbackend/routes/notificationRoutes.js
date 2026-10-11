@@ -26,10 +26,17 @@ router.post('/register-device', optionalAuth, async (req, res) => {
 // Get My Notifications
 router.get('/', protect, async (req, res) => {
   try {
-    const notifications = await Notification.find({ user: req.user._id })
+    const userIds = [req.user._id];
+    try {
+      const Restaurant = require('../models/Restaurant');
+      const rest = await Restaurant.findOne({ owner: req.user._id }).select('_id');
+      if (rest) userIds.push(rest._id);
+    } catch (_) {}
+
+    const notifications = await Notification.find({ user: { $in: userIds } })
       .sort({ createdAt: -1 })
       .limit(50);
-    const unreadCount = await Notification.countDocuments({ user: req.user._id, isRead: false });
+    const unreadCount = await Notification.countDocuments({ user: { $in: userIds }, isRead: false });
 
     return res.status(200).json({
       success: true,
@@ -44,10 +51,17 @@ router.get('/', protect, async (req, res) => {
 // Alias for get notifications
 router.get('/my-notifications', protect, async (req, res) => {
   try {
-    const notifications = await Notification.find({ user: req.user._id })
+    const userIds = [req.user._id];
+    try {
+      const Restaurant = require('../models/Restaurant');
+      const rest = await Restaurant.findOne({ owner: req.user._id }).select('_id');
+      if (rest) userIds.push(rest._id);
+    } catch (_) {}
+
+    const notifications = await Notification.find({ user: { $in: userIds } })
       .sort({ createdAt: -1 })
       .limit(50);
-    const unreadCount = await Notification.countDocuments({ user: req.user._id, isRead: false });
+    const unreadCount = await Notification.countDocuments({ user: { $in: userIds }, isRead: false });
 
     return res.status(200).json({
       success: true,
@@ -62,7 +76,14 @@ router.get('/my-notifications', protect, async (req, res) => {
 // Mark all as read
 router.patch('/mark-all-read', protect, async (req, res) => {
   try {
-    await Notification.updateMany({ user: req.user._id, isRead: false }, { $set: { isRead: true } });
+    const userIds = [req.user._id];
+    try {
+      const Restaurant = require('../models/Restaurant');
+      const rest = await Restaurant.findOne({ owner: req.user._id }).select('_id');
+      if (rest) userIds.push(rest._id);
+    } catch (_) {}
+
+    await Notification.updateMany({ user: { $in: userIds }, isRead: false }, { $set: { isRead: true } });
     return res.status(200).json({ success: true, message: 'All notifications marked as read' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -71,7 +92,14 @@ router.patch('/mark-all-read', protect, async (req, res) => {
 
 router.patch('/read-all', protect, async (req, res) => {
   try {
-    await Notification.updateMany({ user: req.user._id, isRead: false }, { $set: { isRead: true } });
+    const userIds = [req.user._id];
+    try {
+      const Restaurant = require('../models/Restaurant');
+      const rest = await Restaurant.findOne({ owner: req.user._id }).select('_id');
+      if (rest) userIds.push(rest._id);
+    } catch (_) {}
+
+    await Notification.updateMany({ user: { $in: userIds }, isRead: false }, { $set: { isRead: true } });
     return res.status(200).json({ success: true, message: 'All notifications marked as read' });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

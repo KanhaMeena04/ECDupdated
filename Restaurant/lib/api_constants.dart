@@ -79,4 +79,8 @@ class ApiConstants {
   static String verifyPickup(String orderId) => "$baseUrl/orders/restaurant/verify-pickup/$orderId";
   static String completePickup(String orderId) => "$baseUrl/orders/restaurant/complete-pickup/$orderId";
   static String cancelOrder(String orderId) => "$baseUrl/orders/restaurant/cancel/$orderId";
+  
+  // Notifications
+  static String get notifications => "$baseUrl/notifications";
+  static String get markAllNotificationsRead => "$baseUrl/notifications/mark-all-read";
 }

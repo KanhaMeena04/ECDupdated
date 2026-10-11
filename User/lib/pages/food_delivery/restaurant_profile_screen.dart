@@ -151,6 +151,7 @@ class RestaurantProfileScreen extends StatelessWidget {
                     const SizedBox(height: 20),
 
                     // Contact Information
+                    // Contact Information
                     const Text(
                       'Contact Information',
                       style: TextStyle(
@@ -177,9 +178,9 @@ class RestaurantProfileScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 2),
-                              const Text(
-                                '+1 416-026-0918',
-                                style: TextStyle(
+                              Text(
+                                restaurant.phone.trim().isNotEmpty ? restaurant.phone.trim() : 'Not Available',
+                                style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -200,9 +201,9 @@ class RestaurantProfileScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 2),
-                              const Text(
-                                'Cellar@gmail.com',
-                                style: TextStyle(
+                              Text(
+                                restaurant.email.trim().isNotEmpty ? restaurant.email.trim() : 'Not Available',
+                                style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -224,67 +225,19 @@ class RestaurantProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    const Text(
-                      'Logistica Park, Dubai Industrial City, Dubai, United Arab Emirates',
-                      style: TextStyle(
+                    Text(
+                      restaurant.address.trim().isNotEmpty ? restaurant.address.trim() : 'Address not specified',
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: 14),
-
-                    // Static Map Card
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        height: 120,
-                        width: double.infinity,
-                        color: const Color(0xFFE5E7EB),
-                        child: Stack(
-                          children: [
-                            const SafeImage(
-                              'assets/static/grocery.jpg',
-                              width: double.infinity,
-                              height: 120,
-                              fit: BoxFit.cover,
-                            ),
-                            Container(
-                              color: Colors.black.withValues(alpha: 0.15),
-                            ),
-                            const Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.location_on_rounded,
-                                      size: 32, color: primaryColor),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'View on Map',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      shadows: [
-                                        Shadow(
-                                          color: Colors.black54,
-                                          blurRadius: 4,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 20),
 
-                    // Operational Hours
+                    // Order & Service Details
                     const Text(
-                      'Operational Hours',
+                      'Order & Service Details',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -292,13 +245,40 @@ class RestaurantProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    _buildInfoRow('Current Status', restaurant.isOpen ? 'Open Now' : 'Closed', isDark, isHighlight: true, isClosed: !restaurant.isOpen),
+                    _buildInfoRow('Estimated Prep Time', '${restaurant.estimatedPreparationTime} mins', isDark),
+                    _buildInfoRow('Minimum Order Value', restaurant.minOrderValue > 0 ? '₹${restaurant.minOrderValue.toInt()}' : 'No Minimum Order', isDark),
+                    _buildInfoRow('Order Modes', restaurant.isSelfPickupEnabled ? 'Delivery & Self-Pickup' : 'Delivery Only', isDark),
+                    _buildInfoRow('Payment Methods', restaurant.paymentMethods, isDark),
 
-                    _buildHourRow('Monday', '09:00 AM - 05:30 PM', isDark),
-                    _buildHourRow('Tuesday', '09:00 AM - 05:30 PM', isDark),
-                    _buildHourRow('Wednesday', '09:00 AM - 05:30 PM', isDark),
-                    _buildHourRow('Thursday', '09:00 AM - 05:30 PM', isDark),
-                    _buildHourRow('Saturday', '09:00 AM - 05:30 PM', isDark),
-                    _buildHourRow('Sunday', 'Closed', isDark, isClosed: true),
+                    const SizedBox(height: 20),
+
+                    // Operational Hours
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Operational Hours',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        if (restaurant.timing['isHoliday'] == true)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text('Holiday Closed', style: TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    ..._buildScheduleRows(isDark),
 
                     const SizedBox(height: 24),
                   ],
@@ -307,6 +287,58 @@ class RestaurantProfileScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  List<Widget> _buildScheduleRows(bool isDark) {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return days.map((day) {
+      final dayKey = day.toLowerCase();
+      final dayData = restaurant.timing[dayKey];
+      String hours = '09:00 AM - 11:00 PM';
+      bool isClosed = false;
+
+      if (dayData is Map) {
+        if (dayData['isClosed'] == true) {
+          isClosed = true;
+          hours = 'Closed';
+        } else if (dayData['open'] != null && dayData['close'] != null) {
+          hours = '${dayData['open']} - ${dayData['close']}';
+        }
+      }
+
+      return _buildHourRow(day, hours, isDark, isClosed: isClosed);
+    }).toList();
+  }
+
+  Widget _buildInfoRow(String label, String value, bool isDark, {bool isHighlight = false, bool isClosed = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.grey.shade400 : const Color(0xFF6B7280),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: isClosed
+                  ? const Color(0xFFEF4444)
+                  : (isHighlight
+                      ? const Color(0xFF10B981)
+                      : (isDark ? Colors.white : const Color(0xFF111827))),
+            ),
+          ),
+        ],
       ),
     );
   }

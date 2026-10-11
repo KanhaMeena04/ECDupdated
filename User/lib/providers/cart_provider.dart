@@ -97,17 +97,24 @@ class CartProvider with ChangeNotifier {
 
 
   double _deliveryFee = 14.0;
-  double _platformFee = 5.0;
-  double _packagingFee = 10.0;
+  double _platformFee = 0.0;
+  double _packagingFee = 0.0;
   double _gstPercent = 5.0;
   double _selectedTip = 0.0;
   List<double> _tipOptions = [5.0, 10.0, 20.0];
+  double _minOrderValue = 0.0;
 
   bool _isDeliveryFeeEnabled = true;
   bool _isPlatformFeeEnabled = true;
   bool _isPackagingFeeEnabled = true;
   bool _isTaxEnabled = true;
   bool _isTipEnabled = true;
+
+  double get minOrderValue => _minOrderValue;
+  void setMinOrderValue(double val) {
+    _minOrderValue = val;
+    notifyListeners();
+  }
 
   double get deliveryFee => (isSelfPickup || !_isDeliveryFeeEnabled) ? 0.0 : _deliveryFee;
   double get platformFee => _isPlatformFeeEnabled ? _platformFee : 0.0;
@@ -372,12 +379,12 @@ class CartProvider with ChangeNotifier {
         if (settings['platformFeeConfig'] != null) {
           final p = settings['platformFeeConfig'];
           _isPlatformFeeEnabled = p['enabled'] != false;
-          _platformFee = _isPlatformFeeEnabled ? ((p['fee'] as num?)?.toDouble() ?? 5.0) : 0.0;
+          _platformFee = _isPlatformFeeEnabled ? ((p['fee'] as num?)?.toDouble() ?? 0.0) : 0.0;
         }
         if (settings['packagingFeeConfig'] != null) {
           final pk = settings['packagingFeeConfig'];
           _isPackagingFeeEnabled = pk['enabled'] != false;
-          _packagingFee = _isPackagingFeeEnabled ? ((pk['globalPackagingFee'] as num?)?.toDouble() ?? 10.0) : 0.0;
+          _packagingFee = _isPackagingFeeEnabled ? ((pk['globalPackagingFee'] as num?)?.toDouble() ?? 0.0) : 0.0;
         }
         if (settings['deliveryFeeConfig'] != null) {
           final d = settings['deliveryFeeConfig'];
@@ -428,6 +435,7 @@ class CartProvider with ChangeNotifier {
     required String restaurantImageUrl,
     String? restaurantAddress,
     int deliveryTimeMin = 25,
+    double minOrderValue = 0.0,
     String imageUrl = '',
   }) async {
     _restaurantId = restaurantId;
@@ -436,6 +444,9 @@ class CartProvider with ChangeNotifier {
     if (restaurantAddress != null) _restaurantAddress = restaurantAddress;
     if (deliveryTimeMin > 0) {
       _restaurantDeliveryTimeMin = deliveryTimeMin;
+    }
+    if (minOrderValue > 0) {
+      _minOrderValue = minOrderValue;
     }
 
     final existingIndex =
@@ -464,6 +475,7 @@ class CartProvider with ChangeNotifier {
     required String restaurantImageUrl,
     String? restaurantAddress,
     int deliveryTimeMin = 25,
+    double minOrderValue = 0.0,
     String imageUrl = '',
   }) async {
     _items.clear();
@@ -474,6 +486,9 @@ class CartProvider with ChangeNotifier {
     if (restaurantAddress != null) _restaurantAddress = restaurantAddress;
     if (deliveryTimeMin > 0) {
       _restaurantDeliveryTimeMin = deliveryTimeMin;
+    }
+    if (minOrderValue > 0) {
+      _minOrderValue = minOrderValue;
     }
     
     _items.add(CartItem(product: product, imageUrl: imageUrl));
@@ -535,6 +550,7 @@ class CartProvider with ChangeNotifier {
     _restaurantImageUrl = null;
     _restaurantAddress = null;
     _restaurantDeliveryTimeMin = 25;
+    _minOrderValue = 0.0;
     _orderType = 'delivery';
     _pickupDate = PickupSlotHelper.getDynamicDates().first;
     _pickupTimeSlot = 'ASAP (~15-20 mins prep time)';
@@ -633,13 +649,36 @@ class PickupSlotHelper {
     return dates;
   }
 
-  static List<String> get30MinTimeSlots(String selectedDate) {
+  static List<String> get30MinTimeSlots(String selectedDate, {String? openingTime, String? closingTime}) {
     final List<String> slots = ['ASAP (~15-20 mins prep time)'];
     final now = DateTime.now();
     final isToday = selectedDate.startsWith('Today');
 
-    // 8:00 AM (480 mins) to 12:30 AM (1470 mins)
-    for (int minutes = 8 * 60; minutes < 24.5 * 60; minutes += 30) {
+    int parseTimeToMinutes(String? timeStr, int defaultMinutes) {
+      if (timeStr == null || timeStr.trim().isEmpty) return defaultMinutes;
+      final clean = timeStr.trim().toUpperCase();
+      try {
+        final isPm = clean.contains('PM');
+        final isAm = clean.contains('AM');
+        final parts = clean.replaceAll(RegExp(r'[^\d:]'), '').split(':');
+        if (parts.isNotEmpty) {
+          int hour = int.parse(parts[0]);
+          int min = parts.length > 1 ? int.parse(parts[1]) : 0;
+          if (isPm && hour < 12) hour += 12;
+          if (isAm && hour == 12) hour = 0;
+          return hour * 60 + min;
+        }
+      } catch (_) {}
+      return defaultMinutes;
+    }
+
+    final int startLimitMinutes = parseTimeToMinutes(openingTime, 8 * 60);
+    int endLimitMinutes = parseTimeToMinutes(closingTime, (24.5 * 60).round());
+    if (endLimitMinutes <= startLimitMinutes) {
+      endLimitMinutes += 24 * 60;
+    }
+
+    for (int minutes = startLimitMinutes; minutes < endLimitMinutes; minutes += 30) {
       int startHour = (minutes ~/ 60) % 24;
       int startMin = minutes % 60;
 

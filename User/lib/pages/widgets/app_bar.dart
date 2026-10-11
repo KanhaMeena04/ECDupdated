@@ -19,9 +19,23 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../providers/location_provider.dart';
 
-class CustomAppBar extends StatelessWidget {
+class CustomAppBar extends StatefulWidget {
   final bool showBottomRadius;
   const CustomAppBar({super.key, this.showBottomRadius = true});
+
+  @override
+  State<CustomAppBar> createState() => _CustomAppBarState();
+}
+
+class _CustomAppBarState extends State<CustomAppBar> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationApiService.refreshUnreadCount();
+      NotificationApiService.listenToRealtimeNotifications();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +51,7 @@ class CustomAppBar extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? Colors.black : const Color(0xFF248C70),
-        borderRadius: showBottomRadius
+        borderRadius: widget.showBottomRadius
             ? const BorderRadius.only(
                 bottomLeft: Radius.circular(24.0),
                 bottomRight: Radius.circular(24.0),
@@ -148,18 +162,25 @@ class CustomAppBar extends StatelessWidget {
                     const SizedBox(width: 8),
 
                     // 3. Notification Bell Circle Button
-                    _buildTopCircleButton(
-                      isDark: isDark,
-                      onTap: () => _showNotificationsSheet(context),
-                      icon: Icons.notifications_none_rounded,
-                      badge: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
+                    ValueListenableBuilder<int>(
+                      valueListenable: NotificationApiService.unreadCountNotifier,
+                      builder: (context, unreadCount, _) {
+                        return _buildTopCircleButton(
+                          isDark: isDark,
+                          onTap: () => _showNotificationsSheet(context),
+                          icon: Icons.notifications_none_rounded,
+                          badge: unreadCount > 0
+                              ? Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                )
+                              : null,
+                        );
+                      },
                     ),
                   ],
                 ),

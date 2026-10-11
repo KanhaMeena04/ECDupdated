@@ -264,6 +264,9 @@ router.get("/transactions/drivers", protect, admin, dashboardController.getDrive
 router.get('/orders/dashboard', protect, admin, adminController.getOrdersDashboard);
 router.get('/order-dashboard', protect, admin, adminController.getOrdersDashboard);
 router.get('/notifications/live-orders', protect, admin, adminController.getAdminLiveNotifications);
+router.post('/notifications/mark-all-read', protect, admin, adminController.markAllAdminNotificationsRead);
+router.patch('/notifications/mark-all-read', protect, admin, adminController.markAllAdminNotificationsRead);
+router.post('/notifications/read/:id', protect, admin, adminController.markAdminNotificationRead);
 router.get("/users", protect, admin, adminController.getAllUsers);
 router.get("/users/:id", protect, admin, adminController.getUserById);
 router.put("/users/:id/block", protect, admin, adminController.blockUser);

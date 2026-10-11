@@ -88,15 +88,39 @@ const getCurrentTimeInfoInZone = (referenceDate = new Date(), timeZone = process
 };
 
 /**
- * Fast boolean check if restaurant is open right now (Default 24x7 open mode).
+ * Fast boolean check if restaurant is open right now based on working hours & manual toggles.
  */
 const isRestaurantOpenNow = (restaurant, referenceDate = new Date()) => {
   if (!restaurant) return false;
-  return true; // 24x7 open mode for testing/ordering
+  
+  // 1. Inactive or admin disabled
+  if (restaurant.isActive === false) return false;
+
+  // 2. Temporarily closed or kitchen busy
+  if (restaurant.isTemporarilyClosed === true) return false;
+
+  // 3. Manual online/offline switch
+  if (restaurant.isOnline === false) return false;
+
+  // 4. Global holiday switch
+  if (restaurant.timing && restaurant.timing.isHoliday === true) return false;
+
+  // 5. Operating hours schedule check
+  const { currentDay, currentMinutes } = getCurrentTimeInfoInZone(referenceDate);
+  const dayTiming = restaurant.timing ? restaurant.timing[currentDay] : null;
+
+  if (dayTiming) {
+    if (dayTiming.isClosed === true) return false;
+    if (dayTiming.open && dayTiming.close) {
+      return isTimeWithinRange(currentMinutes, dayTiming.open, dayTiming.close);
+    }
+  }
+
+  return true;
 };
 
 /**
- * Detailed availability check returning `{ available: boolean, reason?: string }` (Default 24x7 open mode).
+ * Detailed availability check returning `{ available: boolean, reason?: string }`.
  */
 const checkRestaurantAvailability = async (restaurantIdOrObject) => {
   let restaurant = restaurantIdOrObject;
@@ -112,8 +136,50 @@ const checkRestaurantAvailability = async (restaurantIdOrObject) => {
   if (!restaurant) {
     return { available: false, reason: 'Restaurant not found' };
   }
-  
-  // 24x7 open mode by default
+
+  // 1. Inactive check
+  if (restaurant.isActive === false) {
+    return { available: false, reason: 'Restaurant is currently inactive' };
+  }
+
+  // 2. Temporarily closed
+  if (restaurant.isTemporarilyClosed === true) {
+    return {
+      available: false,
+      reason: restaurant.kitchenBusyReason || 'Restaurant is temporarily closed'
+    };
+  }
+
+  // 3. Offline switch
+  if (restaurant.isOnline === false) {
+    return { available: false, reason: 'Restaurant is currently offline' };
+  }
+
+  // 4. Holiday
+  if (restaurant.timing && restaurant.timing.isHoliday === true) {
+    return { available: false, reason: 'Restaurant is closed for a holiday' };
+  }
+
+  // 5. Day working hours check
+  const { currentDay, currentMinutes } = getCurrentTimeInfoInZone(new Date());
+  const dayTiming = restaurant.timing ? restaurant.timing[currentDay] : null;
+
+  if (dayTiming) {
+    if (dayTiming.isClosed === true) {
+      const capDay = currentDay.charAt(0).toUpperCase() + currentDay.slice(1);
+      return { available: false, reason: `Restaurant is closed today (${capDay})` };
+    }
+    if (dayTiming.open && dayTiming.close) {
+      const withinHours = isTimeWithinRange(currentMinutes, dayTiming.open, dayTiming.close);
+      if (!withinHours) {
+        return {
+          available: false,
+          reason: `Restaurant is currently closed. Operating hours for today: ${dayTiming.open} to ${dayTiming.close}`
+        };
+      }
+    }
+  }
+
   return { available: true };
 };
 

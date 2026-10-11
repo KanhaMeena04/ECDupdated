@@ -1,4 +1,6 @@
 
+const { isRestaurantOpenNow } = require("./restaurantAvailability");
+
 const normalizeRatingOutput = (rating) => {
   if (rating && typeof rating === "object") {
     const average = typeof rating.average === "number" ? rating.average : (Number(rating.average) || 0);
@@ -69,6 +71,7 @@ exports.formatRestaurantForUser = (restaurant, userLat = null, userLng = null) =
     area: restaurant.area,
     phone: restaurant.phone || restaurant.contactNumber,
     contactNumber: restaurant.contactNumber,
+    email: restaurant.email || (restaurant.owner && typeof restaurant.owner === 'object' ? restaurant.owner.email : '') || '',
     distanceKm: dist,
     distance: dist,
     deliveryTime: deliveryTime,
@@ -78,6 +81,7 @@ exports.formatRestaurantForUser = (restaurant, userLat = null, userLng = null) =
     isSelfPickupEnabled: restaurant.isSelfPickupEnabled !== undefined 
       ? Boolean(restaurant.isSelfPickupEnabled) 
       : (Array.isArray(restaurant.deliveryType) ? restaurant.deliveryType.some(d => String(d).toLowerCase().includes("pickup") || String(d).toLowerCase().includes("both")) : true),
+    paymentMethods: restaurant.paymentMethods || 'Both',
     isFreeDelivery: restaurant.isFreeDelivery,
     minOrderValue: restaurant.minOrderValue || 0,
     estimatedPreparationTime: prepTime,
@@ -85,6 +89,7 @@ exports.formatRestaurantForUser = (restaurant, userLat = null, userLng = null) =
     isOnline: isOverridden && restaurant.adminOverride.isOnline !== undefined ? restaurant.adminOverride.isOnline : (restaurant.isOnline !== undefined ? restaurant.isOnline : true),
     isFeatured: isOverridden && restaurant.adminOverride.isFeatured !== undefined ? restaurant.adminOverride.isFeatured : (restaurant.isFeatured || false),
     isTemporarilyClosed: restaurant.isTemporarilyClosed || false,
+    isOpen: isRestaurantOpenNow(restaurant),
     restaurantApproved: restaurant.restaurantApproved !== false,
     menuApproved: restaurant.menuApproved !== false,
     verificationStatus: restaurant.verificationStatus || 'verified',

@@ -55,6 +55,33 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _placeOrder(CartProvider cart) async {
+    final r = widget.restaurant;
+    if (r != null && (!r.isOpen || !r.isActive || r.isTemporarilyClosed || !r.isOnline)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ This restaurant is currently closed. Cannot place order.'),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    final effectiveMinOrder = (r != null && r.minOrderValue > 0)
+        ? r.minOrderValue
+        : cart.minOrderValue;
+
+    if (effectiveMinOrder > 0 && cart.totalAmount < effectiveMinOrder) {
+      final diff = effectiveMinOrder - cart.totalAmount;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⚠️ Minimum order amount is ₹${effectiveMinOrder.toInt()}. Add items worth ₹${diff.toStringAsFixed(0)} more.'),
+          backgroundColor: const Color(0xFFDC2626),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     final userProvider = context.read<UserProvider>();
     String? token = await AuthService.getToken();
     final isLoggedIn = (token != null && token.isNotEmpty) || userProvider.isLoggedIn;
@@ -1895,23 +1922,39 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
-                                  Text(
-                                    'Delivering to Home',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w900,
-                                      color: Color(0xFF1F2937),
-                                    ),
-                                  ),
-                                  SizedBox(height: 2),
-                                  Text(
-                                    '102, Royal Palms, Vijay Nagar, Indore',
-                                    style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-                                  ),
-                                ],
+                              child: Builder(
+                                builder: (context) {
+                                  final cart = context.watch<CartProvider>();
+                                  final addrProvider = context.watch<AddressProvider>();
+                                  final selectedAddr = addrProvider.addresses.isNotEmpty ? addrProvider.addresses.first : null;
+                                  final String addrTitle = cart.isSelfPickup
+                                      ? 'Pickup from Restaurant'
+                                      : (selectedAddr != null ? 'Delivering to ${selectedAddr.label ?? "Home"}' : 'Select Delivery Address');
+                                  final String addrSubtitle = cart.isSelfPickup
+                                      ? (cart.restaurantAddress ?? cart.restaurantName ?? 'Restaurant Location')
+                                      : (selectedAddr?.fullAddress ?? 'Tap to select delivery address');
+
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        addrTitle,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w900,
+                                          color: isDark ? Colors.white : const Color(0xFF1F2937),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        addrSubtitle,
+                                        style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : const Color(0xFF6B7280)),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                             ),
                           ],
@@ -2106,25 +2149,39 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
                   ),
                   const SizedBox(width: 14),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Delivering to Home',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1F2937),
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          '102, Royal Palms, Vijay Nagar, Indore',
-                          style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                    child: Builder(
+                      builder: (context) {
+                        final cart = context.watch<CartProvider>();
+                        final addrProvider = context.watch<AddressProvider>();
+                        final selectedAddr = addrProvider.addresses.isNotEmpty ? addrProvider.addresses.first : null;
+                        final String addrTitle = cart.isSelfPickup
+                            ? 'Pickup from Restaurant'
+                            : (selectedAddr != null ? 'Delivering to ${selectedAddr.label ?? "Home"}' : 'Select Delivery Address');
+                        final String addrSubtitle = cart.isSelfPickup
+                            ? (cart.restaurantAddress ?? cart.restaurantName ?? 'Restaurant Location')
+                            : (selectedAddr?.fullAddress ?? 'Tap to select delivery address');
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              addrTitle,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: isDark ? Colors.white : const Color(0xFF1F2937),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              addrSubtitle,
+                              style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : const Color(0xFF6B7280)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                   const Icon(Icons.chevron_right_rounded, color: Color(0xFF9CA3AF), size: 20),

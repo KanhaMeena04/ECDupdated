@@ -41,6 +41,16 @@ class MenuItem {
   /// Get effective original price (if not explicitly provided, returns ~40% higher price)
   double get effectiveOriginalPrice => originalPrice ?? (price * 1.4).roundToDouble();
 
+  /// Whether item is in stock & available
+  bool get isAvailable => !outOfStock;
+
+  /// Check if item is marked as special / rare / featured
+  bool get isRareOrSpecial =>
+      isFeatured ||
+      category.toLowerCase().contains('special') ||
+      subcategory.toLowerCase().contains('special') ||
+      name.toLowerCase().contains('special');
+
   /// Convert to Product so CartProvider can handle it
   Product toProduct() => Product(
         id: id,
@@ -73,6 +83,58 @@ class Restaurant {
   final bool isOnline;
   final double? geofenceRadius;
   final bool isServiceable;
+  final String address;
+  final String phone;
+  final String email;
+  final double minOrderValue;
+  final int estimatedPreparationTime;
+  final bool isSelfPickupEnabled;
+  final String paymentMethods;
+  final bool isOpen;
+  final Map<String, dynamic> timing;
+  final bool isTemporarilyClosed;
+  final String kitchenBusyReason;
+  final bool isFeatured;
+  final double startingPrice;
+  final int savingPercent;
+
+  /// Lowest price of items in the menu (Rule: min price of available items or startingPrice from backend)
+  double get lowestPrice {
+    final validPrices = menu.where((m) => m.price > 0 && !m.outOfStock).map((m) => m.price).toList();
+    if (validPrices.isNotEmpty) {
+      return validPrices.reduce((a, b) => a < b ? a : b);
+    }
+    final allPrices = menu.where((m) => m.price > 0).map((m) => m.price).toList();
+    if (allPrices.isNotEmpty) {
+      return allPrices.reduce((a, b) => a < b ? a : b);
+    }
+    if (startingPrice > 0) return startingPrice;
+    return 999999.0;
+  }
+
+  /// Average menu price for pricing comparison
+  double get averagePrice {
+    if (menu.isEmpty) return 0.0;
+    final validPrices = menu.where((m) => m.price > 0).map((m) => m.price).toList();
+    if (validPrices.isEmpty) return 0.0;
+    return validPrices.reduce((a, b) => a + b) / validPrices.length;
+  }
+
+  /// Real comparative saving percentage compared to market/MRP
+  int get effectiveSavingPercent {
+    if (savingPercent > 0) return savingPercent;
+    int totalDiscount = 0;
+    int count = 0;
+    for (final m in menu) {
+      final orig = m.originalPrice ?? (m.price * 1.4);
+      if (orig > m.price && orig > 0) {
+        totalDiscount += (((orig - m.price) / orig) * 100).round();
+        count++;
+      }
+    }
+    if (count > 0) return (totalDiscount / count).round();
+    return 40;
+  }
 
   const Restaurant({
     required this.id,
@@ -90,6 +152,20 @@ class Restaurant {
     this.isOnline = false,
     this.geofenceRadius,
     this.isServiceable = true,
+    this.address = '',
+    this.phone = '',
+    this.email = '',
+    this.minOrderValue = 0.0,
+    this.estimatedPreparationTime = 15,
+    this.isSelfPickupEnabled = true,
+    this.paymentMethods = 'Both',
+    this.isOpen = true,
+    this.timing = const {},
+    this.isTemporarilyClosed = false,
+    this.kitchenBusyReason = '',
+    this.isFeatured = false,
+    this.startingPrice = 0.0,
+    this.savingPercent = 0,
   });
 
   double get distance => distanceKm;
@@ -110,6 +186,20 @@ class Restaurant {
     bool? isOnline,
     double? geofenceRadius,
     bool? isServiceable,
+    String? address,
+    String? phone,
+    String? email,
+    double? minOrderValue,
+    int? estimatedPreparationTime,
+    bool? isSelfPickupEnabled,
+    String? paymentMethods,
+    bool? isOpen,
+    Map<String, dynamic>? timing,
+    bool? isTemporarilyClosed,
+    String? kitchenBusyReason,
+    bool? isFeatured,
+    double? startingPrice,
+    int? savingPercent,
   }) {
     return Restaurant(
       id: id ?? this.id,
@@ -127,6 +217,63 @@ class Restaurant {
       isOnline: isOnline ?? this.isOnline,
       geofenceRadius: geofenceRadius ?? this.geofenceRadius,
       isServiceable: isServiceable ?? this.isServiceable,
+      address: address ?? this.address,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      minOrderValue: minOrderValue ?? this.minOrderValue,
+      estimatedPreparationTime: estimatedPreparationTime ?? this.estimatedPreparationTime,
+      isSelfPickupEnabled: isSelfPickupEnabled ?? this.isSelfPickupEnabled,
+      paymentMethods: paymentMethods ?? this.paymentMethods,
+      isOpen: isOpen ?? this.isOpen,
+      timing: timing ?? this.timing,
+      isTemporarilyClosed: isTemporarilyClosed ?? this.isTemporarilyClosed,
+      kitchenBusyReason: kitchenBusyReason ?? this.kitchenBusyReason,
+      isFeatured: isFeatured ?? this.isFeatured,
+      startingPrice: startingPrice ?? this.startingPrice,
+      savingPercent: savingPercent ?? this.savingPercent,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'slug': slug,
+    'name': name,
+    'imageUrl': imageUrl,
+    'rating': rating,
+    'reviewCount': reviewCount,
+    'distanceKm': distanceKm,
+    'deliveryTimeMin': deliveryTimeMin,
+    'deliveryCharge': deliveryCharge,
+    'cuisine': cuisine,
+    'isActive': isActive,
+    'isOnline': isOnline,
+    'isOpen': isOpen,
+    'isFeatured': isFeatured,
+    'startingPrice': startingPrice,
+    'savingPercent': savingPercent,
+    'address': address,
+  };
+
+  factory Restaurant.fromJson(Map<String, dynamic> json) {
+    return Restaurant(
+      id: json['id']?.toString() ?? json['_id']?.toString() ?? '',
+      slug: json['slug']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Restaurant',
+      imageUrl: json['imageUrl']?.toString() ?? json['image']?.toString() ?? '',
+      rating: (json['rating'] is num) ? (json['rating'] as num).toDouble() : 4.5,
+      reviewCount: (json['reviewCount'] is num) ? (json['reviewCount'] as num).toInt() : 0,
+      distanceKm: (json['distanceKm'] is num) ? (json['distanceKm'] as num).toDouble() : 0.0,
+      deliveryTimeMin: (json['deliveryTimeMin'] is num) ? (json['deliveryTimeMin'] as num).toInt() : 25,
+      deliveryCharge: (json['deliveryCharge'] is num) ? (json['deliveryCharge'] as num).toDouble() : 0.0,
+      cuisine: json['cuisine']?.toString() ?? '',
+      menu: const [],
+      isActive: json['isActive'] != false,
+      isOnline: json['isOnline'] == true,
+      isOpen: json['isOpen'] != false,
+      isFeatured: json['isFeatured'] == true,
+      startingPrice: (json['startingPrice'] is num) ? (json['startingPrice'] as num).toDouble() : 0.0,
+      savingPercent: (json['savingPercent'] is num) ? (json['savingPercent'] as num).toInt() : 0,
+      address: json['address']?.toString() ?? '',
     );
   }
 }
@@ -144,6 +291,8 @@ class PopularDish {
   final String description;
   final bool isVeg;
   final double rating;
+  final String restaurantId;
+  final String restaurantName;
 
   const PopularDish({
     required this.id,
@@ -155,5 +304,18 @@ class PopularDish {
     this.description = '',
     this.isVeg = true,
     this.rating = 4.5,
+    this.restaurantId = '',
+    this.restaurantName = '',
   });
+
+  Product toProduct() => Product(
+        id: id,
+        name: name,
+        description: description,
+        price: price,
+        image: imageUrl,
+        category: category,
+        rating: rating,
+        isVeg: isVeg,
+      );
 }

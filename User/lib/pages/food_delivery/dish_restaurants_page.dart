@@ -16,9 +16,14 @@ import 'restaurant_detail_screen.dart';
 import 'widgets/filters_bottom_sheet.dart';
 
 class DishRestaurantsPage extends StatefulWidget {
-  final PopularDish dish;
+  final PopularDish? dish;
+  final String? dishName;
 
-  const DishRestaurantsPage({super.key, required this.dish});
+  const DishRestaurantsPage({
+    super.key,
+    this.dish,
+    this.dishName,
+  });
 
   @override
   State<DishRestaurantsPage> createState() => _DishRestaurantsPageState();
@@ -91,8 +96,8 @@ class _DishRestaurantsPageState extends State<DishRestaurantsPage> {
       Category(id: 'c9', title: 'Beverages', image: 'assets/static/b4.jpg'),
     ];
 
-    final dishNameLower = widget.dish.name.toLowerCase();
-    final dishCatLower = widget.dish.category.toLowerCase();
+    final dishNameLower = _effectiveDish.name.toLowerCase();
+    final dishCatLower = _effectiveDish.category.toLowerCase();
 
     for (int i = 0; i < _categories.length; i++) {
       final titleLower = _categories[i].title.toLowerCase();
@@ -106,13 +111,21 @@ class _DishRestaurantsPageState extends State<DishRestaurantsPage> {
     }
   }
 
+  PopularDish get _effectiveDish => widget.dish ?? PopularDish(
+    id: 'custom',
+    name: widget.dishName ?? 'Dish',
+    slug: (widget.dishName ?? 'dish').toLowerCase().replaceAll(' ', '-'),
+    imageUrl: '',
+    category: 'General',
+  );
+
   String get _currentCategoryTitle => _categories.isNotEmpty
       ? _categories[_selectedCategoryIndex].title
-      : widget.dish.name;
+      : _effectiveDish.name;
 
   String get _currentCategoryImage => _categories.isNotEmpty
       ? _categories[_selectedCategoryIndex].image
-      : widget.dish.imageUrl;
+      : _effectiveDish.imageUrl;
 
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);

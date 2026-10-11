@@ -112,26 +112,12 @@ class RestaurantApiService {
   }
 
   static Future<List<dynamic>> getRestaurantReviews(String restaurantId) async {
-    if (kFrontendPreviewMode) {
-      return [
-        {
-          'userName': 'Amit Sharma',
-          'rating': 5.0,
-          'comment': 'Delicious food and fast delivery! Super hot pizza.',
-          'createdAt': '2026-03-01T12:00:00Z',
-        },
-        {
-          'userName': 'Priya Verma',
-          'rating': 4.5,
-          'comment': 'Great taste, portion size was very generous.',
-          'createdAt': '2026-02-28T14:30:00Z',
-        }
-      ];
-    }
     try {
       final response = await http.get(Uri.parse('$apiBaseUrl/reviews/restaurant/$restaurantId'));
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final decoded = jsonDecode(response.body);
+        if (decoded is List) return decoded;
+        if (decoded is Map && decoded['reviews'] is List) return decoded['reviews'];
       }
       return [];
     } catch (e) {
@@ -179,6 +165,9 @@ class RestaurantApiService {
             .whereType<BannerModel>()
             .where((b) => b.imageUrl.isNotEmpty && b.isActive)
             .toList();
+
+        // Sort banners by position ascending
+        list.sort((a, b) => a.position.compareTo(b.position));
 
         debugPrint('🎯 Parsed banners: ${list.length}, URLs: ${list.map((b) => b.imageUrl).toList()}');
 
@@ -521,31 +510,26 @@ class RestaurantApiService {
           );
         }).whereType<Category>().toList();
 
-        if (list.isNotEmpty) return list;
+        // Deduplicate categories by title/id
+        final seen = <String>{};
+        final uniqueList = <Category>[];
+        for (final c in list) {
+          final key = c.title.trim().toLowerCase();
+          if (key.isNotEmpty && !seen.contains(key)) {
+            seen.add(key);
+            uniqueList.add(c);
+          }
+        }
+
+        if (uniqueList.isNotEmpty) return uniqueList;
       }
     } catch (e) {
       debugPrint('Error fetching categories: $e');
     }
-    return _getMockCategories();
-  }
-
-  static List<Category> _getMockCategories() {
-    return [
-      Category(id: 'cat_1', title: 'Pizza', image: 'https://ik.imagekit.io/ECDKART/categories/category_pizza_E7N648fSr6.png', startingPrice: 49.0),
-      Category(id: 'cat_2', title: 'Burgers', image: 'https://ik.imagekit.io/ECDKART/categories/category_burger__Jc6jUvwy.png', startingPrice: 39.0),
-      Category(id: 'cat_3', title: 'Biryani', image: 'https://ik.imagekit.io/ECDKART/c5%20(1).png', startingPrice: 99.0),
-      Category(id: 'cat_4', title: 'Chinese', image: 'https://ik.imagekit.io/ECDKART/categories/category_chinese_XVc494o0A.png', startingPrice: 49.0),
-      Category(id: 'cat_5', title: 'Momos', image: 'https://ik.imagekit.io/ECDKART/c7%20(1).png', startingPrice: 29.0),
-      Category(id: 'cat_6', title: 'Cakes', image: 'https://ik.imagekit.io/ECDKART/categories/category_cake_VALLdDFpTj.png', startingPrice: 99.0),
-      Category(id: 'cat_7', title: 'North Indian', image: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400', startingPrice: 89.0),
-      Category(id: 'cat_8', title: 'Beverages', image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400', startingPrice: 20.0),
-    ];
+    return [];
   }
 
   static Future<List<PopularDish>> getPopularDishes() async {
-    if (kFrontendPreviewMode) {
-      return mockPopularDishes;
-    }
     try {
       final response = await http.get(Uri.parse(popularDishesUrl)).timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
@@ -559,6 +543,16 @@ class RestaurantApiService {
           final rawDesc = json['description'] is Map ? (json['description']['en']?.toString() ?? json['description'].values.first?.toString() ?? '') : (json['description']?.toString() ?? '');
           final rawCat = json['category'] is Map ? (json['category']['name']?.toString() ?? 'General') : (json['category']?.toString() ?? 'General');
 
+          final rest = json['restaurant'];
+          String rId = '';
+          String rName = '';
+          if (rest is Map) {
+            rId = rest['_id']?.toString() ?? rest['id']?.toString() ?? '';
+            rName = rest['name']?.toString() ?? '';
+          } else if (rest != null) {
+            rId = rest.toString();
+          }
+
           return PopularDish(
             id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
             name: rawName,
@@ -568,7 +562,9 @@ class RestaurantApiService {
             price: rawPrice,
             description: rawDesc,
             isVeg: json['isVeg'] == true || json['foodType'] == 'veg',
-            rating: _parseDouble(json['rating'], 0.0),
+            rating: _parseDouble(json['rating'], 4.5),
+            restaurantId: rId,
+            restaurantName: rName,
           );
         }).toList();
         if (list.isNotEmpty) return list;
@@ -576,7 +572,45 @@ class RestaurantApiService {
     } catch (e) {
       debugPrint('Error fetching popular dishes: $e');
     }
-    return mockPopularDishes;
+    return [];
+  }
+
+  static Future<List<Restaurant>> getRecommendedRestaurants({
+    double? lat,
+    double? lng,
+    String? city,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (lat != null && lng != null) {
+        queryParams['lat'] = lat.toString();
+        queryParams['long'] = lng.toString();
+      }
+      if (city != null && city.isNotEmpty) {
+        queryParams['city'] = city;
+      }
+      final uri = Uri.parse('$apiBaseUrl/home/recommended').replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List<dynamic> list = (decoded is Map)
+            ? (decoded['restaurants'] ?? decoded['data'] ?? [])
+            : (decoded is List ? decoded : []);
+        final parsed = list.map((json) {
+          if (json is Map<String, dynamic>) return _fromJsonToRestaurant(json);
+          if (json is Map) return _fromJsonToRestaurant(Map<String, dynamic>.from(json));
+          return null;
+        }).whereType<Restaurant>().toList();
+        if (parsed.isNotEmpty) return parsed;
+      }
+    } catch (e) {
+      debugPrint('Error fetching recommended restaurants: $e');
+    }
+    // Fallback to top-rated nearby restaurants
+    final fallbackList = await getRestaurants(lat: lat, lng: lng, city: city);
+    final sorted = List<Restaurant>.from(fallbackList);
+    sorted.sort((a, b) => b.rating.compareTo(a.rating));
+    return sorted;
   }
 
   static Future<List<Restaurant>> getRestaurantsByCategory(String slug) async {
@@ -669,13 +703,29 @@ class RestaurantApiService {
     final bool isWithinGeofence = json['isServiceable'] != null ? (json['isServiceable'] == true) : (distKm <= geoRadius);
     final bool isServiceable = isActuallyActive && isWithinGeofence;
 
+    final String parsedAddress = json['address']?.toString() ?? [json['area'], json['city']].where((e) => e != null && e.toString().trim().isNotEmpty).join(', ');
+    final String parsedPhone = json['phone']?.toString() ?? json['contactNumber']?.toString() ?? '';
+    final String parsedEmail = json['email']?.toString() ?? '';
+    final double minOrderVal = _parseDouble(json['minOrderValue'], 0.0);
+    final int prepTimeMins = _parseInt(json['estimatedPreparationTime'] ?? json['prepTime'] ?? json['prepTimeMinutes'], 15);
+    final bool isPickup = json['isSelfPickupEnabled'] != null
+        ? (json['isSelfPickupEnabled'] == true)
+        : (json['deliveryType'] is List
+            ? (json['deliveryType'] as List).any((d) => d.toString().toLowerCase().contains('pickup') || d.toString().toLowerCase().contains('both'))
+            : true);
+    final String paymentMethodsStr = json['paymentMethods']?.toString() ?? 'Both';
+    final bool isOpenNow = json['isOpen'] != null ? (json['isOpen'] == true) : isActuallyActive;
+    final Map<String, dynamic> timingMap = json['timing'] is Map ? Map<String, dynamic>.from(json['timing'] as Map) : <String, dynamic>{};
+    final bool isTempClosed = json['isTemporarilyClosed'] == true;
+    final String busyReason = json['kitchenBusyReason']?.toString() ?? '';
+
     return Restaurant(
       id: rId,
       slug: json['slug']?.toString() ?? '',
       name: rName,
       imageUrl: json['coverImage']?.toString() ?? json['logo']?.toString() ?? json['image']?.toString() ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600',
       rating: parsedRating,
-      reviewCount: _parseInt(json['totalReviews'] != null && json['totalReviews'] > 0 ? json['totalReviews'] : (json['orderCount'] ?? json['reviewCount'] ?? json['totalReviews']), 120),
+      reviewCount: _parseInt(json['totalReviews'] != null ? json['totalReviews'] : (json['ratingCount'] ?? json['reviewCount'] ?? json['orderCount']), 0),
       distanceKm: distKm,
       deliveryTimeMin: _parseInt(json['deliveryTimeMin'] ?? json['deliveryTime'] ?? json['prepTime'] ?? json['estimatedPreparationTime'], 25),
       deliveryCharge: _parseDouble(json['deliveryCharge'] ?? json['shippingFee'], 0.0),
@@ -685,6 +735,20 @@ class RestaurantApiService {
       isOnline: isActuallyActive,
       geofenceRadius: geoRadius,
       isServiceable: isServiceable,
+      address: parsedAddress,
+      phone: parsedPhone,
+      email: parsedEmail,
+      minOrderValue: minOrderVal,
+      estimatedPreparationTime: prepTimeMins,
+      isSelfPickupEnabled: isPickup,
+      paymentMethods: paymentMethodsStr,
+      isOpen: isOpenNow,
+      timing: timingMap,
+      isTemporarilyClosed: isTempClosed,
+      kitchenBusyReason: busyReason,
+      isFeatured: json['isFeatured'] == true || json['isPromoted'] == true || json['isAd'] == true,
+      startingPrice: _parseDouble(json['startingPrice'] ?? json['lowestPrice'] ?? json['minPrice'], 0.0),
+      savingPercent: _parseInt(json['savingPercent'], 0),
     );
   }
 
@@ -795,4 +859,5 @@ class RestaurantApiService {
 
   static List<Restaurant> _getMockRestaurants() => [];
   static List<MenuItem> _getMockMenuItems() => [];
+  static List<Category> _getMockCategories() => [];
 }

@@ -416,6 +416,22 @@ exports.placeOrder = async (req, res) => {
       return sendError(res, 400, `${restaurant.name?.en || restaurant.name} is currently not accepting orders`);
     }
 
+    const { isRestaurantOpenNow } = require("../utils/restaurantAvailability");
+    if (!isRestaurantOpenNow(restaurant)) {
+      return sendError(res, 400, `${restaurant.name?.en || restaurant.name} is currently closed. Orders cannot be placed outside operating hours or when offline.`);
+    }
+
+    if (isSelfPickup && (paymentMethod === "cod" || normalizedMethod === "cod")) {
+      return sendError(res, 400, "Self-Pickup orders only support Online Payment or Wallet. Cash on Delivery is not available for Self-Pickup.");
+    }
+
+    if (restaurant.paymentMethods === 'Online' && (paymentMethod === 'cod' || normalizedMethod === 'cod')) {
+      return sendError(res, 400, "This restaurant only accepts Online payments.");
+    }
+    if (restaurant.paymentMethods === 'COD' && (paymentMethod === 'online' || normalizedMethod === 'online')) {
+      return sendError(res, 400, "This restaurant only accepts Cash on Delivery.");
+    }
+
     let bill;
     try {
       bill = await calculateBill(cart, req.user._id, deliveryAddress, orderType);
@@ -457,6 +473,11 @@ exports.placeOrder = async (req, res) => {
     }
     if (bill && bill.isRadiusExceeded) {
       return sendError(res, 400, "Delivery location exceeds maximum allowed delivery radius");
+    }
+
+    const subtotalForMinOrder = (bill && bill.itemTotal) || req.body.subtotal || cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    if (restaurant.minOrderValue && restaurant.minOrderValue > 0 && subtotalForMinOrder < restaurant.minOrderValue) {
+      return sendError(res, 400, `Minimum order amount of ₹${restaurant.minOrderValue} is required to place an order from this restaurant.`);
     }
 
     const totalPayment = bill.toPay;
@@ -4001,7 +4022,17 @@ exports.verifySelfPickup = async (req, res) => {
       return sendError(res, 400, "This is not a self-pickup order");
     }
 
-    if (selfPickupCode && order.selfPickupCode !== selfPickupCode && order.pickupOtp !== selfPickupCode && selfPickupCode !== '1234') {
+    if (order.status === 'delivered' || order.status === 'completed') {
+      return sendError(res, 400, "Order is already completed and handed over");
+    }
+
+    const enteredCode = (selfPickupCode || req.body.otp || req.body.code || "").toString().trim();
+    if (!enteredCode) {
+      return sendError(res, 400, "Pickup OTP code is required");
+    }
+
+    const expectedCode = (order.selfPickupCode || order.pickupOtp || "").toString().trim();
+    if (expectedCode !== enteredCode) {
       return sendError(res, 400, "Invalid Self-Pickup OTP Code");
     }
 
@@ -4242,7 +4273,13 @@ exports.verifyPickupVendor = async (req, res) => {
       ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
       : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
     const order = await Order.findOne(orderFilter).populate('customer').populate('restaurant').populate('rider');
-    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+    if (order.status === "delivered" || order.status === "completed" || order.deliveryStatus === "delivered") {
+      return res.status(400).json({ success: false, message: "Order is already completed and handed over" });
+    }
+
+    if (order.pickupOtpExpiresAt && new Date() > new Date(order.pickupOtpExpiresAt)) {
+      return res.status(400).json({ success: false, message: "Pickup OTP has expired. Please request a new OTP." });
+    }
 
     const expectedOtp = (order.pickupOtp || order.pickupOTP || order.selfPickupCode || "").toString().trim();
     if (!expectedOtp || enteredOtp !== expectedOtp) {
@@ -4416,11 +4453,12 @@ exports.sendPickupOtpVendor = async (req, res) => {
       ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
       : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
     const order = await Order.findOne(orderFilter);
-    if (!order) return res.status(404).json({ message: "Order not found" });
-    const otp = "1234";
+    const otp = order.pickupOtp || order.selfPickupCode || Math.floor(1000 + Math.random() * 9000).toString();
+    order.pickupOtp = otp;
     order.pickupOTP = otp;
+    order.selfPickupCode = otp;
     await order.save();
-    return res.status(200).json({ success: true, message: "Pickup OTP sent", testOtp: otp });
+    return res.status(200).json({ success: true, message: "Pickup OTP generated", otp });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -4587,11 +4625,12 @@ exports.verifySelfPickupOTP = async (req, res) => {
     }
 
     const order = await Order.findById(orderId).populate('customer');
-    if (!order) {
-      return res.status(404).json({ success: false, message: "Order not found" });
+    if (order.status === "delivered" || order.status === "completed") {
+      return res.status(400).json({ success: false, message: "Order is already completed and handed over" });
     }
 
-    if (order.pickupOtp !== enteredCode) {
+    const expectedOtp = (order.pickupOtp || order.selfPickupCode || order.pickupOTP || "").toString().trim();
+    if (!expectedOtp || expectedOtp !== enteredCode) {
       return res.status(400).json({ success: false, message: "Invalid 4-digit pickup code" });
     }
 

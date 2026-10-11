@@ -1116,12 +1116,8 @@ exports.userVerifyOtp = async (req, res) => {
 
     const customerIdCode = await ensureCustomerId(user);
     const token = generateToken(res, user);
-    const userAgeMs = user.createdAt ? (Date.now() - new Date(user.createdAt).getTime()) : 0;
-    const hasOrders = (user.totalOrders && user.totalOrders > 0) || false;
-    const hasAddresses = Array.isArray(user.savedAddresses) && user.savedAddresses.length > 0;
-    const isOldAccount = userAgeMs > 5 * 60 * 1000 || hasOrders || hasAddresses;
-
-    const isNewUser = !isOldAccount && (!user.name || user.name.startsWith("User ") || user.name === "New Customer");
+    const hasRealName = Boolean(user.name && !user.name.startsWith("User ") && user.name !== "New Customer");
+    const isNewUser = !hasRealName && !hasOrders;
 
     return res.status(200).json({
       success: true,

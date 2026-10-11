@@ -407,8 +407,35 @@ exports.createReview = async (req, res) => {
                 : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
             order = await Order.findOne(filter);
             if (order) {
+                if (order.status !== 'delivered' && order.status !== 'completed') {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'You can only review after the order has been delivered/completed.'
+                    });
+                }
+                if (order.user && order.user.toString() !== userId) {
+                    return res.status(403).json({
+                        success: false,
+                        message: 'You can only review your own orders.'
+                    });
+                }
                 targetRestaurantId = targetRestaurantId || order.restaurant;
                 targetRiderId = targetRiderId || order.rider;
+            } else {
+                return res.status(404).json({ success: false, message: 'Order not found' });
+            }
+        } else {
+            // Customer must have at least one delivered/completed order from this restaurant to review
+            const hasCompletedOrder = await Order.findOne({
+                user: userId,
+                restaurant: targetRestaurantId,
+                status: { $in: ['delivered', 'completed'] }
+            });
+            if (!hasCompletedOrder) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Only customers who have completed an order from this restaurant can write a review.'
+                });
             }
         }
 

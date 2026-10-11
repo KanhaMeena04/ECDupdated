@@ -123,7 +123,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   }
 
   List<String> get _categories {
-    final cats = _menu.map((m) => m.category).toSet().toList();
+    final cats = _menu.map((m) => m.category.trim()).where((c) => c.isNotEmpty).toSet().toList();
+    // Also include distinct subcategories (e.g. Cold Drinks) so user can filter them directly
+    final subcats = _menu.map((m) => m.subcategory.trim()).where((s) => s.isNotEmpty).toSet().toList();
+    cats.addAll(subcats);
     cats.sort();
     return ['All', ...cats];
   }
@@ -131,13 +134,18 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   List<MenuItem> get _filteredMenu {
     List<MenuItem> list = List.from(_menu);
     if (_selectedCategory != 'All') {
-      list = list.where((m) => m.category == _selectedCategory).toList();
+      final sel = _selectedCategory.toLowerCase().trim();
+      list = list.where((m) =>
+        m.category.toLowerCase().trim() == sel ||
+        m.subcategory.toLowerCase().trim() == sel
+      ).toList();
     }
     if (_searchQuery.trim().isNotEmpty) {
       final query = _searchQuery.toLowerCase().trim();
       list = list.where((m) =>
         m.name.toLowerCase().contains(query) ||
         m.category.toLowerCase().contains(query) ||
+        m.subcategory.toLowerCase().contains(query) ||
         m.description.toLowerCase().contains(query)
       ).toList();
     }
@@ -330,15 +338,49 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                               fontSize: 14,
                             ),
                           ),
+                          if (r.address.trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on_outlined, color: Colors.white70, size: 13),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    r.address.trim(),
+                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 10),
                           // Stats row
-                          Row(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
                             children: [
                               _StatChip(
-                                icon: Icons.star,
+                                icon: Icons.star_rounded,
                                 iconColor: Colors.amber,
-                                label:
-                                    '${r.rating} (${_fmt(r.reviewCount)} reviews) >',
+                                label: '${r.rating > 0 ? r.rating.toStringAsFixed(1) : "New"} (${_fmt(r.reviewCount)} reviews) >',
+                                onTap: () => _showReviewsSheet(context, r.id),
+                              ),
+                              _StatChip(
+                                icon: Icons.access_time_rounded,
+                                iconColor: Colors.white,
+                                label: '${r.estimatedPreparationTime} mins',
+                              ),
+                              _StatChip(
+                                icon: Icons.near_me_outlined,
+                                iconColor: Colors.white,
+                                label: '${r.distanceKm.toStringAsFixed(1)} km',
+                              ),
+                              _StatChip(
+                                icon: Icons.circle,
+                                iconColor: (r.isOpen && r.isActive) ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                label: (r.isOpen && r.isActive) ? 'Open' : 'Closed',
                               ),
                             ],
                           ),
@@ -351,100 +393,151 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
             ),
           ),
 
-          // ── Delivery / Self Pickup Switcher ────────────────────────────────
-          SliverToBoxAdapter(
-            child: Container(
-              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          // ── Closed Restaurant Warning Banner ──────────────────────────────
+          if (!r.isOpen || !r.isActive)
+            SliverToBoxAdapter(
               child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[850] : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isDark ? Colors.grey[700]! : Colors.grey.shade300,
-                  ),
-                ),
+                width: double.infinity,
+                color: const Color(0xFFFEE2E2),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 20),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          cartProvider.setOrderType('delivery');
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: !cartProvider.isSelfPickup ? AppColors.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: !cartProvider.isSelfPickup
-                                ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))]
-                                : null,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.delivery_dining,
-                                size: 18,
-                                color: !cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Delivery',
-                                style: TextStyle(
-                                  color: !cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          cartProvider.setOrderType('pickup');
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: cartProvider.isSelfPickup ? AppColors.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: cartProvider.isSelfPickup
-                                ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))]
-                                : null,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.shopping_bag_outlined,
-                                size: 18,
-                                color: cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Self Pickup 🛍️',
-                                style: TextStyle(
-                                  color: cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
+                      child: Text(
+                        r.isTemporarilyClosed && r.kitchenBusyReason.isNotEmpty
+                            ? 'Kitchen Busy: ${r.kitchenBusyReason}. Currently not accepting orders.'
+                            : 'This restaurant is currently closed. You can explore the menu, but order placement is disabled.',
+                        style: const TextStyle(
+                          color: Color(0xFF991B1B),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
+            ),
+
+          // ── Delivery / Self Pickup Switcher ────────────────────────────────
+          SliverToBoxAdapter(
+            child: Container(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: r.isSelfPickupEnabled
+                  ? Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey[850] : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark ? Colors.grey[700]! : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                cartProvider.setOrderType('delivery');
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: !cartProvider.isSelfPickup ? AppColors.primary : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: !cartProvider.isSelfPickup
+                                      ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                                      : null,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.delivery_dining,
+                                      size: 18,
+                                      color: !cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Delivery',
+                                      style: TextStyle(
+                                        color: !cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                cartProvider.setOrderType('pickup');
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: cartProvider.isSelfPickup ? AppColors.primary : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: cartProvider.isSelfPickup
+                                      ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                                      : null,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.shopping_bag_outlined,
+                                      size: 18,
+                                      color: cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Self Pickup 🛍️',
+                                      style: TextStyle(
+                                        color: cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey[850] : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.delivery_dining, size: 18, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Home Delivery Available (Self-Pickup Not Supported)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white70 : const Color(0xFF374151),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
             ),
           ),
 
@@ -497,7 +590,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                           restaurantId: r.id,
                           restaurantName: r.name,
                           restaurantImageUrl: r.imageUrl,
-                          restaurantIsOnline: r.isOnline,
+                          restaurantAddress: r.address,
+                          minOrderValue: r.minOrderValue,
+                          restaurantIsOnline: r.isOnline && r.isOpen && !r.isTemporarilyClosed && r.isActive,
                           deliveryTimeMin: r.deliveryTimeMin,
                         );
                       },
@@ -813,13 +908,18 @@ class _StatChip extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String label;
+  final VoidCallback? onTap;
 
-  const _StatChip(
-      {required this.icon, required this.iconColor, required this.label});
+  const _StatChip({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.4),
@@ -831,10 +931,15 @@ class _StatChip extends StatelessWidget {
           Icon(icon, color: iconColor, size: 13),
           const SizedBox(width: 4),
           Text(label,
-              style: const TextStyle(color: Colors.white, fontSize: 11)),
+              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
         ],
       ),
     );
+
+    if (onTap != null) {
+      return GestureDetector(onTap: onTap, child: chip);
+    }
+    return chip;
   }
 }
 
@@ -986,6 +1091,8 @@ class _MenuItemCard extends StatelessWidget {
   final String restaurantId;
   final String restaurantName;
   final String restaurantImageUrl;
+  final String? restaurantAddress;
+  final double minOrderValue;
   final bool restaurantIsOnline;
   final int deliveryTimeMin;
 
@@ -995,14 +1102,38 @@ class _MenuItemCard extends StatelessWidget {
     required this.restaurantId,
     required this.restaurantName,
     required this.restaurantImageUrl,
+    this.restaurantAddress,
+    this.minOrderValue = 0.0,
     required this.restaurantIsOnline,
     this.deliveryTimeMin = 25,
   });
 
-  // â”€â”€ Add item with conflict detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Add item with conflict detection ──────────────────────────────────────
   void _handleAdd(BuildContext context) {
+    if (!restaurantIsOnline) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Restaurant is currently closed and not accepting orders.'),
+          backgroundColor: Color(0xFFDC2626),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    if (item.outOfStock) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Sorry, this item is currently out of stock / unavailable!'),
+          backgroundColor: Color(0xFFDC2626),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
     if (cartProvider.isFromDifferentRestaurant(restaurantId)) {
-      // Show dialog â€” cart has items from a different restaurant
+      // Show dialog — cart has items from a different restaurant
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -1042,7 +1173,9 @@ class _MenuItemCard extends StatelessWidget {
                   restaurantId: restaurantId,
                   restaurantName: restaurantName,
                   restaurantImageUrl: restaurantImageUrl,
+                  restaurantAddress: restaurantAddress,
                   deliveryTimeMin: deliveryTimeMin,
+                  minOrderValue: minOrderValue,
                   imageUrl: item.imageUrl,
                 );
               },
@@ -1065,7 +1198,9 @@ class _MenuItemCard extends StatelessWidget {
         restaurantId: restaurantId,
         restaurantName: restaurantName,
         restaurantImageUrl: restaurantImageUrl,
+        restaurantAddress: restaurantAddress,
         deliveryTimeMin: deliveryTimeMin,
+        minOrderValue: minOrderValue,
         imageUrl: item.imageUrl,
       );
     }
@@ -1101,33 +1236,79 @@ class _MenuItemCard extends StatelessWidget {
           // â”€â”€ Item image â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: SafeImage(
-              item.imageUrl,
-              width: 90,
-              height: 90,
-              fit: BoxFit.cover,
-              loadingBuilder: (_, child, progress) => progress == null
-                  ? child
-                  : Container(
-                      width: 90,
-                      height: 90,
-                      color: const Color(0xFFF3F4F6),
-                      child: const Center(
-                        child: SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: AppColors.primary),
+            child: Stack(
+              children: [
+                SafeImage(
+                  item.imageUrl,
+                  width: 90,
+                  height: 90,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (_, child, progress) => progress == null
+                      ? child
+                      : Container(
+                          width: 90,
+                          height: 90,
+                          color: const Color(0xFFF3F4F6),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: AppColors.primary),
+                            ),
+                          ),
+                        ),
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 90,
+                    height: 90,
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    child: const Icon(Icons.fastfood,
+                        size: 36, color: AppColors.primary),
+                  ),
+                ),
+                if (item.outOfStock)
+                  Container(
+                    width: 90,
+                    height: 90,
+                    color: Colors.black.withValues(alpha: 0.55),
+                    alignment: Alignment.center,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDC2626),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'UNAVAILABLE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
-              errorBuilder: (_, __, ___) => Container(
-                width: 90,
-                height: 90,
-                color: AppColors.primary.withValues(alpha: 0.08),
-                child: const Icon(Icons.fastfood,
-                    size: 36, color: AppColors.primary),
-              ),
+                  )
+                else if (item.isRareOrSpecial)
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE89D1E),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'SPECIAL',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: 12),
@@ -1244,8 +1425,25 @@ class _MenuItemCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Text(
-                          'DISABLED',
+                          'CLOSED',
                           style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+                        ),
+                      )
+                    else if (item.outOfStock)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF3B1F20) : const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.5)),
+                        ),
+                        child: const Text(
+                          'OUT OF STOCK',
+                          style: TextStyle(
+                            color: Color(0xFFEF4444),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       )
                     else if (inCart)
@@ -1584,12 +1782,13 @@ class _SavingsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (cartProvider.items.isEmpty) return const SizedBox.shrink();
+    final discount = cartProvider.discountAmount;
+    final isFreeDelivery = cartProvider.deliveryFee == 0.0;
+    if (discount <= 0 && !isFreeDelivery) return const SizedBox.shrink();
 
-    // Mock savings logic: Calculate 50% of the last item's price for demo
-    final lastItem = cartProvider.items.last;
-    final savingsAmount = (lastItem.product.price * 0.5).toStringAsFixed(1);
-    final itemName = lastItem.product.name;
+    final String savingsText = discount > 0
+        ? 'You are saving ₹${discount.toStringAsFixed(0)} on this order!'
+        : 'Free Delivery unlocked on this order!';
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -1620,7 +1819,7 @@ class _SavingsBar extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'You are saving ₹$savingsAmount on $itemName',
+              savingsText,
               style: const TextStyle(
                 color: Color(0xFF1E40AF), // Darker blue for text
                 fontSize: 13,
@@ -1936,41 +2135,121 @@ class _RecommendedDishesSection extends StatelessWidget {
                           ),
 
                           // Add Button
-                          GestureDetector(
-                            onTap: () {
-                              cartProvider.addItem(
-                                item.toProduct(),
-                                restaurantId: restaurant.id,
-                                restaurantName: restaurant.name,
-                                restaurantImageUrl: restaurant.imageUrl,
-                                imageUrl: item.imageUrl,
-                              );
-                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Added ${item.name} to cart!'),
-                                  backgroundColor: AppColors.primary,
-                                  duration: const Duration(seconds: 1),
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          Builder(
+                            builder: (context) {
+                              final bool isRestaurantOpen = restaurant.isOnline && restaurant.isOpen && !restaurant.isTemporarilyClosed && restaurant.isActive;
+                              return GestureDetector(
+                                onTap: () {
+                                  if (!isRestaurantOpen) {
+                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('⚠️ Restaurant is currently closed and not accepting orders.'),
+                                        backgroundColor: Color(0xFFDC2626),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  if (item.outOfStock) {
+                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('⚠️ Sorry, this item is currently out of stock!'),
+                                        backgroundColor: Color(0xFFDC2626),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  if (cartProvider.isFromDifferentRestaurant(restaurant.id)) {
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        title: const Text('Start new cart?', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                                        content: RichText(
+                                          text: TextSpan(
+                                            style: const TextStyle(fontSize: 14, color: Color(0xFF374151), height: 1.5),
+                                            children: [
+                                              const TextSpan(text: 'Your cart has items from '),
+                                              TextSpan(text: cartProvider.restaurantName ?? 'another restaurant', style: const TextStyle(fontWeight: FontWeight.w700)),
+                                              const TextSpan(text: '.\n\nAdding items from a different restaurant will clear your current cart.'),
+                                            ],
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Keep current', style: TextStyle(color: Color(0xFF6B7280)))),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                              cartProvider.switchRestaurantAndAdd(
+                                                item.toProduct(),
+                                                restaurantId: restaurant.id,
+                                                restaurantName: restaurant.name,
+                                                restaurantImageUrl: restaurant.imageUrl,
+                                                restaurantAddress: restaurant.address,
+                                                deliveryTimeMin: restaurant.deliveryTimeMin,
+                                                minOrderValue: restaurant.minOrderValue,
+                                                imageUrl: item.imageUrl,
+                                              );
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.primary,
+                                              foregroundColor: AppColors.dark,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              elevation: 0,
+                                            ),
+                                            child: const Text('Start new cart', style: TextStyle(fontWeight: FontWeight.w700)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  cartProvider.addItem(
+                                    item.toProduct(),
+                                    restaurantId: restaurant.id,
+                                    restaurantName: restaurant.name,
+                                    restaurantImageUrl: restaurant.imageUrl,
+                                    restaurantAddress: restaurant.address,
+                                    deliveryTimeMin: restaurant.deliveryTimeMin,
+                                    minOrderValue: restaurant.minOrderValue,
+                                    imageUrl: item.imageUrl,
+                                  );
+                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Added ${item.name} to cart!'),
+                                      backgroundColor: AppColors.primary,
+                                      duration: const Duration(seconds: 1),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: !isRestaurantOpen
+                                        ? Colors.grey.shade400
+                                        : (item.outOfStock ? Colors.red.shade400 : AppColors.primary),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    !isRestaurantOpen
+                                        ? 'CLOSED'
+                                        : (item.outOfStock ? 'UNAVAIL' : 'ADD'),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
                               );
                             },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'ADD',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
                           ),
                         ],
                       ),
