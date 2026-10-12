@@ -41,16 +41,25 @@ const data = mapDeliveredOrders(orders);
   {
     key: "customerName",
     label: "Customer",
+    render: (row) => (
+      <div>
+        <p className="font-semibold text-gray-800 text-xs">{row.customerName}</p>
+        <p className="text-[11px] text-gray-500 font-mono">
+          {row.customerId ? <span className="text-emerald-700 font-semibold mr-1">#{row.customerId}</span> : null}
+          {row.customerMobile && row.customerMobile !== "—" ? row.customerMobile : "—"}
+        </p>
+      </div>
+    ),
   },
   {
     key: "orderType",
     label: "Type",
     render: (row) => (
       <span
-        className={`px-3 py-1 text-xs rounded-md font-medium ${
+        className={`px-2.5 py-1 text-xs rounded-full font-semibold ${
           row.orderType === "Delivery"
-            ? "bg-green-100 text-green-600"
-            : "bg-orange-100 text-orange-600"
+            ? "bg-green-100 text-green-700 border border-green-200"
+            : "bg-purple-100 text-purple-700 border border-purple-200"
         }`}
       >
         {row.orderType}
@@ -60,6 +69,16 @@ const data = mapDeliveredOrders(orders);
   {
     key: "restaurant",
     label: "Restaurant",
+    render: (row) => (
+      <div>
+        <span className="font-semibold text-gray-800 text-xs block truncate max-w-[160px]" title={row.restaurant}>
+          {row.restaurant}
+        </span>
+        {row.restaurantId ? (
+          <span className="text-[10px] font-semibold text-blue-700 font-mono">#{row.restaurantId}</span>
+        ) : null}
+      </div>
+    ),
   },
   {
     key: "date",

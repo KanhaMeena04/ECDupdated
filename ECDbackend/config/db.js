@@ -29,6 +29,7 @@ const connectDB = async () => {
     await cleanupLegacyIndexes();
     await ensureAdminUser();
     await reconcileUserAndRiderNames();
+    await reconcileOrderCustomerAndRestaurantNames();
 
     return conn;
   } catch (error) {
@@ -191,6 +192,118 @@ async function reconcileUserAndRiderNames() {
     console.log('✅ User & Rider profile name auto-reconciliation complete');
   } catch (err) {
     console.warn('⚠️ User/Rider auto-reconciliation warning:', err.message);
+  }
+}
+
+async function reconcileOrderCustomerAndRestaurantNames() {
+  try {
+    const Order = require('../models/Order');
+    const Restaurant = require('../models/Restaurant');
+    const User = require('../models/User');
+
+    const restaurants = await Restaurant.find({}).lean();
+    const defaultRestaurant = restaurants[0] || null;
+    const restMap = new Map();
+    restaurants.forEach((r) => {
+      let rName = '';
+      if (typeof r.name === 'string') rName = r.name;
+      else if (r.name && typeof r.name === 'object') {
+        rName = r.name.en || r.name.name || Object.values(r.name).find((v) => typeof v === 'string') || '';
+      }
+      if (!rName) rName = 'ECD Partner Restaurant';
+      restMap.set(r._id.toString(), { ...r, resolvedName: rName });
+    });
+
+    const users = await User.find({}).lean();
+    const defaultCustomer = users.find((u) => u.role === 'customer') || users[0] || null;
+    const userMap = new Map();
+    const phoneToUserMap = new Map();
+    users.forEach((u) => {
+      const uName = u.name || [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Customer';
+      userMap.set(u._id.toString(), { ...u, resolvedName: uName });
+      if (u.mobile) phoneToUserMap.set(u.mobile.replace(/\D/g, '').slice(-10), { ...u, resolvedName: uName });
+      if (u.phone) phoneToUserMap.set(u.phone.replace(/\D/g, '').slice(-10), { ...u, resolvedName: uName });
+    });
+
+    const ordersToFix = await Order.find({
+      $or: [
+        { customerName: { $exists: false } },
+        { customerName: '' },
+        { customerName: 'Customer' },
+        { customerName: '—' },
+        { restaurantName: { $exists: false } },
+        { restaurantName: '' },
+        { restaurantName: 'Restaurant' },
+        { restaurantName: '—' }
+      ]
+    }).limit(200);
+
+    let updatedCount = 0;
+    for (const ord of ordersToFix) {
+      let updates = {};
+
+      // 1. Resolve Customer Name & Phone
+      let cName = ord.customerName;
+      let cPhone = ord.customerPhone;
+      const custIdStr = ord.customer ? ord.customer.toString() : (ord.user ? ord.user.toString() : null);
+
+      if (custIdStr && userMap.has(custIdStr)) {
+        const u = userMap.get(custIdStr);
+        cName = u.resolvedName;
+        cPhone = cPhone || u.mobile || u.phone || '';
+      } else {
+        const rawPhone = (ord.deliveryPhone || ord.deliveryAddress?.phone || ord.address?.phone || '').replace(/\D/g, '').slice(-10);
+        if (rawPhone && phoneToUserMap.has(rawPhone)) {
+          const u = phoneToUserMap.get(rawPhone);
+          cName = u.resolvedName;
+          cPhone = u.mobile || u.phone || rawPhone;
+          updates.customer = u._id;
+        } else if (ord.deliveryAddress?.name && ord.deliveryAddress.name.trim()) {
+          cName = ord.deliveryAddress.name.trim();
+        } else if (rawPhone) {
+          cName = `Customer (${rawPhone.slice(-4)})`;
+          cPhone = rawPhone;
+        } else if (defaultCustomer) {
+          cName = defaultCustomer.resolvedName;
+          cPhone = defaultCustomer.mobile || defaultCustomer.phone || '';
+          updates.customer = defaultCustomer._id;
+        } else {
+          cName = 'Customer';
+        }
+      }
+
+      if (cName && (cName !== ord.customerName || ord.customerName === '—')) updates.customerName = cName;
+      if (cPhone && cPhone !== ord.customerPhone) updates.customerPhone = cPhone;
+
+      // 2. Resolve Restaurant Name
+      let rName = ord.restaurantName;
+      const restIdStr = ord.restaurant ? ord.restaurant.toString() : (ord.store ? ord.store.toString() : null);
+
+      if (restIdStr && restMap.has(restIdStr)) {
+        const r = restMap.get(restIdStr);
+        rName = r.resolvedName;
+      } else {
+        if (defaultRestaurant) {
+          const r = defaultRestaurant;
+          rName = r.resolvedName || (typeof r.name === 'string' ? r.name : (r.name?.en || 'ECD Partner Restaurant'));
+          if (!ord.restaurant) updates.restaurant = r._id;
+        } else {
+          rName = 'ECD Partner Restaurant';
+        }
+      }
+
+      if (rName && (rName !== ord.restaurantName || ord.restaurantName === '—')) updates.restaurantName = rName;
+
+      if (Object.keys(updates).length > 0) {
+        await Order.updateOne({ _id: ord._id }, { $set: updates });
+        updatedCount++;
+      }
+    }
+    if (updatedCount > 0) {
+      console.log(`✅ Auto-reconciled customer & restaurant names for ${updatedCount} orders in MongoDB Atlas`);
+    }
+  } catch (err) {
+    console.warn('⚠️ Order reconciliation warning:', err.message);
   }
 }
 

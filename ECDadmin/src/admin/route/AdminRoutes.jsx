@@ -18,6 +18,7 @@ const FailedOrders=lazy(()=>import('../orders/pages/FailedOrders'))
 const AbandonCart = lazy(()=>import('../orders/pages/AbandonCart'))
 const RefundOrders=lazy(()=>import('../orders/pages/RefundOrders'))
 const OrderDashBoard=lazy(()=>import('../orders/pages/OrderDashboard'))
+const OrdersAnalytics=lazy(()=>import('../orders/pages/OrdersAnalytics'))
 
 const ViewOrder=lazy(()=>import('../orders/pages/ViewOrder'))
 const RestaurantsList =lazy(()=>import("../restaurants/pages/RestaurantsList"))
@@ -187,6 +188,8 @@ const AdminRoutes = () => {
 				 <Route path="/abandon-cart" element={<AbandonCart />} />
 				 <Route path="/order-refund" element={<RefundOrders />} />
 				 <Route path="/order-dashboard" element={<OrderDashBoard />} />
+				 <Route path="/orders-analytics" element={<OrdersAnalytics />} />
+				 <Route path="/orders" element={<OrdersAnalytics />} />
 				 <Route path="/view-order/:id" element={<ViewOrder />} />
 
 				 <Route path="/restaurants" element={<RestaurantsList />} />

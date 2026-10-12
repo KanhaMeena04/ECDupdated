@@ -26,7 +26,14 @@ ChartJS.register(
   Filler
 );
 
-export default function OrderTrendsChart({ chartData, period = "today", stats = [], onSelectPeriod, totalDbOrders = 0 }) {
+export default function OrderTrendsChart({
+  chartData,
+  period = "today",
+  stats = [],
+  todayOrders = null,
+  onSelectPeriod,
+  totalDbOrders = 0,
+}) {
   const [chartMode, setChartMode] = useState("orders"); // "orders" | "comparison" | "revenue"
   const [chartType, setChartType] = useState("line"); // "line" | "bar"
 
@@ -48,8 +55,14 @@ export default function OrderTrendsChart({ chartData, period = "today", stats = 
   const cancelledData = rawCancelled.length > 0 ? rawCancelled : new Array(defaultLabels.length).fill(0);
   const revenueData = rawRevenue.length > 0 ? rawRevenue : new Array(defaultLabels.length).fill(0);
 
-  const totalPeriodOrders = ordersData.reduce((a, b) => a + b, 0);
-  const totalPeriodRevenue = revenueData.reduce((a, b) => a + b, 0);
+  const totalPeriodOrders =
+    period === "all" && totalDbOrders > 0
+      ? totalDbOrders
+      : (stats?.[0]?.value !== undefined ? stats[0].value : ordersData.reduce((a, b) => a + b, 0));
+  const totalPeriodRevenue =
+    todayOrders?.totalRevenue !== undefined
+      ? todayOrders.totalRevenue
+      : revenueData.reduce((a, b) => a + b, 0);
   const peakOrders = Math.max(...ordersData, 0);
 
   let datasets = [];

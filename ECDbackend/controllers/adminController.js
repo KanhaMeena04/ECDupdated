@@ -177,8 +177,9 @@ exports.getDashboard = async (req, res) => {
 };
 exports.getOrdersDashboard = async (req, res) => {
   try {
-    const { period = "today", startDate, endDate, status: filterStatus } = req.query;
+    const { period = "today", startDate, endDate, status: filterStatus, onlyAnalytics: rawOnlyAnalytics } = req.query;
     const limit = parseInt(req.query.limit) || 100;
+    const onlyAnalytics = rawOnlyAnalytics === "true" || rawOnlyAnalytics === true;
 
     let matchQuery = {};
     const now = new Date();
@@ -241,17 +242,6 @@ exports.getOrdersDashboard = async (req, res) => {
     else if (period === "custom") periodTitle = "Selected Period";
     else if (period === "all") periodTitle = "All Time";
 
-    if (period === "today" || period === "daily") {
-      const todayCount = await Order.countDocuments(matchQuery);
-      if (todayCount === 0) {
-        const totalDbOrders = await Order.countDocuments({});
-        if (totalDbOrders > 0) {
-          matchQuery = {};
-          activePeriodLabel = "all";
-          periodTitle = "All Time";
-        }
-      }
-    }
 
     // Single fast aggregation for period stats
     const statsAgg = await Order.aggregate([
@@ -318,8 +308,15 @@ exports.getOrdersDashboard = async (req, res) => {
       delivered: completedCount,
     };
 
-    // Global live status counts (independent of period, for live order tabs)
+    // Live status counts strictly for the last 24 hours (for live recent order tabs)
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
     const liveCountsAgg = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: twentyFourHoursAgo }
+        }
+      },
       {
         $group: {
           _id: { $toLower: "$status" },
@@ -361,7 +358,7 @@ exports.getOrdersDashboard = async (req, res) => {
     let chartCancelled = [];
     let chartRevenue = [];
 
-    const timelineAgg = await Order.aggregate([
+    const timelineAggRaw = await Order.aggregate([
       { $match: matchQuery },
       {
         $group: {
@@ -382,9 +379,11 @@ exports.getOrdersDashboard = async (req, res) => {
           revenue: { $sum: "$totalAmount" }
         }
       },
-      { $sort: { _id: 1 } },
+      { $sort: { _id: -1 } },
       { $limit: 15 }
     ]);
+
+    const timelineAgg = (timelineAggRaw || []).slice().reverse();
 
     if (timelineAgg.length > 1) {
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -444,20 +443,26 @@ exports.getOrdersDashboard = async (req, res) => {
       ]
     };
 
-    // Recent orders: always retrieve recent orders stream
-    let recentQuery = {};
+    // Recent orders: strictly retrieve orders from the last 24 hours, sorted newest first
+    let recentQuery = {
+      createdAt: { $gte: twentyFourHoursAgo }
+    };
     if (filterStatus && filterStatus !== 'all' && statusMap[filterStatus]) {
       recentQuery.status = { $in: statusMap[filterStatus] };
     }
 
-    const recentOrders = await Order.find(recentQuery)
-      .populate('customer', 'name mobile email customerId address')
-      .populate('restaurant', 'name phone contactNumber address city restaurantId')
-      .populate('rider', 'name mobile phone riderId vehicle')
-      .populate({ path: 'rider', populate: { path: 'user', select: 'name mobile' } })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
+    const recentOrders = onlyAnalytics
+      ? []
+      : await Order.find(recentQuery)
+          .populate('customer', 'name firstName lastName mobile phone email customerId address')
+          .populate('user', 'name firstName lastName mobile phone email customerId address')
+          .populate('restaurant', 'name phone contactNumber address city restaurantId')
+          .populate('store', 'name phone contactNumber address city restaurantId')
+          .populate('rider', 'name mobile phone riderId vehicle')
+          .populate({ path: 'rider', populate: { path: 'user', select: 'name mobile' } })
+          .sort({ createdAt: -1 })
+          .limit(limit)
+          .lean();
 
     const formattedRecentOrders = recentOrders.map(order => {
       const rawStatus = (order.status || '').toLowerCase();
@@ -497,11 +502,30 @@ exports.getOrdersDashboard = async (req, res) => {
         normalizedStatus === 'delivered' ? 'Delivered' :
         (order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1).replace(/_/g, ' ') : 'Pending');
 
-      const restName = (order.restaurant && order.restaurant.name) || order.restaurantName || 'Restaurant';
-      const customerName = (order.customer && order.customer.name) || order.customerName || 'Customer';
+      const restDoc = order.restaurant || order.store || null;
+      let restName = '';
+      if (restDoc && typeof restDoc === 'object') {
+        if (typeof restDoc.name === 'string') restName = restDoc.name;
+        else if (restDoc.name && typeof restDoc.name === 'object') {
+          restName = restDoc.name.en || restDoc.name.name || Object.values(restDoc.name).find(v => typeof v === 'string') || '';
+        }
+      }
+      if (!restName && order.restaurantName) restName = order.restaurantName;
+      if (!restName && order.storeName) restName = order.storeName;
+      if (!restName) restName = 'ECD Partner Restaurant';
 
-      const cleanRestId = order.restaurantId || order.restaurant?.restaurantId || (order.restaurant?._id ? `RNT${order.restaurant._id.toString().slice(-3).toUpperCase()}` : 'RNT001');
-      const cleanCustId = order.customerId || order.customer?.customerId || (order.customer?._id ? `C${order.customer._id.toString().slice(-3).toUpperCase()}` : 'C001');
+      const custDoc = order.customer || order.user || null;
+      let customerName = '';
+      if (custDoc && typeof custDoc === 'object') {
+        customerName = custDoc.name || [custDoc.firstName, custDoc.lastName].filter(Boolean).join(' ') || '';
+      }
+      if (!customerName && order.customerName) customerName = order.customerName;
+      if (!customerName && order.deliveryAddress?.name) customerName = order.deliveryAddress.name;
+      if (!customerName && custDoc?.mobile) customerName = `Customer (${custDoc.mobile.slice(-4)})`;
+      if (!customerName) customerName = 'Customer';
+
+      const cleanRestId = order.restaurantId || restDoc?.restaurantId || (restDoc?._id ? `RNT${restDoc._id.toString().slice(-3).toUpperCase()}` : 'RNT001');
+      const cleanCustId = order.customerId || custDoc?.customerId || (custDoc?._id ? `C${custDoc._id.toString().slice(-3).toUpperCase()}` : 'C001');
       const cleanRiderId = order.riderId || order.rider?.riderId || (order.rider?._id ? `RDR${order.rider._id.toString().slice(-3).toUpperCase()}` : null);
 
       const riderName = order.rider?.name || order.rider?.user?.name || order.riderName || null;
@@ -550,12 +574,15 @@ exports.getOrdersDashboard = async (req, res) => {
       };
     });
 
+    const totalAllTimeOrders = await Order.countDocuments({});
+
     res.status(200).json({
       success: true,
       stats,
       todayOrders,
       statusCounts,
       liveStatusCounts,
+      totalAllTimeOrders,
       chartData: {
         labels: chartLabels,
         orders: chartOrders,

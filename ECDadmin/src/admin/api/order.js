@@ -12,6 +12,7 @@ const useAdminOrders = ({
   date,
   orderId,
   refreshInterval = 5000,
+  enabled = true,
 } = {}) => {
   const [orders, setOrders] = useState([]);
   const [summary, setSummary] = useState({
@@ -55,6 +56,7 @@ const useAdminOrders = ({
   }, [status, timeRange, search, orderType, date, orderId]);
 
   useEffect(() => {
+    if (!enabled) return;
     fetchOrders(false);
     if (refreshInterval > 0) {
       const interval = setInterval(() => {
@@ -62,7 +64,7 @@ const useAdminOrders = ({
       }, refreshInterval);
       return () => clearInterval(interval);
     }
-  }, [fetchOrders, refreshInterval]);
+  }, [fetchOrders, refreshInterval, enabled]);
 
   return { orders, summary, loading, error, refetch: () => fetchOrders(false), setOrders };
 };
@@ -128,7 +130,7 @@ export const INITIAL_STATUS_COUNTS = {
   delivered: 0,
 };
 
-const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', status = 'all' } = {}) => {
+const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', status = 'all', onlyAnalytics = false } = {}) => {
   const [stats, setStats] = useState(INITIAL_STATS);
   const [todayOrders, setTodayOrders] = useState(INITIAL_TODAY_ORDERS);
   const [recentOrders, setRecentOrders] = useState([]);
@@ -141,6 +143,7 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', sta
     cancelled: [],
     revenue: [],
   });
+  const [totalAllTimeOrders, setTotalAllTimeOrders] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
@@ -149,7 +152,7 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', sta
     setError(false);
     try {
       const res = await axios.get(`${API_BASE_URL}/api/admin/order-dashboard`, {
-        params: { period, startDate, endDate, status, limit: 100 },
+        params: { period, startDate, endDate, status, limit: 100, onlyAnalytics },
         withCredentials: true,
       });
       const data = res.data || {};
@@ -166,6 +169,9 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', sta
       if (data.chartData) {
         setChartData(data.chartData);
       }
+      if (typeof data.totalAllTimeOrders === "number") {
+        setTotalAllTimeOrders(data.totalAllTimeOrders);
+      }
     } catch (err) {
       console.error("Dashboard fetch failed:", err);
       if (!silent) {
@@ -177,7 +183,7 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', sta
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [period, startDate, endDate, status]);
+  }, [period, startDate, endDate, status, onlyAnalytics]);
 
   useEffect(() => {
     fetchDashboard(false);
@@ -194,6 +200,7 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', sta
     statusCounts,
     liveStatusCounts,
     chartData,
+    totalAllTimeOrders,
     loading,
     error,
     refetch: () => fetchDashboard(false)

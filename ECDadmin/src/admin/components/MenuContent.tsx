@@ -88,7 +88,22 @@ export const menuItems: MenuItemType[] = [
     ]
   },
 
-  { text: 'Orders', icon: <Assignment />, path: '/new-order', permission: 'Order' },
+  {
+    text: 'Orders',
+    icon: <Assignment />,
+    permission: 'Order',
+    children: [
+      { text: 'Orders Analytics', path: '/orders-analytics' },
+      { text: 'All Orders', path: '/new-order' },
+      { text: 'Processing Orders', path: '/processing-order' },
+      { text: 'Pickup Orders', path: '/pick-up-order' },
+      { text: 'Delivered Orders', path: '/delivered-order' },
+      { text: 'Cancelled Orders', path: '/cancelled-order' },
+      { text: 'Failed Orders', path: '/failed-order' },
+      { text: 'Refund Orders', path: '/order-refund', permission: 'Reports' },
+      { text: 'Abandoned Carts', path: '/abandon-cart' },
+    ]
+  },
 
   {
     text: 'Menu',

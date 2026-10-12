@@ -17,8 +17,19 @@ const orderSchema = new mongoose.Schema(
     restaurant: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",
-      required: true,
     },
+    store: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Restaurant",
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    customerName: { type: String },
+    customerPhone: { type: String },
+    restaurantName: { type: String },
+    storeName: { type: String },
     rider: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Rider",

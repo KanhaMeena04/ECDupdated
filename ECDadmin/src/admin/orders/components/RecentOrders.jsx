@@ -128,6 +128,26 @@ const formatName = (val, fallback = "") => {
   return String(val);
 };
 
+const normalizeOrderStatus = (ord) => {
+  const norm = (ord?.normalizedStatus || "").toLowerCase();
+  if (norm) {
+    if (norm === "placed") return "pending";
+    if (norm.includes("cancel") || norm.includes("fail")) return "cancelled";
+    if (norm.includes("deliver") || norm.includes("complet")) return "delivered";
+    if (norm.includes("pick") || norm.includes("out_for") || norm.includes("way") || norm.includes("partner_picked") || norm.includes("reached")) return "picked_up";
+    return norm;
+  }
+  const raw = (ord?.rawStatus || ord?.status || "").toLowerCase();
+  if (raw.includes("cancel") || raw.includes("fail")) return "cancelled";
+  if (raw.includes("deliver") || raw.includes("complet")) return "delivered";
+  if (raw.includes("pick") || raw.includes("out_for") || raw.includes("way") || raw.includes("partner_picked") || raw.includes("reached")) return "picked_up";
+  if (raw.includes("ready")) return "ready";
+  if (raw.includes("assign")) return "assigned";
+  if (raw.includes("prepar")) return "preparing";
+  if (raw.includes("accept")) return "accepted";
+  return "pending";
+};
+
 export default function RecentOrders({
   recentOrders: propRecentOrders,
   statusCounts: propStatusCounts,
@@ -151,25 +171,38 @@ export default function RecentOrders({
     }
   };
 
+  // Filter strictly to orders created in the last 24 hours, sorted newest first
+  const valid24hOrders = useMemo(() => {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    return (Array.isArray(rawOrders) ? rawOrders : [])
+      .filter((ord) => {
+        if (!ord.createdAt) return true;
+        const t = new Date(ord.createdAt).getTime();
+        return !isNaN(t) ? t >= cutoff : true;
+      })
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  }, [rawOrders]);
+
+  // Tab counts strictly derived from 24h orders
+  const tabCounts = useMemo(() => {
+    const counts = { all: valid24hOrders.length };
+    STATUS_TABS.forEach((t) => {
+      if (t.key !== "all") counts[t.key] = 0;
+    });
+    valid24hOrders.forEach((ord) => {
+      const norm = normalizeOrderStatus(ord);
+      counts[norm] = (counts[norm] || 0) + 1;
+    });
+    return counts;
+  }, [valid24hOrders]);
+
   // Filter orders client-side for instant reactive response and search
   const filteredOrders = useMemo(() => {
-    let list = Array.isArray(rawOrders) ? [...rawOrders] : [];
+    let list = [...valid24hOrders];
 
-    // Client-side status filter fallback if not already filtered by backend
+    // Client-side status filter
     if (activeFilter && activeFilter !== "all") {
-      list = list.filter((ord) => {
-        const norm = (ord.normalizedStatus || "").toLowerCase();
-        const raw = (ord.rawStatus || ord.status || "").toLowerCase();
-        if (activeFilter === "pending") return norm === "pending" || raw === "pending" || raw === "placed";
-        if (activeFilter === "accepted") return norm === "accepted" || raw === "accepted";
-        if (activeFilter === "preparing") return norm === "preparing" || raw.includes("prepar");
-        if (activeFilter === "assigned") return norm === "assigned" || raw.includes("assign");
-        if (activeFilter === "ready") return norm === "ready" || raw.includes("ready");
-        if (activeFilter === "picked_up") return norm === "picked_up" || raw.includes("pick") || raw.includes("way") || raw.includes("out_for");
-        if (activeFilter === "cancelled") return norm === "cancelled" || raw.includes("cancel") || raw.includes("fail");
-        if (activeFilter === "delivered") return norm === "delivered" || raw.includes("deliver") || raw.includes("complet");
-        return true;
-      });
+      list = list.filter((ord) => normalizeOrderStatus(ord) === activeFilter);
     }
 
     // Search query filter
@@ -185,16 +218,7 @@ export default function RecentOrders({
     }
 
     return list;
-  }, [rawOrders, activeFilter, searchQuery]);
-
-  const tabCounts = useMemo(() => {
-    const counts = { all: rawOrders.length };
-    rawOrders.forEach((ord) => {
-      const norm = (ord.normalizedStatus || "").toLowerCase();
-      counts[norm] = (counts[norm] || 0) + 1;
-    });
-    return counts;
-  }, [rawOrders]);
+  }, [valid24hOrders, activeFilter, searchQuery]);
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-100 h-full flex flex-col">
@@ -243,7 +267,7 @@ export default function RecentOrders({
                 }`}
               >
                 <span>{tab.label}</span>
-                {count > 0 && (
+                {(tab.key === "all" || count > 0) && (
                   <span
                     className={`ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                       isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
@@ -286,11 +310,11 @@ export default function RecentOrders({
               {searchQuery
                 ? `No orders matching "${searchQuery}"`
                 : activeFilter !== "all"
-                ? `No ${activeFilter.replace("_", " ")} orders found`
-                : "No orders found"}
+                ? `No ${activeFilter.replace("_", " ")} orders in the last 24 hours`
+                : "No live orders received in the last 24 hours"}
             </p>
             <p className="text-xs text-gray-400">
-              Orders update dynamically in real time as actions occur in the apps.
+              Recent orders from the last 24 hours will appear here automatically. Older orders are safely stored in Total Orders & Analytics history.
             </p>
           </div>
         ) : (

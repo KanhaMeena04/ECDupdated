@@ -602,12 +602,23 @@ exports.placeOrder = async (req, res) => {
                                            systemSettings?.selfPickupConfig?.gracePeriodMins || 15);
     const cancellationWindowExpiresAt = new Date(Date.now() + dynamicCancellationMins * 60 * 1000);
 
+    const resolvedRestName = restaurant?.name 
+      ? (typeof restaurant.name === "string" ? restaurant.name : (restaurant.name.en || restaurant.name.name || "Restaurant"))
+      : "Restaurant";
+    const resolvedCustName = user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || "Customer";
+    const resolvedCustPhone = user.mobile || user.phone || "";
+
     const newOrder = await Order.create({
       customer: user._id,
+      user: user._id,
+      customerName: resolvedCustName,
+      customerPhone: resolvedCustPhone,
       customerId: customerIdCode,
       orderNumber,
       orderId: orderNumber,
       restaurant: restaurantId,
+      store: restaurantId,
+      restaurantName: resolvedRestName,
       restaurantId: restaurantIdCode,
       cancellationWindowMinutes: dynamicCancellationMins,
       cancellationWindowExpiresAt,
@@ -2953,8 +2964,10 @@ exports.getAllOrdersAdmin = async (req, res) => {
     const [total, orders, allMatchingOrdersForSummary] = await Promise.all([
       Order.countDocuments(query),
       Order.find(query)
-        .populate("customer", "name email mobile address customerId")
-        .populate("restaurant", "name address contactNumber phone email restaurantId")
+        .populate("customer", "name firstName lastName email mobile phone address customerId")
+        .populate("user", "name firstName lastName email mobile phone address customerId")
+        .populate("restaurant", "name address contactNumber phone email restaurantId logo")
+        .populate("store", "name address contactNumber phone email restaurantId logo")
         .populate({
           path: "rider",
           populate: { path: "user", select: "name mobile profilePic" }
@@ -2995,8 +3008,49 @@ exports.getAllOrdersAdmin = async (req, res) => {
       const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
       orderObj.orderNumber = ordNumber;
       orderObj.orderId = ordNumber;
-      orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
-      orderObj.restaurantId = orderObj.restaurantId || orderObj.restaurant?.restaurantId || "RNT001";
+
+      // 1. Resolve Customer Details
+      const custDoc = orderObj.customer || orderObj.user || null;
+      let cName = "";
+      if (custDoc && typeof custDoc === "object") {
+        cName = custDoc.name || [custDoc.firstName, custDoc.lastName].filter(Boolean).join(" ") || "";
+      }
+      if (!cName && orderObj.customerName) cName = orderObj.customerName;
+      if (!cName && orderObj.deliveryAddress?.name) cName = orderObj.deliveryAddress.name;
+      if (!cName && custDoc?.mobile) cName = `Customer (${custDoc.mobile.slice(-4)})`;
+      if (!cName && orderObj.deliveryPhone) cName = `Customer (${String(orderObj.deliveryPhone).slice(-4)})`;
+      if (!cName) cName = "Customer";
+
+      const cMobile = (custDoc && (custDoc.mobile || custDoc.phone)) || orderObj.customerPhone || orderObj.deliveryPhone || orderObj.deliveryAddress?.phone || orderObj.address?.phone || "";
+      const cId = orderObj.customerId || custDoc?.customerId || (custDoc?._id ? `C${custDoc._id.toString().slice(-4).toUpperCase()}` : "C001");
+
+      orderObj.customer = custDoc ? { ...custDoc, name: cName, customerId: cId, mobile: cMobile } : { name: cName, customerId: cId, mobile: cMobile };
+      orderObj.customerName = cName;
+      orderObj.customerMobile = cMobile;
+      orderObj.customerId = cId;
+
+      // 2. Resolve Restaurant / Store Details
+      const restDoc = orderObj.restaurant || orderObj.store || null;
+      let rName = "";
+      if (restDoc && typeof restDoc === "object") {
+        if (typeof restDoc.name === "string") {
+          rName = restDoc.name;
+        } else if (restDoc.name && typeof restDoc.name === "object") {
+          rName = restDoc.name.en || restDoc.name.name || restDoc.name.title || Object.values(restDoc.name).find(v => typeof v === 'string') || "";
+        }
+      }
+      if (!rName && orderObj.restaurantName) rName = orderObj.restaurantName;
+      if (!rName && orderObj.storeName) rName = orderObj.storeName;
+      if (!rName) rName = "ECD Partner Restaurant";
+
+      const rId = orderObj.restaurantId || restDoc?.restaurantId || (restDoc?._id ? `RNT${restDoc._id.toString().slice(-4).toUpperCase()}` : "RNT001");
+      const rPhone = (restDoc && (restDoc.phone || restDoc.contactNumber)) || orderObj.restaurantPhone || "";
+
+      orderObj.restaurant = restDoc ? { ...restDoc, name: rName, restaurantId: rId, phone: rPhone } : { name: rName, restaurantId: rId, phone: rPhone };
+      orderObj.restaurantName = rName;
+      orderObj.restaurantId = rId;
+      orderObj.restaurantPhone = rPhone;
+
       if (orderObj.rider) {
         orderObj.riderId = orderObj.riderId || orderObj.rider?.riderId || "RDR001";
       }
