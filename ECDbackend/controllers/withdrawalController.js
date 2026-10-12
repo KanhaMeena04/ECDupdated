@@ -461,4 +461,98 @@ exports.rejectWithdrawal = async (req, res) => {
   }
 };
 
+// Delete Payout Request(s) - Permanently removes from MongoDB database
+exports.deleteWithdrawal = async (req, res) => {
+  try {
+    const id = req.params.id || req.body.id || req.query.id;
+    const ids = req.body.ids;
+
+    // Handle bulk deletion
+    if (ids && Array.isArray(ids) && ids.length > 0) {
+      const deletedDocs = await Withdrawal.find({ _id: { $in: ids } });
+      if (!deletedDocs || deletedDocs.length === 0) {
+        return res.status(404).json({ success: false, message: "No matching payout requests found to delete" });
+      }
+
+      // Revert any pending amounts for restaurant requests in pending state
+      for (const doc of deletedDocs) {
+        if (doc.status === 'pending' && (doc.restaurant || doc.requestType === 'restaurant')) {
+          const restId = doc.restaurant || (await Restaurant.findOne({ owner: doc.user }))?._id;
+          if (restId) {
+            const restWallet = await RestaurantWallet.findOne({ restaurant: restId });
+            if (restWallet && restWallet.pendingAmount > 0) {
+              restWallet.pendingAmount = Math.max(0, restWallet.pendingAmount - doc.amount);
+              await restWallet.save();
+            }
+          }
+        }
+      }
+
+      const result = await Withdrawal.deleteMany({ _id: { $in: ids } });
+
+      if (AuditLog && AuditLog.log && req.user) {
+        await AuditLog.log({
+          entity: 'Payout',
+          action: 'bulk_delete_payout',
+          userId: req.user._id,
+          userRole: req.user.role || 'admin',
+          reason: `Admin deleted ${result.deletedCount} payout request(s) from DB`,
+          metadata: { count: result.deletedCount, ids }
+        }).catch(() => {});
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Successfully deleted ${result.deletedCount} payout request(s) from database`,
+        deletedCount: result.deletedCount
+      });
+    }
+
+    // Handle single deletion
+    if (!id) {
+      return res.status(400).json({ success: false, message: "Withdrawal ID is required" });
+    }
+
+    const reqObj = await Withdrawal.findById(id);
+    if (!reqObj) {
+      return res.status(404).json({ success: false, message: "Payout request not found or already deleted" });
+    }
+
+    // Revert pending amount for restaurant wallet if reserved and request was pending
+    if (reqObj.status === 'pending' && (reqObj.restaurant || reqObj.requestType === 'restaurant')) {
+      const restId = reqObj.restaurant || (await Restaurant.findOne({ owner: reqObj.user }))?._id;
+      if (restId) {
+        const restWallet = await RestaurantWallet.findOne({ restaurant: restId });
+        if (restWallet && restWallet.pendingAmount > 0) {
+          restWallet.pendingAmount = Math.max(0, restWallet.pendingAmount - reqObj.amount);
+          await restWallet.save();
+        }
+      }
+    }
+
+    await Withdrawal.findByIdAndDelete(id);
+
+    if (AuditLog && AuditLog.log && req.user) {
+      await AuditLog.log({
+        entity: 'Payout',
+        entityId: id,
+        action: 'delete_payout',
+        userId: req.user._id,
+        userRole: req.user.role || 'admin',
+        reason: `Admin deleted payout request of ₹${reqObj.amount} from DB`,
+        metadata: { requestType: reqObj.requestType, status: reqObj.status }
+      }).catch(() => {});
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Payout request permanently deleted from database"
+    });
+  } catch (error) {
+    console.error("Error deleting payout request:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
 

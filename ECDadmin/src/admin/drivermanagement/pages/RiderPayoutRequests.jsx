@@ -18,7 +18,9 @@ import {
   Navigation,
   CloudRain,
   Zap,
-  Award
+  Award,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import PageHeader from "../../components/PageHeader";
 import { API_BASE_URL } from "../../../utils/utils";
@@ -53,6 +55,11 @@ export default function RiderPayoutRequests() {
   const [adminNote, setAdminNote] = useState("");
   const [utrNumber, setUtrNumber] = useState("");
   const [processing, setProcessing] = useState(false);
+
+  // Delete & Bulk Selection states
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [itemToDelete, setItemToDelete] = useState(null); // single req or { isBulk: true, count: number }
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Modal states for Rider Ledger
   const [selectedLedger, setSelectedLedger] = useState(null);
@@ -216,6 +223,69 @@ export default function RiderPayoutRequests() {
     setRequestModalType(null);
     setAdminNote("");
     setUtrNumber("");
+  };
+
+  // Delete Payout Request(s) directly from MongoDB
+  const handleDeleteConfirm = async () => {
+    if (!itemToDelete) return;
+    try {
+      setIsDeleting(true);
+      const token = localStorage.getItem("token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      if (itemToDelete.isBulk) {
+        const res = await axios.post(
+          `${API_BASE_URL}/api/admin/withdrawals/bulk-delete`,
+          { ids: selectedIds },
+          { headers, withCredentials: true }
+        );
+        if (res.data.success) {
+          toast.success(res.data.message || "Payout requests deleted from database!");
+          setActionSuccess(`Deleted ${selectedIds.length} payout request(s) from database.`);
+          setTimeout(() => setActionSuccess(""), 4000);
+          setRequests((prev) => prev.filter((r) => !selectedIds.includes(r._id)));
+          setSelectedIds([]);
+          setItemToDelete(null);
+        }
+      } else {
+        const res = await axios.delete(
+          `${API_BASE_URL}/api/admin/withdrawals/${itemToDelete._id}`,
+          { headers, withCredentials: true }
+        );
+        if (res.data.success) {
+          toast.success("Payout request permanently deleted from database!");
+          setActionSuccess("Payout request deleted from database.");
+          setTimeout(() => setActionSuccess(""), 4000);
+          setRequests((prev) => prev.filter((r) => r._id !== itemToDelete._id));
+          setSelectedIds((prev) => prev.filter((id) => id !== itemToDelete._id));
+          if (selectedRequest?._id === itemToDelete._id) {
+            closeRequestModal();
+          }
+          setItemToDelete(null);
+        }
+      }
+    } catch (err) {
+      console.error("Error deleting payout request:", err);
+      toast.error(err.response?.data?.message || err.message || "Failed to delete payout request");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Toggle select all
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(filteredRequests.map((r) => r._id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // Toggle select single
+  const handleToggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
   };
 
   // Filter requests based on search query
@@ -396,16 +466,27 @@ export default function RiderPayoutRequests() {
                 ))}
               </div>
 
-              {/* Search Box */}
-              <div className="relative w-full md:w-80">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
-                <input
-                  type="text"
-                  placeholder="Search rider name, phone, UPI, A/C..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"
-                />
+              {/* Search & Bulk Delete */}
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                {selectedIds.length > 0 && (
+                  <button
+                    onClick={() => setItemToDelete({ isBulk: true, count: selectedIds.length })}
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer shrink-0 animate-fadeIn"
+                  >
+                    <Trash2 size={14} />
+                    Delete Selected ({selectedIds.length})
+                  </button>
+                )}
+                <div className="relative w-full md:w-80">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
+                  <input
+                    type="text"
+                    placeholder="Search rider name, phone, UPI, A/C..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"
+                  />
+                </div>
               </div>
             </div>
 
@@ -443,7 +524,16 @@ export default function RiderPayoutRequests() {
                 <table className="w-full text-left text-sm border-collapse">
                   <thead>
                     <tr className="bg-gray-50/70 border-b border-gray-200 text-gray-500 text-xs uppercase font-semibold">
-                      <th className="py-3.5 px-4">#</th>
+                      <th className="py-3.5 px-3 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={filteredRequests.length > 0 && selectedIds.length === filteredRequests.length}
+                          onChange={handleSelectAll}
+                          className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer w-4 h-4"
+                          title="Select All"
+                        />
+                      </th>
+                      <th className="py-3.5 px-3">#</th>
                       <th className="py-3.5 px-4">Rider Details</th>
                       <th className="py-3.5 px-4">Rider ID / Phone</th>
                       <th className="py-3.5 px-4">Amount</th>
@@ -478,10 +568,19 @@ export default function RiderPayoutRequests() {
                       const isPending = req.status === "pending";
                       const isApproved = req.status === "approved" || req.status === "processed";
                       const isRejected = req.status === "rejected";
+                      const isSelected = selectedIds.includes(req._id);
 
                       return (
-                        <tr key={req._id} className="hover:bg-gray-50/80 transition group">
-                          <td className="py-4 px-4 text-gray-400 text-xs font-medium">{idx + 1}</td>
+                        <tr key={req._id} className={`hover:bg-gray-50/80 transition group ${isSelected ? "bg-emerald-50/40" : ""}`}>
+                          <td className="py-4 px-3 w-10 text-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelect(req._id)}
+                              className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer w-4 h-4"
+                            />
+                          </td>
+                          <td className="py-4 px-3 text-gray-400 text-xs font-medium">{idx + 1}</td>
 
                           {/* Rider Details */}
                           <td className="py-4 px-4">
@@ -653,31 +752,40 @@ export default function RiderPayoutRequests() {
 
                           {/* Action Buttons */}
                           <td className="py-4 px-4 text-center">
-                            {isPending ? (
-                              <div className="flex items-center justify-center gap-1.5">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {isPending ? (
+                                <>
+                                  <button
+                                    onClick={() => openRequestModal(req, "approve")}
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-sm cursor-pointer"
+                                  >
+                                    <Check size={13} />
+                                    Approve & Pay
+                                  </button>
+                                  <button
+                                    onClick={() => openRequestModal(req, "reject")}
+                                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-semibold transition border border-rose-200 cursor-pointer"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              ) : (
                                 <button
-                                  onClick={() => openRequestModal(req, "approve")}
-                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-sm cursor-pointer"
+                                  onClick={() => openRequestModal(req, "details")}
+                                  className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition flex items-center gap-1 cursor-pointer"
                                 >
-                                  <Check size={13} />
-                                  Approve & Pay
+                                  <Eye size={13} />
+                                  View Details
                                 </button>
-                                <button
-                                  onClick={() => openRequestModal(req, "reject")}
-                                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-semibold transition border border-rose-200 cursor-pointer"
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            ) : (
+                              )}
                               <button
-                                onClick={() => openRequestModal(req, "details")}
-                                className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition flex items-center gap-1 mx-auto cursor-pointer"
+                                onClick={() => setItemToDelete(req)}
+                                title="Delete from Database"
+                                className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition border border-gray-200 hover:border-rose-200 cursor-pointer group/del"
                               >
-                                <Eye size={13} />
-                                View Details
+                                <Trash2 size={14} className="group-hover/del:text-rose-600" />
                               </button>
-                            )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1311,9 +1419,93 @@ export default function RiderPayoutRequests() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end pt-3 border-t">
+            <div className="flex items-center justify-between pt-3 border-t">
+              <button
+                onClick={() => setItemToDelete(selectedRequest)}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-semibold border border-rose-200 transition cursor-pointer"
+              >
+                <Trash2 size={14} />
+                Delete from DB
+              </button>
               <button onClick={closeRequestModal} className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-sm font-semibold transition cursor-pointer">
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Delete Confirmation Modal */}
+      {itemToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-scaleUp">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {itemToDelete.isBulk
+                    ? `Delete ${itemToDelete.count} Payout Requests?`
+                    : "Permanently Delete Payout Request?"}
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  This will permanently remove the record{itemToDelete.isBulk ? "s" : ""} from the MongoDB database (<code className="bg-gray-100 px-1 py-0.5 rounded text-rose-600 font-mono">WithdrawalRequest</code> collection). This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            {!itemToDelete.isBulk && (
+              <div className="mt-4 p-3.5 bg-gray-50 rounded-xl border border-gray-100 text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Rider:</span>
+                  <span className="font-semibold text-gray-800">
+                    {itemToDelete.user?.name || itemToDelete.bankDetails?.accountHolder || "Rider Partner"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Phone:</span>
+                  <span className="font-semibold text-gray-800">
+                    {itemToDelete.user?.mobile || itemToDelete.bankDetails?.phone || "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Amount:</span>
+                  <span className="font-bold text-emerald-700">
+                    ₹{Number(itemToDelete.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Status:</span>
+                  <span className="font-semibold capitalize text-gray-700">{itemToDelete.status}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setItemToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    Deleting from DB...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={14} />
+                    Yes, Delete from DB
+                  </>
+                )}
               </button>
             </div>
           </div>

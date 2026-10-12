@@ -16,7 +16,8 @@ const {
   getRestaurantWithdrawals,
   createRestaurantWithdrawal,
   approveWithdrawal,
-  rejectWithdrawal
+  rejectWithdrawal,
+  deleteWithdrawal
 } = require('../controllers/withdrawalController');
 
 // Restaurant App Earnings & Settlement Breakdown Endpoints
@@ -28,6 +29,8 @@ router.get('/withdrawals', protect, admin, getRestaurantWithdrawals);
 router.post('/withdraw', protect, createRestaurantWithdrawal);
 router.put('/withdrawals/:id/approve', protect, admin, approveWithdrawal);
 router.put('/withdrawals/:id/reject', protect, admin, rejectWithdrawal);
+router.delete('/withdrawals/:id', protect, admin, deleteWithdrawal);
+router.delete('/withdrawals', protect, admin, deleteWithdrawal);
 
 // Settlement Ledger Endpoints
 router.get('/restaurants', protect, admin, getRestaurantSettlements);

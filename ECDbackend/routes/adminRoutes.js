@@ -88,6 +88,7 @@ const {
   getAllWithdrawals,
   approveWithdrawal,
   rejectWithdrawal,
+  deleteWithdrawal,
 } = require("../controllers/withdrawalController");
 const {
   getAllTickets,
@@ -246,6 +247,9 @@ router.put(
 router.get("/withdrawals", protect, admin, getAllWithdrawals);
 router.put("/withdrawals/:id/approve", protect, admin, approveWithdrawal);
 router.put("/withdrawals/:id/reject", protect, admin, rejectWithdrawal);
+router.delete("/withdrawals/:id", protect, admin, deleteWithdrawal);
+router.delete("/withdrawals", protect, admin, deleteWithdrawal);
+router.post("/withdrawals/bulk-delete", protect, admin, deleteWithdrawal);
 router.get("/tickets", protect, admin, getAllTickets);
 router.put("/tickets/:id", protect, admin, updateTicket);
 router.post("/training", protect, admin, addMaterial);
