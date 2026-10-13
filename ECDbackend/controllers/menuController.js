@@ -218,6 +218,16 @@ exports.addFoodItem = async (req, res) => {
       (req.user && req.user.role === 'admin')
     );
 
+    let finalImage = file ? getFileUrl(file) : (req.body.image || req.body.imageUrl || req.body.photo || "");
+    if (finalImage && typeof finalImage === "string" && !finalImage.includes("ik.imagekit.io")) {
+      try {
+        const up = await uploadToImageKit(finalImage, `menu_${restaurant._id}_${Date.now()}.jpg`, '/menu', normalizedName?.en);
+        if (up) finalImage = up;
+      } catch (e) {
+        console.warn('[ImageKit addFoodItem notice]:', e.message);
+      }
+    }
+
     const product = await Product.create({
       restaurant: restaurant._id,
       category: category._id,
@@ -234,7 +244,7 @@ exports.addFoodItem = async (req, res) => {
       foodType: resolvedFoodType,
       isVeg: resolvedFoodType === "veg",
       preparationTime: Number(preparationTime || 15),
-      image,
+      image: finalImage,
       variations: normalizedVariations,
       addOns: normalizedAddOns,
       approvalStatus: shouldAutoApprove ? "approved" : "pending",
@@ -977,9 +987,9 @@ exports.editProduct = async (req, res) => {
     const file = req.files && req.files.image ? req.files.image[0] : null;
     const updates = { ...req.body };
     if (file) updates.image = getFileUrl(file);
-    if (updates.image && (updates.image.startsWith('data:') || updates.image.length > 200)) {
+    if (updates.image && typeof updates.image === 'string' && !updates.image.includes('ik.imagekit.io')) {
       try {
-        const up = await uploadToImageKit(updates.image, `menu_${product._id}_${Date.now()}.jpg`, '/menu');
+        const up = await uploadToImageKit(updates.image, `menu_${product._id}_${Date.now()}.jpg`, '/menu', product.name?.en || updates.name);
         if (up) updates.image = up;
       } catch (e) {
         console.warn('[ImageKit Edit Product Notice]:', e.message);
@@ -1382,13 +1392,16 @@ exports.bulkUploadMenuItems = async (req, res) => {
       const b2bNum = Number(item.b2bPrice ?? item.b2bSellingPrice ?? priceNum);
       const rawFoodType = (item.foodType || (item.isVeg !== false ? 'veg' : 'non-veg')).toString().toLowerCase();
       const foodTypeStr = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
-      let itemImgStr = (item.image && item.image.trim()) ? item.image.trim() : "";
-      if (itemImgStr && (itemImgStr.startsWith('data:') || itemImgStr.length > 200)) {
-        try {
-          const up = await uploadToImageKit(itemImgStr, `menu_${restaurant._id}_${Date.now()}_${idx}.jpg`, '/menu');
-          if (up) itemImgStr = up;
-        } catch (e) {
-          console.warn('[ImageKit Menu Upload Notice]:', e.message);
+      const rawImg = item.image || item.imageUrl || item.image_url || item.photo || item.photoUrl || item.photo_url || item.dishPhoto || item.dish_photo || item["image url"] || item["dish photo"] || item["photo url"] || item.picture || item.pic || item.img || item.imgUrl || item.url || item.link || "";
+      let itemImgStr = (typeof rawImg === 'string' && rawImg.trim()) ? rawImg.trim() : "";
+      if (itemImgStr) {
+        if (!itemImgStr.includes('ik.imagekit.io')) {
+          try {
+            const up = await uploadToImageKit(itemImgStr, `menu_${restaurant._id}_${Date.now()}_${idx}.jpg`, '/menu', nameStr);
+            if (up) itemImgStr = up;
+          } catch (e) {
+            console.warn('[ImageKit Menu Upload Notice]:', e.message);
+          }
         }
       }
 

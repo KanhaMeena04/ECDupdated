@@ -248,29 +248,64 @@ const AddRestaurantForm = () => {
       try {
         const text = e.target.result;
         let parsedItems = [];
+
+        const parseCSVLine = (line) => {
+          const result = [];
+          let current = "";
+          let inQuotes = false;
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"' || char === "'") {
+              inQuotes = !inQuotes;
+            } else if (char === "," && !inQuotes) {
+              result.push(current.trim());
+              current = "";
+            } else {
+              current += char;
+            }
+          }
+          result.push(current.trim());
+          return result.map((c) => c.replace(/^["']|["']$/g, "").trim());
+        };
+
         if (file.name.endsWith(".json")) {
-          parsedItems = JSON.parse(text);
+          const raw = JSON.parse(text);
+          parsedItems = (Array.isArray(raw) ? raw : []).map((it, i) => {
+            const imgVal = it.image || it.imageUrl || it.image_url || it.photo || it.photoUrl || it.dishPhoto || it["image url"] || it.picture || it.img || it.url || it.link || "";
+            return {
+              name: it.name || it["item name"] || `Item ${i + 1}`,
+              price: Number(it.price || it.sellingPrice || it.basePrice || 0),
+              mrp: Number(it.mrp || it.b2cMrp || it.price || 0),
+              b2bPrice: Number(it.b2bPrice || it.b2bprice || it.price || 0),
+              category: it.category || "Main Course",
+              foodType: it.foodType || (it.isVeg !== false ? "Veg" : "Non-Veg"),
+              isVeg: it.isVeg !== false && !(it.foodType || "").toLowerCase().includes("non"),
+              description: it.description || "",
+              image: imgVal,
+            };
+          });
         } else {
           // Parse CSV
           const lines = text.split("\n").filter((l) => l.trim());
-          const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+          const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase());
           for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(",").map((c) => c.trim());
+            const cols = parseCSVLine(lines[i]);
             if (cols.length >= 2) {
               const item = {};
               headers.forEach((h, idx) => {
                 item[h] = cols[idx] || "";
               });
+              const imgVal = item.image || item["image url"] || item["image_url"] || item.imageurl || item.imageUrl || item.photo || item["photo url"] || item.photo_url || item.dishphoto || item["dish photo"] || item.dish_photo || item.picture || item.img || item.url || item.link || "";
               parsedItems.push({
-                name: item.name || item["item name"] || `Item ${i}`,
-                price: Number(item.price || item["selling price"] || item.sellingprice || 0),
-                mrp: Number(item.mrp || item.price || 0),
-                b2bPrice: Number(item.b2bprice || item["b2b price"] || item.price || 0),
+                name: item.name || item["item name"] || item["dish name"] || `Item ${i}`,
+                price: Number(item.price || item["selling price"] || item.sellingprice || item.baseprice || 0),
+                mrp: Number(item.mrp || item.b2cmrp || item.price || 0),
+                b2bPrice: Number(item.b2bprice || item["b2b price"] || item.b2bsellingprice || item.price || 0),
                 category: item.category || "Main Course",
                 foodType: item.foodtype || item["food type"] || "Veg",
                 isVeg: !(item.foodtype || "").toLowerCase().includes("non"),
                 description: item.description || "",
-                image: item.image || item.photo || "",
+                image: imgVal,
               });
             }
           }
@@ -286,7 +321,7 @@ const AddRestaurantForm = () => {
             foodType: it.foodType || (it.isVeg !== false ? "Veg" : "Non-Veg"),
             isVeg: it.isVeg !== false && !(it.foodType || "").toLowerCase().includes("non"),
             description: it.description || "",
-            image: it.image || "",
+            image: it.image || it.imageUrl || it.photo || "",
           }));
           setMenuItems((prev) => [...prev, ...formatted]);
           alert(`Successfully imported ${formatted.length} menu items!`);

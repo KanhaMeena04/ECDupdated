@@ -396,9 +396,10 @@ exports.adminCreateRestaurant = async (req, res) => {
     if (Array.isArray(parsedMenu) && parsedMenu.length > 0) {
       for (let i = 0; i < parsedMenu.length; i++) {
         const item = parsedMenu[i];
-        let itemImg = item.image || item.imageData || "";
-        if (itemImg && (itemImg.startsWith('data:') || itemImg.length > 200)) {
-          itemImg = await uploadToImageKit(itemImg, `menu_${Date.now()}_${i}.jpg`, '/menu');
+        const rawItemImg = item.image || item.imageUrl || item.image_url || item.photo || item.dishPhoto || item.imageData || item["image url"] || item.picture || item.img || item.url || "";
+        let itemImg = typeof rawItemImg === "string" ? rawItemImg.trim() : "";
+        if (itemImg && !itemImg.includes('ik.imagekit.io')) {
+          itemImg = await uploadToImageKit(itemImg, `menu_${Date.now()}_${i}.jpg`, '/menu', item.name);
         }
         savedMenu.push({
           name: item.name || `Item ${i + 1}`,
@@ -781,9 +782,10 @@ exports.applyForRestaurant = async (req, res) => {
     if (Array.isArray(parsedMenuItems) && parsedMenuItems.length > 0) {
       for (let i = 0; i < parsedMenuItems.length; i++) {
         const m = parsedMenuItems[i];
-        let itemImage = m.image || m.imageData || m.photo || "";
-        if (itemImage && (itemImage.startsWith('data:') || itemImage.length > 200)) {
-          itemImage = await uploadToImageKit(itemImage, `menu_${Date.now()}_${i}.jpg`, '/menu');
+        const rawItemImage = m.image || m.imageUrl || m.image_url || m.photo || m.dishPhoto || m.imageData || m["image url"] || m.picture || m.img || m.url || "";
+        let itemImage = typeof rawItemImage === "string" ? rawItemImage.trim() : "";
+        if (itemImage && !itemImage.includes('ik.imagekit.io')) {
+          itemImage = await uploadToImageKit(itemImage, `menu_${Date.now()}_${i}.jpg`, '/menu', m.name);
         }
         const itemPrice = Number(m.price || m.basePrice || 0);
         const itemObj = {
@@ -3315,10 +3317,11 @@ exports.vendorAddMenuItem = async (req, res) => {
       restaurantDoc.menuApprovalRequired === false
     );
 
-    let finalItemImg = (image && image.trim().length > 0) ? image.trim() : "";
-    if (finalItemImg && (finalItemImg.startsWith('data:') || finalItemImg.length > 200)) {
+    const rawImage = image || req.body.imageUrl || req.body.photo || req.body.dishPhoto || "";
+    let finalItemImg = (typeof rawImage === 'string' && rawImage.trim().length > 0) ? rawImage.trim() : "";
+    if (finalItemImg && !finalItemImg.includes('ik.imagekit.io')) {
       try {
-        const up = await uploadToImageKit(finalItemImg, `menu_${resolvedRestId}_${Date.now()}.jpg`, '/menu');
+        const up = await uploadToImageKit(finalItemImg, `menu_${resolvedRestId}_${Date.now()}.jpg`, '/menu', name);
         if (up) finalItemImg = up;
       } catch (e) {
         console.warn('[ImageKit Menu Upload Notice]:', e.message);
@@ -3472,10 +3475,11 @@ exports.vendorBulkImportMenuItems = async (req, res) => {
       const b2bPrice = Number(item.b2bPrice ?? item.b2bSellingPrice ?? itemPrice);
       const rawFoodType = (item.foodType || (item.isVeg === false ? 'non-veg' : 'veg')).toString().toLowerCase();
       const foodType = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
-      let itemImg = (item.image && item.image.trim().length > 0) ? item.image.trim() : "";
-      if (itemImg && (itemImg.startsWith('data:') || itemImg.length > 200)) {
+      const rawImg = item.image || item.imageUrl || item.image_url || item.photo || item.photoUrl || item.photo_url || item.dishPhoto || item.dish_photo || item["image url"] || item["dish photo"] || item["photo url"] || item.picture || item.pic || item.img || item.imgUrl || item.url || item.link || "";
+      let itemImg = (typeof rawImg === 'string' && rawImg.trim().length > 0) ? rawImg.trim() : "";
+      if (itemImg && !itemImg.includes('ik.imagekit.io')) {
         try {
-          const up = await uploadToImageKit(itemImg, `menu_${resolvedRestId}_${Date.now()}_${items.indexOf(item)}.jpg`, '/menu');
+          const up = await uploadToImageKit(itemImg, `menu_${resolvedRestId}_${Date.now()}_${items.indexOf(item)}.jpg`, '/menu', itemName);
           if (up) itemImg = up;
         } catch (e) {
           console.warn('[ImageKit Bulk Upload Notice]:', e.message);
@@ -3618,7 +3622,18 @@ exports.vendorEditMenuItem = async (req, res) => {
       product.isAvailable = Boolean(available);
       product.available = Boolean(available);
     }
-    if (image !== undefined && image) product.image = image;
+    if (image !== undefined && image) {
+      let finalImg = image;
+      if (typeof image === 'string' && !image.includes('ik.imagekit.io')) {
+        try {
+          const up = await uploadToImageKit(image, `menu_${itemId}_${Date.now()}.jpg`, '/menu', product.name?.en || name);
+          if (up) finalImg = up;
+        } catch (e) {
+          console.warn('[ImageKit vendorEditMenuItem notice]:', e.message);
+        }
+      }
+      product.image = finalImg;
+    }
 
     if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
       product.category = categoryId;

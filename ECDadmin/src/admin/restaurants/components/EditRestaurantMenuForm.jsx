@@ -322,26 +322,59 @@ const EditRestaurantMenuForm = () => {
         const text = e.target.result;
         let items = [];
 
+        const parseCSVLine = (line) => {
+          const result = [];
+          let current = "";
+          let inQuotes = false;
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"' || char === "'") {
+              inQuotes = !inQuotes;
+            } else if (char === "," && !inQuotes) {
+              result.push(current.trim());
+              current = "";
+            } else {
+              current += char;
+            }
+          }
+          result.push(current.trim());
+          return result.map((c) => c.replace(/^["']|["']$/g, "").trim());
+        };
+
         if (bulkFile.name.endsWith(".json")) {
-          items = JSON.parse(text);
+          const rawItems = JSON.parse(text);
+          items = (Array.isArray(rawItems) ? rawItems : []).map((it, i) => {
+            const imgVal = it.image || it.imageUrl || it.image_url || it.photo || it.photoUrl || it.dishPhoto || it["image url"] || it.picture || it.img || it.url || it.link || "";
+            return {
+              name: it.name || it["item name"] || it["dish name"] || `Item ${i + 1}`,
+              price: Number(it.price || it.sellingPrice || it.basePrice || 0),
+              mrp: Number(it.mrp || it.b2cMrp || it.price || 0),
+              b2bPrice: Number(it.b2bPrice || it.b2bSellingPrice || it.price || 0),
+              category: it.category || "Main Course",
+              foodType: it.foodType || it.foodtype || "veg",
+              description: it.description || "",
+              image: imgVal,
+            };
+          });
         } else {
           // Parse CSV
           const lines = text.split("\n").filter((l) => l.trim());
-          const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+          const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase());
           for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(",").map((c) => c.trim());
+            const cols = parseCSVLine(lines[i]);
             if (cols.length >= 2) {
               const item = {};
               headers.forEach((h, idx) => { item[h] = cols[idx] || ""; });
+              const imgVal = item.image || item["image url"] || item["image_url"] || item.imageurl || item.imageUrl || item.photo || item["photo url"] || item.photo_url || item.dishphoto || item["dish photo"] || item.dish_photo || item.picture || item.img || item.url || item.link || "";
               items.push({
-                name: item.name || item["item name"] || `Item ${i}`,
-                price: Number(item.price || item["selling price"] || 0),
-                mrp: Number(item.mrp || item.price || 0),
-                b2bPrice: Number(item.b2bprice || item["b2b price"] || 0),
+                name: item.name || item["item name"] || item["dish name"] || `Item ${i}`,
+                price: Number(item.price || item["selling price"] || item.sellingprice || item.baseprice || 0),
+                mrp: Number(item.mrp || item.b2cmrp || item.price || 0),
+                b2bPrice: Number(item.b2bprice || item["b2b price"] || item.b2bsellingprice || item.price || 0),
                 category: item.category || "Main Course",
                 foodType: item.foodtype || item["food type"] || "veg",
                 description: item.description || "",
-                image: item.image || "",
+                image: imgVal,
               });
             }
           }
@@ -630,12 +663,16 @@ const EditRestaurantMenuForm = () => {
                         {item.image ? (
                           <img
                             src={item.image}
-                            alt={item.name}
+                            alt={item.name?.en || item.name || "Dish"}
                             className="w-10 h-10 rounded-xl object-cover border border-slate-200 shadow-xs"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=100&q=80";
+                            }}
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 font-bold flex items-center justify-center text-xs">
-                            {(item.name || "D").charAt(0).toUpperCase()}
+                            {((item.name?.en || item.name) || "D").charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div>
