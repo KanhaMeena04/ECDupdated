@@ -15,10 +15,11 @@ import {
   Typography,
   Slider,
   Box,
+  Switch,
 } from "@mui/material";
 import { 
   MapPin, Store, ShieldCheck, ListFilter, 
-  AlertCircle, Save, ChevronRight, History 
+  AlertCircle, Save, ChevronRight, History, Clock 
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import ImageUploadSection from "./ImageUploadSection";
@@ -36,6 +37,29 @@ const EditRestaurantForm = () => {
 
   const { cuisines, loading: cuisinesLoading } = useCuisine();
   const { cities } = useCities();
+
+  const daysOfWeek = [
+    { key: "monday", label: "Monday" },
+    { key: "tuesday", label: "Tuesday" },
+    { key: "wednesday", label: "Wednesday" },
+    { key: "thursday", label: "Thursday" },
+    { key: "friday", label: "Friday" },
+    { key: "saturday", label: "Saturday" },
+    { key: "sunday", label: "Sunday" },
+  ];
+
+  const applyMondayToAll = () => {
+    const mon = data?.timing?.monday || {};
+    const monOpen = mon.open || "09:00";
+    const monClose = mon.close || "22:00";
+    const monClosed = Boolean(mon.isClosed || mon.isOpen === false);
+    daysOfWeek.forEach((d) => {
+      handleChange({ target: { name: `timing.${d.key}.open`, value: monOpen } });
+      handleChange({ target: { name: `timing.${d.key}.close`, value: monClose } });
+      handleChange({ target: { name: `timing.${d.key}.isClosed`, value: monClosed } });
+      handleChange({ target: { name: `timing.${d.key}.isOpen`, value: !monClosed } });
+    });
+  };
 
   const toggleCuisine = (value) => {
     const currentList = Array.isArray(data?.cuisine) ? data.cuisine : [];
@@ -444,6 +468,107 @@ const EditRestaurantForm = () => {
                   />
                 </Box>
               </Box>
+            </div>
+
+            {/* OPERATIONAL HOURS / TIMINGS SECTION (FULL WIDTH) */}
+            <div className="lg:col-span-2 p-6 bg-slate-50/70 rounded-2xl border border-slate-200">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="text-base font-extrabold text-gray-800 flex items-center gap-2">
+                    <Clock size={18} className="text-[#00a67e]" /> Weekly Operational Hours & Timings
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Set opening and closing timings for each day. Mark days closed as needed.
+                  </p>
+                </div>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={applyMondayToAll}
+                  sx={{
+                    textTransform: "none",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    borderColor: "#00a67e",
+                    color: "#00a67e",
+                    "&:hover": { borderColor: "#008f6d", backgroundColor: "#f0fdf4" },
+                  }}
+                >
+                  ⚡ Copy Monday to All Days
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {daysOfWeek.map((day) => {
+                  const dayTiming = data?.timing?.[day.key] || {};
+                  const isClosed = Boolean(dayTiming.isClosed || dayTiming.isOpen === false);
+                  const openTime = dayTiming.open || "09:00";
+                  const closeTime = dayTiming.close || "22:00";
+
+                  return (
+                    <div
+                      key={day.key}
+                      className={`p-4 rounded-xl border transition-all ${
+                        isClosed ? "bg-red-50/40 border-red-200" : "bg-white border-gray-200 shadow-sm"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="font-bold text-sm text-gray-800">{day.label}</span>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              size="small"
+                              checked={!isClosed}
+                              onChange={(e) => {
+                                const openVal = e.target.checked;
+                                handleChange({ target: { name: `timing.${day.key}.isClosed`, value: !openVal } });
+                                handleChange({ target: { name: `timing.${day.key}.isOpen`, value: openVal } });
+                              }}
+                              sx={{
+                                '& .MuiSwitch-switchBase.Mui-checked': { color: '#00a67e' },
+                                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: '#00a67e' },
+                              }}
+                            />
+                          }
+                          label={<span className="text-xs font-semibold text-gray-600">{!isClosed ? "Open" : "Closed"}</span>}
+                          className="mr-0"
+                        />
+                      </div>
+
+                      {!isClosed ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <TextField
+                            label="Open Time"
+                            type="time"
+                            size="small"
+                            value={openTime}
+                            onChange={(e) =>
+                              handleChange({ target: { name: `timing.${day.key}.open`, value: e.target.value } })
+                            }
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{ step: 300 }}
+                          />
+                          <TextField
+                            label="Close Time"
+                            type="time"
+                            size="small"
+                            value={closeTime}
+                            onChange={(e) =>
+                              handleChange({ target: { name: `timing.${day.key}.close`, value: e.target.value } })
+                            }
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{ step: 300 }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="py-2 text-center text-xs font-bold text-red-500 bg-red-100/60 rounded-lg">
+                          Closed All Day
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </form>
 

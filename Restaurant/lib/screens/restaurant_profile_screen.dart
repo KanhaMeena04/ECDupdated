@@ -183,6 +183,36 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
               } else if (restObj['image'] != null && restObj['image'].toString().isNotEmpty) {
                 _restaurantImages.add(restObj['image'].toString());
               }
+
+              // Load and parse restaurant weekly timings
+              if (restObj['timing'] != null && restObj['timing'] is Map) {
+                final tMap = restObj['timing'] as Map;
+                for (var op in _operationalDays) {
+                  final dKey = op['day'].toString().toLowerCase();
+                  if (tMap[dKey] != null && tMap[dKey] is Map) {
+                    final dData = tMap[dKey];
+                    op['isOpen'] = dData['isClosed'] != true && dData['isOpen'] != false;
+                    if (dData['open'] != null) op['from'] = dData['open'].toString();
+                    if (dData['close'] != null) op['to'] = dData['close'].toString();
+                  }
+                }
+              } else if (restObj['operationalDays'] != null && restObj['operationalDays'] is List) {
+                final opList = restObj['operationalDays'] as List;
+                for (var opItem in opList) {
+                  if (opItem is Map) {
+                    final dName = (opItem['day'] ?? '').toString().toLowerCase();
+                    final target = _operationalDays.firstWhere(
+                      (e) => e['day'].toString().toLowerCase() == dName,
+                      orElse: () => <String, dynamic>{},
+                    );
+                    if (target.isNotEmpty) {
+                      target['isOpen'] = opItem['isOpen'] ?? true;
+                      if (opItem['from'] != null) target['from'] = opItem['from'].toString();
+                      if (opItem['to'] != null) target['to'] = opItem['to'].toString();
+                    }
+                  }
+                }
+              }
             });
           }
         }
@@ -217,6 +247,17 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
     if (restId.isNotEmpty) {
       try {
         final url = '${ApiConstants.baseUrl}/restaurants/vendor/profile/$restId';
+        final Map<String, dynamic> timingMap = {};
+        for (var op in _operationalDays) {
+          final dKey = op['day'].toString().toLowerCase();
+          timingMap[dKey] = {
+            'open': op['from'],
+            'close': op['to'],
+            'isOpen': op['isOpen'] == true,
+            'isClosed': op['isOpen'] != true,
+          };
+        }
+
         final body = {
           'name': _tradeNameController.text.trim(),
           'restaurantType': _typeController.text.trim(),
@@ -230,6 +271,8 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
           'fssaiNumber': _tradeLicenseController.text.trim(),
           'gstNumber': _vatNumberController.text.trim(),
           'restaurantImages': _restaurantImages,
+          'timing': timingMap,
+          'operationalDays': _operationalDays,
         };
 
         final response = await http.put(
@@ -714,11 +757,11 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
                             child: Row(
                               children: [
                                 Expanded(
-                                  child: _buildTimeChip('From', item['from']),
+                                  child: _buildTimeChip('From', item['from'], onTap: () => _pickTime(context, item, 'from')),
                                 ),
                                 const SizedBox(width: 6),
                                 Expanded(
-                                  child: _buildTimeChip('To', item['to']),
+                                  child: _buildTimeChip('To', item['to'], onTap: () => _pickTime(context, item, 'to')),
                                 ),
                               ],
                             ),
@@ -894,18 +937,71 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
     );
   }
 
-  Widget _buildTimeChip(String prefix, String time) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
-      child: Text(
-        '$prefix $time',
-        textAlign: TextAlign.center,
-        style: GoogleFonts.poppins(fontSize: 11, color: Colors.black87),
+  Future<void> _pickTime(BuildContext context, Map<String, dynamic> item, String field) async {
+    final currentStr = (item[field] ?? '09:00 AM').toString().trim();
+    int hour = 9;
+    int minute = 0;
+    try {
+      final clean = currentStr.replaceAll(RegExp(r'[^\d:]'), '');
+      final parts = clean.split(':');
+      if (parts.isNotEmpty) hour = int.tryParse(parts[0]) ?? 9;
+      if (parts.length > 1) minute = int.tryParse(parts[1]) ?? 0;
+      if (currentStr.toLowerCase().contains('pm') && hour < 12) hour += 12;
+      if (currentStr.toLowerCase().contains('am') && hour == 12) hour = 0;
+    } catch (_) {}
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: hour, minute: minute),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryGreen,
+              onPrimary: Colors.white,
+              onSurface: Colors.black87,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      final hourStr = picked.hourOfPeriod == 0 ? '12' : picked.hourOfPeriod.toString().padLeft(2, '0');
+      final minStr = picked.minute.toString().padLeft(2, '0');
+      final periodStr = picked.period == DayPeriod.am ? 'AM' : 'PM';
+      setState(() {
+        item[field] = '$hourStr:$minStr $periodStr';
+      });
+    }
+  }
+
+  Widget _buildTimeChip(String prefix, String time, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(
+                '$prefix $time',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black87),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.access_time_rounded, size: 14, color: AppColors.primaryGreen),
+          ],
+        ),
       ),
     );
   }

@@ -65,8 +65,11 @@ class _PickupOrdersScreenState extends State<PickupOrdersScreen> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         List<dynamic> rawOrders = [];
-        if (data is List) rawOrders = data;
-        else if (data['orders'] is List) rawOrders = data['orders'];
+        if (data is List) {
+          rawOrders = data;
+        } else if (data['orders'] is List) {
+          rawOrders = data['orders'];
+        }
 
         final List<Order> parsedList = [];
         double rev = 0.0;

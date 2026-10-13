@@ -37,6 +37,7 @@ const productSchema = new mongoose.Schema(
     discountAmount: { type: Number, default: 0 },
     offerPrice: { type: Number },
     sellingPrice: { type: Number },
+    b2bPrice: { type: Number },
     preparationTime: { type: Number, default: 15 },
     outOfStock: { type: Boolean, default: false },
     subcategory: { type: String, default: '' },

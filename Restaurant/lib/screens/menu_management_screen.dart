@@ -1148,6 +1148,7 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
 
   List<String> _flavorVariants = [];
   List<Map<String, dynamic>> _addOnsList = [];
+  Map<String, String> _categoryIdsMap = {};
 
   List<String> _categories = [
     'Main Course',
@@ -1232,10 +1233,14 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
       final tree = await CategoryApiService.fetchCategoryTree();
       if (tree.isNotEmpty && mounted) {
         final newCats = <String>[];
+        final newCategoryIdsMap = <String, String>{};
         final newSubMap = <String, List<String>>{};
         for (var c in tree) {
           if (c.name.isNotEmpty) {
             newCats.add(c.name);
+            if (c.id.isNotEmpty) {
+              newCategoryIdsMap[c.name] = c.id;
+            }
             final subs = c.subcategories.map((s) => s.name).where((n) => n.isNotEmpty).toList();
             newSubMap[c.name] = subs.isNotEmpty ? subs : ['General'];
           }
@@ -1243,10 +1248,11 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
         if (newCats.isNotEmpty) {
           setState(() {
             _categories = newCats;
-            _subcategoriesMap = newSubMap;
-            if (!_categories.contains(_selectedCategory)) {
-              _selectedCategory = _categories.first;
+            _categoryIdsMap = newCategoryIdsMap;
+            if (_selectedCategory.isNotEmpty && !_categories.contains(_selectedCategory)) {
+              _categories.insert(0, _selectedCategory);
             }
+            _subcategoriesMap = newSubMap;
             final currentSubs = _subcategoriesMap[_selectedCategory] ?? ['General'];
             if (!currentSubs.contains(_selectedSubcategory)) {
               _selectedSubcategory = currentSubs.first;
@@ -1894,6 +1900,8 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
       'b2cMrp': mrpVal > 0 ? mrpVal : priceVal,
       'mrp': mrpVal > 0 ? mrpVal : priceVal,
       'b2bPrice': b2bVal > 0 ? b2bVal : priceVal,
+      'b2bSellingPrice': b2bVal > 0 ? b2bVal : priceVal,
+      'categoryId': _categoryIdsMap[_selectedCategory],
       'preparationTime': prepTimeVal,
       'foodType': _foodType.toLowerCase(),
       'isVeg': _foodType.toLowerCase() == 'veg',
@@ -1924,8 +1932,10 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
         'b2cMrp': mrpVal > 0 ? mrpVal : priceVal,
         'b2cSellingPrice': priceVal,
         'b2bPrice': b2bVal > 0 ? b2bVal : priceVal,
+        'b2bSellingPrice': b2bVal > 0 ? b2bVal : priceVal,
         'preparationTime': prepTimeVal,
         'category': _selectedCategory,
+        'categoryId': _categoryIdsMap[_selectedCategory],
         'subcategory': _selectedSubcategory,
         'foodType': _foodType.toLowerCase(),
         'isVeg': _foodType.toLowerCase() == 'veg',

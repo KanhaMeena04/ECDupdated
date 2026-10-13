@@ -725,7 +725,7 @@ class RestaurantApiService {
       name: rName,
       imageUrl: json['coverImage']?.toString() ?? json['logo']?.toString() ?? json['image']?.toString() ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600',
       rating: parsedRating,
-      reviewCount: _parseInt(json['totalReviews'] != null ? json['totalReviews'] : (json['ratingCount'] ?? json['reviewCount'] ?? json['orderCount']), 0),
+      reviewCount: _parseInt(json['totalReviews'] ?? json['ratingCount'] ?? json['reviewCount'] ?? json['orderCount'], 0),
       distanceKm: distKm,
       deliveryTimeMin: _parseInt(json['deliveryTimeMin'] ?? json['deliveryTime'] ?? json['prepTime'] ?? json['estimatedPreparationTime'], 25),
       deliveryCharge: _parseDouble(json['deliveryCharge'] ?? json['shippingFee'], 0.0),

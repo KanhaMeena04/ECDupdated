@@ -147,8 +147,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (oRes.statusCode == 200) {
           final oData = jsonDecode(oRes.body);
           List<dynamic> list = [];
-          if (oData is List) list = oData;
-          else if (oData['orders'] is List) list = oData['orders'];
+          if (oData is List) {
+            list = oData;
+          } else if (oData['orders'] is List) {
+            list = oData['orders'];
+          }
 
           double rev = 0.0;
           for (var o in list) {

@@ -484,24 +484,28 @@ exports.adminCreateRestaurant = async (req, res) => {
       let defaultCat = await Category.findOne({ isMaster: true });
       if (!defaultCat) defaultCat = await Category.findOne({});
       if (!defaultCat) {
-        defaultCat = await Category.create({ name: { en: "Main Course" }, slug: "main-course", isActive: true, isMaster: true });
+        defaultCat = await Category.create({ name: "Main Course", slug: "main-course", isActive: true, isMaster: true }).catch(() => null);
       }
       for (const menuItem of savedMenu) {
         try {
           let catObj = defaultCat;
           if (menuItem.category) {
+            const catClean = menuItem.category.trim();
             let foundCat = await Category.findOne({
               $or: [
-                { "name.en": { $regex: `^${menuItem.category.trim()}$`, $options: 'i' } },
-                { name: { $regex: `^${menuItem.category.trim()}$`, $options: 'i' } },
-                { slug: menuItem.category.toLowerCase().replace(/\s+/g, '-') }
+                { name: { $regex: `^${catClean}$`, $options: 'i' } },
+                { slug: catClean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') }
               ]
             });
             if (!foundCat) {
+              const newSlug = catClean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
               foundCat = await Category.create({
-                name: { en: menuItem.category.trim() },
-                slug: menuItem.category.trim().toLowerCase().replace(/\s+/g, '-'),
-                isActive: true
+                name: catClean,
+                slug: newSlug,
+                type: 'main',
+                isActive: true,
+                userAppVisible: true,
+                restaurantAppVisible: true
               }).catch(() => null);
             }
             if (foundCat) catObj = foundCat;
@@ -861,17 +865,16 @@ exports.applyForRestaurant = async (req, res) => {
 
     // Save menu items into Product collection for full platform cataloging
     if (savedMenu.length > 0) {
-      let defaultCat = await Category.findOne({ isMaster: true });
-      if (!defaultCat) {
+      let defaultCat = await Category.findOne({ isMaster: true });      if (!defaultCat) {
         defaultCat = await Category.findOne({});
       }
       if (!defaultCat) {
         defaultCat = await Category.create({
-          name: { en: "Main Course" },
+          name: "Main Course",
           slug: "main-course",
           isActive: true,
           isMaster: true,
-        });
+        }).catch(() => null);
       }
 
       for (const menuItem of savedMenu) {
@@ -882,13 +885,24 @@ exports.applyForRestaurant = async (req, res) => {
 
           let itemCat = defaultCat;
           if (menuItem.category && typeof menuItem.category === 'string') {
-            const foundCat = await Category.findOne({
+            const catClean = menuItem.category.trim();
+            let foundCat = await Category.findOne({
               $or: [
-                { "name.en": { $regex: `^${menuItem.category.trim()}$`, $options: 'i' } },
-                { name: { $regex: `^${menuItem.category.trim()}$`, $options: 'i' } },
-                { slug: menuItem.category.toLowerCase().replace(/\s+/g, '-') }
+                { name: { $regex: `^${catClean}$`, $options: 'i' } },
+                { slug: catClean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') }
               ]
             });
+            if (!foundCat) {
+              const newSlug = catClean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
+              foundCat = await Category.create({
+                name: catClean,
+                slug: newSlug,
+                type: 'main',
+                isActive: true,
+                userAppVisible: true,
+                restaurantAppVisible: true
+              }).catch(() => null);
+            }
             if (foundCat) itemCat = foundCat;
           }
 
@@ -1132,7 +1146,25 @@ exports.updateRestaurant = async (req, res) => {
         parseIfString(updates.restaurantImages),
       );
     }
-    if (updates.timing !== undefined) updates.timing = parseIfString(updates.timing);
+    if (updates.timing !== undefined || updates.operationalDays !== undefined) {
+      let rawTiming = updates.timing !== undefined ? parseIfString(updates.timing) : parseIfString(updates.operationalDays);
+      if (Array.isArray(rawTiming)) {
+        const timingObj = {};
+        rawTiming.forEach((d) => {
+          if (d && d.day) {
+            const dayKey = d.day.toLowerCase();
+            timingObj[dayKey] = {
+              open: d.from || d.open || "09:00 AM",
+              close: d.to || d.close || "11:00 PM",
+              isClosed: d.isOpen !== undefined ? !d.isOpen : Boolean(d.isClosed),
+            };
+          }
+        });
+        updates.timing = timingObj;
+      } else if (rawTiming && typeof rawTiming === "object") {
+        updates.timing = rawTiming;
+      }
+    }
     const ownerAllowed = [
       "name",
       "description",
@@ -1160,7 +1192,8 @@ exports.updateRestaurant = async (req, res) => {
       "isActive",
       "isTemporarilyClosed",
       "autoAcceptOrders",
-      "isSelfPickupEnabled"
+      "isSelfPickupEnabled",
+      "timing"
     ];
     const adminAllowed = ownerAllowed.concat([
       "contactNumber",
@@ -3196,7 +3229,7 @@ exports.vendorAddMenuItem = async (req, res) => {
 
     let catObjId = null;
     let foundCat = null;
-    if (categoryId) {
+    if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
       foundCat = await Category.findById(categoryId);
       if (foundCat) catObjId = foundCat._id;
     }
@@ -3205,24 +3238,38 @@ exports.vendorAddMenuItem = async (req, res) => {
         foundCat = await Category.findById(category);
         if (foundCat) catObjId = foundCat._id;
       }
-      if (!catObjId && typeof category === 'string') {
+      if (!catObjId && typeof category === 'string' && category.trim().length > 0) {
+        const catClean = category.trim();
         foundCat = await Category.findOne({
           $or: [
-            { "name.en": { $regex: `^${category.trim()}$`, $options: 'i' } },
-            { name: { $regex: `^${category.trim()}$`, $options: 'i' } },
-            { slug: category.toLowerCase().replace(/\s+/g, '-') }
+            { name: { $regex: `^${catClean}$`, $options: 'i' } },
+            { slug: catClean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') }
           ]
         });
+        if (!foundCat) {
+          const newSlug = catClean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
+          foundCat = await Category.create({
+            name: catClean,
+            slug: newSlug,
+            type: 'main',
+            isActive: true,
+            userAppVisible: true,
+            restaurantAppVisible: true
+          }).catch(err => {
+            console.error('Error auto-creating category in vendorAddMenuItem:', err);
+            return null;
+          });
+        }
         if (foundCat) catObjId = foundCat._id;
       }
     }
     if (!catObjId) {
-      let defaultCat = await Category.findOne({ isMaster: true });
-      if (!defaultCat) defaultCat = await Category.findOne({});
+      let defaultCat = await Category.findOne({ name: { $regex: '^Main Course$', $options: 'i' } }) || await Category.findOne({ isMaster: true });
       if (!defaultCat) {
-        defaultCat = await Category.create({ name: { en: 'Main Course' }, isActive: true, isMaster: true, slug: 'main-course' });
+        defaultCat = await Category.create({ name: 'Main Course', isActive: true, isMaster: true, slug: 'main-course' }).catch(() => null);
       }
-      catObjId = defaultCat._id;
+      if (!defaultCat) defaultCat = await Category.findOne({});
+      catObjId = defaultCat?._id;
       foundCat = defaultCat;
     }
 
@@ -3234,7 +3281,7 @@ exports.vendorAddMenuItem = async (req, res) => {
 
     const finalSellingPrice = Number(b2cSellingPrice ?? sellingPrice ?? price ?? basePrice ?? 0);
     const finalMrp = Number(b2cMrp ?? mrp ?? finalSellingPrice);
-    const finalB2bPrice = Number(b2bPrice ?? finalSellingPrice);
+    const finalB2bPrice = Number(b2bPrice ?? b2bSellingPrice ?? finalSellingPrice);
 
     const rawFoodType = (foodType || (isVeg === false || isVeg === 'false' ? 'non-veg' : 'veg')).toString().toLowerCase();
     const resolvedFoodType = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
@@ -3284,6 +3331,7 @@ exports.vendorAddMenuItem = async (req, res) => {
       basePrice: finalSellingPrice,
       sellingPrice: finalSellingPrice,
       mrp: finalMrp,
+      b2bPrice: finalB2bPrice,
       pricing: {
         b2c: { mrp: finalMrp, sellingPrice: finalSellingPrice, discountPercent: finalMrp > finalSellingPrice ? Math.round(((finalMrp - finalSellingPrice) / finalMrp) * 100) : 0 },
         b2b: { sellingPrice: finalB2bPrice, discountPercent: 0 }
@@ -3372,11 +3420,11 @@ exports.vendorBulkImportMenuItems = async (req, res) => {
     }
 
     const resolvedRestId = restaurantDoc._id;
-    let defaultCat = await Category.findOne({ isMaster: true });
-    if (!defaultCat) defaultCat = await Category.findOne({});
+    let defaultCat = await Category.findOne({ name: { $regex: '^Main Course$', $options: 'i' } }) || await Category.findOne({ isMaster: true });
     if (!defaultCat) {
-      defaultCat = await Category.create({ name: { en: "Main Course" }, slug: "main-course", isActive: true, isMaster: true });
+      defaultCat = await Category.create({ name: 'Main Course', slug: 'main-course', isActive: true, isMaster: true }).catch(() => null);
     }
+    if (!defaultCat) defaultCat = await Category.findOne({});
 
     const isApprovedByRest = Boolean(
       (req.user && req.user.role === 'admin') ||
@@ -3389,27 +3437,39 @@ exports.vendorBulkImportMenuItems = async (req, res) => {
       const itemName = (item.name || item.title || "").trim();
       if (!itemName) continue;
 
-      let catObjId = defaultCat._id;
-      if (item.category) {
+      let catObjId = defaultCat?._id;
+      if (item.categoryId && mongoose.Types.ObjectId.isValid(item.categoryId)) {
+        const found = await Category.findById(item.categoryId);
+        if (found) catObjId = found._id;
+      }
+      const catStr = (item.category || "").trim();
+      if (catStr) {
         let foundCat = await Category.findOne({
           $or: [
-            { "name.en": { $regex: `^${item.category.trim()}$`, $options: 'i' } },
-            { name: { $regex: `^${item.category.trim()}$`, $options: 'i' } },
-            { slug: item.category.toLowerCase().replace(/\s+/g, '-') }
+            { name: { $regex: `^${catStr}$`, $options: 'i' } },
+            { slug: catStr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') }
           ]
         });
         if (!foundCat) {
+          const newSlug = catStr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
           foundCat = await Category.create({
-            name: { en: item.category.trim() },
-            slug: item.category.trim().toLowerCase().replace(/\s+/g, '-'),
-            isActive: true
-          }).catch(() => null);
+            name: catStr,
+            slug: newSlug,
+            type: 'main',
+            isActive: true,
+            userAppVisible: true,
+            restaurantAppVisible: true
+          }).catch(err => {
+            console.error('Error auto-creating category in bulk import:', err);
+            return null;
+          });
         }
         if (foundCat) catObjId = foundCat._id;
       }
 
-      const itemPrice = Number(item.b2bPrice ?? item.sellingPrice ?? item.price ?? item.basePrice ?? 150);
+      const itemPrice = Number(item.sellingPrice ?? item.price ?? item.basePrice ?? 150);
       const itemMrp = Number(item.mrp ?? item.b2cMrp ?? itemPrice);
+      const b2bPrice = Number(item.b2bPrice ?? item.b2bSellingPrice ?? itemPrice);
       const rawFoodType = (item.foodType || (item.isVeg === false ? 'non-veg' : 'veg')).toString().toLowerCase();
       const foodType = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
       let itemImg = (item.image && item.image.trim().length > 0) ? item.image.trim() : "";
@@ -3431,9 +3491,10 @@ exports.vendorBulkImportMenuItems = async (req, res) => {
         basePrice: itemPrice,
         mrp: itemMrp,
         sellingPrice: itemPrice,
+        b2bPrice: b2bPrice,
         pricing: {
-          b2c: { mrp: itemMrp, sellingPrice: itemPrice, discountPercent: 0 },
-          b2b: { mrp: itemMrp, sellingPrice: itemPrice, discountPercent: 0 }
+          b2c: { mrp: itemMrp, sellingPrice: itemPrice, discountPercent: itemMrp > itemPrice ? Math.round(((itemMrp - itemPrice) / itemMrp) * 100) : 0 },
+          b2b: { sellingPrice: b2bPrice, discountPercent: itemMrp > b2bPrice ? Math.round(((itemMrp - b2bPrice) / itemMrp) * 100) : 0 }
         },
         foodType: foodType,
         isVeg: foodType === 'veg',
@@ -3531,11 +3592,12 @@ exports.vendorEditMenuItem = async (req, res) => {
 
     const finalSellingPrice = Number(b2cSellingPrice ?? sellingPrice ?? price ?? basePrice ?? product.sellingPrice ?? product.basePrice);
     const finalMrp = Number(b2cMrp ?? mrp ?? product.mrp ?? finalSellingPrice);
-    const finalB2bPrice = Number(b2bPrice ?? product.pricing?.b2b?.sellingPrice ?? finalSellingPrice);
+    const finalB2bPrice = Number(b2bPrice ?? b2bSellingPrice ?? product.b2bPrice ?? product.pricing?.b2b?.sellingPrice ?? finalSellingPrice);
 
     product.basePrice = finalSellingPrice;
     product.sellingPrice = finalSellingPrice;
     product.mrp = finalMrp;
+    product.b2bPrice = finalB2bPrice;
     product.pricing = {
       b2c: { mrp: finalMrp, sellingPrice: finalSellingPrice, discountPercent: finalMrp > finalSellingPrice ? Math.round(((finalMrp - finalSellingPrice) / finalMrp) * 100) : 0 },
       b2b: { sellingPrice: finalB2bPrice, discountPercent: 0 }
@@ -3558,9 +3620,32 @@ exports.vendorEditMenuItem = async (req, res) => {
     }
     if (image !== undefined && image) product.image = image;
 
-    if (categoryId) {
+    if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
       product.category = categoryId;
       product.categoryId = categoryId;
+    } else if (category && typeof category === 'string' && category.trim().length > 0) {
+      const catClean = category.trim();
+      let foundCat = await Category.findOne({
+        $or: [
+          { name: { $regex: `^${catClean}$`, $options: 'i' } },
+          { slug: catClean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') }
+        ]
+      });
+      if (!foundCat) {
+        const newSlug = catClean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
+        foundCat = await Category.create({
+          name: catClean,
+          slug: newSlug,
+          type: 'main',
+          isActive: true,
+          userAppVisible: true,
+          restaurantAppVisible: true
+        }).catch(() => null);
+      }
+      if (foundCat) {
+        product.category = foundCat._id;
+        product.categoryId = foundCat._id;
+      }
     }
     if (subcategory !== undefined) product.subcategory = subcategory;
     if (subcategoryId !== undefined) product.subcategoryId = subcategoryId;

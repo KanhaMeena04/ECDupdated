@@ -68,8 +68,11 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         List<dynamic> rawOrders = [];
-        if (data is List) rawOrders = data;
-        else if (data['orders'] is List) rawOrders = data['orders'];
+        if (data is List) {
+          rawOrders = data;
+        } else if (data['orders'] is List) {
+          rawOrders = data['orders'];
+        }
 
         final now = DateTime.now();
         double todayEarn = 0.0;

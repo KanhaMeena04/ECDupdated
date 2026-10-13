@@ -17,6 +17,7 @@ class OrderDetailsScreen extends StatefulWidget {
 
 class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   static const Color primaryGreen = Color(0xFF248C70);
+  static const Color lightGreen = Color(0xFFE8F5E9);
   bool _isLoading = false;
   late Map<String, dynamic> _currentOrder;
 

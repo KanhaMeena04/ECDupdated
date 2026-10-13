@@ -52,8 +52,11 @@ class _CancelledOrdersScreenState extends State<CancelledOrdersScreen> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         List<dynamic> rawOrders = [];
-        if (data is List) rawOrders = data;
-        else if (data['orders'] is List) rawOrders = data['orders'];
+        if (data is List) {
+          rawOrders = data;
+        } else if (data['orders'] is List) {
+          rawOrders = data['orders'];
+        }
 
         final List<Order> parsedList = [];
         for (var o in rawOrders) {

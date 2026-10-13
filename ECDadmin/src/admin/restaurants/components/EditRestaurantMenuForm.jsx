@@ -17,6 +17,7 @@ import {
   DialogActions,
   IconButton,
   Tooltip,
+  Autocomplete,
 } from "@mui/material";
 import {
   Plus,
@@ -55,6 +56,7 @@ const EditRestaurantMenuForm = () => {
   const [editingItem, setEditingItem] = useState(null);
 
   // Form states for Add / Edit
+  const [systemCategories, setSystemCategories] = useState([]);
   const [itemName, setItemName] = useState("");
   const [itemCategory, setItemCategory] = useState("Main Course");
   const [itemFoodType, setItemFoodType] = useState("veg");
@@ -115,6 +117,27 @@ const EditRestaurantMenuForm = () => {
       setLoading(false);
     }
   }, [restaurantId]);
+
+  // Fetch full system categories list from DB
+  useEffect(() => {
+    const fetchSystemCategories = async () => {
+      try {
+        const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
+        const res = await axios.get(`${API_BASE_URL}/api/categories`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          withCredentials: true,
+        }).catch(() => null);
+        const list = res?.data?.data || res?.data || [];
+        if (Array.isArray(list) && list.length > 0) {
+          const names = list.map((c) => typeof c === 'string' ? c : (c.name?.en || c.name || "")).filter(Boolean);
+          setSystemCategories(names);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch system categories:", err);
+      }
+    };
+    fetchSystemCategories();
+  }, []);
 
   // Toggle Auto-Approve Menu for Restaurant
   const handleToggleAutoApprove = async () => {
@@ -205,7 +228,7 @@ const EditRestaurantMenuForm = () => {
   const openAddModal = () => {
     setEditingItem(null);
     setItemName("");
-    setItemCategory("Main Course");
+    setItemCategory(availableCategories.length > 0 ? availableCategories[0] : "Main Course");
     setItemFoodType("veg");
     setItemSellingPrice("");
     setItemMrp("");
@@ -260,6 +283,7 @@ const EditRestaurantMenuForm = () => {
         b2cSellingPrice: Number(itemSellingPrice),
         b2cMrp: Number(itemMrp || itemSellingPrice),
         b2bSellingPrice: Number(itemB2bPrice || itemSellingPrice),
+        b2bPrice: Number(itemB2bPrice || itemSellingPrice),
         foodType: itemFoodType,
         isVeg: itemFoodType === "veg",
         available: !itemOos,
@@ -353,9 +377,19 @@ const EditRestaurantMenuForm = () => {
     return "Main Course";
   };
 
-  // Dynamically extract all available categories present in the menu
+  // Dynamically extract all available categories present in the menu & system
   const availableCategories = useMemo(() => {
     const catMap = new Map();
+
+    // 1. System categories from database
+    systemCategories.forEach((sc) => {
+      if (sc && typeof sc === "string" && sc.trim()) {
+        const trimmed = sc.trim();
+        catMap.set(trimmed.toLowerCase(), trimmed);
+      }
+    });
+
+    // 2. Menu categories
     menu.forEach((item) => {
       const catName = getCategoryString(item);
       if (catName && catName.trim()) {
@@ -367,8 +401,8 @@ const EditRestaurantMenuForm = () => {
       }
     });
 
-    // Standard preset categories
-    const defaults = ["Main Course", "Starters & Snacks", "Breads & Rice", "Beverages & Shakes", "Desserts"];
+    // 3. Standard preset categories
+    const defaults = ["Main Course", "Starters & Snacks", "Breads & Rice", "Beverages & Shakes", "Desserts", "Momos", "Fast Food", "Chinese", "Biryani"];
     defaults.forEach((d) => {
       if (!catMap.has(d.toLowerCase())) {
         catMap.set(d.toLowerCase(), d);
@@ -376,7 +410,7 @@ const EditRestaurantMenuForm = () => {
     });
 
     return Array.from(catMap.values());
-  }, [menu]);
+  }, [menu, systemCategories]);
 
   // Filtered Menu Items
   const filteredMenu = menu.filter((item) => {
@@ -778,20 +812,26 @@ const EditRestaurantMenuForm = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <FormControl fullWidth size="small">
-                <InputLabel>Category</InputLabel>
-                <Select
-                  value={itemCategory}
-                  label="Category"
-                  onChange={(e) => setItemCategory(e.target.value)}
-                >
-                  <MenuItem value="Main Course">Main Course</MenuItem>
-                  <MenuItem value="Starters & Snacks">Starters & Snacks</MenuItem>
-                  <MenuItem value="Breads & Rice">Breads & Rice</MenuItem>
-                  <MenuItem value="Beverages & Shakes">Beverages & Shakes</MenuItem>
-                  <MenuItem value="Desserts">Desserts</MenuItem>
-                </Select>
-              </FormControl>
+              <Autocomplete
+                freeSolo
+                options={availableCategories}
+                value={itemCategory}
+                onChange={(event, newValue) => {
+                  setItemCategory(newValue || "");
+                }}
+                onInputChange={(event, newInputValue) => {
+                  setItemCategory(newInputValue || "");
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Category *"
+                    size="small"
+                    placeholder="Select or enter category..."
+                    required
+                  />
+                )}
+              />
 
               <FormControl fullWidth size="small">
                 <InputLabel>Food Type</InputLabel>

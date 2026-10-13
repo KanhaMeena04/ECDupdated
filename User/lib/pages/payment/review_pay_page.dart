@@ -589,7 +589,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
 
     try {
       final result = await context.read<OrderProvider>().placeOrder(orderData);
-      if (result != null && result['success'] == true && result['orderId'] != null) {
+      if (result['success'] == true && result['orderId'] != null) {
         _pendingOrderId = result['orderId'].toString();
         if (mounted) {
           _onOrderSuccess(_pendingOrderId!);
@@ -597,7 +597,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
       } else {
         setState(() => _isProcessing = false);
         if (mounted) {
-          _showError(result?['message'] ?? 'Failed to place order. Please try again.');
+          _showError(result['message'] ?? 'Failed to place order. Please try again.');
         }
       }
     } catch (e) {

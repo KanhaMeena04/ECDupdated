@@ -1929,7 +1929,7 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
                                   final selectedAddr = addrProvider.addresses.isNotEmpty ? addrProvider.addresses.first : null;
                                   final String addrTitle = cart.isSelfPickup
                                       ? 'Pickup from Restaurant'
-                                      : (selectedAddr != null ? 'Delivering to ${selectedAddr.label ?? "Home"}' : 'Select Delivery Address');
+                                      : (selectedAddr != null ? 'Delivering to ${selectedAddr.label.isNotEmpty ? selectedAddr.label : "Home"}' : 'Select Delivery Address');
                                   final String addrSubtitle = cart.isSelfPickup
                                       ? (cart.restaurantAddress ?? cart.restaurantName ?? 'Restaurant Location')
                                       : (selectedAddr?.fullAddress ?? 'Tap to select delivery address');
@@ -2156,7 +2156,7 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
                         final selectedAddr = addrProvider.addresses.isNotEmpty ? addrProvider.addresses.first : null;
                         final String addrTitle = cart.isSelfPickup
                             ? 'Pickup from Restaurant'
-                            : (selectedAddr != null ? 'Delivering to ${selectedAddr.label ?? "Home"}' : 'Select Delivery Address');
+                            : (selectedAddr != null ? 'Delivering to ${selectedAddr.label.isNotEmpty ? selectedAddr.label : "Home"}' : 'Select Delivery Address');
                         final String addrSubtitle = cart.isSelfPickup
                             ? (cart.restaurantAddress ?? cart.restaurantName ?? 'Restaurant Location')
                             : (selectedAddr?.fullAddress ?? 'Tap to select delivery address');
