@@ -437,6 +437,10 @@ class CartProvider with ChangeNotifier {
     int deliveryTimeMin = 25,
     double minOrderValue = 0.0,
     String imageUrl = '',
+    String? baseProductId,
+    String? portion,
+    String? portionName,
+    List<Map<String, dynamic>>? addOns,
   }) async {
     _restaurantId = restaurantId;
     _restaurantName = restaurantName;
@@ -452,11 +456,13 @@ class CartProvider with ChangeNotifier {
     final existingIndex =
         _items.indexWhere((item) => item.product.id == product.id);
 
+    final apiProductId = baseProductId ?? (product.id.contains('::') ? product.id.split('::').first : product.id);
+
     if (existingIndex >= 0) {
       _items[existingIndex].quantity++;
       notifyListeners();
       await _saveCartToPrefs();
-      await CartApiService.updateCart(product.id, _items[existingIndex].quantity);
+      await CartApiService.updateCart(apiProductId, _items[existingIndex].quantity);
     } else {
       _items.add(CartItem(
         product: product,
@@ -464,7 +470,15 @@ class CartProvider with ChangeNotifier {
       ));
       notifyListeners();
       await _saveCartToPrefs();
-      await CartApiService.addToCart(product.id, 1);
+      await CartApiService.addToCart(
+        apiProductId,
+        1,
+        portion: portion,
+        portionName: portionName,
+        addOns: addOns,
+        customPrice: product.price,
+        customName: product.name,
+      );
     }
   }
 
@@ -477,6 +491,10 @@ class CartProvider with ChangeNotifier {
     int deliveryTimeMin = 25,
     double minOrderValue = 0.0,
     String imageUrl = '',
+    String? baseProductId,
+    String? portion,
+    String? portionName,
+    List<Map<String, dynamic>>? addOns,
   }) async {
     _items.clear();
     
@@ -495,8 +513,17 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
     await _saveCartToPrefs();
 
+    final apiProductId = baseProductId ?? (product.id.contains('::') ? product.id.split('::').first : product.id);
     await CartApiService.clearCart();
-    await CartApiService.addToCart(product.id, 1);
+    await CartApiService.addToCart(
+      apiProductId,
+      1,
+      portion: portion,
+      portionName: portionName,
+      addOns: addOns,
+      customPrice: product.price,
+      customName: product.name,
+    );
   }
 
   void removeItem(String productId) async {
@@ -505,23 +532,25 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
     await _saveCartToPrefs();
 
-    await CartApiService.removeFromCart(productId);
+    final apiProductId = productId.contains('::') ? productId.split('::').first : productId;
+    await CartApiService.removeFromCart(apiProductId);
   }
 
   void updateQuantity(String productId, int quantity) async {
     final index = _items.indexWhere((item) => item.product.id == productId);
+    final apiProductId = productId.contains('::') ? productId.split('::').first : productId;
     if (index >= 0) {
       if (quantity > 0) {
         _items[index].quantity = quantity;
         notifyListeners();
         await _saveCartToPrefs();
-        await CartApiService.updateCart(productId, quantity);
+        await CartApiService.updateCart(apiProductId, quantity);
       } else {
         _items.removeAt(index);
         if (_items.isEmpty) _clearRestaurantInfo();
         notifyListeners();
         await _saveCartToPrefs();
-        await CartApiService.removeFromCart(productId);
+        await CartApiService.removeFromCart(apiProductId);
       }
     }
   }

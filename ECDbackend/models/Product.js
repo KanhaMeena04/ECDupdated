@@ -87,6 +87,38 @@ const productSchema = new mongoose.Schema(
     seasonTag: { type: String }, // e.g., "Summer Specials",
     approvedAt: { type: Date },
     approvalNotes: { type: String },
+    portionType: {
+      type: String,
+      enum: ['none', 'half_full', 'size', 'custom'],
+      default: 'none',
+    },
+    portions: {
+      half: {
+        sellingPrice: { type: Number, default: null },
+        mrp: { type: Number, default: null },
+        b2bPrice: { type: Number, default: null },
+      },
+      full: {
+        sellingPrice: { type: Number, default: null },
+        mrp: { type: Number, default: null },
+        b2bPrice: { type: Number, default: null },
+      },
+      small: {
+        sellingPrice: { type: Number, default: null },
+        mrp: { type: Number, default: null },
+        b2bPrice: { type: Number, default: null },
+      },
+      medium: {
+        sellingPrice: { type: Number, default: null },
+        mrp: { type: Number, default: null },
+        b2bPrice: { type: Number, default: null },
+      },
+      large: {
+        sellingPrice: { type: Number, default: null },
+        mrp: { type: Number, default: null },
+        b2bPrice: { type: Number, default: null },
+      },
+    },
     pendingUpdate: {
       type: {
         name: { en: String, de: String, ar: String },
@@ -97,6 +129,14 @@ const productSchema = new mongoose.Schema(
         seasonal: { type: Boolean },
         seasonTag: { type: String },
         category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
+        portionType: { type: String },
+        portions: {
+          half: { sellingPrice: Number, mrp: Number, b2bPrice: Number },
+          full: { sellingPrice: Number, mrp: Number, b2bPrice: Number },
+          small: { sellingPrice: Number, mrp: Number, b2bPrice: Number },
+          medium: { sellingPrice: Number, mrp: Number, b2bPrice: Number },
+          large: { sellingPrice: Number, mrp: Number, b2bPrice: Number },
+        },
         variations: [
           {
             name: {
@@ -105,6 +145,10 @@ const productSchema = new mongoose.Schema(
               ar: { type: String },
             },
             price: { type: Number, required: true, min: 0 },
+            sellingPrice: { type: Number },
+            mrp: { type: Number },
+            b2bPrice: { type: Number },
+            portionType: { type: String },
           },
         ],
         addOns: [
@@ -130,6 +174,10 @@ const productSchema = new mongoose.Schema(
           ar: { type: String },
         },
         price: { type: Number, required: true, min: 0 },
+        sellingPrice: { type: Number },
+        mrp: { type: Number },
+        b2bPrice: { type: Number },
+        portionType: { type: String },
       },
     ],
     addOns: [

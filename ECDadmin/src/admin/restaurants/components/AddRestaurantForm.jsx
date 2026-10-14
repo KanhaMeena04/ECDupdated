@@ -274,14 +274,34 @@ const AddRestaurantForm = () => {
             const imgVal = it.image || it.imageUrl || it.image_url || it.photo || it.photoUrl || it.dishPhoto || it["image url"] || it.picture || it.img || it.url || it.link || "";
             return {
               name: it.name || it["item name"] || `Item ${i + 1}`,
-              price: Number(it.price || it.sellingPrice || it.basePrice || 0),
+              price: Number(it.price || it.sellingPrice || it.basePrice || (it.portions?.full?.sellingPrice || it.portions?.small?.sellingPrice) || 0),
+              basePrice: Number(it.price || it.sellingPrice || it.basePrice || (it.portions?.full?.sellingPrice || it.portions?.small?.sellingPrice) || 0),
               mrp: Number(it.mrp || it.b2cMrp || it.price || 0),
-              b2bPrice: Number(it.b2bPrice || it.b2bprice || it.price || 0),
+              b2bPrice: Number(it.b2bPrice || it.b2bprice || it.b2bSellingPrice || it.price || 0),
               category: it.category || "Main Course",
               foodType: it.foodType || (it.isVeg !== false ? "Veg" : "Non-Veg"),
               isVeg: it.isVeg !== false && !(it.foodType || "").toLowerCase().includes("non"),
               description: it.description || "",
               image: imgVal,
+              portionType: it.portionType || (it.portions ? (it.portions.half || it.portions.full ? "half_full" : "size") : "none"),
+              portions: it.portions || null,
+              variations: it.variations || [],
+              addOns: it.addOns || it.addons || [],
+              halfSellingPrice: it.halfSellingPrice || it.halfPrice || it.half_price || null,
+              halfMrp: it.halfMrp || null,
+              halfB2bPrice: it.halfB2bPrice || null,
+              fullSellingPrice: it.fullSellingPrice || it.fullPrice || it.full_price || null,
+              fullMrp: it.fullMrp || null,
+              fullB2bPrice: it.fullB2bPrice || null,
+              smallSellingPrice: it.smallSellingPrice || it.smallPrice || null,
+              smallMrp: it.smallMrp || null,
+              smallB2bPrice: it.smallB2bPrice || null,
+              medSellingPrice: it.medSellingPrice || it.mediumSellingPrice || it.medPrice || null,
+              medMrp: it.medMrp || it.mediumMrp || null,
+              medB2bPrice: it.medB2bPrice || it.mediumB2bPrice || null,
+              largeSellingPrice: it.largeSellingPrice || it.largePrice || null,
+              largeMrp: it.largeMrp || null,
+              largeB2bPrice: it.largeB2bPrice || null,
             };
           });
         } else {
@@ -298,7 +318,8 @@ const AddRestaurantForm = () => {
               const imgVal = item.image || item["image url"] || item["image_url"] || item.imageurl || item.imageUrl || item.photo || item["photo url"] || item.photo_url || item.dishphoto || item["dish photo"] || item.dish_photo || item.picture || item.img || item.url || item.link || "";
               parsedItems.push({
                 name: item.name || item["item name"] || item["dish name"] || `Item ${i}`,
-                price: Number(item.price || item["selling price"] || item.sellingprice || item.baseprice || 0),
+                price: Number(item.price || item["selling price"] || item.sellingprice || item.baseprice || item.full_price || item.half_price || 0),
+                basePrice: Number(item.price || item["selling price"] || item.sellingprice || item.baseprice || item.full_price || item.half_price || 0),
                 mrp: Number(item.mrp || item.b2cmrp || item.price || 0),
                 b2bPrice: Number(item.b2bprice || item["b2b price"] || item.b2bsellingprice || item.price || 0),
                 category: item.category || "Main Course",
@@ -306,6 +327,22 @@ const AddRestaurantForm = () => {
                 isVeg: !(item.foodtype || "").toLowerCase().includes("non"),
                 description: item.description || "",
                 image: imgVal,
+                portionType: item.portiontype || (item.half_price || item.full_price ? "half_full" : item.small_price || item.med_price ? "size" : "none"),
+                halfSellingPrice: item.half_price || item.halfprice || null,
+                halfMrp: item.half_mrp || null,
+                halfB2bPrice: item.half_b2b || null,
+                fullSellingPrice: item.full_price || item.fullprice || null,
+                fullMrp: item.full_mrp || null,
+                fullB2bPrice: item.full_b2b || null,
+                smallSellingPrice: item.small_price || null,
+                smallMrp: item.small_mrp || null,
+                smallB2bPrice: item.small_b2b || null,
+                medSellingPrice: item.med_price || item.medium_price || null,
+                medMrp: item.med_mrp || null,
+                medB2bPrice: item.med_b2b || null,
+                largeSellingPrice: item.large_price || null,
+                largeMrp: item.large_mrp || null,
+                largeB2bPrice: item.large_b2b || null,
               });
             }
           }
@@ -322,6 +359,25 @@ const AddRestaurantForm = () => {
             isVeg: it.isVeg !== false && !(it.foodType || "").toLowerCase().includes("non"),
             description: it.description || "",
             image: it.image || it.imageUrl || it.photo || "",
+            portionType: it.portionType || "none",
+            portions: it.portions || null,
+            variations: it.variations || [],
+            addOns: it.addOns || [],
+            halfSellingPrice: it.halfSellingPrice || null,
+            halfMrp: it.halfMrp || null,
+            halfB2bPrice: it.halfB2bPrice || null,
+            fullSellingPrice: it.fullSellingPrice || null,
+            fullMrp: it.fullMrp || null,
+            fullB2bPrice: it.fullB2bPrice || null,
+            smallSellingPrice: it.smallSellingPrice || null,
+            smallMrp: it.smallMrp || null,
+            smallB2bPrice: it.smallB2bPrice || null,
+            medSellingPrice: it.medSellingPrice || null,
+            medMrp: it.medMrp || null,
+            medB2bPrice: it.medB2bPrice || null,
+            largeSellingPrice: it.largeSellingPrice || null,
+            largeMrp: it.largeMrp || null,
+            largeB2bPrice: it.largeB2bPrice || null,
           }));
           setMenuItems((prev) => [...prev, ...formatted]);
           alert(`Successfully imported ${formatted.length} menu items!`);
@@ -340,24 +396,90 @@ const AddRestaurantForm = () => {
   const handleDownloadMenuTemplate = () => {
     const sample = [
       {
-        name: "Paneer Tikka Butter Masala",
+        name: "Paneer Butter Masala (Full/Half Plate)",
         price: 240,
         mrp: 290,
-        b2bPrice: 210,
+        b2bPrice: 200,
         category: "Main Course",
         foodType: "Veg",
-        description: "Fresh cottage cheese cooked in creamy tomato butter gravy",
-        image: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7"
+        description: "Rich creamy tomato gravy with soft cottage cheese cubes",
+        image: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=400&q=80",
+        portionType: "half_full",
+        portions: {
+          half: {
+            sellingPrice: 140,
+            mrp: 170,
+            b2bPrice: 120
+          },
+          full: {
+            sellingPrice: 240,
+            mrp: 290,
+            b2bPrice: 200
+          }
+        },
+        addOns: [
+          { name: "Extra Butter", price: 20 },
+          { name: "Extra Paneer Cubes", price: 50 }
+        ]
       },
       {
-        name: "Chicken Biryani (Hyderabadi)",
+        name: "Farmhouse Cheesy Pizza (S/M/L Sizes)",
+        price: 199,
+        mrp: 249,
+        b2bPrice: 160,
+        category: "Pizza",
+        foodType: "Veg",
+        description: "Loaded with crunchy bell peppers, onions, tomatoes and 100% mozzarella cheese",
+        image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=400&q=80",
+        portionType: "size",
+        portions: {
+          small: {
+            sellingPrice: 199,
+            mrp: 249,
+            b2bPrice: 160
+          },
+          medium: {
+            sellingPrice: 349,
+            mrp: 419,
+            b2bPrice: 280
+          },
+          large: {
+            sellingPrice: 499,
+            mrp: 599,
+            b2bPrice: 390
+          }
+        },
+        addOns: [
+          { name: "Cheese Burst Crust", price: 79 },
+          { name: "Spicy Peri-Peri Dip", price: 25 }
+        ]
+      },
+      {
+        name: "Hyderabadi Chicken Biryani",
         price: 280,
         mrp: 340,
-        b2bPrice: 250,
-        category: "Main Course",
+        b2bPrice: 230,
+        category: "Biryani",
         foodType: "Non-Veg",
-        description: "Aromatic basmati rice layered with spiced marinated chicken",
-        image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8"
+        description: "Authentic slow-cooked dum biryani served with raita and mirchi ka salan",
+        image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=400&q=80",
+        portionType: "half_full",
+        portions: {
+          half: {
+            sellingPrice: 160,
+            mrp: 190,
+            b2bPrice: 130
+          },
+          full: {
+            sellingPrice: 280,
+            mrp: 340,
+            b2bPrice: 230
+          }
+        },
+        addOns: [
+          { name: "Extra Raita", price: 25 },
+          { name: "Boiled Egg (2 pcs)", price: 30 }
+        ]
       }
     ];
     const blob = new Blob([JSON.stringify(sample, null, 2)], { type: "application/json" });

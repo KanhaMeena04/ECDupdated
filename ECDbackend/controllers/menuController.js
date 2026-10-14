@@ -7,6 +7,7 @@ const { getNextRestaurantId } = require("../utils/idGenerator");
 const { formatProductForUser } = require("../utils/responseFormatter");
 const { getFileUrl } = require("../utils/upload");
 const { uploadToImageKit } = require("../utils/imagekit");
+const { normalizePortionsAndVariations, normalizeAddOns } = require("../utils/portionHelper");
 const parseIfString = (value) => {
   if (typeof value !== "string") return value;
   try {
@@ -161,10 +162,19 @@ exports.addFoodItem = async (req, res) => {
       return res.status(400).json({ message: "Product name is required" });
     }
 
-    // Calculate B2C and B2B pricing
-    const finalB2cSelling = Number(b2cSellingPrice ?? sellingPrice ?? basePrice ?? 0);
-    const finalB2cMrp = Number(b2cMrp ?? mrp ?? finalB2cSelling);
-    const finalB2bSelling = Number(b2bSellingPrice ?? b2bPrice ?? finalB2cSelling);
+    // Calculate B2C and B2B pricing with portions
+    const norm = normalizePortionsAndVariations({
+      ...req.body,
+      variations: parsedVariations || variations,
+      addOns: parsedAddOns || addOns,
+      sellingPrice: b2cSellingPrice ?? sellingPrice ?? basePrice,
+      mrp: b2cMrp ?? mrp,
+      b2bPrice: b2bSellingPrice ?? b2bPrice,
+    });
+
+    const finalB2cSelling = Number(norm.sellingPrice ?? 0);
+    const finalB2cMrp = Number(norm.mrp ?? finalB2cSelling);
+    const finalB2bSelling = Number(norm.b2bPrice ?? finalB2cSelling);
 
     if (finalB2cSelling < 0 || finalB2cMrp < 0 || finalB2bSelling < 0) {
       return res.status(400).json({ message: "Prices cannot be negative" });
@@ -187,30 +197,8 @@ exports.addFoodItem = async (req, res) => {
 
     const resolvedFoodType = foodType || (isVeg === false || isVeg === "false" ? "non-veg" : "veg");
 
-    let normalizedVariations = normalizeNamedList(parsedVariations || variations) || [];
-    if (Array.isArray(normalizedVariations)) {
-      normalizedVariations = normalizedVariations.filter((variation) => {
-        if (!variation) return false;
-        const varName = variation.name;
-        if (!varName) return false;
-        if (typeof varName === 'string' && !varName.trim()) return false;
-        if (typeof varName === 'object' && !varName.en && !varName.de && !varName.ar) return false;
-        if (typeof variation.price !== 'number' || variation.price < 0) return false;
-        return true;
-      });
-    }
-    let normalizedAddOns = normalizeNamedList(parsedAddOns || addOns) || [];
-    if (Array.isArray(normalizedAddOns)) {
-      normalizedAddOns = normalizedAddOns.filter((addOn) => {
-        if (!addOn) return false;
-        const addOnName = addOn.name;
-        if (!addOnName) return false;
-        if (typeof addOnName === 'string' && !addOnName.trim()) return false;
-        if (typeof addOnName === 'object' && !addOnName.en && !addOnName.de && !addOnName.ar) return false;
-        if (typeof addOn.price !== 'number' || addOn.price < 0) return false;
-        return true;
-      });
-    }
+    const normalizedVariations = norm.variations || [];
+    const normalizedAddOns = norm.addOns || [];
 
     const shouldAutoApprove = Boolean(
       restaurant.autoApproveMenu ||
@@ -245,6 +233,8 @@ exports.addFoodItem = async (req, res) => {
       isVeg: resolvedFoodType === "veg",
       preparationTime: Number(preparationTime || 15),
       image: finalImage,
+      portionType: norm.portionType || 'none',
+      portions: norm.portions || null,
       variations: normalizedVariations,
       addOns: normalizedAddOns,
       approvalStatus: shouldAutoApprove ? "approved" : "pending",
@@ -505,7 +495,10 @@ exports.getMenu = async (req, res) => {
         foodType: p.foodType || (p.isVeg ? "veg" : "non-veg"),
         isVeg: p.isVeg !== false,
         preparationTime: p.preparationTime || 15,
+        portionType: p.portionType || 'none',
+        portions: p.portions || null,
         variations: p.variations || [],
+        variants: p.variations || [],
         flavors: p.variations || [],
         addOns: p.addOns || [],
         available: p.available !== false,
@@ -1022,6 +1015,8 @@ exports.editProduct = async (req, res) => {
       "name",
       "description",
       "image",
+      "portionType",
+      "portions",
       "variations",
       "addOns",
       "seasonal",
@@ -1036,6 +1031,38 @@ exports.editProduct = async (req, res) => {
     let hasPendingUpdate = false;
 
     if (isAdmin || !product.isApproved) {
+      // If portion / variant info updated, normalize first
+      if (updates.portionType !== undefined || updates.portions !== undefined || updates.variations !== undefined || updates.variants !== undefined) {
+        const norm = normalizePortionsAndVariations({
+          ...product.toObject(),
+          ...updates,
+          variations: updates.variations !== undefined ? updates.variations : product.variations,
+          addOns: updates.addOns !== undefined ? updates.addOns : product.addOns,
+        });
+        product.portionType = norm.portionType;
+        product.portions = norm.portions;
+        product.variations = norm.variations;
+        if (norm.addOns && norm.addOns.length > 0) {
+          product.addOns = norm.addOns;
+        }
+        if (norm.sellingPrice > 0) {
+          product.sellingPrice = norm.sellingPrice;
+          product.basePrice = norm.sellingPrice;
+          product.mrp = norm.mrp;
+          product.b2bPrice = norm.b2bPrice;
+          if (!product.pricing) product.pricing = { b2c: {}, b2b: {} };
+          product.pricing.b2c = {
+            mrp: norm.mrp,
+            sellingPrice: norm.sellingPrice,
+            discountPercent: norm.mrp > norm.sellingPrice ? Math.round(((norm.mrp - norm.sellingPrice) / norm.mrp) * 100) : 0,
+          };
+          product.pricing.b2b = {
+            sellingPrice: norm.b2bPrice,
+            discountPercent: 0,
+          };
+        }
+      }
+
       // Direct update for Admin or unapproved product
       for (const field of allowed) {
         if (updates[field] === undefined) continue;
@@ -1044,10 +1071,14 @@ exports.editProduct = async (req, res) => {
           if (normalized && normalized.en) product.name = normalized;
         } else if (field === "description") {
           product.description = normalizeTranslation(updates.description);
+        } else if (field === "portionType") {
+          product.portionType = updates.portionType;
+        } else if (field === "portions") {
+          product.portions = updates.portions;
         } else if (field === "variations") {
-          product.variations = normalizeNamedList(updates.variations);
+          // Handled above in norm
         } else if (field === "addOns") {
-          product.addOns = normalizeNamedList(updates.addOns);
+          product.addOns = normalizeAddOns(updates.addOns);
         } else if (field === "sellingPrice" || field === "basePrice" || field === "b2cSellingPrice") {
           const val = Number(updates[field]);
           product.basePrice = val;
@@ -1384,12 +1415,13 @@ exports.bulkUploadMenuItems = async (req, res) => {
 
     for (let idx = 0; idx < items.length; idx++) {
       const item = items[idx];
+      const norm = normalizePortionsAndVariations(item);
       const nameStr = (item.name?.en || item.name || `Bulk Item ${idx + 1}`).trim();
       const descStr = (item.description?.en || item.description || "").trim();
       const catNameStr = (item.category || "").trim();
-      const priceNum = Number(item.sellingPrice ?? item.price ?? item.basePrice ?? 0);
-      const mrpNum = Number(item.mrp ?? item.b2cMrp ?? priceNum);
-      const b2bNum = Number(item.b2bPrice ?? item.b2bSellingPrice ?? priceNum);
+      const priceNum = Number(norm.sellingPrice ?? 0);
+      const mrpNum = Number(norm.mrp ?? priceNum);
+      const b2bNum = Number(norm.b2bPrice ?? priceNum);
       const rawFoodType = (item.foodType || (item.isVeg !== false ? 'veg' : 'non-veg')).toString().toLowerCase();
       const foodTypeStr = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
       const rawImg = item.image || item.imageUrl || item.image_url || item.photo || item.photoUrl || item.photo_url || item.dishPhoto || item.dish_photo || item["image url"] || item["dish photo"] || item["photo url"] || item.picture || item.pic || item.img || item.imgUrl || item.url || item.link || "";
@@ -1452,8 +1484,10 @@ exports.bulkUploadMenuItems = async (req, res) => {
         isVeg: foodTypeStr === 'veg',
         available: item.outOfStock !== true && item.available !== false,
         preparationTime: Number(item.preparationTime || 15),
-        variations: Array.isArray(item.variations || item.variants) ? (item.variations || item.variants) : [],
-        addOns: Array.isArray(item.addOns) ? item.addOns : [],
+        portionType: norm.portionType,
+        portions: norm.portions,
+        variations: norm.variations,
+        addOns: norm.addOns,
         approvalStatus: shouldAutoApprove ? "approved" : "pending",
         isApproved: shouldAutoApprove,
         isPublished: shouldAutoApprove,
@@ -1462,18 +1496,23 @@ exports.bulkUploadMenuItems = async (req, res) => {
 
       createdProducts.push(product);
       savedMenuItems.push({
+        _id: product._id,
         name: nameStr,
         category: categoryObj?.name || catNameStr || "Main Course",
         price: priceNum,
         basePrice: priceNum,
         sellingPrice: priceNum,
+        mrp: mrpNum,
         b2bPrice: b2bNum,
         foodType: foodTypeStr,
         isVeg: foodTypeStr === 'veg',
         description: descStr,
         image: itemImgStr,
-        variants: item.variations || item.variants || [],
-        addOns: item.addOns || [],
+        portionType: norm.portionType,
+        portions: norm.portions,
+        variants: norm.variations,
+        variations: norm.variations,
+        addOns: norm.addOns,
         isAvailable: item.outOfStock !== true && item.available !== false,
         isApproved: shouldAutoApprove,
         approvalStatus: shouldAutoApprove ? "approved" : "pending"

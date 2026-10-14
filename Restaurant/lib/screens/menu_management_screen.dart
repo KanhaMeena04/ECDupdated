@@ -433,44 +433,19 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
           ],
         ),
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            FloatingActionButton.extended(
-              heroTag: 'excelImportFab',
-              onPressed: () => _showExcelImportModal(),
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.primaryGreen,
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-                side: const BorderSide(color: AppColors.primaryGreen, width: 1.5),
-              ),
-              icon: const Icon(Icons.table_chart_rounded, color: AppColors.primaryGreen, size: 20),
-              label: Text(
-                'Import Excel',
-                style: GoogleFonts.poppins(color: AppColors.primaryGreen, fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-            ),
-            const SizedBox(width: 10),
-            FloatingActionButton.extended(
-              heroTag: 'addMenuItemFab',
-              onPressed: () => _openAddOrEditMenuModal(),
-              backgroundColor: AppColors.primaryGreen,
-              foregroundColor: Colors.white,
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-              icon: const Icon(Icons.add, color: Colors.white, size: 20),
-              label: Text(
-                'Add Item',
-                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-            ),
-          ],
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'addMenuItemFab',
+        onPressed: () => _openAddOrEditMenuModal(),
+        backgroundColor: AppColors.primaryGreen,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        icon: const Icon(Icons.add, color: Colors.white, size: 20),
+        label: Text(
+          'Add Item',
+          style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
         ),
       ),
     );
@@ -543,31 +518,7 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
                         ),
                       ),
                     ),
-                    // Import Excel Button
-                    InkWell(
-                      onTap: () => _showExcelImportModal(),
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryGreen.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.4)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.file_upload_outlined, color: AppColors.primaryGreen, size: 16),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Import',
-                              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
+                    const Spacer(),
                     IconButton(
                       icon: const Icon(Icons.add_circle_rounded, color: AppColors.primaryGreen, size: 32),
                       tooltip: 'Add Menu Item',
@@ -673,31 +624,63 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
                       _buildApprovalStatusBadge(item),
                       const SizedBox(height: 4),
 
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            '₹${(item['sellingPrice'] ?? item['price'] ?? item['basePrice'] ?? item['b2bPrice'] ?? 0.0).toStringAsFixed(2)}',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                          if (item['mrp'] != null && (item['mrp'] as num) > (item['sellingPrice'] ?? item['price'] ?? item['basePrice'] ?? 0)) ...[
-                            const SizedBox(width: 6),
+                      // Price display with Portion awareness
+                      Builder(builder: (context) {
+                        final String pType = (item['portionType'] ?? 'none').toString();
+                        final Map<String, dynamic>? portions = item['portions'] is Map ? Map<String, dynamic>.from(item['portions']) : null;
+                        final bool hasHalfFull = pType == 'half_full' || (portions != null && (portions['half'] != null || portions['full'] != null));
+                        final bool hasSizes = pType == 'size' || (portions != null && (portions['small'] != null || portions['medium'] != null || portions['large'] != null));
+
+                        if (hasHalfFull) {
+                          final fullP = portions?['full']?['sellingPrice'];
+                          final halfP = portions?['half']?['sellingPrice'];
+                          final List<String> parts = [];
+                          if (fullP != null) parts.add('Full: ₹$fullP');
+                          if (halfP != null) parts.add('Half: ₹$halfP');
+                          return Text(
+                            parts.isNotEmpty ? parts.join(' • ') : '₹${item['sellingPrice'] ?? item['price'] ?? 0}',
+                            style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black),
+                          );
+                        } else if (hasSizes) {
+                          final sP = portions?['small']?['sellingPrice'];
+                          final mP = portions?['medium']?['sellingPrice'];
+                          final lP = portions?['large']?['sellingPrice'];
+                          final List<String> parts = [];
+                          if (sP != null) parts.add('S: ₹$sP');
+                          if (mP != null) parts.add('M: ₹$mP');
+                          if (lP != null) parts.add('L: ₹$lP');
+                          return Text(
+                            parts.isNotEmpty ? parts.join(' • ') : '₹${item['sellingPrice'] ?? item['price'] ?? 0}',
+                            style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black),
+                          );
+                        }
+
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
                             Text(
-                              '₹${(item['mrp'] as num).toStringAsFixed(2)}',
+                              '₹${(item['sellingPrice'] ?? item['price'] ?? item['basePrice'] ?? item['b2bPrice'] ?? 0.0).toStringAsFixed(2)}',
                               style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                color: Colors.grey[400],
-                                decoration: TextDecoration.lineThrough,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
                               ),
                             ),
+                            if (item['mrp'] != null && (item['mrp'] as num) > (item['sellingPrice'] ?? item['price'] ?? item['basePrice'] ?? 0)) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                '₹${(item['mrp'] as num).toStringAsFixed(2)}',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: Colors.grey[400],
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
-                      ),
+                        );
+                      }),
                       const SizedBox(height: 2),
                       Row(
                         children: [
@@ -722,6 +705,56 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
                           ),
                         ],
                       ),
+                      // Badges for Half/Full, Sizes, Add-ons
+                      Builder(builder: (context) {
+                        final String pType = (item['portionType'] ?? 'none').toString();
+                        final Map<String, dynamic>? portions = item['portions'] is Map ? Map<String, dynamic>.from(item['portions']) : null;
+                        final bool hasHalfFull = pType == 'half_full' || (portions != null && (portions['half'] != null || portions['full'] != null));
+                        final bool hasSizes = pType == 'size' || (portions != null && (portions['small'] != null || portions['medium'] != null || portions['large'] != null));
+                        final List<dynamic> aoList = item['addOns'] is List ? item['addOns'] : (item['addons'] is List ? item['addons'] : []);
+
+                        if (!hasHalfFull && !hasSizes && aoList.isEmpty) return const SizedBox.shrink();
+
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: [
+                              if (hasHalfFull)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.shade50,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: Colors.amber.shade200),
+                                  ),
+                                  child: Text('Half/Full', style: GoogleFonts.poppins(fontSize: 8.5, fontWeight: FontWeight.bold, color: Colors.amber.shade900)),
+                                ),
+                              if (hasSizes)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.purple.shade50,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: Colors.purple.shade200),
+                                  ),
+                                  child: Text('S/M/L Sizes', style: GoogleFonts.poppins(fontSize: 8.5, fontWeight: FontWeight.bold, color: Colors.purple.shade900)),
+                                ),
+                              if (aoList.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.indigo.shade50,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: Colors.indigo.shade200),
+                                  ),
+                                  child: Text('+${aoList.length} Add-ons', style: GoogleFonts.poppins(fontSize: 8.5, fontWeight: FontWeight.bold, color: Colors.indigo.shade900)),
+                                ),
+                            ],
+                          ),
+                        );
+                      }),
                       if (item['category'] != null && item['category'].toString().isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Text(
@@ -1140,6 +1173,23 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
   late TextEditingController _b2bPriceController;
   late TextEditingController _prepTimeController;
 
+  String _portionType = 'none'; // 'none', 'half_full', 'size'
+  late TextEditingController _fullPriceController;
+  late TextEditingController _fullMrpController;
+  late TextEditingController _fullB2bPriceController;
+  late TextEditingController _halfPriceController;
+  late TextEditingController _halfMrpController;
+  late TextEditingController _halfB2bPriceController;
+  late TextEditingController _smallPriceController;
+  late TextEditingController _smallMrpController;
+  late TextEditingController _smallB2bPriceController;
+  late TextEditingController _medPriceController;
+  late TextEditingController _medMrpController;
+  late TextEditingController _medB2bPriceController;
+  late TextEditingController _largePriceController;
+  late TextEditingController _largeMrpController;
+  late TextEditingController _largeB2bPriceController;
+
   String _selectedCategory = 'Main Course';
   String _selectedSubcategory = 'General';
   String _foodType = 'Veg'; // 'Veg', 'Non-Veg', or 'Egg'
@@ -1186,6 +1236,37 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
     _prepTimeController = TextEditingController(
       text: item?['preparationTime'] != null ? item!['preparationTime'].toString() : '15',
     );
+
+    // Portions detection & controllers initialization
+    final portions = item?['portions'] is Map ? Map<String, dynamic>.from(item!['portions']) : null;
+    final pType = item?['portionType']?.toString() ??
+        (portions != null && (portions['half'] != null || portions['full'] != null)
+            ? 'half_full'
+            : (portions != null && (portions['small'] != null || portions['medium'] != null || portions['large'] != null)
+                ? 'size'
+                : 'none'));
+    _portionType = pType;
+
+    _fullPriceController = TextEditingController(text: portions?['full']?['sellingPrice']?.toString() ?? '');
+    _fullMrpController = TextEditingController(text: portions?['full']?['mrp']?.toString() ?? '');
+    _fullB2bPriceController = TextEditingController(text: portions?['full']?['b2bPrice']?.toString() ?? '');
+
+    _halfPriceController = TextEditingController(text: portions?['half']?['sellingPrice']?.toString() ?? '');
+    _halfMrpController = TextEditingController(text: portions?['half']?['mrp']?.toString() ?? '');
+    _halfB2bPriceController = TextEditingController(text: portions?['half']?['b2bPrice']?.toString() ?? '');
+
+    _smallPriceController = TextEditingController(text: portions?['small']?['sellingPrice']?.toString() ?? '');
+    _smallMrpController = TextEditingController(text: portions?['small']?['mrp']?.toString() ?? '');
+    _smallB2bPriceController = TextEditingController(text: portions?['small']?['b2bPrice']?.toString() ?? '');
+
+    _medPriceController = TextEditingController(text: portions?['medium']?['sellingPrice']?.toString() ?? '');
+    _medMrpController = TextEditingController(text: portions?['medium']?['mrp']?.toString() ?? '');
+    _medB2bPriceController = TextEditingController(text: portions?['medium']?['b2bPrice']?.toString() ?? '');
+
+    _largePriceController = TextEditingController(text: portions?['large']?['sellingPrice']?.toString() ?? '');
+    _largeMrpController = TextEditingController(text: portions?['large']?['mrp']?.toString() ?? '');
+    _largeB2bPriceController = TextEditingController(text: portions?['large']?['b2bPrice']?.toString() ?? '');
+
     if (item != null) {
       _selectedCategory = item['category'] ?? 'Main Course';
       _selectedSubcategory = item['subcategory'] ?? (_subcategoriesMap[_selectedCategory]?.first ?? 'General');
@@ -1271,6 +1352,21 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
     _mrpController.dispose();
     _b2bPriceController.dispose();
     _prepTimeController.dispose();
+    _fullPriceController.dispose();
+    _fullMrpController.dispose();
+    _fullB2bPriceController.dispose();
+    _halfPriceController.dispose();
+    _halfMrpController.dispose();
+    _halfB2bPriceController.dispose();
+    _smallPriceController.dispose();
+    _smallMrpController.dispose();
+    _smallB2bPriceController.dispose();
+    _medPriceController.dispose();
+    _medMrpController.dispose();
+    _medB2bPriceController.dispose();
+    _largePriceController.dispose();
+    _largeMrpController.dispose();
+    _largeB2bPriceController.dispose();
     super.dispose();
   }
 
@@ -1880,9 +1976,86 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
       imagePath = 'data:image/jpeg;base64,$base64String';
     }
 
-    final priceVal = double.tryParse(_priceController.text) ?? 0.0;
-    final mrpVal = double.tryParse(_mrpController.text) ?? priceVal;
-    final b2bVal = double.tryParse(_b2bPriceController.text) ?? priceVal;
+    double priceVal = 0.0;
+    double mrpVal = 0.0;
+    double b2bVal = 0.0;
+    final Map<String, dynamic> portionsMap = {};
+
+    if (_portionType == 'half_full') {
+      final fPrice = double.tryParse(_fullPriceController.text.trim());
+      final fMrp = double.tryParse(_fullMrpController.text.trim()) ?? fPrice;
+      final fB2b = double.tryParse(_fullB2bPriceController.text.trim()) ?? fPrice;
+      if (fPrice != null && fPrice > 0) {
+        portionsMap['full'] = {
+          'sellingPrice': fPrice,
+          'mrp': fMrp,
+          'b2bPrice': fB2b,
+        };
+      }
+
+      final hPrice = double.tryParse(_halfPriceController.text.trim());
+      final hMrp = double.tryParse(_halfMrpController.text.trim()) ?? hPrice;
+      final hB2b = double.tryParse(_halfB2bPriceController.text.trim()) ?? hPrice;
+      if (hPrice != null && hPrice > 0) {
+        portionsMap['half'] = {
+          'sellingPrice': hPrice,
+          'mrp': hMrp,
+          'b2bPrice': hB2b,
+        };
+      }
+
+      if (portionsMap.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter selling price for at least Full or Half plate')),
+        );
+        return;
+      }
+      priceVal = (portionsMap['full']?['sellingPrice'] ?? portionsMap['half']?['sellingPrice'] ?? 0.0).toDouble();
+      mrpVal = (portionsMap['full']?['mrp'] ?? portionsMap['half']?['mrp'] ?? priceVal).toDouble();
+      b2bVal = (portionsMap['full']?['b2bPrice'] ?? portionsMap['half']?['b2bPrice'] ?? priceVal).toDouble();
+    } else if (_portionType == 'size') {
+      final sPrice = double.tryParse(_smallPriceController.text.trim());
+      final sMrp = double.tryParse(_smallMrpController.text.trim()) ?? sPrice;
+      final sB2b = double.tryParse(_smallB2bPriceController.text.trim()) ?? sPrice;
+      if (sPrice != null && sPrice > 0) {
+        portionsMap['small'] = {'sellingPrice': sPrice, 'mrp': sMrp, 'b2bPrice': sB2b};
+      }
+
+      final mPrice = double.tryParse(_medPriceController.text.trim());
+      final mMrp = double.tryParse(_medMrpController.text.trim()) ?? mPrice;
+      final mB2b = double.tryParse(_medB2bPriceController.text.trim()) ?? mPrice;
+      if (mPrice != null && mPrice > 0) {
+        portionsMap['medium'] = {'sellingPrice': mPrice, 'mrp': mMrp, 'b2bPrice': mB2b};
+      }
+
+      final lPrice = double.tryParse(_largePriceController.text.trim());
+      final lMrp = double.tryParse(_largeMrpController.text.trim()) ?? lPrice;
+      final lB2b = double.tryParse(_largeB2bPriceController.text.trim()) ?? lPrice;
+      if (lPrice != null && lPrice > 0) {
+        portionsMap['large'] = {'sellingPrice': lPrice, 'mrp': lMrp, 'b2bPrice': lB2b};
+      }
+
+      if (portionsMap.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter price for at least one size (Small, Medium, or Large)')),
+        );
+        return;
+      }
+      priceVal = (portionsMap['small']?['sellingPrice'] ?? portionsMap['medium']?['sellingPrice'] ?? portionsMap['large']?['sellingPrice'] ?? 0.0).toDouble();
+      mrpVal = (portionsMap['small']?['mrp'] ?? portionsMap['medium']?['mrp'] ?? portionsMap['large']?['mrp'] ?? priceVal).toDouble();
+      b2bVal = (portionsMap['small']?['b2bPrice'] ?? portionsMap['medium']?['b2bPrice'] ?? portionsMap['large']?['b2bPrice'] ?? priceVal).toDouble();
+    } else {
+      priceVal = double.tryParse(_priceController.text.trim()) ?? 0.0;
+      mrpVal = double.tryParse(_mrpController.text.trim()) ?? priceVal;
+      b2bVal = double.tryParse(_b2bPriceController.text.trim()) ?? priceVal;
+      if (priceVal <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a valid Selling Price')),
+        );
+        return;
+      }
+    }
+
     final prepTimeVal = int.tryParse(_prepTimeController.text) ?? 15;
     final nameVal = _nameController.text.trim();
     final descVal = _descController.text.trim();
@@ -1910,6 +2083,8 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
       'approvalStatus': isEditing ? (widget.existingItem?['approvalStatus'] ?? 'pending') : 'pending',
       'isApproved': isEditing ? (widget.existingItem?['isApproved'] ?? false) : false,
       'image': imagePath,
+      'portionType': _portionType,
+      'portions': portionsMap.isNotEmpty ? portionsMap : null,
       'flavors': _flavorVariants,
       'variants': _flavorVariants,
       'addOns': _addOnsList,
@@ -1941,6 +2116,8 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
         'isVeg': _foodType.toLowerCase() == 'veg',
         'description': descVal,
         'image': imagePath,
+        'portionType': _portionType,
+        'portions': portionsMap.isNotEmpty ? portionsMap : null,
         'variants': _flavorVariants,
         'variations': _flavorVariants,
         'addOns': _addOnsList,
@@ -2216,71 +2393,447 @@ class _AddOrEditMenuItemFormState extends State<AddOrEditMenuItemForm> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Pricing Grid: Selling Price (B2C), MRP, B2B Wholesale Price
+                  // Portion & Sizing Configuration Header
+                  Text('Portion & Pricing Configuration', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Select whether this item has Half/Full portions, S/M/L sizes, or single price',
+                    style: GoogleFonts.poppins(fontSize: 10.5, color: Colors.grey[500]),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Segmented Tabs
                   Row(
                     children: [
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Selling Price (₹)', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12)),
-                            const SizedBox(height: 6),
-                            TextFormField(
-                              controller: _priceController,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                hintText: '₹ Selling',
-                                hintStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[400]),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-                              ),
-                              validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                        child: GestureDetector(
+                          onTap: () => setState(() => _portionType = 'none'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _portionType == 'none' ? AppColors.primaryGreen : Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          ],
+                            alignment: Alignment.center,
+                            child: Text(
+                              'Single Price',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: _portionType == 'none' ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 6),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('MRP (₹ Strikethrough)', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12)),
-                            const SizedBox(height: 6),
-                            TextFormField(
-                              controller: _mrpController,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                hintText: '₹ MRP',
-                                hintStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[400]),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _portionType = 'half_full'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _portionType == 'half_full' ? Colors.amber[700] : Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              'Half & Full',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: _portionType == 'half_full' ? Colors.white : Colors.black87,
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 6),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('B2B Price (₹)', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12)),
-                            const SizedBox(height: 6),
-                            TextFormField(
-                              controller: _b2bPriceController,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                hintText: '₹ B2B',
-                                hintStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[400]),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _portionType = 'size'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _portionType == 'size' ? Colors.purple[700] : Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              'S / M / L',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: _portionType == 'size' ? Colors.white : Colors.black87,
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 14),
+
+                  // If Single Price:
+                  if (_portionType == 'none') ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Selling Price (₹)', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12)),
+                              const SizedBox(height: 6),
+                              TextFormField(
+                                controller: _priceController,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  hintText: '₹ Selling',
+                                  hintStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[400]),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('MRP (₹ Strikethrough)', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12)),
+                              const SizedBox(height: 6),
+                              TextFormField(
+                                controller: _mrpController,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  hintText: '₹ MRP',
+                                  hintStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[400]),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('B2B Price (₹)', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12)),
+                              const SizedBox(height: 6),
+                              TextFormField(
+                                controller: _b2bPriceController,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  hintText: '₹ B2B',
+                                  hintStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[400]),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ]
+                  // If Half & Full:
+                  else if (_portionType == 'half_full') ...[
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Full Plate Pricing *', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 11.5, color: Colors.black87)),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _fullPriceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Full Selling *',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10.5),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _fullMrpController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Full MRP',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10.5),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _fullB2bPriceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Full B2B',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10.5),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Half Plate Pricing (Optional)', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 11.5, color: Colors.amber.shade900)),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _halfPriceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Half Selling',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10.5),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _halfMrpController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Half MRP',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10.5),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _halfB2bPriceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Half B2B',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10.5),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ]
+                  // If Sizes:
+                  else if (_portionType == 'size') ...[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Small (S) Pricing', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 11)),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _smallPriceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Small Selling',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _smallMrpController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Small MRP',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _smallB2bPriceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Small B2B',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.purple.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Medium (M) Pricing', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.purple.shade900)),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _medPriceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Med Selling',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _medMrpController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Med MRP',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _medB2bPriceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Med B2B',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Large (L) Pricing', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 11)),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _largePriceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Large Selling',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _largeMrpController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Large MRP',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _largeB2bPriceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: 'Large B2B',
+                                    labelStyle: GoogleFonts.poppins(fontSize: 10),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
 
                   // Preparation Time Field

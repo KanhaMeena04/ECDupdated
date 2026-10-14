@@ -3,6 +3,7 @@ import 'package:ecdkart_app/widgets/safe_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/restaurant_models.dart';
+import '../../core/models/product.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -1108,7 +1109,593 @@ class _MenuItemCard extends StatelessWidget {
     this.deliveryTimeMin = 25,
   });
 
-  // ── Add item with conflict detection ──────────────────────────────────────
+  // ── Extract only valid non-zero portions ──────────────────────────────────
+  List<Map<String, dynamic>> _getAvailablePortions() {
+    final List<Map<String, dynamic>> options = [];
+    if (item.portionType == 'half_full' && item.portions != null) {
+      final half = item.portions!['half'];
+      final full = item.portions!['full'];
+      if (half is Map) {
+        final sp = (half['sellingPrice'] as num?)?.toDouble() ?? 0.0;
+        final mrp = (half['mrp'] as num?)?.toDouble() ?? 0.0;
+        if (sp > 0) {
+          options.add({
+            'key': 'half',
+            'label': 'Half Plate',
+            'price': sp,
+            'mrp': mrp > sp ? mrp : null,
+          });
+        }
+      }
+      if (full is Map) {
+        final sp = (full['sellingPrice'] as num?)?.toDouble() ?? 0.0;
+        final mrp = (full['mrp'] as num?)?.toDouble() ?? 0.0;
+        if (sp > 0) {
+          options.add({
+            'key': 'full',
+            'label': 'Full Plate',
+            'price': sp,
+            'mrp': mrp > sp ? mrp : null,
+          });
+        }
+      }
+    } else if (item.portionType == 'size' && item.portions != null) {
+      final s = item.portions!['small'];
+      final m = item.portions!['medium'];
+      final l = item.portions!['large'];
+      if (s is Map) {
+        final sp = (s['sellingPrice'] as num?)?.toDouble() ?? 0.0;
+        final mrp = (s['mrp'] as num?)?.toDouble() ?? 0.0;
+        if (sp > 0) options.add({'key': 'small', 'label': 'Small', 'price': sp, 'mrp': mrp > sp ? mrp : null});
+      }
+      if (m is Map) {
+        final sp = (m['sellingPrice'] as num?)?.toDouble() ?? 0.0;
+        final mrp = (m['mrp'] as num?)?.toDouble() ?? 0.0;
+        if (sp > 0) options.add({'key': 'medium', 'label': 'Medium', 'price': sp, 'mrp': mrp > sp ? mrp : null});
+      }
+      if (l is Map) {
+        final sp = (l['sellingPrice'] as num?)?.toDouble() ?? 0.0;
+        final mrp = (l['mrp'] as num?)?.toDouble() ?? 0.0;
+        if (sp > 0) options.add({'key': 'large', 'label': 'Large', 'price': sp, 'mrp': mrp > sp ? mrp : null});
+      }
+    } else if (item.variations.isNotEmpty) {
+      for (var v in item.variations) {
+        final vName = v['name'] is Map ? (v['name']['en'] ?? v['name'].values.first ?? 'Option') : (v['name'] ?? 'Option');
+        final vPrice = (v['price'] as num?)?.toDouble() ?? 0.0;
+        if (vPrice > 0 || item.price > 0) {
+          options.add({
+            'key': v['_id']?.toString() ?? vName.toString(),
+            'label': vName.toString(),
+            'price': vPrice > 0 ? vPrice : item.price,
+            'mrp': null,
+          });
+        }
+      }
+    }
+
+    if (options.isEmpty) {
+      options.add({
+        'key': 'standard',
+        'label': 'Standard',
+        'price': item.price,
+        'mrp': item.originalPrice,
+      });
+    }
+    return options;
+  }
+
+  // ── Show bottom sheet modal for portions & add-ons ────────────────────────
+  void _showCustomizationBottomSheet(BuildContext context) {
+    final availablePortions = _getAvailablePortions();
+    String selectedPortionKey = availablePortions.first['key'] as String;
+    final List<Map<String, dynamic>> selectedAddOns = [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final activePortion = availablePortions.firstWhere(
+              (p) => p['key'] == selectedPortionKey,
+              orElse: () => availablePortions.first,
+            );
+            final double portionPrice = (activePortion['price'] as num).toDouble();
+            final double addOnsTotal = selectedAddOns.fold(0.0, (sum, a) => sum + ((a['price'] as num?)?.toDouble() ?? 0.0));
+            final double grandTotal = portionPrice + addOnsTotal;
+
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.82,
+              ),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1F2937) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag handle
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 10, bottom: 6),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade400,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+
+                  // Header with item info & close button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: SafeImage(
+                            item.imageUrl,
+                            width: 56,
+                            height: 56,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: item.isVeg ? Colors.green : Colors.red,
+                                        width: 1.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                    child: Center(
+                                      child: Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          color: item.isVeg ? Colors.green : Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      item.name,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: isDark ? Colors.white : const Color(0xFF111827),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'Customize your order',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: Icon(Icons.close, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+
+                  // Scrollable Portion & Add-on list
+                  Flexible(
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shrinkWrap: true,
+                      children: [
+                        // Portion selection section
+                        if (availablePortions.length > 1) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                item.portionType == 'size' ? 'SELECT SIZE' : 'SELECT PORTION',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                  color: Color(0xFF4B5563),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'REQUIRED',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.dark,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF111827) : const Color(0xFFF9FAFB),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                            ),
+                            child: Column(
+                              children: availablePortions.map((portion) {
+                                final isSelected = portion['key'] == selectedPortionKey;
+                                final pPrice = (portion['price'] as num).toDouble();
+                                final pMrp = portion['mrp'] as double?;
+
+                                return InkWell(
+                                  onTap: () {
+                                    setModalState(() {
+                                      selectedPortionKey = portion['key'] as String;
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                                          color: isSelected ? AppColors.primary : Colors.grey.shade400,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            portion['label'] as String,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                              color: isDark ? Colors.white : const Color(0xFF1F2937),
+                                            ),
+                                          ),
+                                        ),
+                                        if (pMrp != null && pMrp > pPrice) ...[
+                                          Text(
+                                            '₹${pMrp.toInt()}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              decoration: TextDecoration.lineThrough,
+                                              color: Colors.grey.shade400,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                        ],
+                                        Text(
+                                          '₹${pPrice.toInt()}',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800,
+                                            color: isDark ? Colors.white : const Color(0xFF111827),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+
+                        // Add-ons / Flavors section
+                        if (item.addOns.isNotEmpty) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'ADD-ONS & EXTRAS',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                  color: Color(0xFF4B5563),
+                                ),
+                              ),
+                              Text(
+                                'OPTIONAL',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF111827) : const Color(0xFFF9FAFB),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                            ),
+                            child: Column(
+                              children: item.addOns.map((addOn) {
+                                final aName = addOn['name']?.toString() ?? '';
+                                final aPrice = (addOn['price'] as num?)?.toDouble() ?? 0.0;
+                                final isChecked = selectedAddOns.any((a) => a['name'] == aName);
+
+                                return InkWell(
+                                  onTap: () {
+                                    setModalState(() {
+                                      if (isChecked) {
+                                        selectedAddOns.removeWhere((a) => a['name'] == aName);
+                                      } else {
+                                        selectedAddOns.add({'name': aName, 'price': aPrice});
+                                      }
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          isChecked ? Icons.check_box : Icons.check_box_outline_blank,
+                                          color: isChecked ? AppColors.primary : Colors.grey.shade400,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            aName,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: isChecked ? FontWeight.w700 : FontWeight.w500,
+                                              color: isDark ? Colors.white : const Color(0xFF1F2937),
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          '+₹${aPrice.toInt()}',
+                                          style: TextStyle(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark ? Colors.greenAccent : const Color(0xFF15803D),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  // Bottom Action Footer
+                  Container(
+                    padding: EdgeInsets.only(
+                      left: 16,
+                      right: 16,
+                      top: 12,
+                      bottom: MediaQuery.of(context).padding.bottom + 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF111827) : Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 10,
+                          offset: const Offset(0, -3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'TOTAL PRICE',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                            Text(
+                              '₹${grandTotal.toInt()}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: isDark ? Colors.white : const Color(0xFF111827),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+
+                              final String pLabel = activePortion['label'] as String;
+                              final String customName = availablePortions.length > 1
+                                  ? '${item.name} ($pLabel)'
+                                  : item.name;
+
+                              final addOnSuffix = selectedAddOns.isNotEmpty
+                                  ? ' + ${selectedAddOns.map((a) => a['name']).join(', ')}'
+                                  : '';
+                              final fullDisplayName = '$customName$addOnSuffix';
+
+                              final customProductId = '${item.id}::${activePortion['key']}::${selectedAddOns.map((a) => a['name']).join('_')}';
+
+                              final customProduct = Product(
+                                id: customProductId,
+                                name: fullDisplayName,
+                                description: item.description,
+                                price: grandTotal,
+                                image: item.imageUrl,
+                                category: item.category,
+                                rating: item.rating,
+                                isVeg: item.isVeg,
+                              );
+
+                              _directAddToCart(
+                                context,
+                                customProduct,
+                                portion: activePortion['key'] == 'standard' ? null : (activePortion['key'] as String),
+                                portionName: pLabel,
+                                addOns: selectedAddOns,
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.dark,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.shopping_bag_outlined, size: 18, color: AppColors.dark),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Add Item to Cart',
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ── Direct add item with conflict detection ───────────────────────────────
+  void _directAddToCart(
+    BuildContext context,
+    Product product, {
+    String? portion,
+    String? portionName,
+    List<Map<String, dynamic>>? addOns,
+  }) {
+    if (cartProvider.isFromDifferentRestaurant(restaurantId)) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Start new cart?',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+          ),
+          content: RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 14, color: Color(0xFF374151), height: 1.5),
+              children: [
+                const TextSpan(text: 'Your cart has items from '),
+                TextSpan(
+                  text: cartProvider.restaurantName ?? 'another restaurant',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const TextSpan(
+                    text: '.\n\nAdding items from a different restaurant will clear your current cart.'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Keep current', style: TextStyle(color: Color(0xFF6B7280))),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                cartProvider.switchRestaurantAndAdd(
+                  product,
+                  restaurantId: restaurantId,
+                  restaurantName: restaurantName,
+                  restaurantImageUrl: restaurantImageUrl,
+                  restaurantAddress: restaurantAddress,
+                  deliveryTimeMin: deliveryTimeMin,
+                  minOrderValue: minOrderValue,
+                  imageUrl: item.imageUrl,
+                  baseProductId: item.id,
+                  portion: portion,
+                  portionName: portionName,
+                  addOns: addOns,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.dark,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              child: const Text('Start new cart', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+    } else {
+      cartProvider.addItem(
+        product,
+        restaurantId: restaurantId,
+        restaurantName: restaurantName,
+        restaurantImageUrl: restaurantImageUrl,
+        restaurantAddress: restaurantAddress,
+        deliveryTimeMin: deliveryTimeMin,
+        minOrderValue: minOrderValue,
+        imageUrl: item.imageUrl,
+        baseProductId: item.id,
+        portion: portion,
+        portionName: portionName,
+        addOns: addOns,
+      );
+    }
+  }
+
+  // ── Handle Add click (Routes to customizer if customizable) ────────────────
   void _handleAdd(BuildContext context) {
     if (!restaurantIsOnline) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -1132,89 +1719,135 @@ class _MenuItemCard extends StatelessWidget {
       );
       return;
     }
-    if (cartProvider.isFromDifferentRestaurant(restaurantId)) {
-      // Show dialog — cart has items from a different restaurant
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text(
-            'Start new cart?',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+
+    if (item.hasCustomizations) {
+      _showCustomizationBottomSheet(context);
+    } else {
+      _directAddToCart(context, item.toProduct());
+    }
+  }
+
+  // ── Build formatted price display for portions / sizes ────────────────────
+  Widget _buildPriceDisplay(bool isDark) {
+    if (item.portionType == 'half_full' && item.portions != null) {
+      final fullPrice = (item.portions!['full']?['sellingPrice'] as num?)?.toInt();
+      final halfPrice = (item.portions!['half']?['sellingPrice'] as num?)?.toInt();
+      if (fullPrice != null && fullPrice > 0 && halfPrice != null && halfPrice > 0) {
+        return RichText(
+          text: TextSpan(
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : const Color(0xFF2C2C2C),
+            ),
+            children: [
+              TextSpan(text: 'Full: ₹$fullPrice '),
+              TextSpan(text: '• ', style: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.normal)),
+              TextSpan(text: 'Half: ₹$halfPrice'),
+            ],
           ),
-          content: RichText(
-            text: TextSpan(
-              style: const TextStyle(
-                  fontSize: 14, color: Color(0xFF374151), height: 1.5),
-              children: [
-                const TextSpan(text: 'Your cart has items from '),
-                TextSpan(
-                  text: cartProvider.restaurantName ?? 'another restaurant',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const TextSpan(
-                    text:
-                        '.\n\nAdding items from a different restaurant will clear your current cart.'),
-              ],
-            ),
+        );
+      } else if (fullPrice != null && fullPrice > 0) {
+        return Text('Full: ₹$fullPrice', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF2C2C2C)));
+      } else if (halfPrice != null && halfPrice > 0) {
+        return Text('Half: ₹$halfPrice', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF2C2C2C)));
+      }
+    } else if (item.portionType == 'size' && item.portions != null) {
+      final s = (item.portions!['small']?['sellingPrice'] as num?)?.toInt();
+      final m = (item.portions!['medium']?['sellingPrice'] as num?)?.toInt();
+      final l = (item.portions!['large']?['sellingPrice'] as num?)?.toInt();
+      final List<String> sizes = [];
+      if (s != null && s > 0) sizes.add('S: ₹$s');
+      if (m != null && m > 0) sizes.add('M: ₹$m');
+      if (l != null && l > 0) sizes.add('L: ₹$l');
+      if (sizes.isNotEmpty) {
+        return Text(
+          sizes.join(' • '),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF2C2C2C),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Keep current',
-                  style: TextStyle(color: Color(0xFF6B7280))),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                cartProvider.switchRestaurantAndAdd(
-                  item.toProduct(),
-                  restaurantId: restaurantId,
-                  restaurantName: restaurantName,
-                  restaurantImageUrl: restaurantImageUrl,
-                  restaurantAddress: restaurantAddress,
-                  deliveryTimeMin: deliveryTimeMin,
-                  minOrderValue: minOrderValue,
-                  imageUrl: item.imageUrl,
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.dark,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                elevation: 0,
-              ),
-              child: const Text('Start new cart',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
-          ],
+        );
+      }
+    }
+    return Text(
+      '₹${item.price.toInt()}',
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+        color: isDark ? Colors.white : const Color(0xFF2C2C2C),
+      ),
+    );
+  }
+
+  // ── Build badges for portions and add-ons ─────────────────────────────────
+  Widget _buildPortionBadges(bool isDark) {
+    if (!item.hasCustomizations) return const SizedBox.shrink();
+
+    final List<Widget> badges = [];
+    if (item.portionType == 'half_full') {
+      badges.add(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: const Text(
+            'Half / Full',
+            style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF0284C7)),
+          ),
         ),
       );
-    } else {
-      cartProvider.addItem(
-        item.toProduct(),
-        restaurantId: restaurantId,
-        restaurantName: restaurantName,
-        restaurantImageUrl: restaurantImageUrl,
-        restaurantAddress: restaurantAddress,
-        deliveryTimeMin: deliveryTimeMin,
-        minOrderValue: minOrderValue,
-        imageUrl: item.imageUrl,
+    } else if (item.portionType == 'size') {
+      badges.add(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: const Text(
+            'Sizes: S/M/L',
+            style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF7C3AED)),
+          ),
+        ),
       );
     }
+
+    if (item.hasAddOns) {
+      badges.add(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            '+${item.addOns.length} Add-on${item.addOns.length > 1 ? 's' : ''}',
+            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF16A34A)),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Wrap(
+        spacing: 5,
+        runSpacing: 4,
+        children: badges,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final inCart = cartProvider.items.any((ci) => ci.product.id == item.id);
-    final qty = inCart
-        ? cartProvider.items
-            .firstWhere((ci) => ci.product.id == item.id)
-            .quantity
-        : 0;
+    final matchingItems = cartProvider.items.where((ci) => ci.product.id == item.id || ci.product.id.startsWith('${item.id}::')).toList();
+    final inCart = matchingItems.isNotEmpty;
+    final qty = matchingItems.fold(0, (sum, ci) => sum + ci.quantity);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1233,7 +1866,7 @@ class _MenuItemCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // â”€â”€ Item image â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // ── Item image ───────────────────────────────────────────────────
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: Stack(
@@ -1313,7 +1946,7 @@ class _MenuItemCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
 
-          // â”€â”€ Item details â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // ── Item details ─────────────────────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1359,6 +1992,7 @@ class _MenuItemCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                _buildPortionBadges(isDark),
                 const SizedBox(height: 4),
                 Text(
                   item.description,
@@ -1408,14 +2042,10 @@ class _MenuItemCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '₹${item.price.toInt()}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : const Color(0xFF2C2C2C),
-                      ),
+                    Expanded(
+                      child: _buildPriceDisplay(isDark),
                     ),
+                    const SizedBox(width: 8),
                     // Add / quantity stepper
                     if (!restaurantIsOnline)
                       Container(
@@ -1450,12 +2080,17 @@ class _MenuItemCard extends StatelessWidget {
                         _QtyControl(
                             qty: qty,
                             onAdd: () => _handleAdd(context),
-                            onRemove: () =>
-                                cartProvider.updateQuantity(item.id, qty - 1),
+                            onRemove: () {
+                              if (matchingItems.isNotEmpty) {
+                                final lastItem = matchingItems.last;
+                                cartProvider.updateQuantity(lastItem.product.id, lastItem.quantity - 1);
+                              }
+                            },
                           )
                     else
                         _AddButton(
                             onTap: () => _handleAdd(context),
+                            isCustomizable: item.hasCustomizations,
                           ),
                   ],
                 ),
@@ -1468,28 +2103,53 @@ class _MenuItemCard extends StatelessWidget {
   }
 }
 
-// â”€â”€ Add button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Add button ─────────────────────────────────────────────────────────────
 class _AddButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _AddButton({required this.onTap});
+  final bool isCustomizable;
+  const _AddButton({required this.onTap, this.isCustomizable = false});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
           color: AppColors.primary,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Text(
-          'ADD',
-          style: TextStyle(
-            color: AppColors.dark,
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'ADD',
+                  style: TextStyle(
+                    color: AppColors.dark,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (isCustomizable) ...[
+                  const SizedBox(width: 3),
+                  const Icon(Icons.add, size: 12, color: AppColors.dark),
+                ],
+              ],
+            ),
+            if (isCustomizable)
+              const Text(
+                'customisable',
+                style: TextStyle(
+                  color: AppColors.dark,
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.1,
+                ),
+              ),
+          ],
         ),
       ),
     );

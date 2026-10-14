@@ -40,13 +40,41 @@ class CartApiService {
     }
   }
 
-  static Future<bool> addToCart(String productId, int quantity) async {
+  static Future<bool> addToCart(
+    String productId,
+    int quantity, {
+    String? portion,
+    String? portionName,
+    List<Map<String, dynamic>>? addOns,
+    double? customPrice,
+    String? customName,
+  }) async {
     if (kFrontendPreviewMode) return true;
     try {
+      final Map<String, dynamic> bodyData = {
+        'productId': productId,
+        'quantity': quantity,
+      };
+      if (portion != null && portion.isNotEmpty) {
+        bodyData['portion'] = portion;
+      }
+      if (portionName != null && portionName.isNotEmpty) {
+        bodyData['portionName'] = portionName;
+      }
+      if (addOns != null && addOns.isNotEmpty) {
+        bodyData['addOns'] = addOns;
+      }
+      if (customPrice != null && customPrice > 0) {
+        bodyData['customPrice'] = customPrice;
+      }
+      if (customName != null && customName.isNotEmpty) {
+        bodyData['customName'] = customName;
+      }
+
       final response = await http.post(
         Uri.parse('$baseUrl/add'),
         headers: await _getHeaders(),
-        body: jsonEncode({'productId': productId, 'quantity': quantity}),
+        body: jsonEncode(bodyData),
       );
       debugPrint('API Response [addToCart]: ${response.statusCode}');
       return response.statusCode == 200 || response.statusCode == 201;

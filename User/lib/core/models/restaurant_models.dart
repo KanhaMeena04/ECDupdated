@@ -19,6 +19,10 @@ class MenuItem {
   final String subcategory;
   final bool isFeatured;
   final bool adminPriceOverridden;
+  final String portionType;
+  final Map<String, dynamic>? portions;
+  final List<Map<String, dynamic>> variations;
+  final List<Map<String, dynamic>> addOns;
 
   const MenuItem({
     required this.id,
@@ -36,7 +40,23 @@ class MenuItem {
     this.subcategory = '',
     this.isFeatured = false,
     this.adminPriceOverridden = false,
+    this.portionType = 'none',
+    this.portions,
+    this.variations = const [],
+    this.addOns = const [],
   });
+
+  /// Whether item has portions (Half/Full or Sizes)
+  bool get hasPortions =>
+      (portionType == 'half_full' || portionType == 'size') &&
+      portions != null &&
+      portions!.isNotEmpty;
+
+  /// Whether item has optional add-ons
+  bool get hasAddOns => addOns.isNotEmpty;
+
+  /// Whether item has any customizable options
+  bool get hasCustomizations => hasPortions || hasAddOns;
 
   /// Get effective original price (if not explicitly provided, returns ~40% higher price)
   double get effectiveOriginalPrice => originalPrice ?? (price * 1.4).roundToDouble();
@@ -52,11 +72,11 @@ class MenuItem {
       name.toLowerCase().contains('special');
 
   /// Convert to Product so CartProvider can handle it
-  Product toProduct() => Product(
+  Product toProduct({String? customName, double? customPrice}) => Product(
         id: id,
-        name: name,
+        name: customName ?? name,
         description: description,
-        price: price,
+        price: customPrice ?? price,
         image: imageUrl,
         category: category,
         rating: rating,

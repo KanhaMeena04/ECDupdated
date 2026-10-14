@@ -838,6 +838,34 @@ class RestaurantApiService {
         ? rawImg
         : 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400';
 
+    final String portionType = (json['portionType'] ?? 'none').toString();
+    Map<String, dynamic>? portions;
+    if (json['portions'] is Map && (json['portions'] as Map).isNotEmpty) {
+      portions = Map<String, dynamic>.from(json['portions']);
+    }
+
+    final List<Map<String, dynamic>> variations = [];
+    if (json['variations'] is List) {
+      for (var v in json['variations']) {
+        if (v is Map) variations.add(Map<String, dynamic>.from(v));
+      }
+    }
+
+    final List<Map<String, dynamic>> addOns = [];
+    final rawAddOns = json['addOns'] ?? json['addons'];
+    if (rawAddOns is List) {
+      for (var a in rawAddOns) {
+        if (a is Map) {
+          final n = a['name'];
+          final aName = n is Map ? (n['en']?.toString() ?? n.values.first?.toString() ?? '') : (n?.toString() ?? '');
+          final aPrice = _parseDouble(a['price'], 0.0);
+          if (aName.isNotEmpty) {
+            addOns.add({'name': aName, 'price': aPrice});
+          }
+        }
+      }
+    }
+
     return MenuItem(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       name: pName,
@@ -854,6 +882,10 @@ class RestaurantApiService {
       subcategory: json['subcategory'] is Map ? (json['subcategory']['name']?.toString() ?? '') : (json['subcategory']?.toString() ?? ''),
       isFeatured: json['isFeatured'] == true,
       adminPriceOverridden: json['adminPriceOverride']?['isOverridden'] == true,
+      portionType: portionType,
+      portions: portions,
+      variations: variations,
+      addOns: addOns,
     );
   }
 

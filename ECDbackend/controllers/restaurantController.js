@@ -10,6 +10,7 @@ const { getNextRestaurantId } = require("../utils/idGenerator");
 const { formatRestaurantForUser, formatRestaurantForAdmin, formatProductForUser } = require("../utils/responseFormatter");
 const { getFileUrl } = require("../utils/upload");
 const { uploadToImageKit } = require("../utils/imagekit");
+const { normalizePortionsAndVariations, normalizeAddOns } = require("../utils/portionHelper");
 const { getNearbyRidersQuery, calculateDistance, estimateTravelMinutes } = require("../utils/locationUtils");
 const { isRestaurantOpenNow } = require("../utils/restaurantAvailability");
 const { initiateProfileUpdate, verifyOTPAndApplyUpdate, checkDuplicate } = require("../utils/profileUpdateHelpers");
@@ -3281,34 +3282,16 @@ exports.vendorAddMenuItem = async (req, res) => {
       if (foundSub) subCatObjId = foundSub._id;
     }
 
-    const finalSellingPrice = Number(b2cSellingPrice ?? sellingPrice ?? price ?? basePrice ?? 0);
-    const finalMrp = Number(b2cMrp ?? mrp ?? finalSellingPrice);
-    const finalB2bPrice = Number(b2bPrice ?? b2bSellingPrice ?? finalSellingPrice);
+    const norm = normalizePortionsAndVariations(req.body);
+    const finalSellingPrice = Number(norm.sellingPrice ?? 0);
+    const finalMrp = Number(norm.mrp ?? finalSellingPrice);
+    const finalB2bPrice = Number(norm.b2bPrice ?? finalSellingPrice);
 
     const rawFoodType = (foodType || (isVeg === false || isVeg === 'false' ? 'non-veg' : 'veg')).toString().toLowerCase();
     const resolvedFoodType = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
 
-    // Normalize variants / flavors
-    const rawVariants = variations || variants || flavors || [];
-    const normalizedVariations = Array.isArray(rawVariants) ? rawVariants.map(v => {
-      if (typeof v === 'string') return { name: { en: v }, price: 0 };
-      if (v && typeof v === 'object') {
-        const vName = typeof v.name === 'string' ? { en: v.name } : (v.name || { en: 'Variant' });
-        return { name: vName, price: Number(v.price || 0) };
-      }
-      return null;
-    }).filter(Boolean) : [];
-
-    // Normalize add-ons
-    const normalizedAddOns = Array.isArray(addOns) ? addOns.map(a => {
-      if (!a) return null;
-      if (typeof a === 'string') return { name: { en: a }, price: 0, image: '' };
-      if (typeof a === 'object') {
-        const aName = typeof a.name === 'string' ? { en: a.name } : (a.name || { en: 'Add-on' });
-        return { name: aName, price: Number(a.price || 0), image: a.image || '' };
-      }
-      return null;
-    }).filter(Boolean) : [];
+    const normalizedVariations = norm.variations || [];
+    const normalizedAddOns = norm.addOns || [];
 
     const shouldAutoApprove = Boolean(
       (req.user && req.user.role === 'admin') ||
@@ -3350,6 +3333,8 @@ exports.vendorAddMenuItem = async (req, res) => {
       subcategory: subcategory || (foundCat?.name?.en || foundCat?.name || ''),
       subcategoryId: subCatObjId,
       image: finalItemImg,
+      portionType: norm.portionType,
+      portions: norm.portions,
       variations: normalizedVariations,
       addOns: normalizedAddOns,
       approvalStatus: shouldAutoApprove ? 'approved' : 'pending',
@@ -3358,7 +3343,33 @@ exports.vendorAddMenuItem = async (req, res) => {
       isRejected: false
     });
 
-    await Restaurant.findByIdAndUpdate(resolvedRestId, { $addToSet: { product: product._id } });
+    await Restaurant.findByIdAndUpdate(resolvedRestId, {
+      $addToSet: { product: product._id },
+      $push: {
+        menu: {
+          _id: product._id,
+          name: product.name?.en || name,
+          category: foundCat?.name?.en || foundCat?.name || category || "Main Course",
+          subcategory: subcategory || "",
+          price: finalSellingPrice,
+          basePrice: finalSellingPrice,
+          sellingPrice: finalSellingPrice,
+          mrp: finalMrp,
+          b2bPrice: finalB2bPrice,
+          isVeg: resolvedFoodType === 'veg',
+          foodType: resolvedFoodType,
+          image: finalItemImg,
+          portionType: norm.portionType,
+          portions: norm.portions,
+          variants: norm.variations,
+          variations: norm.variations,
+          addOns: norm.addOns,
+          isAvailable: true,
+          isApproved: shouldAutoApprove,
+          approvalStatus: shouldAutoApprove ? "approved" : "pending"
+        }
+      }
+    });
 
     await AuditLog.log({
       entity: "Product",
@@ -3470,9 +3481,10 @@ exports.vendorBulkImportMenuItems = async (req, res) => {
         if (foundCat) catObjId = foundCat._id;
       }
 
-      const itemPrice = Number(item.sellingPrice ?? item.price ?? item.basePrice ?? 150);
-      const itemMrp = Number(item.mrp ?? item.b2cMrp ?? itemPrice);
-      const b2bPrice = Number(item.b2bPrice ?? item.b2bSellingPrice ?? itemPrice);
+      const norm = normalizePortionsAndVariations(item);
+      const itemPrice = Number(norm.sellingPrice ?? 150);
+      const itemMrp = Number(norm.mrp ?? itemPrice);
+      const b2bPrice = Number(norm.b2bPrice ?? itemPrice);
       const rawFoodType = (item.foodType || (item.isVeg === false ? 'non-veg' : 'veg')).toString().toLowerCase();
       const foodType = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
       const rawImg = item.image || item.imageUrl || item.image_url || item.photo || item.photoUrl || item.photo_url || item.dishPhoto || item.dish_photo || item["image url"] || item["dish photo"] || item["photo url"] || item.picture || item.pic || item.img || item.imgUrl || item.url || item.link || "";
@@ -3506,8 +3518,10 @@ exports.vendorBulkImportMenuItems = async (req, res) => {
         isAvailable: true,
         preparationTime: Number(item.preparationTime || 15),
         image: itemImg,
-        variations: Array.isArray(item.flavors) ? item.flavors.map(f => ({ name: { en: typeof f === 'string' ? f : f.name || 'Standard' } })) : [],
-        addOns: Array.isArray(item.addOns) ? item.addOns.map(a => ({ name: { en: a.name || 'Add-on' }, price: Number(a.price || 0) })) : [],
+        portionType: norm.portionType,
+        portions: norm.portions,
+        variations: norm.variations,
+        addOns: norm.addOns,
         isApproved: isApprovedByRest,
         approvalStatus: isApprovedByRest ? "approved" : "pending",
         isPublished: isApprovedByRest,
@@ -3523,8 +3537,17 @@ exports.vendorBulkImportMenuItems = async (req, res) => {
         category: item.category || "Main Course",
         subcategory: item.subcategory || "",
         price: itemPrice,
+        basePrice: itemPrice,
+        sellingPrice: itemPrice,
+        mrp: itemMrp,
+        b2bPrice: b2bPrice,
         isVeg: foodType === 'veg',
         foodType: foodType,
+        portionType: norm.portionType,
+        portions: norm.portions,
+        variants: norm.variations,
+        variations: norm.variations,
+        addOns: norm.addOns,
         isAvailable: true,
         isApproved: isApprovedByRest,
         approvalStatus: isApprovedByRest ? "approved" : "pending"
@@ -3666,27 +3689,27 @@ exports.vendorEditMenuItem = async (req, res) => {
     if (subcategoryId !== undefined) product.subcategoryId = subcategoryId;
 
     const rawVariants = variations || variants || flavors;
-    if (rawVariants !== undefined) {
-      product.variations = Array.isArray(rawVariants) ? rawVariants.map(v => {
-        if (typeof v === 'string') return { name: { en: v }, price: 0 };
-        if (v && typeof v === 'object') {
-          const vName = typeof v.name === 'string' ? { en: v.name } : (v.name || { en: 'Variant' });
-          return { name: vName, price: Number(v.price || 0) };
-        }
-        return null;
-      }).filter(Boolean) : [];
-    }
-
-    if (addOns !== undefined) {
-      product.addOns = Array.isArray(addOns) ? addOns.map(a => {
-        if (!a) return null;
-        if (typeof a === 'string') return { name: { en: a }, price: 0, image: '' };
-        if (typeof a === 'object') {
-          const aName = typeof a.name === 'string' ? { en: a.name } : (a.name || { en: 'Add-on' });
-          return { name: aName, price: Number(a.price || 0), image: a.image || '' };
-        }
-        return null;
-      }).filter(Boolean) : [];
+    if (req.body.portions !== undefined || req.body.portionType !== undefined || rawVariants !== undefined || addOns !== undefined) {
+      const norm = normalizePortionsAndVariations({
+        ...product.toObject(),
+        ...req.body,
+        variations: rawVariants !== undefined ? rawVariants : product.variations,
+        addOns: addOns !== undefined ? addOns : product.addOns,
+      });
+      product.portionType = norm.portionType;
+      product.portions = norm.portions;
+      product.variations = norm.variations;
+      product.addOns = norm.addOns;
+      if (norm.sellingPrice > 0) {
+        product.basePrice = norm.sellingPrice;
+        product.sellingPrice = norm.sellingPrice;
+        product.mrp = norm.mrp;
+        product.b2bPrice = norm.b2bPrice;
+        product.pricing = {
+          b2c: { mrp: norm.mrp, sellingPrice: norm.sellingPrice, discountPercent: norm.mrp > norm.sellingPrice ? Math.round(((norm.mrp - norm.sellingPrice) / norm.mrp) * 100) : 0 },
+          b2b: { sellingPrice: norm.b2bPrice, discountPercent: 0 }
+        };
+      }
     }
 
     // If item was previously rejected or changes_requested, editing it resubmits for pending approval
@@ -3700,6 +3723,30 @@ exports.vendorEditMenuItem = async (req, res) => {
     }
 
     await product.save();
+
+    if (restId) {
+      await Restaurant.updateOne(
+        { _id: restId, "menu._id": product._id },
+        {
+          $set: {
+            "menu.$.price": product.sellingPrice || product.basePrice,
+            "menu.$.basePrice": product.basePrice,
+            "menu.$.sellingPrice": product.sellingPrice,
+            "menu.$.mrp": product.mrp,
+            "menu.$.b2bPrice": product.b2bPrice,
+            "menu.$.image": product.image,
+            "menu.$.portionType": product.portionType,
+            "menu.$.portions": product.portions,
+            "menu.$.variants": product.variations,
+            "menu.$.variations": product.variations,
+            "menu.$.addOns": product.addOns,
+            "menu.$.isAvailable": product.available,
+            "menu.$.isApproved": product.isApproved,
+            "menu.$.approvalStatus": product.approvalStatus
+          }
+        }
+      ).catch(() => {});
+    }
 
     return res.status(200).json({
       success: true,

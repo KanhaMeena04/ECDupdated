@@ -123,7 +123,7 @@ exports.validateCoupon = async (req, res) => {
 
 exports.addToCart = async (req, res) => {
   try {
-    let { restaurantId, productId, quantity, variationId, addOnsIds, clearCart } = req.body;
+    let { restaurantId, productId, quantity, variationId, portion, portionName, addOns, addOnsIds, customPrice, customName, clearCart } = req.body;
     if (!productId) {
       return res.status(400).json({ success: false, message: "Product ID is required" });
     }
@@ -198,18 +198,46 @@ exports.addToCart = async (req, res) => {
       }
     }
 
-    let finalPrice = product.sellingPrice || product.basePrice || 0;
+    let finalPrice = customPrice && Number(customPrice) > 0
+      ? Number(customPrice)
+      : (product.sellingPrice || product.basePrice || 0);
     let variationObj = null;
     let addOnsArr = [];
 
-    if (variationId && product.variations) {
+    // Support portion selection (Half/Full or Size)
+    if (portion && product.portions && product.portions[portion] && product.portions[portion].sellingPrice > 0) {
+      const portionPrice = Number(product.portions[portion].sellingPrice);
+      if (!customPrice) {
+        finalPrice = portionPrice;
+      }
+      const label = portion === 'half' ? 'Half Plate' : portion === 'full' ? 'Full Plate' : (portion.charAt(0).toUpperCase() + portion.slice(1));
+      variationObj = { _id: portion, name: portionName || label, price: portionPrice };
+    }
+
+    if (variationId && product.variations && !variationObj) {
       const v = product.variations.id ? product.variations.id(variationId) : product.variations.find(va => va._id?.toString() === variationId);
       if (v) {
         const variationPrice = Number(v.price) || 0;
-        finalPrice += variationPrice;
+        if (!customPrice) finalPrice += variationPrice;
         const variationName = v.name?.en || v.name?.de || v.name?.ar || v.name || "";
         variationObj = { _id: v._id, name: variationName, price: variationPrice };
       }
+    }
+
+    // Direct add-on objects (from mobile customization dialog)
+    if (Array.isArray(addOns) && addOns.length > 0) {
+      addOns.forEach((a) => {
+        if (a && typeof a === 'object') {
+          const aName = a.name?.en || a.name || "";
+          const aPrice = Number(a.price) || 0;
+          if (aName) {
+            addOnsArr.push({ _id: (a._id || aName).toString(), name: aName, price: aPrice });
+            if (!customPrice) {
+              finalPrice += aPrice;
+            }
+          }
+        }
+      });
     }
 
     if (normalizedAddOnsIds.length > 0 && product.addOns) {
@@ -219,13 +247,17 @@ exports.addToCart = async (req, res) => {
       );
       selectedAddons.forEach((a) => {
         const addOnPrice = Number(a.price) || 0;
-        finalPrice += addOnPrice;
+        if (!customPrice) finalPrice += addOnPrice;
         const addOnName = a.name?.en || a.name?.de || a.name?.ar || a.name || "";
-        addOnsArr.push({ _id: a._id, name: addOnName, price: addOnPrice });
+        addOnsArr.push({ _id: a._id.toString(), name: addOnName, price: addOnPrice });
       });
     }
 
-    const pName = product.name ? (product.name.en || product.name.de || product.name) : "Food Item";
+    let pName = customName || (product.name ? (product.name.en || product.name.de || product.name) : "Food Item");
+    if (!customName && variationObj && variationObj.name) {
+      pName = `${pName} (${variationObj.name})`;
+    }
+
     const cartItem = {
       product: productId,
       restaurant: restaurantId,
