@@ -1,5 +1,36 @@
 
-const { isRestaurantOpenNow } = require("./restaurantAvailability");
+const { isRestaurantOpenNow, formatTimeToAmPm } = require("./restaurantAvailability");
+
+const formatTimingForDisplay = (timing) => {
+  if (!timing || typeof timing !== "object") return {};
+  const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+  const formatted = {};
+  for (const day of days) {
+    const d = timing[day];
+    if (!d || d.isClosed === true || d.isOpen === false || d.open === "Closed" || d.close === "Closed") {
+      formatted[day] = {
+        open: "Closed",
+        close: "Closed",
+        isOpen: false,
+        isClosed: true,
+        display: "Closed All Day",
+      };
+    } else {
+      const openAmPm = formatTimeToAmPm(d.open || "10:00");
+      const closeAmPm = formatTimeToAmPm(d.close || "22:00");
+      formatted[day] = {
+        open: openAmPm,
+        close: closeAmPm,
+        rawOpen: d.open || "10:00",
+        rawClose: d.close || "22:00",
+        isOpen: true,
+        isClosed: false,
+        display: `${openAmPm} - ${closeAmPm} (IST)`,
+      };
+    }
+  }
+  return formatted;
+};
 
 const normalizeRatingOutput = (rating) => {
   if (rating && typeof rating === "object") {
@@ -101,6 +132,7 @@ exports.formatRestaurantForUser = (restaurant, userLat = null, userLng = null) =
     longitude: restaurant.location?.coordinates?.[0] ?? restaurant.lng ?? restaurant.longitude,
     isServiceable: dist <= (Number(restaurant.geofenceRadius ?? restaurant.deliveryRadius ?? restaurant.serviceRadius ?? 5) || 5),
     timing: restaurant.timing,
+    timingFormatted: formatTimingForDisplay(restaurant.timing),
     offers: restaurant.offers || []
   };
 };
@@ -180,6 +212,7 @@ exports.formatRestaurantForAdmin = (restaurant) => {
     location: restaurant.location,
     estimatedPreparationTime: restaurant.estimatedPreparationTime || 15,
     timing: restaurant.timing || {},
+    timingFormatted: formatTimingForDisplay(restaurant.timing),
     documents: restaurant.documents || (restaurant.accountDetail ? { accountDetail: { number: restaurant.upi || 'Verified', file: restaurant.accountDetail } } : {}),
     verificationStatus: restaurant.verificationStatus || 'verified',
     bankDetails: restaurant.bankDetails || (restaurant.upi ? { upi: restaurant.upi, accountNumber: restaurant.upi } : {}),

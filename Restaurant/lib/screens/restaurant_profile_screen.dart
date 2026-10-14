@@ -108,6 +108,56 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
     {'day': 'Sunday', 'isOpen': true, 'from': '09:00 AM', 'to': '11:00 PM'},
   ];
 
+  String _formatTimeToAmPm(dynamic time) {
+    if (time == null) return '09:00 AM';
+    final str = time.toString().trim();
+    if (str.isEmpty || str.toLowerCase() == 'closed') return 'Closed';
+    if (str.toUpperCase().contains('AM') || str.toUpperCase().contains('PM')) {
+      return str;
+    }
+    final parts = str.split(':');
+    if (parts.isNotEmpty) {
+      int hour = int.tryParse(parts[0]) ?? 0;
+      int minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+      final ampm = hour >= 12 ? 'PM' : 'AM';
+      hour = hour % 12;
+      if (hour == 0) hour = 12;
+      final minuteStr = minute.toString().padLeft(2, '0');
+      final hourStr = hour.toString().padLeft(2, '0');
+      return '$hourStr:$minuteStr $ampm';
+    }
+    return str;
+  }
+
+  void _copyMondayToAllDays() {
+    if (_operationalDays.isEmpty) return;
+    final monday = _operationalDays.firstWhere(
+      (e) => e['day'] == 'Monday',
+      orElse: () => _operationalDays[0],
+    );
+    final mondayFrom = monday['from'];
+    final mondayTo = monday['to'];
+    final mondayIsOpen = monday['isOpen'] == true;
+
+    setState(() {
+      for (var day in _operationalDays) {
+        if (day['day'] != 'Monday') {
+          day['from'] = mondayFrom;
+          day['to'] = mondayTo;
+          day['isOpen'] = mondayIsOpen;
+        }
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('⚡ Monday timings applied to all days'),
+        backgroundColor: AppColors.primaryGreen,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -192,8 +242,8 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
                   if (tMap[dKey] != null && tMap[dKey] is Map) {
                     final dData = tMap[dKey];
                     op['isOpen'] = dData['isClosed'] != true && dData['isOpen'] != false;
-                    if (dData['open'] != null) op['from'] = dData['open'].toString();
-                    if (dData['close'] != null) op['to'] = dData['close'].toString();
+                    if (dData['open'] != null) op['from'] = _formatTimeToAmPm(dData['open']);
+                    if (dData['close'] != null) op['to'] = _formatTimeToAmPm(dData['close']);
                   }
                 }
               } else if (restObj['operationalDays'] != null && restObj['operationalDays'] is List) {
@@ -207,8 +257,8 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
                     );
                     if (target.isNotEmpty) {
                       target['isOpen'] = opItem['isOpen'] ?? true;
-                      if (opItem['from'] != null) target['from'] = opItem['from'].toString();
-                      if (opItem['to'] != null) target['to'] = opItem['to'].toString();
+                      if (opItem['from'] != null) target['from'] = _formatTimeToAmPm(opItem['from']);
+                      if (opItem['to'] != null) target['to'] = _formatTimeToAmPm(opItem['to']);
                     }
                   }
                 }
@@ -731,45 +781,70 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> with 
                 // Section 5: Operational Details
                 _buildAccordionSection(
                   title: 'Operational Details',
-                  children: _operationalDays.map((item) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        children: [
-                          Switch(
-                            value: item['isOpen'],
-                            activeThumbColor: AppColors.primaryGreen,
-                            activeTrackColor: AppColors.primaryGreen.withValues(alpha: 0.4),
-                            onChanged: (val) {
-                              setState(() {
-                                item['isOpen'] = val;
-                              });
-                            },
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Weekly Schedule (IST)',
+                          style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+                        ),
+                        TextButton.icon(
+                          onPressed: _copyMondayToAllDays,
+                          icon: const Icon(Icons.bolt, size: 16, color: AppColors.primaryGreen),
+                          label: Text(
+                            'Copy Monday to All',
+                            style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
                           ),
-                          SizedBox(
-                            width: 80,
-                            child: Text(
-                              item['day'],
-                              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ..._operationalDays.map((item) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            Switch(
+                              value: item['isOpen'],
+                              activeThumbColor: AppColors.primaryGreen,
+                              activeTrackColor: AppColors.primaryGreen.withValues(alpha: 0.4),
+                              onChanged: (val) {
+                                setState(() {
+                                  item['isOpen'] = val;
+                                });
+                              },
                             ),
-                          ),
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: _buildTimeChip('From', item['from'], onTap: () => _pickTime(context, item, 'from')),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: _buildTimeChip('To', item['to'], onTap: () => _pickTime(context, item, 'to')),
-                                ),
-                              ],
+                            SizedBox(
+                              width: 80,
+                              child: Text(
+                                item['day'],
+                                style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildTimeChip('From', item['from'], onTap: () => _pickTime(context, item, 'from')),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: _buildTimeChip('To', item['to'], onTap: () => _pickTime(context, item, 'to')),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
                 ),
               ],
             ),

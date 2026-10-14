@@ -110,13 +110,37 @@ const isRestaurantOpenNow = (restaurant, referenceDate = new Date()) => {
   const dayTiming = restaurant.timing ? restaurant.timing[currentDay] : null;
 
   if (dayTiming) {
-    if (dayTiming.isClosed === true) return false;
+    if (dayTiming.isClosed === true || dayTiming.isOpen === false || dayTiming.open === 'Closed' || dayTiming.close === 'Closed') {
+      return false;
+    }
     if (dayTiming.open && dayTiming.close) {
       return isTimeWithinRange(currentMinutes, dayTiming.open, dayTiming.close);
     }
   }
 
   return true;
+};
+
+/**
+ * Formats 24h or any valid time string to IST 12h AM/PM string.
+ * e.g. "10:00" -> "10:00 AM", "22:00" -> "10:00 PM"
+ */
+const formatTimeToAmPm = (timeStr) => {
+  if (!timeStr || typeof timeStr !== 'string') return '';
+  const trimmed = timeStr.trim();
+  if (trimmed.toUpperCase() === 'CLOSED') return 'Closed';
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})(?:\s*([AP]M))?$/i);
+  if (!match) return trimmed;
+  let h = parseInt(match[1], 10);
+  const m = match[2];
+  let mod = match[3] ? match[3].toUpperCase() : null;
+  if (!mod) {
+    mod = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    if (h === 0) h = 12;
+  }
+  const hStr = h < 10 ? `0${h}` : `${h}`;
+  return `${hStr}:${m} ${mod}`;
 };
 
 /**
@@ -160,21 +184,23 @@ const checkRestaurantAvailability = async (restaurantIdOrObject) => {
     return { available: false, reason: 'Restaurant is closed for a holiday' };
   }
 
-  // 5. Day working hours check
+  // 5. Day working hours check (IST Timezone)
   const { currentDay, currentMinutes } = getCurrentTimeInfoInZone(new Date());
   const dayTiming = restaurant.timing ? restaurant.timing[currentDay] : null;
 
   if (dayTiming) {
-    if (dayTiming.isClosed === true) {
+    if (dayTiming.isClosed === true || dayTiming.isOpen === false || dayTiming.open === 'Closed' || dayTiming.close === 'Closed') {
       const capDay = currentDay.charAt(0).toUpperCase() + currentDay.slice(1);
       return { available: false, reason: `Restaurant is closed today (${capDay})` };
     }
     if (dayTiming.open && dayTiming.close) {
       const withinHours = isTimeWithinRange(currentMinutes, dayTiming.open, dayTiming.close);
       if (!withinHours) {
+        const openAmPm = formatTimeToAmPm(dayTiming.open);
+        const closeAmPm = formatTimeToAmPm(dayTiming.close);
         return {
           available: false,
-          reason: `Restaurant is currently closed. Operating hours for today: ${dayTiming.open} to ${dayTiming.close}`
+          reason: `Restaurant is currently closed. Operating hours for today (${currentDay.toUpperCase()}): ${openAmPm} to ${closeAmPm} (IST)`
         };
       }
     }
@@ -189,5 +215,6 @@ module.exports = {
   getCurrentTimeInfoInZone,
   isRestaurantOpenNow,
   checkRestaurantAvailability,
+  formatTimeToAmPm,
 };
 

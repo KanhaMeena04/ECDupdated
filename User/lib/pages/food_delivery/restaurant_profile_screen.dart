@@ -291,20 +291,48 @@ class RestaurantProfileScreen extends StatelessWidget {
     );
   }
 
+  String _formatTimeToAmPm(dynamic time) {
+    if (time == null) return '';
+    final str = time.toString().trim();
+    if (str.isEmpty || str.toLowerCase() == 'closed') return 'Closed';
+    if (str.toUpperCase().contains('AM') || str.toUpperCase().contains('PM')) {
+      return str;
+    }
+    final parts = str.split(':');
+    if (parts.isNotEmpty) {
+      int hour = int.tryParse(parts[0]) ?? 0;
+      int minute = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+      final ampm = hour >= 12 ? 'PM' : 'AM';
+      hour = hour % 12;
+      if (hour == 0) hour = 12;
+      final minuteStr = minute.toString().padLeft(2, '0');
+      final hourStr = hour.toString().padLeft(2, '0');
+      return '$hourStr:$minuteStr $ampm';
+    }
+    return str;
+  }
+
   List<Widget> _buildScheduleRows(bool isDark) {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     return days.map((day) {
       final dayKey = day.toLowerCase();
       final dayData = restaurant.timing[dayKey];
-      String hours = '09:00 AM - 11:00 PM';
+      String hours = '10:00 AM - 10:00 PM';
       bool isClosed = false;
 
       if (dayData is Map) {
-        if (dayData['isClosed'] == true) {
+        if (dayData['isClosed'] == true || dayData['isOpen'] == false) {
           isClosed = true;
           hours = 'Closed';
         } else if (dayData['open'] != null && dayData['close'] != null) {
-          hours = '${dayData['open']} - ${dayData['close']}';
+          final openFormatted = _formatTimeToAmPm(dayData['open']);
+          final closeFormatted = _formatTimeToAmPm(dayData['close']);
+          if (openFormatted == 'Closed' || closeFormatted == 'Closed') {
+            isClosed = true;
+            hours = 'Closed';
+          } else {
+            hours = '$openFormatted - $closeFormatted';
+          }
         }
       }
 

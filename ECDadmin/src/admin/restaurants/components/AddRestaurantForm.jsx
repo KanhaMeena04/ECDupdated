@@ -219,14 +219,24 @@ const AddRestaurantForm = () => {
   const [autoApproveMenu, setAutoApproveMenu] = useState(true);
   const [isKitchenBusy, setIsKitchenBusy] = useState(false);
   const [kitchenBusyReason, setKitchenBusyReason] = useState("Normal");
+  const daysOfWeek = [
+    { key: "monday", label: "Monday" },
+    { key: "tuesday", label: "Tuesday" },
+    { key: "wednesday", label: "Wednesday" },
+    { key: "thursday", label: "Thursday" },
+    { key: "friday", label: "Friday" },
+    { key: "saturday", label: "Saturday" },
+    { key: "sunday", label: "Sunday" },
+  ];
+
   const [weeklySchedule, setWeeklySchedule] = useState({
-    monday: { open: "09:00 AM", close: "11:00 PM", isClosed: false },
-    tuesday: { open: "09:00 AM", close: "11:00 PM", isClosed: false },
-    wednesday: { open: "09:00 AM", close: "11:00 PM", isClosed: false },
-    thursday: { open: "09:00 AM", close: "11:00 PM", isClosed: false },
-    friday: { open: "09:00 AM", close: "11:00 PM", isClosed: false },
-    saturday: { open: "Closed", close: "Closed", isClosed: true },
-    sunday: { open: "Closed", close: "Closed", isClosed: true },
+    monday: { open: "10:00", close: "22:00", isOpen: true, isClosed: false },
+    tuesday: { open: "10:00", close: "22:00", isOpen: true, isClosed: false },
+    wednesday: { open: "10:00", close: "22:00", isOpen: true, isClosed: false },
+    thursday: { open: "10:00", close: "22:00", isOpen: true, isClosed: false },
+    friday: { open: "10:00", close: "22:00", isOpen: true, isClosed: false },
+    saturday: { open: "10:00", close: "22:00", isOpen: true, isClosed: false },
+    sunday: { open: "10:00", close: "22:00", isOpen: true, isClosed: false },
   });
 
   // 7. Initial Menu Items & Bulk Upload (Step 7 of App)
@@ -645,16 +655,51 @@ const AddRestaurantForm = () => {
     setMenuItems(menuItems.filter((_, i) => i !== idx));
   };
 
-  const handleToggleDay = (day) => {
-    setWeeklySchedule((prev) => ({
-      ...prev,
-      [day]: {
-        ...prev[day],
-        isClosed: !prev[day].isClosed,
-        open: !prev[day].isClosed ? "Closed" : "09:00 AM",
-        close: !prev[day].isClosed ? "Closed" : "11:00 PM",
-      },
-    }));
+  // Format 24h string to 12h AM/PM IST representation
+  const formatToAmPm = (timeStr) => {
+    if (!timeStr || typeof timeStr !== "string") return "";
+    const trimmed = timeStr.trim();
+    if (trimmed.toUpperCase() === "CLOSED") return "Closed";
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})(?:\s*([AP]M))?$/i);
+    if (!match) return trimmed;
+    let h = parseInt(match[1], 10);
+    const m = match[2];
+    let mod = match[3] ? match[3].toUpperCase() : null;
+    if (!mod) {
+      mod = h >= 12 ? "PM" : "AM";
+      h = h % 12;
+      if (h === 0) h = 12;
+    }
+    const hStr = h < 10 ? `0${h}` : `${h}`;
+    return `${hStr}:${m} ${mod}`;
+  };
+
+  const handleTimingChange = (dayKey, field, value) => {
+    setWeeklySchedule((prev) => {
+      const current = prev[dayKey] || { open: "10:00", close: "22:00", isOpen: true, isClosed: false };
+      return {
+        ...prev,
+        [dayKey]: {
+          ...current,
+          [field]: value,
+          ...(field === "isOpen" ? { isClosed: !value } : {}),
+          ...(field === "isClosed" ? { isOpen: !value } : {}),
+        },
+      };
+    });
+  };
+
+  const applyMondayToAll = () => {
+    const mon = weeklySchedule.monday || { open: "10:00", close: "22:00", isOpen: true, isClosed: false };
+    setWeeklySchedule({
+      monday: { ...mon },
+      tuesday: { ...mon },
+      wednesday: { ...mon },
+      thursday: { ...mon },
+      friday: { ...mon },
+      saturday: { ...mon },
+      sunday: { ...mon },
+    });
   };
 
   // Submit Handler
@@ -1392,63 +1437,195 @@ const AddRestaurantForm = () => {
           </Grid>
         )}
 
-        {/* Weekly Timings Table */}
+        {/* Weekly Operational Hours & Timings */}
         <Grid item xs={12}>
-          <Typography variant="subtitle2" fontWeight={700} color="#334155" sx={{ mb: 1 }}>
-            Weekly Operating Schedule
-          </Typography>
-          <Box sx={{ border: "1px solid #E2E8F0", borderRadius: 2.5, overflow: "hidden" }}>
-            <Table size="small">
-              <TableHead sx={{ bgcolor: "#F8FAFC" }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 700, color: "#475569" }}>Day</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#475569" }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#475569" }}>Opening Time</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#475569" }}>Closing Time</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {Object.keys(weeklySchedule).map((dayKey) => {
-                  const schedule = weeklySchedule[dayKey];
-                  const dayName = dayKey.charAt(0).toUpperCase() + dayKey.slice(1);
-                  return (
-                    <TableRow key={dayKey} hover>
-                      <TableCell sx={{ fontWeight: 600, color: "#1E293B" }}>{dayName}</TableCell>
-                      <TableCell>
+          <Box
+            sx={{
+              p: { xs: 2, sm: 2.5 },
+              bgcolor: "#F8FAFC",
+              borderRadius: 3,
+              border: "1px solid #E2E8F0",
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+                mb: 2.5,
+              }}
+            >
+              <Box>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={800}
+                  color="#1E293B"
+                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                >
+                  <Schedule sx={{ color: BRAND_MAIN, fontSize: 20 }} />
+                  Weekly Operational Hours & Timings
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Set opening and closing timings for each day. Mark days closed as needed (All times in IST).
+                </Typography>
+              </Box>
+
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={applyMondayToAll}
+                sx={{
+                  textTransform: "none",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  borderColor: BRAND_MAIN,
+                  color: BRAND_MAIN,
+                  borderRadius: 2,
+                  "&:hover": {
+                    borderColor: BRAND_HOVER,
+                    backgroundColor: BRAND_LIGHT,
+                  },
+                }}
+              >
+                ⚡ Copy Monday to All Days
+              </Button>
+            </Box>
+
+            <Grid container spacing={2}>
+              {daysOfWeek.map((day) => {
+                const daySchedule = weeklySchedule[day.key] || {
+                  open: "10:00",
+                  close: "22:00",
+                  isOpen: true,
+                  isClosed: false,
+                };
+                const isClosed = Boolean(daySchedule.isClosed || daySchedule.isOpen === false);
+                const openTime = daySchedule.open || "10:00";
+                const closeTime = daySchedule.close || "22:00";
+
+                return (
+                  <Grid item xs={12} sm={6} md={4} lg={3} key={day.key}>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2.5,
+                        border: "1px solid",
+                        borderColor: isClosed ? "#FECACA" : "#E2E8F0",
+                        bgcolor: isClosed ? "#FEF2F2" : "#FFFFFF",
+                        transition: "all 0.2s ease-in-out",
+                        "&:hover": {
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.04)",
+                        },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          mb: 1.5,
+                        }}
+                      >
+                        <Typography variant="body2" fontWeight={800} color="#1E293B">
+                          {day.label}
+                        </Typography>
                         <FormControlLabel
                           control={
                             <Switch
                               size="small"
-                              checked={!schedule.isClosed}
-                              onChange={() => handleToggleDay(dayKey)}
+                              checked={!isClosed}
+                              onChange={(e) => {
+                                handleTimingChange(day.key, "isOpen", e.target.checked);
+                              }}
                               sx={{
                                 "& .MuiSwitch-switchBase.Mui-checked": { color: BRAND_MAIN },
-                                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: BRAND_MAIN },
+                                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
+                                  bgcolor: BRAND_MAIN,
+                                },
                               }}
                             />
                           }
                           label={
-                            <Typography variant="caption" fontWeight={600} color={!schedule.isClosed ? "success.main" : "text.secondary"}>
-                              {!schedule.isClosed ? "Open" : "Closed"}
+                            <Typography
+                              variant="caption"
+                              fontWeight={700}
+                              color={!isClosed ? "success.main" : "error.main"}
+                            >
+                              {!isClosed ? "Open" : "Closed"}
                             </Typography>
                           }
+                          sx={{ m: 0 }}
                         />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color={schedule.isClosed ? "text.secondary" : "text.primary"}>
-                          {schedule.open}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color={schedule.isClosed ? "text.secondary" : "text.primary"}>
-                          {schedule.close}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                      </Box>
+
+                      {!isClosed ? (
+                        <Box>
+                          <Grid container spacing={1.5}>
+                            <Grid item xs={6}>
+                              <TextField
+                                label="Open Time"
+                                type="time"
+                                size="small"
+                                fullWidth
+                                value={openTime}
+                                onChange={(e) =>
+                                  handleTimingChange(day.key, "open", e.target.value)
+                                }
+                                InputLabelProps={{ shrink: true }}
+                                inputProps={{ step: 300 }}
+                              />
+                            </Grid>
+                            <Grid item xs={6}>
+                              <TextField
+                                label="Close Time"
+                                type="time"
+                                size="small"
+                                fullWidth
+                                value={closeTime}
+                                onChange={(e) =>
+                                  handleTimingChange(day.key, "close", e.target.value)
+                                }
+                                InputLabelProps={{ shrink: true }}
+                                inputProps={{ step: 300 }}
+                              />
+                            </Grid>
+                          </Grid>
+                          <Box
+                            sx={{
+                              mt: 1,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              px: 0.5,
+                            }}
+                          >
+                            <Typography variant="caption" sx={{ fontSize: "11px", color: "#64748B", fontWeight: 600 }}>
+                              {formatToAmPm(openTime)} - {formatToAmPm(closeTime)} (IST)
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ) : (
+                        <Box
+                          sx={{
+                            py: 1.5,
+                            textAlign: "center",
+                            bgcolor: "#FEE2E2",
+                            borderRadius: 1.5,
+                          }}
+                        >
+                          <Typography variant="caption" fontWeight={700} color="#DC2626">
+                            Closed All Day
+                          </Typography>
+                        </Box>
+                      )}
+                    </Paper>
+                  </Grid>
+                );
+              })}
+            </Grid>
           </Box>
         </Grid>
       </FormSectionCard>
