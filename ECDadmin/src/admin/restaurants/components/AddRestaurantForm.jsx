@@ -250,6 +250,29 @@ const AddRestaurantForm = () => {
   const [newItemDesc, setNewItemDesc] = useState("");
   const [newItemImage, setNewItemImage] = useState(null);
 
+  // Portion & Sizes (Matching Edit Restaurant Menu)
+  const [newItemPortionType, setNewItemPortionType] = useState("none"); // "none" | "half_full" | "size"
+  const [newItemHalfSelling, setNewItemHalfSelling] = useState("");
+  const [newItemHalfMrp, setNewItemHalfMrp] = useState("");
+  const [newItemHalfB2b, setNewItemHalfB2b] = useState("");
+  const [newItemFullSelling, setNewItemFullSelling] = useState("");
+  const [newItemFullMrp, setNewItemFullMrp] = useState("");
+  const [newItemFullB2b, setNewItemFullB2b] = useState("");
+  const [newItemSmallSelling, setNewItemSmallSelling] = useState("");
+  const [newItemSmallMrp, setNewItemSmallMrp] = useState("");
+  const [newItemSmallB2b, setNewItemSmallB2b] = useState("");
+  const [newItemMedSelling, setNewItemMedSelling] = useState("");
+  const [newItemMedMrp, setNewItemMedMrp] = useState("");
+  const [newItemMedB2b, setNewItemMedB2b] = useState("");
+  const [newItemLargeSelling, setNewItemLargeSelling] = useState("");
+  const [newItemLargeMrp, setNewItemLargeMrp] = useState("");
+  const [newItemLargeB2b, setNewItemLargeB2b] = useState("");
+
+  // Dynamic Add-ons for dish
+  const [newItemAddOns, setNewItemAddOns] = useState([]);
+  const [addonNameInput, setAddonNameInput] = useState("");
+  const [addonPriceInput, setAddonPriceInput] = useState("");
+
   // Bulk Menu Upload Handler (JSON / CSV)
   const handleBulkMenuUpload = (file) => {
     if (!file) return;
@@ -620,35 +643,145 @@ const AddRestaurantForm = () => {
     setShowLocationResults(false);
   };
 
-  // Add Menu Item
+  // Add Menu Item with Full / Half and S / M / L support
   const handleAddMenuItem = () => {
-    if (!newItemName.trim() || !newItemPrice.trim()) {
-      alert("Please enter Item Name and Price");
+    if (!newItemName.trim()) {
+      alert("Please enter Dish Name");
       return;
     }
     if (!newItemImage) {
       alert("Dish Photo is mandatory! Please upload a photo for this item.");
       return;
     }
+
+    let calculatedPrice = 0;
+    let calculatedMrp = 0;
+    let calculatedB2b = 0;
+    let portionsObj = null;
+
+    if (newItemPortionType === "half_full") {
+      if (!newItemFullSelling && !newItemHalfSelling) {
+        alert("Please enter Selling Price for Full plate or Half plate");
+        return;
+      }
+      portionsObj = {};
+      if (newItemHalfSelling) {
+        portionsObj.half = {
+          sellingPrice: Number(newItemHalfSelling),
+          mrp: Number(newItemHalfMrp || newItemHalfSelling),
+          b2bPrice: Number(newItemHalfB2b || newItemHalfSelling),
+        };
+      }
+      if (newItemFullSelling) {
+        portionsObj.full = {
+          sellingPrice: Number(newItemFullSelling),
+          mrp: Number(newItemFullMrp || newItemFullSelling),
+          b2bPrice: Number(newItemFullB2b || newItemFullSelling),
+        };
+      }
+      calculatedPrice = portionsObj.full?.sellingPrice || portionsObj.half?.sellingPrice || 0;
+      calculatedMrp = portionsObj.full?.mrp || portionsObj.half?.mrp || calculatedPrice;
+      calculatedB2b = portionsObj.full?.b2bPrice || portionsObj.half?.b2bPrice || calculatedPrice;
+    } else if (newItemPortionType === "size") {
+      if (!newItemSmallSelling && !newItemMedSelling && !newItemLargeSelling) {
+        alert("Please enter Selling Price for at least one size (Small, Medium, or Large)");
+        return;
+      }
+      portionsObj = {};
+      if (newItemSmallSelling) {
+        portionsObj.small = {
+          sellingPrice: Number(newItemSmallSelling),
+          mrp: Number(newItemSmallMrp || newItemSmallSelling),
+          b2bPrice: Number(newItemSmallB2b || newItemSmallSelling),
+        };
+      }
+      if (newItemMedSelling) {
+        portionsObj.medium = {
+          sellingPrice: Number(newItemMedSelling),
+          mrp: Number(newItemMedMrp || newItemMedSelling),
+          b2bPrice: Number(newItemMedB2b || newItemMedSelling),
+        };
+      }
+      if (newItemLargeSelling) {
+        portionsObj.large = {
+          sellingPrice: Number(newItemLargeSelling),
+          mrp: Number(newItemLargeMrp || newItemLargeSelling),
+          b2bPrice: Number(newItemLargeB2b || newItemLargeSelling),
+        };
+      }
+      calculatedPrice = portionsObj.small?.sellingPrice || portionsObj.medium?.sellingPrice || portionsObj.large?.sellingPrice || 0;
+      calculatedMrp = portionsObj.small?.mrp || portionsObj.medium?.mrp || portionsObj.large?.mrp || calculatedPrice;
+      calculatedB2b = portionsObj.small?.b2bPrice || portionsObj.medium?.b2bPrice || portionsObj.large?.b2bPrice || calculatedPrice;
+    } else {
+      if (!newItemPrice.trim()) {
+        alert("Please enter Selling Price");
+        return;
+      }
+      calculatedPrice = Number(newItemPrice.trim());
+      calculatedMrp = Number(newItemMrp ? newItemMrp.trim() : calculatedPrice);
+      calculatedB2b = Number(newItemB2bPrice ? newItemB2bPrice.trim() : calculatedPrice);
+    }
+
     const itemObj = {
       name: newItemName.trim(),
-      price: Number(newItemPrice.trim()),
-      basePrice: Number(newItemPrice.trim()),
-      mrp: Number(newItemMrp ? newItemMrp.trim() : newItemPrice.trim()),
-      b2bPrice: Number(newItemB2bPrice ? newItemB2bPrice.trim() : newItemPrice.trim()),
+      price: calculatedPrice,
+      basePrice: calculatedPrice,
+      sellingPrice: calculatedPrice,
+      mrp: calculatedMrp,
+      b2bPrice: calculatedB2b,
       category: newItemCategory,
       foodType: newItemFoodType,
       isVeg: newItemFoodType === "Veg",
       description: newItemDesc.trim(),
       image: newItemImage,
+      portionType: newItemPortionType,
+      portions: portionsObj,
+      halfSellingPrice: portionsObj?.half?.sellingPrice || null,
+      fullSellingPrice: portionsObj?.full?.sellingPrice || null,
+      smallSellingPrice: portionsObj?.small?.sellingPrice || null,
+      medSellingPrice: portionsObj?.medium?.sellingPrice || null,
+      largeSellingPrice: portionsObj?.large?.sellingPrice || null,
+      addOns: [...newItemAddOns],
     };
-    setMenuItems([...menuItems, itemObj]);
+
+    setMenuItems((prev) => [...prev, itemObj]);
     setNewItemName("");
     setNewItemPrice("");
     setNewItemMrp("");
     setNewItemB2bPrice("");
     setNewItemDesc("");
     setNewItemImage(null);
+    setNewItemPortionType("none");
+    setNewItemHalfSelling("");
+    setNewItemHalfMrp("");
+    setNewItemHalfB2b("");
+    setNewItemFullSelling("");
+    setNewItemFullMrp("");
+    setNewItemFullB2b("");
+    setNewItemSmallSelling("");
+    setNewItemSmallMrp("");
+    setNewItemSmallB2b("");
+    setNewItemMedSelling("");
+    setNewItemMedMrp("");
+    setNewItemMedB2b("");
+    setNewItemLargeSelling("");
+    setNewItemLargeMrp("");
+    setNewItemLargeB2b("");
+    setNewItemAddOns([]);
+  };
+
+  const handleAddAddOn = () => {
+    if (!addonNameInput.trim()) return;
+    setNewItemAddOns((prev) => [
+      ...prev,
+      { name: addonNameInput.trim(), price: Number(addonPriceInput.trim()) || 0 },
+    ]);
+    setAddonNameInput("");
+    setAddonPriceInput("");
+  };
+
+  const handleRemoveAddOn = (idx) => {
+    setNewItemAddOns((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleRemoveMenuItem = (idx) => {
@@ -1664,6 +1797,7 @@ const AddRestaurantForm = () => {
           </Box>
         }
       >
+        {/* Row 1: Dish Basic Details */}
         <Grid item xs={12} sm={4}>
           <TextField
             label="Dish Name *"
@@ -1672,39 +1806,6 @@ const AddRestaurantForm = () => {
             onChange={(e) => setNewItemName(e.target.value)}
             fullWidth
             placeholder="e.g. Paneer Butter Masala"
-          />
-        </Grid>
-        <Grid item xs={12} sm={2.5}>
-          <TextField
-            label="Selling Price (₹) *"
-            size="small"
-            type="number"
-            value={newItemPrice}
-            onChange={(e) => setNewItemPrice(e.target.value)}
-            fullWidth
-            placeholder="240"
-          />
-        </Grid>
-        <Grid item xs={12} sm={2.5}>
-          <TextField
-            label="MRP (₹)"
-            size="small"
-            type="number"
-            value={newItemMrp}
-            onChange={(e) => setNewItemMrp(e.target.value)}
-            fullWidth
-            placeholder="290"
-          />
-        </Grid>
-        <Grid item xs={12} sm={3}>
-          <TextField
-            label="B2B Price (₹)"
-            size="small"
-            type="number"
-            value={newItemB2bPrice}
-            onChange={(e) => setNewItemB2bPrice(e.target.value)}
-            fullWidth
-            placeholder="210"
           />
         </Grid>
         <Grid item xs={12} sm={4}>
@@ -1720,10 +1821,12 @@ const AddRestaurantForm = () => {
               <MenuItem value="Breads & Rice">Breads & Rice</MenuItem>
               <MenuItem value="Beverages & Shakes">Beverages & Shakes</MenuItem>
               <MenuItem value="Desserts">Desserts</MenuItem>
+              <MenuItem value="Pizza">Pizza</MenuItem>
+              <MenuItem value="Biryani">Biryani</MenuItem>
             </Select>
           </FormControl>
         </Grid>
-        <Grid item xs={12} sm={3}>
+        <Grid item xs={12} sm={4}>
           <FormControl fullWidth size="small">
             <InputLabel>Food Type</InputLabel>
             <Select
@@ -1737,100 +1840,505 @@ const AddRestaurantForm = () => {
             </Select>
           </FormControl>
         </Grid>
+
+        {/* Row 2: Portion Type Selector & Photo */}
         <Grid item xs={12} sm={5}>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
-              component="label"
-              size="small"
-              variant="outlined"
-              sx={{
-                borderColor: newItemImage ? "#22C55E" : "#EF4444",
-                color: newItemImage ? "#16A34A" : "#DC2626",
-                textTransform: "none",
-                fontWeight: 600,
-                borderRadius: 2,
-                flex: 1,
-                bgcolor: newItemImage ? "#F0FDF4" : "#FEF2F2",
-              }}
+          <FormControl fullWidth size="small">
+            <InputLabel sx={{ fontWeight: 700, color: BRAND_MAIN }}>Portion / Plate / Size Type</InputLabel>
+            <Select
+              value={newItemPortionType}
+              label="Portion / Plate / Size Type"
+              onChange={(e) => setNewItemPortionType(e.target.value)}
+              sx={{ fontWeight: 700 }}
             >
-              {newItemImage ? "Photo ✓ (Uploaded)" : "Dish Photo *"}
-              <input
-                type="file"
-                hidden
-                accept="image/*"
-                onChange={(e) => handleFileRead(e.target.files[0], setNewItemImage)}
+              <MenuItem value="none">Standard Dish (Single Base Price)</MenuItem>
+              <MenuItem value="half_full">Full & Half Plate (Half / Full Price)</MenuItem>
+              <MenuItem value="size">Size Based (Small / Medium / Large Sizes)</MenuItem>
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Button
+            component="label"
+            size="small"
+            variant="outlined"
+            fullWidth
+            sx={{
+              height: 40,
+              borderColor: newItemImage ? "#22C55E" : "#EF4444",
+              color: newItemImage ? "#16A34A" : "#DC2626",
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: 2,
+              bgcolor: newItemImage ? "#F0FDF4" : "#FEF2F2",
+            }}
+          >
+            {newItemImage ? "Photo ✓ (Uploaded)" : "Dish Photo *"}
+            <input
+              type="file"
+              hidden
+              accept="image/*"
+              onChange={(e) => handleFileRead(e.target.files[0], setNewItemImage)}
+            />
+          </Button>
+        </Grid>
+        <Grid item xs={12} sm={3}>
+          <TextField
+            label="Dish Description"
+            size="small"
+            value={newItemDesc}
+            onChange={(e) => setNewItemDesc(e.target.value)}
+            fullWidth
+            placeholder="e.g. Rich gravy with butter"
+          />
+        </Grid>
+
+        {/* CONDITIONAL PRICING ROW: Standard (Single Price) */}
+        {newItemPortionType === "none" && (
+          <Grid item xs={12}>
+            <Paper elevation={0} sx={{ p: 2, bgcolor: "#F8FAFC", borderRadius: 2, border: "1px solid #E2E8F0" }}>
+              <Typography variant="caption" fontWeight={700} color="#475569" sx={{ display: "block", mb: 1.5 }}>
+                Standard Single Pricing (₹)
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    label="Customer Selling Price (₹) *"
+                    size="small"
+                    type="number"
+                    value={newItemPrice}
+                    onChange={(e) => setNewItemPrice(e.target.value)}
+                    fullWidth
+                    placeholder="240"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    label="MRP (₹)"
+                    size="small"
+                    type="number"
+                    value={newItemMrp}
+                    onChange={(e) => setNewItemMrp(e.target.value)}
+                    fullWidth
+                    placeholder="290"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    label="B2B / Partner Price (₹)"
+                    size="small"
+                    type="number"
+                    value={newItemB2bPrice}
+                    onChange={(e) => setNewItemB2bPrice(e.target.value)}
+                    fullWidth
+                    placeholder="210"
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+        )}
+
+        {/* CONDITIONAL PRICING ROW: Full & Half Plate */}
+        {newItemPortionType === "half_full" && (
+          <Grid item xs={12}>
+            <Paper elevation={0} sx={{ p: 2, bgcolor: "#F0FDF4", borderRadius: 2, border: "1px solid #BBF7D0" }}>
+              <Typography variant="caption" fontWeight={800} color="#15803D" sx={{ display: "block", mb: 1.5 }}>
+                🍽️ Full & Half Plate Pricing (₹)
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ p: 1.5, bgcolor: "#FFFFFF", borderRadius: 1.5, border: "1px solid #DCFCE7" }}>
+                    <Typography variant="caption" fontWeight={700} color="#16A34A" sx={{ display: "block", mb: 1 }}>
+                      Half Plate Pricing
+                    </Typography>
+                    <Grid container spacing={1}>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="Selling (₹) *"
+                          size="small"
+                          type="number"
+                          value={newItemHalfSelling}
+                          onChange={(e) => setNewItemHalfSelling(e.target.value)}
+                          fullWidth
+                          placeholder="140"
+                        />
+                      </Grid>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="MRP (₹)"
+                          size="small"
+                          type="number"
+                          value={newItemHalfMrp}
+                          onChange={(e) => setNewItemHalfMrp(e.target.value)}
+                          fullWidth
+                          placeholder="170"
+                        />
+                      </Grid>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="B2B (₹)"
+                          size="small"
+                          type="number"
+                          value={newItemHalfB2b}
+                          onChange={(e) => setNewItemHalfB2b(e.target.value)}
+                          fullWidth
+                          placeholder="120"
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ p: 1.5, bgcolor: "#FFFFFF", borderRadius: 1.5, border: "1px solid #DCFCE7" }}>
+                    <Typography variant="caption" fontWeight={700} color="#16A34A" sx={{ display: "block", mb: 1 }}>
+                      Full Plate Pricing
+                    </Typography>
+                    <Grid container spacing={1}>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="Selling (₹) *"
+                          size="small"
+                          type="number"
+                          value={newItemFullSelling}
+                          onChange={(e) => setNewItemFullSelling(e.target.value)}
+                          fullWidth
+                          placeholder="240"
+                        />
+                      </Grid>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="MRP (₹)"
+                          size="small"
+                          type="number"
+                          value={newItemFullMrp}
+                          onChange={(e) => setNewItemFullMrp(e.target.value)}
+                          fullWidth
+                          placeholder="290"
+                        />
+                      </Grid>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="B2B (₹)"
+                          size="small"
+                          type="number"
+                          value={newItemFullB2b}
+                          onChange={(e) => setNewItemFullB2b(e.target.value)}
+                          fullWidth
+                          placeholder="200"
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+        )}
+
+        {/* CONDITIONAL PRICING ROW: Size Based (Small / Medium / Large) */}
+        {newItemPortionType === "size" && (
+          <Grid item xs={12}>
+            <Paper elevation={0} sx={{ p: 2, bgcolor: "#EFF6FF", borderRadius: 2, border: "1px solid #BFDBFE" }}>
+              <Typography variant="caption" fontWeight={800} color="#1D4ED8" sx={{ display: "block", mb: 1.5 }}>
+                🍕 Size-Based Pricing (Small / Medium / Large) (₹)
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <Box sx={{ p: 1.5, bgcolor: "#FFFFFF", borderRadius: 1.5, border: "1px solid #DBEAFE" }}>
+                    <Typography variant="caption" fontWeight={700} color="#2563EB" sx={{ display: "block", mb: 1 }}>
+                      Small Size
+                    </Typography>
+                    <Grid container spacing={1}>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="Selling (₹)"
+                          size="small"
+                          type="number"
+                          value={newItemSmallSelling}
+                          onChange={(e) => setNewItemSmallSelling(e.target.value)}
+                          fullWidth
+                          placeholder="199"
+                        />
+                      </Grid>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="MRP"
+                          size="small"
+                          type="number"
+                          value={newItemSmallMrp}
+                          onChange={(e) => setNewItemSmallMrp(e.target.value)}
+                          fullWidth
+                          placeholder="249"
+                        />
+                      </Grid>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="B2B"
+                          size="small"
+                          type="number"
+                          value={newItemSmallB2b}
+                          onChange={(e) => setNewItemSmallB2b(e.target.value)}
+                          fullWidth
+                          placeholder="160"
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <Box sx={{ p: 1.5, bgcolor: "#FFFFFF", borderRadius: 1.5, border: "1px solid #DBEAFE" }}>
+                    <Typography variant="caption" fontWeight={700} color="#2563EB" sx={{ display: "block", mb: 1 }}>
+                      Medium Size
+                    </Typography>
+                    <Grid container spacing={1}>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="Selling (₹)"
+                          size="small"
+                          type="number"
+                          value={newItemMedSelling}
+                          onChange={(e) => setNewItemMedSelling(e.target.value)}
+                          fullWidth
+                          placeholder="349"
+                        />
+                      </Grid>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="MRP"
+                          size="small"
+                          type="number"
+                          value={newItemMedMrp}
+                          onChange={(e) => setNewItemMedMrp(e.target.value)}
+                          fullWidth
+                          placeholder="419"
+                        />
+                      </Grid>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="B2B"
+                          size="small"
+                          type="number"
+                          value={newItemMedB2b}
+                          onChange={(e) => setNewItemMedB2b(e.target.value)}
+                          fullWidth
+                          placeholder="280"
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <Box sx={{ p: 1.5, bgcolor: "#FFFFFF", borderRadius: 1.5, border: "1px solid #DBEAFE" }}>
+                    <Typography variant="caption" fontWeight={700} color="#2563EB" sx={{ display: "block", mb: 1 }}>
+                      Large Size
+                    </Typography>
+                    <Grid container spacing={1}>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="Selling (₹)"
+                          size="small"
+                          type="number"
+                          value={newItemLargeSelling}
+                          onChange={(e) => setNewItemLargeSelling(e.target.value)}
+                          fullWidth
+                          placeholder="499"
+                        />
+                      </Grid>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="MRP"
+                          size="small"
+                          type="number"
+                          value={newItemLargeMrp}
+                          onChange={(e) => setNewItemLargeMrp(e.target.value)}
+                          fullWidth
+                          placeholder="599"
+                        />
+                      </Grid>
+                      <Grid item xs={4}>
+                        <TextField
+                          label="B2B"
+                          size="small"
+                          type="number"
+                          value={newItemLargeB2b}
+                          onChange={(e) => setNewItemLargeB2b(e.target.value)}
+                          fullWidth
+                          placeholder="390"
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+        )}
+
+        {/* DYNAMIC ADD-ONS ROW */}
+        <Grid item xs={12}>
+          <Box sx={{ p: 2, bgcolor: "#FAFAFA", borderRadius: 2, border: "1px dashed #CBD5E1" }}>
+            <Typography variant="caption" fontWeight={700} color="#475569" sx={{ display: "block", mb: 1 }}>
+              Custom Add-ons / Flavours (Optional)
+            </Typography>
+            <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center", mb: 1.5 }}>
+              <TextField
+                label="Add-on Name"
+                size="small"
+                value={addonNameInput}
+                onChange={(e) => setAddonNameInput(e.target.value)}
+                placeholder="e.g. Extra Butter / Cheese Dip"
+                sx={{ width: 220 }}
               />
-            </Button>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<AddCircleOutline />}
-              onClick={handleAddMenuItem}
-              sx={{
-                bgcolor: BRAND_MAIN,
-                textTransform: "none",
-                fontWeight: 700,
-                borderRadius: 2,
-                px: 2.5,
-                "&:hover": { bgcolor: BRAND_HOVER },
-              }}
-            >
-              Add Item
-            </Button>
+              <TextField
+                label="Extra Price (₹)"
+                size="small"
+                type="number"
+                value={addonPriceInput}
+                onChange={(e) => setAddonPriceInput(e.target.value)}
+                placeholder="20"
+                sx={{ width: 130 }}
+              />
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={handleAddAddOn}
+                sx={{ textTransform: "none", fontWeight: 700, borderColor: BRAND_MAIN, color: BRAND_MAIN }}
+              >
+                + Add Add-on
+              </Button>
+            </Box>
+            {newItemAddOns.length > 0 && (
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                {newItemAddOns.map((ao, aIdx) => (
+                  <Chip
+                    key={aIdx}
+                    label={`${ao.name} (+₹${ao.price})`}
+                    size="small"
+                    onDelete={() => handleRemoveAddOn(aIdx)}
+                    sx={{ bgcolor: "#E0E7FF", color: "#3730A3", fontWeight: 700 }}
+                  />
+                ))}
+              </Box>
+            )}
           </Box>
+        </Grid>
+
+        {/* ADD DISH BUTTON */}
+        <Grid item xs={12} sx={{ display: "flex", justifyContent: "flex-end" }}>
+          <Button
+            variant="contained"
+            size="medium"
+            startIcon={<AddCircleOutline />}
+            onClick={handleAddMenuItem}
+            sx={{
+              bgcolor: BRAND_MAIN,
+              textTransform: "none",
+              fontWeight: 800,
+              borderRadius: 2,
+              px: 3.5,
+              py: 1,
+              boxShadow: "0 4px 12px rgba(237, 32, 38, 0.3)",
+              "&:hover": { bgcolor: BRAND_HOVER },
+            }}
+          >
+            + Add Dish to Menu
+          </Button>
         </Grid>
 
         {/* Menu Items Table */}
         {menuItems.length > 0 && (
           <Grid item xs={12}>
-            <Box sx={{ border: "1px solid #E2E8F0", borderRadius: 2.5, overflow: "hidden", mt: 1 }}>
+            <Box sx={{ border: "1px solid #E2E8F0", borderRadius: 2.5, overflow: "hidden", mt: 1.5 }}>
               <Table size="small">
                 <TableHead sx={{ bgcolor: "#F8FAFC" }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 700, color: "#475569" }}>Dish</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: "#475569" }}>Category</TableCell>
                     <TableCell sx={{ fontWeight: 700, color: "#475569" }}>Type</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>Price</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>Portions & Pricing</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>Add-ons</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 700, color: "#475569" }}>Action</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {menuItems.map((item, idx) => (
-                    <TableRow key={idx} hover>
-                      <TableCell sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        {item.image && (
-                          <Box
-                            component="img"
-                            src={item.image}
-                            sx={{ width: 30, height: 30, borderRadius: 1, objectFit: "cover" }}
+                  {menuItems.map((item, idx) => {
+                    const isHalfFull = item.portionType === "half_full";
+                    const isSize = item.portionType === "size";
+                    const halfPrice = item.portions?.half?.sellingPrice || item.halfSellingPrice;
+                    const fullPrice = item.portions?.full?.sellingPrice || item.fullSellingPrice;
+                    const smallPrice = item.portions?.small?.sellingPrice || item.smallSellingPrice;
+                    const medPrice = item.portions?.medium?.sellingPrice || item.medSellingPrice;
+                    const largePrice = item.portions?.large?.sellingPrice || item.largeSellingPrice;
+
+                    return (
+                      <TableRow key={idx} hover>
+                        <TableCell sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          {item.image && (
+                            <Box
+                              component="img"
+                              src={item.image}
+                              sx={{ width: 34, height: 34, borderRadius: 1.5, objectFit: "cover" }}
+                            />
+                          )}
+                          <Typography variant="body2" fontWeight={700} color="#1E293B">
+                            {item.name}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={item.foodType}
+                            size="small"
+                            sx={{
+                              fontWeight: 700,
+                              fontSize: "0.7rem",
+                              height: 22,
+                              bgcolor: item.isVeg ? "#DCFCE7" : "#FEE2E2",
+                              color: item.isVeg ? "#15803D" : "#B91C1C",
+                            }}
                           />
-                        )}
-                        <Typography variant="body2" fontWeight={600} color="#1E293B">
-                          {item.name}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{item.category}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={item.foodType}
-                          size="small"
-                          sx={{
-                            fontWeight: 700,
-                            fontSize: "0.7rem",
-                            height: 22,
-                            bgcolor: item.isVeg ? "#DCFCE7" : "#FEE2E2",
-                            color: item.isVeg ? "#15803D" : "#B91C1C",
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: BRAND_MAIN }}>₹{item.price}</TableCell>
-                      <TableCell align="right">
-                        <IconButton size="small" onClick={() => handleRemoveMenuItem(idx)} color="error">
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell>
+                          {isHalfFull ? (
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.3 }}>
+                              <Chip label="Full & Half Plate" size="small" sx={{ height: 18, fontSize: "0.65rem", fontWeight: 800, bgcolor: "#DCFCE7", color: "#166534", width: "fit-content" }} />
+                              <Typography variant="caption" fontWeight={700} color="#1E293B">
+                                {halfPrice ? `Half: ₹${halfPrice}` : ""} {halfPrice && fullPrice ? " | " : ""} {fullPrice ? `Full: ₹${fullPrice}` : ""}
+                              </Typography>
+                            </Box>
+                          ) : isSize ? (
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.3 }}>
+                              <Chip label="S / M / L Sizes" size="small" sx={{ height: 18, fontSize: "0.65rem", fontWeight: 800, bgcolor: "#DBEAFE", color: "#1E40AF", width: "fit-content" }} />
+                              <Typography variant="caption" fontWeight={700} color="#1E293B">
+                                {smallPrice ? `S: ₹${smallPrice} ` : ""}{medPrice ? `M: ₹${medPrice} ` : ""}{largePrice ? `L: ₹${largePrice}` : ""}
+                              </Typography>
+                            </Box>
+                          ) : (
+                            <Typography variant="body2" fontWeight={800} color={BRAND_MAIN}>
+                              ₹{item.price || item.basePrice}
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {item.addOns && item.addOns.length > 0 ? (
+                            <Chip
+                              label={`${item.addOns.length} add-on${item.addOns.length > 1 ? "s" : ""}`}
+                              size="small"
+                              sx={{ height: 20, fontSize: "0.7rem", fontWeight: 700, bgcolor: "#F1F5F9", color: "#475569" }}
+                            />
+                          ) : (
+                            <Typography variant="caption" color="text.secondary">-</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton size="small" onClick={() => handleRemoveMenuItem(idx)} color="error">
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </Box>
