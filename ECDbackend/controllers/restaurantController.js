@@ -532,7 +532,7 @@ exports.adminCreateRestaurant = async (req, res) => {
             categoryId: catObj._id,
             name: { en: menuItem.name },
             description: { en: menuItem.description },
-            image: menuItem.image || itemImg || "",
+            image: menuItem.image || "",
             basePrice: menuItem.basePrice,
             sellingPrice: menuItem.sellingPrice || menuItem.basePrice,
             mrp: menuItem.mrp || menuItem.basePrice,

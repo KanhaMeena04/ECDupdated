@@ -23,15 +23,16 @@ class MenuManagementScreen extends StatefulWidget {
 class _MenuManagementScreenState extends State<MenuManagementScreen> {
   List<Map<String, dynamic>> _menuItems = [];
   bool _isLoading = false;
+  bool _isFetching = false;
   Timer? _liveSyncTimer;
 
   @override
   void initState() {
     super.initState();
     _loadMenuFromApi();
-    // Live background sync every 4 seconds to catch real-time admin approvals
-    _liveSyncTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (mounted) {
+    // Live background sync every 10 seconds to catch real-time admin approvals
+    _liveSyncTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted && !_isFetching) {
         _loadMenuFromApi(isSilent: true);
       }
     });
@@ -44,6 +45,8 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
   }
 
   Future<void> _loadMenuFromApi({bool isSilent = false}) async {
+    if (_isFetching) return;
+    _isFetching = true;
     final prefs = await SharedPreferences.getInstance();
     
     // Load local cache immediately so screen never appears blank
@@ -62,6 +65,7 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
     }
     try {
       var restId = prefs.getString('restaurantId') ?? ApiConstants.restaurantId;
+      if (restId == 'null' || restId == 'undefined') restId = '';
       final phone = prefs.getString('userPhone') ?? '';
       final token = prefs.getString('token') ?? ApiConstants.authToken;
 
@@ -133,6 +137,8 @@ class _MenuManagementScreenState extends State<MenuManagementScreen> {
       if (mounted && !isSilent) {
         setState(() => _isLoading = false);
       }
+    } finally {
+      _isFetching = false;
     }
   }
 

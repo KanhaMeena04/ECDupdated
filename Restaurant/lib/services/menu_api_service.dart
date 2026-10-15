@@ -10,8 +10,11 @@ class MenuApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       String restId = restaurantId ?? ApiConstants.restaurantId;
-      if (restId.isEmpty) {
+      if (restId.isEmpty || restId == 'null' || restId == 'undefined') {
         restId = prefs.getString('restaurantId') ?? '';
+      }
+      if (restId == 'null' || restId == 'undefined') {
+        restId = '';
       }
       if (restId.isEmpty) {
         restId = prefs.getString('userPhone') ?? 'me';
@@ -25,7 +28,7 @@ class MenuApiService {
           'Content-Type': 'application/json',
           if (token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 30));
 
       List<dynamic> itemsList = [];
       if (response.statusCode == 200) {

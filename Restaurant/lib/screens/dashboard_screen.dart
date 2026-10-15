@@ -155,10 +155,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _restaurantName = storedName.isNotEmpty ? storedName : 'My Restaurant';
               }
               _isOnline = data['isActive'] ?? data['restaurant']?['isActive'] ?? true;
-              final extractedRestId = data['restaurantId'] ?? data['_id'] ?? data['restaurant']?['_id'] ?? data['restaurant']?['id'] ?? data['id'];
+              final extractedRestId = data['restaurant']?['_id'] ?? data['_id'] ?? data['restaurantId'] ?? data['restaurant']?['id'] ?? data['id'];
               if (extractedRestId != null && extractedRestId.toString().isNotEmpty && extractedRestId.toString() != 'null') {
                 _restaurantId = extractedRestId.toString();
                 prefs.setString('restaurantId', _restaurantId);
+                final sToken = prefs.getString('token') ?? '';
+                if (sToken.isNotEmpty) {
+                  try {
+                    ApiConstants.setAuthenticatedSession(restaurantId: _restaurantId, authToken: sToken);
+                  } catch (_) {}
+                }
               }
             });
           }

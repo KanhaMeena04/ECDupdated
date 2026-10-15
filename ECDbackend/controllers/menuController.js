@@ -345,28 +345,30 @@ exports.getMenu = async (req, res) => {
       });
     }
 
-    // Auto-sync all items from restaurant.menu into Product collection so they always appear with approval status
+    // Fast Auto-sync: Check if restaurant.menu has any items missing from Product collection
     if (Array.isArray(restaurant.menu) && restaurant.menu.length > 0) {
-      let defaultCat = await Category.findOne({ isMaster: true });
-      if (!defaultCat) defaultCat = await Category.findOne({});
-      if (!defaultCat) {
-        defaultCat = await Category.create({ name: "Main Course", slug: "main-course", isActive: true, isMaster: true }).catch(() => null);
-      }
+      const existingProds = await Product.find({ restaurant: restaurant._id }, { name: 1 }).lean();
+      const existingNameSet = new Set(
+        existingProds
+          .map(p => (typeof p.name === 'object' ? (p.name?.en || Object.values(p.name)[0]) : p.name))
+          .filter(Boolean)
+      );
 
-      for (let idx = 0; idx < restaurant.menu.length; idx++) {
-        const m = restaurant.menu[idx];
-        const mName = m.name || (typeof m === 'string' ? m : `Item ${idx + 1}`);
-        if (!mName) continue;
+      const missingMenuItems = restaurant.menu.filter(m => {
+        const mName = m.name || (typeof m === 'string' ? m : null);
+        return mName && !existingNameSet.has(mName);
+      });
 
-        const exists = await Product.findOne({
-          restaurant: restaurant._id,
-          $or: [
-            { "name.en": mName },
-            { name: mName }
-          ]
-        });
+      if (missingMenuItems.length > 0) {
+        let defaultCat = await Category.findOne({ isMaster: true }) || await Category.findOne({});
+        if (!defaultCat) {
+          defaultCat = await Category.create({ name: "Main Course", slug: "main-course", isActive: true, isMaster: true }).catch(() => null);
+        }
 
-        if (!exists) {
+        const newProductDocs = [];
+        for (let idx = 0; idx < missingMenuItems.length; idx++) {
+          const m = missingMenuItems[idx];
+          const mName = m.name || (typeof m === 'string' ? m : `Item ${idx + 1}`);
           const itemPrice = Number(m.price || m.basePrice || 0);
           const rawFoodType = (m.foodType || (m.isVeg ? 'veg' : 'non-veg')).toString().toLowerCase();
           const itemFoodType = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
@@ -421,8 +423,11 @@ exports.getMenu = async (req, res) => {
               variations: m.variants || m.variations || [],
               addOns: m.addOns || []
             });
-            await Restaurant.findByIdAndUpdate(restaurant._id, { $addToSet: { product: createdProd._id } });
+            newProductDocs.push(createdProd._id);
           } catch (e) {}
+        }
+        if (newProductDocs.length > 0) {
+          await Restaurant.findByIdAndUpdate(restaurant._id, { $addToSet: { product: { $each: newProductDocs } } });
         }
       }
     }
