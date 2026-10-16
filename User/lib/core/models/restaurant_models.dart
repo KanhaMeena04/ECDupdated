@@ -23,6 +23,9 @@ class MenuItem {
   final Map<String, dynamic>? portions;
   final List<Map<String, dynamic>> variations;
   final List<Map<String, dynamic>> addOns;
+  final String restaurantId;
+  final String restaurantName;
+  final String restaurantSlug;
 
   const MenuItem({
     required this.id,
@@ -44,6 +47,9 @@ class MenuItem {
     this.portions,
     this.variations = const [],
     this.addOns = const [],
+    this.restaurantId = '',
+    this.restaurantName = '',
+    this.restaurantSlug = '',
   });
 
   /// Whether item has portions (Half/Full or Sizes)
@@ -61,6 +67,9 @@ class MenuItem {
   /// Get effective original price (if not explicitly provided, returns ~40% higher price)
   double get effectiveOriginalPrice => originalPrice ?? (price * 1.4).roundToDouble();
 
+  /// Selling price alias for consistency
+  double get sellingPrice => price;
+
   /// Whether item is in stock & available
   bool get isAvailable => !outOfStock;
 
@@ -72,7 +81,7 @@ class MenuItem {
       name.toLowerCase().contains('special');
 
   /// Convert to Product so CartProvider can handle it
-  Product toProduct({String? customName, double? customPrice}) => Product(
+  Product toProduct({String? customName, double? customPrice, String? restId, String? restName}) => Product(
         id: id,
         name: customName ?? name,
         description: description,
@@ -81,6 +90,8 @@ class MenuItem {
         category: category,
         rating: rating,
         isVeg: isVeg,
+        restaurantId: restId ?? (restaurantId.isNotEmpty ? restaurantId : null),
+        restaurantName: restName ?? (restaurantName.isNotEmpty ? restaurantName : null),
       );
 }
 

@@ -25,6 +25,7 @@ const homeScreenSectionSchema = new mongoose.Schema(
         "category_grid",
         "comparison_banner",
         "recommended_dishes",
+        "special_dishes",
         "restaurant_list",
         "promotional_card",
         "custom_banner",

@@ -44,7 +44,8 @@ class MenuApiService {
 
         return itemsList.map((item) {
           final Map<String, dynamic> itemMap = Map<String, dynamic>.from(item);
-          final p = double.tryParse((itemMap['pricing']?['b2c']?['sellingPrice'] ?? itemMap['sellingPrice'] ?? itemMap['price'] ?? itemMap['basePrice'] ?? 0).toString()) ?? 0.0;
+          final baseP = double.tryParse((itemMap['basePrice'] ?? itemMap['price'] ?? itemMap['pricing']?['b2c']?['sellingPrice'] ?? itemMap['sellingPrice'] ?? 0).toString()) ?? 0.0;
+          final p = double.tryParse((itemMap['pricing']?['b2c']?['sellingPrice'] ?? itemMap['sellingPrice'] ?? itemMap['price'] ?? baseP).toString()) ?? baseP;
           final mrp = double.tryParse((itemMap['pricing']?['b2c']?['mrp'] ?? itemMap['mrp'] ?? p).toString()) ?? p;
           final b2bP = double.tryParse((itemMap['pricing']?['b2b']?['sellingPrice'] ?? itemMap['b2bPrice'] ?? p).toString()) ?? p;
 
@@ -103,8 +104,8 @@ class MenuApiService {
             'categoryId': itemMap['categoryId'] is Map ? itemMap['categoryId']['_id'] : (itemMap['categoryId'] ?? ''),
             'subcategory': itemMap['subcategory'] is Map ? (itemMap['subcategory']['name'] ?? '') : (itemMap['subcategory'] ?? ''),
             'subcategoryId': itemMap['subcategoryId'] is Map ? itemMap['subcategoryId']['_id'] : (itemMap['subcategoryId'] ?? ''),
-            'basePrice': p,
-            'price': p,
+            'basePrice': baseP,
+            'price': baseP,
             'b2cMrp': mrp,
             'mrp': mrp,
             'b2cSellingPrice': p,
@@ -122,6 +123,8 @@ class MenuApiService {
             'rejectionReason': itemMap['rejectionReason'] ?? '',
             'changeRequest': itemMap['changeRequest'] ?? '',
             'image': rawImg,
+            'portionType': itemMap['portionType'] ?? 'none',
+            'portions': itemMap['portions'],
             'flavors': normalizedFlavors,
             'variants': normalizedFlavors,
             'variations': normalizedFlavors,

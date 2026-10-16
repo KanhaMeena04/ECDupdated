@@ -3365,10 +3365,15 @@ exports.vendorAddMenuItem = async (req, res) => {
       }
     }
 
+    const finalBasePrice = Number(req.body.basePrice ?? norm.basePrice ?? norm.sellingPrice ?? price ?? 0);
+    const finalSellingPrice = Number(req.body.sellingPrice ?? norm.sellingPrice ?? finalBasePrice);
+    const finalMrp = Number(req.body.mrp ?? req.body.b2cMrp ?? norm.mrp ?? finalSellingPrice);
+    const finalB2bPrice = Number(req.body.b2bPrice ?? norm.b2bPrice ?? finalBasePrice);
+
     const product = await Product.create({
       name: { en: (typeof name === 'string' ? name : (name?.en || 'New Item')) },
       description: { en: (typeof description === 'string' ? description : (description?.en || '')) },
-      basePrice: finalSellingPrice,
+      basePrice: finalBasePrice,
       sellingPrice: finalSellingPrice,
       mrp: finalMrp,
       b2bPrice: finalB2bPrice,
@@ -3405,8 +3410,8 @@ exports.vendorAddMenuItem = async (req, res) => {
           name: product.name?.en || name,
           category: foundCat?.name?.en || foundCat?.name || category || "Main Course",
           subcategory: subcategory || "",
-          price: finalSellingPrice,
-          basePrice: finalSellingPrice,
+          price: finalBasePrice,
+          basePrice: finalBasePrice,
           sellingPrice: finalSellingPrice,
           mrp: finalMrp,
           b2bPrice: finalB2bPrice,
@@ -3606,6 +3611,11 @@ exports.vendorBulkImportMenuItems = async (req, res) => {
         isApproved: isApprovedByRest,
         approvalStatus: isApprovedByRest ? "approved" : "pending"
       });
+
+      if (!Array.isArray(restaurantDoc.product)) {
+        restaurantDoc.product = [];
+      }
+      restaurantDoc.product.push(product._id);
 
       createdProducts.push(product);
     }

@@ -1765,79 +1765,79 @@ class _MenuItemCard extends StatelessWidget {
           sizes.join(' • '),
           style: TextStyle(
             fontSize: 13,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             color: isDark ? Colors.white : const Color(0xFF2C2C2C),
           ),
         );
       }
     }
     return Text(
-      '₹${item.price.toInt()}',
+      '₹${item.sellingPrice}',
       style: TextStyle(
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: FontWeight.w800,
         color: isDark ? Colors.white : const Color(0xFF2C2C2C),
       ),
     );
   }
 
-  // ── Build badges for portions and add-ons ─────────────────────────────────
   Widget _buildPortionBadges(bool isDark) {
     if (!item.hasCustomizations) return const SizedBox.shrink();
-
-    final List<Widget> badges = [];
-    if (item.portionType == 'half_full') {
-      badges.add(
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0284C7).withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: const Text(
-            'Half / Full',
-            style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF0284C7)),
-          ),
-        ),
-      );
-    } else if (item.portionType == 'size') {
-      badges.add(
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-          decoration: BoxDecoration(
-            color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: const Text(
-            'Sizes: S/M/L',
-            style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF7C3AED)),
-          ),
-        ),
-      );
-    }
-
-    if (item.hasAddOns) {
-      badges.add(
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-          decoration: BoxDecoration(
-            color: const Color(0xFF16A34A).withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            '+${item.addOns.length} Add-on${item.addOns.length > 1 ? 's' : ''}',
-            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Color(0xFF16A34A)),
-          ),
-        ),
-      );
-    }
-
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: Wrap(
-        spacing: 5,
+        spacing: 6,
         runSpacing: 4,
-        children: badges,
+        children: [
+          if (item.portionType == 'half_full')
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[800] : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'Half / Full available',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.grey[300] : const Color(0xFF475569),
+                ),
+              ),
+            ),
+          if (item.portionType == 'size')
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[800] : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'Sizes available',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.grey[300] : const Color(0xFF475569),
+                ),
+              ),
+            ),
+          if (item.hasAddOns)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[800] : const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                '+ Add-ons',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2563EB),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1848,262 +1848,250 @@ class _MenuItemCard extends StatelessWidget {
     final matchingItems = cartProvider.items.where((ci) => ci.product.id == item.id || ci.product.id.startsWith('${item.id}::')).toList();
     final inCart = matchingItems.isNotEmpty;
     final qty = matchingItems.fold(0, (sum, ci) => sum + ci.quantity);
+    final bool hasImage = item.imageUrl.trim().isNotEmpty && item.imageUrl.trim() != 'null';
+
+    Widget buildActionControl() {
+      if (!restaurantIsOnline) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.grey[400],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Text(
+            'CLOSED',
+            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+          ),
+        );
+      }
+      if (item.outOfStock) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF3B1F20) : const Color(0xFFFEE2E2),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.5)),
+          ),
+          child: const Text(
+            'OUT OF STOCK',
+            style: TextStyle(
+              color: Color(0xFFEF4444),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        );
+      }
+      if (inCart) {
+        return _QtyControl(
+          qty: qty,
+          onAdd: () => _handleAdd(context),
+          onRemove: () {
+            if (matchingItems.isNotEmpty) {
+              final lastItem = matchingItems.last;
+              cartProvider.updateQuantity(lastItem.product.id, lastItem.quantity - 1);
+            }
+          },
+        );
+      }
+      return _AddButton(
+        onTap: () => _handleAdd(context),
+        isCustomizable: item.hasCustomizations,
+      );
+    }
+
+    Widget rightSide;
+    if (hasImage) {
+      rightSide = SizedBox(
+        width: 124,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              height: 118,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.topCenter,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: SafeImage(
+                      item.imageUrl,
+                      width: 124,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox(width: 124, height: 100),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    child: buildActionControl(),
+                  ),
+                ],
+              ),
+            ),
+            if (item.hasCustomizations) ...[
+              const SizedBox(height: 4),
+              Text(
+                'customisable',
+                style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    } else {
+      // Exactly matching Screenshot 4 ("Simple Thali"):
+      // No dummy/placeholder image at all; clean empty space with only ADD button on the right!
+      rightSide = SizedBox(
+        width: 105,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            buildActionControl(),
+            if (item.hasCustomizations) ...[
+              const SizedBox(height: 4),
+              Text(
+                'customisable',
+                style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: isDark ? Colors.grey[900] : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.grey[800]! : const Color(0xFFF1F5F9),
+            width: 1,
           ),
-        ],
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Item image ───────────────────────────────────────────────────
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Stack(
-              children: [
-                SafeImage(
-                  item.imageUrl,
-                  width: 90,
-                  height: 90,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (_, child, progress) => progress == null
-                      ? child
-                      : Container(
-                          width: 90,
-                          height: 90,
-                          color: const Color(0xFFF3F4F6),
-                          child: const Center(
-                            child: SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: AppColors.primary),
-                            ),
-                          ),
-                        ),
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 90,
-                    height: 90,
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    child: const Icon(Icons.fastfood,
-                        size: 36, color: AppColors.primary),
-                  ),
-                ),
-                if (item.outOfStock)
-                  Container(
-                    width: 90,
-                    height: 90,
-                    color: Colors.black.withValues(alpha: 0.55),
-                    alignment: Alignment.center,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDC2626),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'UNAVAILABLE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  )
-                else if (item.isRareOrSpecial)
-                  Positioned(
-                    top: 4,
-                    left: 4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE89D1E),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'SPECIAL',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // ── Item details ─────────────────────────────────────────────────
+          // ── Left side: Details (Expanded) ─────────────────────────────────
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Veg indicator + name
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Veg / Non-Veg icon
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: item.isVeg ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                        width: 1.4,
+                      ),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Center(
                       child: Container(
-                        width: 14,
-                        height: 14,
+                        width: 6.5,
+                        height: 6.5,
                         decoration: BoxDecoration(
-                          border: Border.all(
-                            color: item.isVeg ? Colors.green : Colors.red,
-                            width: 1.5,
-                          ),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: item.isVeg ? Colors.green : Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
+                          color: item.isVeg ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                          shape: BoxShape.circle,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        item.name,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF2C2C2C),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                _buildPortionBadges(isDark),
-                const SizedBox(height: 4),
-                Text(
-                  item.description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.white70 : const Color(0xFF9CA3AF),
-                    height: 1.4,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                // Rating
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 13),
-                    const SizedBox(width: 3),
-                    Text(
-                      item.rating.toStringAsFixed(1),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF6B7280),
-                        fontWeight: FontWeight.w600,
-                      ),
+                  const SizedBox(height: 5),
+
+                  // Item Name
+                  Text(
+                    item.name,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF1F2937),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[800] : const Color(0xFFF3F4F6),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        item.category,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: isDark ? Colors.white70 : const Color(0xFF6B7280),
-                          fontWeight: FontWeight.w500,
+                  ),
+
+                  // Highly reordered or rating badge (matching Screenshot 4)
+                  if (item.isRareOrSpecial || item.rating >= 4.0) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 22,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF16A34A),
+                            borderRadius: BorderRadius.circular(2.5),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Price + Add/Qty controls
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: _buildPriceDisplay(isDark),
-                    ),
-                    const SizedBox(width: 8),
-                    // Add / quantity stepper
-                    if (!restaurantIsOnline)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[400],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'CLOSED',
-                          style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
-                        ),
-                      )
-                    else if (item.outOfStock)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF3B1F20) : const Color(0xFFFEE2E2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.5)),
-                        ),
-                        child: const Text(
-                          'OUT OF STOCK',
+                        const SizedBox(width: 5),
+                        Text(
+                          'Highly reordered',
                           style: TextStyle(
-                            color: Color(0xFFEF4444),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      )
-                    else if (inCart)
-                        _QtyControl(
-                            qty: qty,
-                            onAdd: () => _handleAdd(context),
-                            onRemove: () {
-                              if (matchingItems.isNotEmpty) {
-                                final lastItem = matchingItems.last;
-                                cartProvider.updateQuantity(lastItem.product.id, lastItem.quantity - 1);
-                              }
-                            },
-                          )
-                    else
-                        _AddButton(
-                            onTap: () => _handleAdd(context),
-                            isCustomizable: item.hasCustomizations,
-                          ),
+                      ],
+                    ),
                   ],
-                ),
-              ],
+
+                  // Price
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: _buildPriceDisplay(isDark),
+                  ),
+
+                  // Portions & Addons Badges
+                  _buildPortionBadges(isDark),
+
+                  // Description
+                  if (item.description.trim().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      item.description,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white60 : Colors.grey.shade600,
+                        height: 1.35,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
+
+          // ── Right side: Image (if present) + ADD Button ───────────────────
+          rightSide,
         ],
       ),
     );
   }
 }
 
-// ── Add button ─────────────────────────────────────────────────────────────
+// ── Add button (Screenshot 4 style) ──────────────────────────────────────────
 class _AddButton extends StatelessWidget {
   final VoidCallback onTap;
   final bool isCustomizable;
@@ -2114,41 +2102,35 @@ class _AddButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 18),
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          color: const Color(0xFFF0FDF4),
           borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'ADD',
-                  style: TextStyle(
-                    color: AppColors.dark,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                if (isCustomizable) ...[
-                  const SizedBox(width: 3),
-                  const Icon(Icons.add, size: 12, color: AppColors.dark),
-                ],
-              ],
+          border: Border.all(color: const Color(0xFF15803D), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-            if (isCustomizable)
-              const Text(
-                'customisable',
-                style: TextStyle(
-                  color: AppColors.dark,
-                  fontSize: 8.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.1,
-                ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Text(
+              'ADD',
+              style: TextStyle(
+                color: Color(0xFF15803D),
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
               ),
+            ),
+            SizedBox(width: 4),
+            Icon(Icons.add, size: 16, color: Color(0xFF15803D)),
           ],
         ),
       ),
@@ -2156,22 +2138,29 @@ class _AddButton extends StatelessWidget {
   }
 }
 
-// â”€â”€ Quantity stepper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Quantity stepper (Screenshot 4 style) ────────────────────────────────────
 class _QtyControl extends StatelessWidget {
   final int qty;
   final VoidCallback onAdd;
   final VoidCallback onRemove;
 
-  const _QtyControl(
-      {required this.qty, required this.onAdd, required this.onRemove});
+  const _QtyControl({required this.qty, required this.onAdd, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: 38,
       decoration: BoxDecoration(
-        color: Colors.transparent,
-        border: Border.all(color: Colors.grey.shade300),
+        color: const Color(0xFFF0FDF4),
+        border: Border.all(color: const Color(0xFF15803D), width: 1.2),
         borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -2179,14 +2168,14 @@ class _QtyControl extends StatelessWidget {
           GestureDetector(
             onTap: onRemove,
             child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Icon(Icons.remove, color: AppColors.dark, size: 16),
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Icon(Icons.remove, color: Color(0xFF15803D), size: 16),
             ),
           ),
           Text(
             '$qty',
             style: const TextStyle(
-              color: AppColors.dark,
+              color: Color(0xFF15803D),
               fontSize: 14,
               fontWeight: FontWeight.w800,
             ),
@@ -2194,8 +2183,8 @@ class _QtyControl extends StatelessWidget {
           GestureDetector(
             onTap: onAdd,
             child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Icon(Icons.add, color: AppColors.dark, size: 16),
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Icon(Icons.add, color: Color(0xFF15803D), size: 16),
             ),
           ),
         ],
@@ -2204,7 +2193,7 @@ class _QtyControl extends StatelessWidget {
   }
 }
 
-// â”€â”€ Sticky cart bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sticky cart bar ────────────────────────────────────────────────────────
 class _CartBar extends StatelessWidget {
   final CartProvider cartProvider;
   final VoidCallback onViewCart;

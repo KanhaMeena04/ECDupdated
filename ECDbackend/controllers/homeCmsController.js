@@ -36,6 +36,14 @@ const DEFAULT_SECTIONS = [
     isActive: true,
   },
   {
+    sectionKey: "special_dishes",
+    title: "Special Dishes",
+    subtitle: "Chef's special picks & exclusive signature recipes",
+    sectionType: "special_dishes",
+    priority: 45,
+    isActive: true,
+  },
+  {
     sectionKey: "explore_restaurants",
     title: "Explore Restaurants",
     subtitle: "Delicious meals delivered fast from nearby kitchens",
@@ -223,3 +231,259 @@ exports.deleteHomeScreenSection = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Dynamic Recommended Dishes across nearby restaurants with personalization and shuffle
+exports.getRecommendedDishes = async (req, res) => {
+  try {
+    const Product = require("../models/Product");
+    const Restaurant = require("../models/Restaurant");
+    const Order = require("../models/Order");
+    const { isRestaurantOpenNow } = require("../utils/restaurantAvailability");
+
+    const restaurants = await Restaurant.find({
+      isActive: true,
+      restaurantApproved: { $ne: false },
+      isTemporarilyClosed: { $ne: true }
+    }).select("name image address city area location deliveryTime timing").lean();
+
+    const openRestaurants = restaurants.filter(r => isRestaurantOpenNow(r));
+    const targetRestaurants = openRestaurants.length > 0 ? openRestaurants : restaurants;
+    if (targetRestaurants.length === 0) {
+      return res.status(200).json({ success: true, count: 0, dishes: [] });
+    }
+
+    const restMap = new Map();
+    targetRestaurants.forEach(r => restMap.set(r._id.toString(), r));
+    const restIds = targetRestaurants.map(r => r._id);
+
+    // Personalization: check recent orders if user is authenticated
+    let preferredCategories = [];
+    let isVegOnly = false;
+    if (req.user) {
+      if (req.user.foodPreference === 'veg') isVegOnly = true;
+      try {
+        const recentOrders = await Order.find({ user: req.user._id, status: { $in: ['delivered', 'completed'] } })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .populate({ path: 'items.product', select: 'category categoryId foodType isVeg' })
+          .lean();
+        
+        recentOrders.forEach(ord => {
+          (ord.items || []).forEach(it => {
+            if (it.product) {
+              if (it.product.category) preferredCategories.push(it.product.category.toString());
+              if (it.product.categoryId) preferredCategories.push(it.product.categoryId.toString());
+            }
+          });
+        });
+      } catch (err) {
+        // ignore order fetch error
+      }
+    }
+
+    const queryFilter = {
+      restaurant: { $in: restIds },
+      isApproved: true,
+      approvalStatus: { $ne: "rejected" },
+      isRejected: { $ne: true },
+      available: { $ne: false }
+    };
+    if (isVegOnly) {
+      queryFilter.isVeg = true;
+    }
+
+    const products = await Product.find(queryFilter)
+      .populate("category", "name slug")
+      .populate("categoryId", "name slug")
+      .lean();
+
+    if (!products.length) {
+      return res.status(200).json({ success: true, count: 0, dishes: [] });
+    }
+
+    // Format dishes cleanly without injecting hardcoded dummy fallback images
+    const formattedDishes = products.map(p => {
+      const rest = restMap.get(p.restaurant.toString()) || {};
+      const restName = typeof rest.name === 'object' ? (rest.name?.en || Object.values(rest.name)[0] || 'Restaurant') : (rest.name || 'Restaurant');
+      const catObj = p.categoryId || p.category;
+      const catName = catObj ? (typeof catObj === 'string' ? catObj : (catObj.name?.en || catObj.name || 'Main Course')) : 'Main Course';
+      const pName = typeof p.name === 'object' ? (p.name?.en || Object.values(p.name)[0] || 'Dish') : (p.name || 'Dish');
+      const pDesc = typeof p.description === 'object' ? (p.description?.en || Object.values(p.description)[0] || '') : (p.description || '');
+
+      const sellPrice = p.pricing?.b2c?.sellingPrice ?? p.sellingPrice ?? p.basePrice ?? 0;
+      const mrpPrice = p.pricing?.b2c?.mrp ?? p.mrp ?? sellPrice;
+      const basePrice = p.basePrice ?? sellPrice;
+
+      const rawImg = (p.image || "").trim();
+
+      return {
+        id: p._id.toString(),
+        _id: p._id.toString(),
+        name: pName,
+        description: pDesc,
+        price: sellPrice,
+        sellingPrice: sellPrice,
+        mrp: mrpPrice,
+        basePrice: basePrice,
+        discountPercent: mrpPrice > sellPrice ? Math.round(((mrpPrice - sellPrice) / mrpPrice) * 100) : 0,
+        imageUrl: rawImg,
+        image: rawImg,
+        foodType: p.foodType || (p.isVeg ? 'veg' : 'non-veg'),
+        isVeg: p.isVeg !== false,
+        category: catName,
+        categoryId: catObj?._id ? catObj._id.toString() : null,
+        portionType: p.portionType || 'none',
+        portions: p.portions || null,
+        variations: p.variations || [],
+        addOns: p.addOns || [],
+        rating: 4.5,
+        restaurantId: rest._id ? rest._id.toString() : p.restaurant.toString(),
+        restaurantName: restName,
+        restaurantAddress: rest.address || '',
+        deliveryTime: rest.deliveryTime || 25,
+        isPreferred: preferredCategories.length > 0 && (
+          (p.category && preferredCategories.includes(p.category.toString())) ||
+          (p.categoryId && preferredCategories.includes(p.categoryId.toString()))
+        )
+      };
+    });
+
+    // Score & Shuffle: Put preferred categories slightly higher, then random shuffle
+    formattedDishes.sort((a, b) => {
+      if (a.isPreferred && !b.isPreferred) return -1;
+      if (!a.isPreferred && b.isPreferred) return 1;
+      return 0.5 - Math.random();
+    });
+
+    const resultDishes = formattedDishes.slice(0, 24);
+
+    return res.status(200).json({
+      success: true,
+      count: resultDishes.length,
+      dishes: resultDishes
+    });
+  } catch (error) {
+    console.error("getRecommendedDishes error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Dynamic Special Dishes from Admin CMS
+exports.getSpecialDishes = async (req, res) => {
+  try {
+    const Product = require("../models/Product");
+    const Restaurant = require("../models/Restaurant");
+    const HomeScreenSection = require("../models/HomeScreenSection");
+    const { isRestaurantOpenNow } = require("../utils/restaurantAvailability");
+
+    const specialSec = await HomeScreenSection.findOne({ sectionKey: "special_dishes", isActive: true });
+
+    const restaurants = await Restaurant.find({
+      isActive: true,
+      restaurantApproved: { $ne: false },
+      isTemporarilyClosed: { $ne: true }
+    }).select("name image address city area location deliveryTime timing").lean();
+
+    const openRestaurants = restaurants.filter(r => isRestaurantOpenNow(r));
+    const targetRestaurants = openRestaurants.length > 0 ? openRestaurants : restaurants;
+    if (targetRestaurants.length === 0) {
+      return res.status(200).json({ success: true, count: 0, dishes: [] });
+    }
+
+    const restMap = new Map();
+    targetRestaurants.forEach(r => restMap.set(r._id.toString(), r));
+    const restIds = targetRestaurants.map(r => r._id);
+
+    const metadataDishIds = (specialSec?.metadata?.dishIds || specialSec?.metadata?.itemIds || []).filter(Boolean);
+
+    const queryFilter = {
+      restaurant: { $in: restIds },
+      isApproved: true,
+      approvalStatus: { $ne: "rejected" },
+      isRejected: { $ne: true },
+      available: { $ne: false }
+    };
+
+    if (metadataDishIds.length > 0) {
+      queryFilter._id = { $in: metadataDishIds };
+    } else {
+      queryFilter.$or = [
+        { isFeatured: true },
+        { seasonal: true },
+        { discountPercent: { $gt: 10 } },
+        { 'adminPriceOverride.isOverridden': true }
+      ];
+    }
+
+    let products = await Product.find(queryFilter)
+      .populate("category", "name slug")
+      .populate("categoryId", "name slug")
+      .lean();
+
+    if (!products.length) {
+      delete queryFilter.$or;
+      products = await Product.find(queryFilter)
+        .populate("category", "name slug")
+        .populate("categoryId", "name slug")
+        .limit(25)
+        .lean();
+    }
+
+    const formattedDishes = products.map(p => {
+      const rest = restMap.get(p.restaurant.toString()) || {};
+      const restName = typeof rest.name === 'object' ? (rest.name?.en || Object.values(rest.name)[0] || 'Restaurant') : (rest.name || 'Restaurant');
+      const catObj = p.categoryId || p.category;
+      const catName = catObj ? (typeof catObj === 'string' ? catObj : (catObj.name?.en || catObj.name || 'Special')) : 'Special';
+      const pName = typeof p.name === 'object' ? (p.name?.en || Object.values(p.name)[0] || 'Dish') : (p.name || 'Dish');
+      const pDesc = typeof p.description === 'object' ? (p.description?.en || Object.values(p.description)[0] || '') : (p.description || '');
+
+      const sellPrice = p.pricing?.b2c?.sellingPrice ?? p.sellingPrice ?? p.basePrice ?? 0;
+      const mrpPrice = p.pricing?.b2c?.mrp ?? p.mrp ?? sellPrice;
+      const basePrice = p.basePrice ?? sellPrice;
+
+      const rawImg = (p.image || "").trim();
+
+      return {
+        id: p._id.toString(),
+        _id: p._id.toString(),
+        name: pName,
+        description: pDesc,
+        price: sellPrice,
+        sellingPrice: sellPrice,
+        mrp: mrpPrice,
+        basePrice: basePrice,
+        discountPercent: mrpPrice > sellPrice ? Math.round(((mrpPrice - sellPrice) / mrpPrice) * 100) : 0,
+        imageUrl: rawImg,
+        image: rawImg,
+        foodType: p.foodType || (p.isVeg ? 'veg' : 'non-veg'),
+        isVeg: p.isVeg !== false,
+        category: catName,
+        categoryId: catObj?._id ? catObj._id.toString() : null,
+        portionType: p.portionType || 'none',
+        portions: p.portions || null,
+        variations: p.variations || [],
+        addOns: p.addOns || [],
+        rating: 4.8,
+        restaurantId: rest._id ? rest._id.toString() : p.restaurant.toString(),
+        restaurantName: restName,
+        restaurantAddress: rest.address || '',
+        deliveryTime: rest.deliveryTime || 20,
+        badgeText: p.seasonTag || 'CHEF SPECIAL'
+      };
+    });
+
+    formattedDishes.sort(() => 0.5 - Math.random());
+    const resultDishes = formattedDishes.slice(0, 24);
+
+    return res.status(200).json({
+      success: true,
+      count: resultDishes.length,
+      dishes: resultDishes,
+      section: specialSec || null
+    });
+  } catch (error) {
+    console.error("getSpecialDishes error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+

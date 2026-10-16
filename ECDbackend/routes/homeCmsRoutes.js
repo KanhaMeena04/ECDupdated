@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { protect, admin } = require("../middleware/authMiddleware");
+const { protect, admin, optionalAuth } = require("../middleware/authMiddleware");
 const {
   getPublicHomeScreenSections,
   getAllHomeScreenSectionsAdmin,
@@ -9,11 +9,15 @@ const {
   toggleHomeScreenSection,
   reorderHomeScreenSections,
   deleteHomeScreenSection,
+  getRecommendedDishes,
+  getSpecialDishes,
 } = require("../controllers/homeCmsController");
 
 // Public User App endpoint
 router.get("/cms-sections", getPublicHomeScreenSections);
 router.get("/sections", getPublicHomeScreenSections);
+router.get("/recommended-dishes", optionalAuth, getRecommendedDishes);
+router.get("/special-dishes", optionalAuth, getSpecialDishes);
 
 // Admin Control endpoints
 router.get("/admin/home-sections", protect, admin, getAllHomeScreenSectionsAdmin);

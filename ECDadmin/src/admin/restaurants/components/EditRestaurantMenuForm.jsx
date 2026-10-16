@@ -630,11 +630,17 @@ const EditRestaurantMenuForm = () => {
           const rawItems = JSON.parse(text);
           items = (Array.isArray(rawItems) ? rawItems : []).map((it, i) => {
             const imgVal = it.image || it.imageUrl || it.image_url || it.photo || it.photoUrl || it.dishPhoto || it["image url"] || it.picture || it.img || it.url || it.link || "";
+            const baseP = Number(it.basePrice ?? it["base price"] ?? it.base_price ?? it.baseprice ?? it.price ?? it.sellingPrice ?? (it.portions?.full?.basePrice || it.portions?.full?.sellingPrice || it.portions?.small?.sellingPrice) ?? 0);
+            const sellP = Number(it.sellingPrice ?? it["selling price"] ?? it.selling_price ?? it.price ?? baseP);
+            const mrpP = Number(it.mrp ?? it.b2cMrp ?? it["b2c mrp"] ?? Math.max(sellP, baseP));
+            const b2bP = Number(it.b2bPrice ?? it["b2b price"] ?? it.b2bSellingPrice ?? baseP);
             return {
-              name: it.name || it["item name"] || it["dish name"] || `Item ${i + 1}`,
-              price: Number(it.price || it.sellingPrice || it.basePrice || (it.portions?.full?.sellingPrice || it.portions?.small?.sellingPrice) || 0),
-              mrp: Number(it.mrp || it.b2cMrp || it.price || 0),
-              b2bPrice: Number(it.b2bPrice || it.b2bSellingPrice || it.price || 0),
+              name: it.name || it["item name"] || it["dish name"] || it.dishName || it.itemName || `Item ${i + 1}`,
+              basePrice: baseP,
+              price: baseP,
+              sellingPrice: sellP,
+              mrp: mrpP,
+              b2bPrice: b2bP,
               category: it.category || "Main Course",
               foodType: it.foodType || it.foodtype || "veg",
               description: it.description || "",
@@ -668,17 +674,30 @@ const EditRestaurantMenuForm = () => {
             const cols = parseCSVLine(lines[i]);
             if (cols.length >= 2) {
               const item = {};
-              headers.forEach((h, idx) => { item[h] = cols[idx] || ""; });
+              headers.forEach((h, idx) => {
+                const cleanKey = h.trim().toLowerCase();
+                const noSpaceKey = cleanKey.replace(/[\s_-]+/g, "");
+                item[cleanKey] = cols[idx] || "";
+                item[noSpaceKey] = cols[idx] || "";
+              });
               const imgVal = item.image || item["image url"] || item["image_url"] || item.imageurl || item.imageUrl || item.photo || item["photo url"] || item.photo_url || item.dishphoto || item["dish photo"] || item.dish_photo || item.picture || item.img || item.url || item.link || "";
+              const baseP = Number(item["base price"] || item.baseprice || item.base_price || item.basePrice || item.price || item.sellingprice || item["selling price"] || item.full_price || item.half_price || 0);
+              const sellP = Number(item["selling price"] || item.sellingprice || item.selling_price || item.sellingPrice || item.price || baseP);
+              const mrpP = Number(item.mrp || item["b2c mrp"] || item.b2cmrp || item.b2c_mrp || Math.max(sellP, baseP));
+              const b2bP = Number(item["b2b price"] || item.b2bprice || item.b2b_price || item["b2b selling price"] || item.b2bsellingprice || baseP);
+
               items.push({
-                name: item.name || item["item name"] || item["dish name"] || `Item ${i}`,
-                price: Number(item.price || item["selling price"] || item.sellingprice || item.baseprice || item.full_price || item.half_price || 0),
-                mrp: Number(item.mrp || item.b2cmrp || item.price || 0),
-                b2bPrice: Number(item.b2bprice || item["b2b price"] || item.b2bsellingprice || item.price || 0),
-                category: item.category || "Main Course",
+                name: item.name || item["item name"] || item.itemname || item["dish name"] || item.dishname || `Item ${i}`,
+                basePrice: baseP,
+                price: baseP,
+                sellingPrice: sellP,
+                mrp: mrpP,
+                b2bPrice: b2bP,
+                category: item.category || item["category name"] || item.categoryname || "Main Course",
                 foodType: item.foodtype || item["food type"] || "veg",
-                description: item.description || "",
+                description: item.description || item.desc || "",
                 image: imgVal,
+                preparationTime: Number(item.preptime || item["prep time"] || item.preparationtime || 15),
                 portionType: item.portiontype || (item.half_price || item.full_price ? "half_full" : item.small_price || item.med_price ? "size" : "none"),
                 halfSellingPrice: item.half_price || item.halfprice || null,
                 halfMrp: item.half_mrp || null,

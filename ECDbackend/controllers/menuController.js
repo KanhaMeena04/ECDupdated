@@ -492,7 +492,7 @@ exports.getMenu = async (req, res) => {
         name: itemName,
         description: itemDesc,
         image: p.image || "",
-        basePrice: b2cSelling,
+        basePrice: p.basePrice ?? b2cSelling,
         b2cPrice: b2cSelling,
         sellingPrice: b2cSelling,
         b2bPrice: b2bSelling,
@@ -1419,115 +1419,161 @@ exports.bulkUploadMenuItems = async (req, res) => {
     const savedMenuItems = [];
 
     for (let idx = 0; idx < items.length; idx++) {
-      const item = items[idx];
-      const norm = normalizePortionsAndVariations(item);
-      const nameStr = (item.name?.en || item.name || `Bulk Item ${idx + 1}`).trim();
-      const descStr = (item.description?.en || item.description || "").trim();
-      const catNameStr = (item.category || "").trim();
-      const priceNum = Number(norm.sellingPrice ?? 0);
-      const mrpNum = Number(norm.mrp ?? priceNum);
-      const b2bNum = Number(norm.b2bPrice ?? priceNum);
-      const rawFoodType = (item.foodType || (item.isVeg !== false ? 'veg' : 'non-veg')).toString().toLowerCase();
-      const foodTypeStr = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
-      const rawImg = item.image || item.imageUrl || item.image_url || item.photo || item.photoUrl || item.photo_url || item.dishPhoto || item.dish_photo || item["image url"] || item["dish photo"] || item["photo url"] || item.picture || item.pic || item.img || item.imgUrl || item.url || item.link || "";
-      let itemImgStr = (typeof rawImg === 'string' && rawImg.trim()) ? rawImg.trim() : "";
-      if (itemImgStr) {
-        if (!itemImgStr.includes('ik.imagekit.io')) {
-          try {
-            const up = await uploadToImageKit(itemImgStr, `menu_${restaurant._id}_${Date.now()}_${idx}.jpg`, '/menu', nameStr);
-            if (up) itemImgStr = up;
-          } catch (e) {
-            console.warn('[ImageKit Menu Upload Notice]:', e.message);
+      try {
+        const item = items[idx];
+        const norm = normalizePortionsAndVariations(item);
+        const nameStr = (item.name?.en || item.name || item.dishName || item.dish_name || item['dish name'] || item.itemName || item.item_name || item['item name'] || `Bulk Item ${idx + 1}`).trim();
+        const descStr = (item.description?.en || item.description || item.desc || "").trim();
+        const catNameStr = (item.category || item.categoryName || item['category name'] || "Main Course").trim();
+
+        // Support all variations of base price / selling price / MRP / B2B price
+        const basePriceNum = Number(
+          item.basePrice ??
+          item['base price'] ??
+          item['base_price'] ??
+          item.baseprice ??
+          norm.basePrice ??
+          norm.sellingPrice ??
+          item.price ??
+          item.sellingPrice ??
+          0
+        );
+
+        const sellingPriceNum = Number(
+          item.sellingPrice ??
+          item['selling price'] ??
+          item['selling_price'] ??
+          item.sellingprice ??
+          norm.sellingPrice ??
+          basePriceNum
+        );
+
+        const mrpNum = Number(
+          item.mrp ??
+          item['mrp'] ??
+          item.b2cMrp ??
+          item['b2c mrp'] ??
+          norm.mrp ??
+          Math.max(sellingPriceNum, basePriceNum)
+        );
+
+        const b2bNum = Number(
+          item.b2bPrice ??
+          item['b2b price'] ??
+          item['b2b_price'] ??
+          item.b2bprice ??
+          item.b2bSellingPrice ??
+          norm.b2bPrice ??
+          basePriceNum
+        );
+
+        const rawFoodType = (item.foodType || item.foodtype || item['food type'] || (item.isVeg !== false ? 'veg' : 'non-veg')).toString().toLowerCase();
+        const foodTypeStr = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');
+
+        const rawImg = item.image || item.imageUrl || item.image_url || item.photo || item.photoUrl || item.photo_url || item.dishPhoto || item.dish_photo || item["image url"] || item["dish photo"] || item["photo url"] || item.picture || item.pic || item.img || item.imgUrl || item.url || item.link || "";
+        let itemImgStr = (typeof rawImg === 'string' && rawImg.trim()) ? rawImg.trim() : "";
+        if (itemImgStr) {
+          if (!itemImgStr.includes('ik.imagekit.io')) {
+            try {
+              const up = await uploadToImageKit(itemImgStr, `menu_${restaurant._id}_${Date.now()}_${idx}.jpg`, '/menu', nameStr);
+              if (up) itemImgStr = up;
+            } catch (e) {
+              console.warn('[ImageKit Menu Upload Notice]:', e.message);
+            }
           }
         }
-      }
 
-      let categoryObj = null;
-      if (item.categoryId && mongoose.Types.ObjectId.isValid(item.categoryId)) {
-        categoryObj = await Category.findById(item.categoryId);
-      }
-      if (!categoryObj && catNameStr) {
-        categoryObj = await Category.findOne({
-          $or: [
-            { name: { $regex: `^${catNameStr}$`, $options: 'i' } },
-            { slug: catNameStr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') }
-          ]
-        });
-        if (!categoryObj) {
-          const newSlug = catNameStr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
-          categoryObj = await Category.create({
-            name: catNameStr,
-            slug: newSlug,
-            type: 'main',
-            isActive: true,
-            userAppVisible: true,
-            restaurantAppVisible: true
-          }).catch(err => {
-            console.error('Error auto-creating category in bulkUploadMenuItems:', err);
-            return null;
-          });
+        let categoryObj = null;
+        if (item.categoryId && mongoose.Types.ObjectId.isValid(item.categoryId)) {
+          categoryObj = await Category.findById(item.categoryId);
         }
+        if (!categoryObj && catNameStr) {
+          categoryObj = await Category.findOne({
+            $or: [
+              { name: { $regex: `^${catNameStr}$`, $options: 'i' } },
+              { slug: catNameStr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') }
+            ]
+          });
+          if (!categoryObj) {
+            const newSlug = catNameStr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
+            categoryObj = await Category.create({
+              name: catNameStr,
+              slug: newSlug,
+              type: 'main',
+              isActive: true,
+              userAppVisible: true,
+              restaurantAppVisible: true
+            }).catch(err => {
+              console.error('Error auto-creating category in bulkUploadMenuItems:', err);
+              return null;
+            });
+          }
+        }
+        if (!categoryObj) categoryObj = defaultCat;
+
+        const product = await Product.create({
+          restaurant: restaurant._id,
+          category: categoryObj?._id || defaultCat?._id,
+          categoryId: categoryObj?._id || defaultCat?._id,
+          name: { en: nameStr },
+          description: { en: descStr },
+          image: itemImgStr,
+          basePrice: basePriceNum,
+          sellingPrice: sellingPriceNum,
+          mrp: mrpNum,
+          b2bPrice: b2bNum,
+          pricing: {
+            b2c: { mrp: mrpNum, sellingPrice: sellingPriceNum, discountPercent: mrpNum > 0 ? Math.max(0, Math.round(((mrpNum - sellingPriceNum) / mrpNum) * 100)) : 0 },
+            b2b: { sellingPrice: b2bNum, discountPercent: mrpNum > 0 ? Math.max(0, Math.round(((mrpNum - b2bNum) / mrpNum) * 100)) : 0 }
+          },
+          foodType: foodTypeStr,
+          isVeg: foodTypeStr === 'veg',
+          available: item.outOfStock !== true && item.available !== false,
+          preparationTime: Number(item.preparationTime || item.prepTime || 15),
+          portionType: norm.portionType,
+          portions: norm.portions,
+          variations: norm.variations,
+          addOns: norm.addOns,
+          approvalStatus: shouldAutoApprove ? "approved" : "pending",
+          isApproved: shouldAutoApprove,
+          isPublished: shouldAutoApprove,
+          approvedAt: shouldAutoApprove ? new Date() : undefined
+        });
+
+        createdProducts.push(product);
+        savedMenuItems.push({
+          _id: product._id,
+          name: nameStr,
+          category: categoryObj?.name || catNameStr || "Main Course",
+          price: basePriceNum,
+          basePrice: basePriceNum,
+          sellingPrice: sellingPriceNum,
+          mrp: mrpNum,
+          b2bPrice: b2bNum,
+          foodType: foodTypeStr,
+          isVeg: foodTypeStr === 'veg',
+          description: descStr,
+          image: itemImgStr,
+          portionType: norm.portionType,
+          portions: norm.portions,
+          variants: norm.variations,
+          variations: norm.variations,
+          addOns: norm.addOns,
+          isAvailable: item.outOfStock !== true && item.available !== false,
+          isApproved: shouldAutoApprove,
+          approvalStatus: shouldAutoApprove ? "approved" : "pending"
+        });
+      } catch (itemErr) {
+        console.error(`Error processing bulk menu item at index ${idx}:`, itemErr.message);
       }
-      if (!categoryObj) categoryObj = defaultCat;
-
-      const product = await Product.create({
-        restaurant: restaurant._id,
-        category: categoryObj._id,
-        categoryId: categoryObj._id,
-        name: { en: nameStr },
-        description: { en: descStr },
-        image: itemImgStr,
-        basePrice: priceNum,
-        sellingPrice: priceNum,
-        mrp: mrpNum,
-        b2bPrice: b2bNum,
-        pricing: {
-          b2c: { mrp: mrpNum, sellingPrice: priceNum, discountPercent: mrpNum > 0 ? Math.max(0, Math.round(((mrpNum - priceNum) / mrpNum) * 100)) : 0 },
-          b2b: { sellingPrice: b2bNum, discountPercent: mrpNum > 0 ? Math.max(0, Math.round(((mrpNum - b2bNum) / mrpNum) * 100)) : 0 }
-        },
-        foodType: foodTypeStr,
-        isVeg: foodTypeStr === 'veg',
-        available: item.outOfStock !== true && item.available !== false,
-        preparationTime: Number(item.preparationTime || 15),
-        portionType: norm.portionType,
-        portions: norm.portions,
-        variations: norm.variations,
-        addOns: norm.addOns,
-        approvalStatus: shouldAutoApprove ? "approved" : "pending",
-        isApproved: shouldAutoApprove,
-        isPublished: shouldAutoApprove,
-        approvedAt: shouldAutoApprove ? new Date() : undefined
-      });
-
-      createdProducts.push(product);
-      savedMenuItems.push({
-        _id: product._id,
-        name: nameStr,
-        category: categoryObj?.name || catNameStr || "Main Course",
-        price: priceNum,
-        basePrice: priceNum,
-        sellingPrice: priceNum,
-        mrp: mrpNum,
-        b2bPrice: b2bNum,
-        foodType: foodTypeStr,
-        isVeg: foodTypeStr === 'veg',
-        description: descStr,
-        image: itemImgStr,
-        portionType: norm.portionType,
-        portions: norm.portions,
-        variants: norm.variations,
-        variations: norm.variations,
-        addOns: norm.addOns,
-        isAvailable: item.outOfStock !== true && item.available !== false,
-        isApproved: shouldAutoApprove,
-        approvalStatus: shouldAutoApprove ? "approved" : "pending"
-      });
     }
 
-    await Restaurant.findByIdAndUpdate(restaurant._id, {
-      $addToSet: { product: { $each: createdProducts.map(p => p._id) } },
-      $push: { menu: { $each: savedMenuItems } }
-    });
+    if (createdProducts.length > 0) {
+      await Restaurant.findByIdAndUpdate(restaurant._id, {
+        $addToSet: { product: { $each: createdProducts.map(p => p._id) } },
+        $push: { menu: { $each: savedMenuItems } }
+      });
+    }
 
     return res.status(201).json({
       success: true,

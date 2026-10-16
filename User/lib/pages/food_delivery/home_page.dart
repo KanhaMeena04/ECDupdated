@@ -201,6 +201,10 @@ class _HomeTabState extends State<_HomeTab> {
   bool _isLoadingRestaurants = true;
   List<Restaurant> _recommendedRestaurants = [];
   bool _isLoadingRecommended = true;
+  List<MenuItem> _recommendedDishes = [];
+  bool _isLoadingRecommendedDishes = true;
+  List<MenuItem> _specialDishes = [];
+  bool _isLoadingSpecialDishes = true;
   final ScrollController _categoryScrollController = ScrollController();
   bool _hasInitialized = false; // guard against repeated API calls
   Function(dynamic)? _restaurantSocketCallback;
@@ -218,6 +222,8 @@ class _HomeTabState extends State<_HomeTab> {
       _lastLng = loc.lng;
       _fetchRestaurants();
       _fetchRecommendations();
+      _fetchRecommendedDishes();
+      _fetchSpecialDishes();
     }
   }
 
@@ -229,6 +235,8 @@ class _HomeTabState extends State<_HomeTab> {
     _fetchCategories();
     _fetchPopularDishes();
     _fetchRecommendations();
+    _fetchRecommendedDishes();
+    _fetchSpecialDishes();
     // Sync cart + profile only once
     if (!_hasInitialized) {
       _hasInitialized = true;
@@ -294,9 +302,47 @@ class _HomeTabState extends State<_HomeTab> {
       _fetchBanners(),
       _fetchCategories(),
       _fetchPopularDishes(),
+      _fetchRecommendedDishes(),
+      _fetchSpecialDishes(),
       _fetchRecommendations(),
       _fetchRestaurants(),
     ]);
+  }
+
+  Future<void> _fetchRecommendedDishes() async {
+    try {
+      final loc = context.read<LocationProvider>();
+      final dishes = await RestaurantApiService.getRecommendedDishes(
+        lat: loc.lat,
+        lng: loc.lng,
+      );
+      if (mounted) {
+        setState(() {
+          _recommendedDishes = dishes;
+          _isLoadingRecommendedDishes = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingRecommendedDishes = false);
+    }
+  }
+
+  Future<void> _fetchSpecialDishes() async {
+    try {
+      final loc = context.read<LocationProvider>();
+      final dishes = await RestaurantApiService.getSpecialDishes(
+        lat: loc.lat,
+        lng: loc.lng,
+      );
+      if (mounted) {
+        setState(() {
+          _specialDishes = dishes;
+          _isLoadingSpecialDishes = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingSpecialDishes = false);
+    }
   }
 
   Future<void> _fetchRecommendations() async {
@@ -1395,6 +1441,10 @@ class _HomeTabState extends State<_HomeTab> {
       return _buildRecommendedDishesSection(sec, isDark);
     }
 
+    if (sKey == 'special_dishes' || sType == 'special_dishes') {
+      return _buildSpecialDishesSection(sec, isDark);
+    }
+
     if (sKey == 'favourites_section') {
       return _FavouritesSection(restaurants: _restaurants);
     }
@@ -1488,11 +1538,40 @@ class _HomeTabState extends State<_HomeTab> {
         ? (sec['title'] as String).trim()
         : 'Recommended for You';
 
-    final recList = _recommendedRestaurants.isNotEmpty
-        ? _recommendedRestaurants
-        : _restaurants;
+    List<MenuItem> dishList = _recommendedDishes;
+    if (dishList.isEmpty && _restaurants.isNotEmpty) {
+      final List<MenuItem> extracted = [];
+      for (final r in _restaurants) {
+        for (final m in r.menu) {
+          extracted.add(
+            MenuItem(
+              id: m.id,
+              name: m.name,
+              imageUrl: m.imageUrl,
+              price: m.price,
+              originalPrice: m.originalPrice,
+              comparisonTag: m.comparisonTag,
+              category: m.category,
+              rating: m.rating,
+              isVeg: m.isVeg,
+              description: m.description,
+              outOfStock: m.outOfStock,
+              portionType: m.portionType,
+              portions: m.portions,
+              variations: m.variations,
+              addOns: m.addOns,
+              restaurantId: r.id,
+              restaurantName: r.name,
+              restaurantSlug: r.slug,
+            ),
+          );
+        }
+      }
+      extracted.shuffle();
+      dishList = extracted;
+    }
 
-    if (!_isLoadingRecommended && recList.isEmpty) {
+    if (!_isLoadingRecommendedDishes && dishList.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -1513,43 +1592,142 @@ class _HomeTabState extends State<_HomeTab> {
                   height: 1.4,
                 ),
               ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const RecommendedRestaurantsPage(),
-                    ),
-                  );
-                },
-                child: const Text(
-                  'View All',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFFE89D1E),
-                  ),
+              const Text(
+                'Personalized for You',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFE89D1E),
                 ),
               ),
             ],
           ),
         ),
-        _isLoadingRecommended
+        _isLoadingRecommendedDishes && dishList.isEmpty
             ? const SizedBox(
-                height: 240,
+                height: 220,
                 child: Center(
                   child: CircularProgressIndicator(color: AppColors.primary),
                 ),
               )
             : SizedBox(
-                height: 240,
+                height: 225,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: recList.length > 6 ? 6 : recList.length,
+                  itemCount: dishList.length > 10 ? 10 : dishList.length,
                   itemBuilder: (context, index) {
-                    return _RecommendedRestaurantCard(
-                      restaurant: recList[index],
+                    final dish = dishList[index];
+                    return _HomeDishCard(
+                      dish: dish,
+                      isDark: isDark,
+                      restaurants: _restaurants,
+                    );
+                  },
+                ),
+              ),
+      ],
+    );
+  }
+
+  Widget _buildSpecialDishesSection(Map<String, dynamic> sec, bool isDark) {
+    final title = (sec['title'] != null && (sec['title'] as String).trim().isNotEmpty)
+        ? (sec['title'] as String).trim()
+        : 'Special Dishes';
+
+    List<MenuItem> dishList = _specialDishes;
+    if (dishList.isEmpty && _restaurants.isNotEmpty) {
+      final List<MenuItem> extracted = [];
+      for (final r in _restaurants) {
+        for (final m in r.menu) {
+          if (m.isRareOrSpecial || m.isFeatured) {
+            extracted.add(
+              MenuItem(
+                id: m.id,
+                name: m.name,
+                imageUrl: m.imageUrl,
+                price: m.price,
+                originalPrice: m.originalPrice,
+                comparisonTag: m.comparisonTag,
+                category: m.category,
+                rating: m.rating,
+                isVeg: m.isVeg,
+                description: m.description,
+                outOfStock: m.outOfStock,
+                portionType: m.portionType,
+                portions: m.portions,
+                variations: m.variations,
+                addOns: m.addOns,
+                restaurantId: r.id,
+                restaurantName: r.name,
+                restaurantSlug: r.slug,
+              ),
+            );
+          }
+        }
+      }
+      extracted.shuffle();
+      dishList = extracted;
+    }
+
+    if (!_isLoadingSpecialDishes && dishList.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 16, top: 12, right: 16, bottom: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.stars_rounded, color: Color(0xFFE89D1E), size: 19),
+                  const SizedBox(width: 6),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : Colors.black87,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+              const Text(
+                'Chef Special',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFE89D1E),
+                ),
+              ),
+            ],
+          ),
+        ),
+        _isLoadingSpecialDishes && dishList.isEmpty
+            ? const SizedBox(
+                height: 220,
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              )
+            : SizedBox(
+                height: 225,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: dishList.length > 10 ? 10 : dishList.length,
+                  itemBuilder: (context, index) {
+                    final dish = dishList[index];
+                    return _HomeDishCard(
+                      dish: dish,
+                      isDark: isDark,
+                      restaurants: _restaurants,
+                      isSpecial: true,
                     );
                   },
                 ),
@@ -3542,6 +3720,301 @@ class _PopularDishHomeCard extends StatelessWidget {
                     ],
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 9c. Home Dish Card Widget (Recommended & Special Dishes) ─────────────────
+class _HomeDishCard extends StatelessWidget {
+  final MenuItem dish;
+  final bool isDark;
+  final List<Restaurant> restaurants;
+  final bool isSpecial;
+
+  const _HomeDishCard({
+    required this.dish,
+    required this.isDark,
+    required this.restaurants,
+    this.isSpecial = false,
+  });
+
+  void _openRestaurant(BuildContext context) {
+    Restaurant? matched;
+    if (dish.restaurantId.isNotEmpty) {
+      for (final r in restaurants) {
+        if (r.id == dish.restaurantId || r.slug == dish.restaurantSlug) {
+          matched = r;
+          break;
+        }
+      }
+    }
+    if (matched != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RestaurantDetailScreen(restaurant: matched!),
+        ),
+      );
+    } else if (dish.restaurantId.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FutureBuilder<Restaurant>(
+            future: RestaurantApiService.getRestaurantDetails(dish.restaurantId),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return RestaurantDetailScreen(restaurant: snapshot.data!);
+              }
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+              );
+            },
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool hasImage = dish.imageUrl.trim().isNotEmpty && dish.imageUrl.trim() != 'null';
+
+    return GestureDetector(
+      onTap: () => _openRestaurant(context),
+      child: Container(
+        width: 155,
+        margin: const EdgeInsets.only(right: 14, bottom: 4),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Image or Clean Space Box (No dummy thali photo!)
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                  child: hasImage
+                      ? SafeImage(
+                          dish.imageUrl,
+                          width: 155,
+                          height: 110,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 155,
+                            height: 110,
+                            color: isDark ? Colors.grey[850] : const Color(0xFFF1F5F9),
+                            child: Icon(
+                              Icons.restaurant_menu_rounded,
+                              size: 34,
+                              color: isDark ? Colors.white24 : Colors.grey.shade400,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          width: 155,
+                          height: 110,
+                          color: isDark ? Colors.grey[850] : const Color(0xFFF1F5F9),
+                          child: Icon(
+                            Icons.restaurant_menu_rounded,
+                            size: 34,
+                            color: isDark ? Colors.white24 : Colors.grey.shade400,
+                          ),
+                        ),
+                ),
+
+                // Veg / Non-Veg dot at top-left
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(
+                        color: dish.isVeg ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                        width: 1.4,
+                      ),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: dish.isVeg ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Special or Discount badge
+                if (isSpecial || dish.isRareOrSpecial)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE89D1E),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'SPECIAL',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+
+            // Bottom Content
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dish.name,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : const Color(0xFF1F2937),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (dish.restaurantName.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            dish.restaurantName,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    // Price & Add button
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '₹${dish.price.toInt()}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: isDark ? Colors.white : const Color(0xFF111827),
+                              ),
+                            ),
+                            if (dish.originalPrice != null && dish.originalPrice! > dish.price)
+                              Text(
+                                '₹${dish.originalPrice!.toInt()}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade400,
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                              ),
+                          ],
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            if (dish.hasCustomizations) {
+                              _openRestaurant(context);
+                              return;
+                            }
+                            final cart = context.read<CartProvider>();
+                            cart.addItem(
+                              dish.toProduct(),
+                              restaurantId: dish.restaurantId.isNotEmpty ? dish.restaurantId : 'unknown',
+                              restaurantName: dish.restaurantName.isNotEmpty ? dish.restaurantName : 'Restaurant',
+                              restaurantImageUrl: dish.imageUrl,
+                              imageUrl: dish.imageUrl,
+                            );
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.shopping_bag_rounded, color: Colors.white, size: 16),
+                                    const SizedBox(width: 6),
+                                    Expanded(child: Text('Added ${dish.name} to cart!')),
+                                  ],
+                                ),
+                                backgroundColor: AppColors.primary,
+                                duration: const Duration(seconds: 1),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0FDF4),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFF15803D), width: 1),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Text(
+                                  'ADD',
+                                  style: TextStyle(
+                                    color: Color(0xFF15803D),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                SizedBox(width: 2),
+                                Icon(Icons.add, size: 13, color: Color(0xFF15803D)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

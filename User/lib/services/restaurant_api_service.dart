@@ -719,11 +719,19 @@ class RestaurantApiService {
     final bool isTempClosed = json['isTemporarilyClosed'] == true;
     final String busyReason = json['kitchenBusyReason']?.toString() ?? '';
 
+    final String coverOrLogo = (json['coverImage'] != null && json['coverImage'].toString().trim().isNotEmpty && json['coverImage'] != 'null')
+        ? json['coverImage'].toString().trim()
+        : ((json['logo'] != null && json['logo'].toString().trim().isNotEmpty && json['logo'] != 'null')
+            ? json['logo'].toString().trim()
+            : ((json['image'] != null && json['image'].toString().trim().isNotEmpty && json['image'] != 'null')
+                ? json['image'].toString().trim()
+                : ''));
+
     return Restaurant(
       id: rId,
       slug: json['slug']?.toString() ?? '',
       name: rName,
-      imageUrl: json['coverImage']?.toString() ?? json['logo']?.toString() ?? json['image']?.toString() ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600',
+      imageUrl: coverOrLogo,
       rating: parsedRating,
       reviewCount: _parseInt(json['totalReviews'] ?? json['ratingCount'] ?? json['reviewCount'] ?? json['orderCount'], 0),
       distanceKm: distKm,
@@ -834,9 +842,14 @@ class RestaurantApiService {
     }
 
     final String rawImg = (json['image'] ?? json['imageUrl'] ?? '').toString().trim();
-    final String itemImageUrl = (rawImg.isNotEmpty && rawImg != 'null')
-        ? rawImg
-        : 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400';
+    final String itemImageUrl = (rawImg.isNotEmpty && rawImg != 'null') ? rawImg : '';
+
+    final String rId = json['restaurantId']?.toString() ??
+        (json['restaurant'] is Map ? json['restaurant']['_id']?.toString() : json['restaurant']?.toString()) ?? '';
+    final String rName = json['restaurantName']?.toString() ??
+        (json['restaurant'] is Map ? json['restaurant']['name']?.toString() : '') ?? '';
+    final String rSlug = json['restaurantSlug']?.toString() ??
+        (json['restaurant'] is Map ? json['restaurant']['slug']?.toString() : '') ?? '';
 
     final String portionType = (json['portionType'] ?? 'none').toString();
     Map<String, dynamic>? portions;
@@ -886,7 +899,54 @@ class RestaurantApiService {
       portions: portions,
       variations: variations,
       addOns: addOns,
+      restaurantId: rId,
+      restaurantName: rName,
+      restaurantSlug: rSlug,
     );
+  }
+
+  /// Fetch dynamic recommended dishes shuffled and personalized
+  static Future<List<MenuItem>> getRecommendedDishes({double? lat, double? lng}) async {
+    try {
+      String urlStr = '$apiBaseUrl/home/recommended-dishes';
+      if (lat != null && lng != null && lat != 0 && lng != 0) {
+        urlStr += '?lat=$lat&lng=$lng';
+      }
+      final headers = await _getHeaders();
+      final response = await http.get(Uri.parse(urlStr), headers: headers).timeout(const Duration(seconds: 12));
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final list = (decoded is Map ? decoded['dishes'] : decoded) as dynamic;
+        if (list is List) {
+          return list.map((item) => _fromJsonToMenuItem(Map<String, dynamic>.from(item))).toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching recommended dishes: $e');
+    }
+    return [];
+  }
+
+  /// Fetch dynamic special dishes configured in CMS and shuffled
+  static Future<List<MenuItem>> getSpecialDishes({double? lat, double? lng}) async {
+    try {
+      String urlStr = '$apiBaseUrl/home/special-dishes';
+      if (lat != null && lng != null && lat != 0 && lng != 0) {
+        urlStr += '?lat=$lat&lng=$lng';
+      }
+      final headers = await _getHeaders();
+      final response = await http.get(Uri.parse(urlStr), headers: headers).timeout(const Duration(seconds: 12));
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final list = (decoded is Map ? decoded['dishes'] : decoded) as dynamic;
+        if (list is List) {
+          return list.map((item) => _fromJsonToMenuItem(Map<String, dynamic>.from(item))).toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching special dishes: $e');
+    }
+    return [];
   }
 
   static List<Restaurant> _getMockRestaurants() => [];
