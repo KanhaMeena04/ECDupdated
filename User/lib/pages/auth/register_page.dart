@@ -299,7 +299,11 @@ class _RegisterPageState extends State<RegisterPage> {
           backgroundColor: const Color(0xFF248C70),
         ),
       );
-      context.go(AppRoutes.home);
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context, true);
+      } else {
+        context.go(AppRoutes.home);
+      }
       return;
     }
 

@@ -4,8 +4,11 @@ import {
 } from '@mui/material';
 import { 
   People, LocalShipping, Storefront, AttachMoney, 
-  TrendingUp, CardGiftcard, DeliveryDining, Payments, Restaurant, SupportAgent
+  TrendingUp, CardGiftcard, DeliveryDining, Payments, Restaurant, SupportAgent, RestartAlt
 } from '@mui/icons-material';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { API_BASE_URL } from '../../utils/utils';
 import { Doughnut, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -41,7 +44,48 @@ const safeName = (val: any, fallback = ''): string => {
 
 const MainGrid = () => {
   const navigate = useNavigate();
-  const { totals, salesSeries: apiSalesSeries, loading, error } = useDashboardData();
+  const { totals, salesSeries: apiSalesSeries, loading, error, refetch } = useDashboardData();
+  const [isResetting, setIsResetting] = React.useState(false);
+
+  const handleResetFinancials = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to reset all earnings and commission data to ₹0.00?\n\n" +
+      "This will:\n" +
+      "• Reset Total Earnings to ₹0.00\n" +
+      "• Reset Total Admin Commission to ₹0.00\n" +
+      "• Reset Total Delivery Boy Commission to ₹0.00\n" +
+      "• Reset Total Restaurant Commission to ₹0.00\n" +
+      "• Clear past order earning history\n\n" +
+      "Users, Restaurants, and Riders accounts will NOT be deleted. New incoming orders will calculate fresh in real-time."
+    );
+
+    if (!confirmed) return;
+
+    setIsResetting(true);
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/admin/reset-financial-data`,
+        {},
+        {
+          withCredentials: true,
+          headers: {
+            'x-admin-key': 'ecd_admin_super_secret_2026'
+          }
+        }
+      );
+
+      if (res.data?.success) {
+        toast.success(res.data.message || "Financial data reset to ₹0 successfully!");
+        if (refetch) refetch();
+      } else {
+        toast.error(res.data?.message || "Failed to reset financial data");
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || "Error resetting financial data");
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   // Define default/initial fallback values if API returns empty data
   const rawDashboard: any = totals || {};
@@ -50,7 +94,7 @@ const MainGrid = () => {
     totalRiders: Number(rawDashboard.totalRiders ?? 0),
     totalRestaurants: Number(rawDashboard.totalRestaurants ?? 0),
     totalEarnings: Number(rawDashboard.totalEarnings ?? 0),
-    todayEarnings: Number(rawDashboard.todayEarnings ?? 0),
+    todayEarnings: Number(rawDashboard.todayEarnings ?? rawDashboard.todayGOV ?? 0),
     totalCommission: Number(rawDashboard.totalCommission ?? 0),
     totalRestaurantCommission: Number(rawDashboard.totalRestaurantCommission ?? 0),
     totalDeliveryCommission: Number(rawDashboard.totalDeliveryCommission ?? 0),
@@ -155,6 +199,27 @@ const MainGrid = () => {
   return (
     <Box className="min-h-screen bg-[#F5FAF8] p-4 sm:p-6">
       <Container maxWidth="xl" disableGutters>
+        {/* Dashboard Header & Reset Action */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <Typography variant="h5" className="font-bold text-[#2C2C2C]">
+              Enterprise Dashboard
+            </Typography>
+            <Typography variant="caption" className="text-gray-500 font-medium">
+              Real-time platform metrics, live transactions & financial overview
+            </Typography>
+          </div>
+          <button
+            onClick={handleResetFinancials}
+            disabled={isResetting}
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-all shadow-sm disabled:opacity-50 cursor-pointer self-start sm:self-auto"
+            title="Reset total earnings, admin commission, and delivery commission to zero"
+          >
+            <RestartAlt fontSize="small" className={isResetting ? 'animate-spin' : ''} />
+            {isResetting ? 'Resetting to ₹0...' : 'Reset Financial Stats to ₹0'}
+          </button>
+        </div>
+
         {/* Stats Cards */}
         <div className="stats-cards-wrapper border border-[#94B2AA]/30 bg-white rounded-2xl shadow-sm p-2 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">

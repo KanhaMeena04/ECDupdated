@@ -267,6 +267,20 @@ router.get("/transactions/restaurants", protect, admin, dashboardController.getR
 router.get("/transactions/drivers", protect, admin, dashboardController.getDriverTransactionHistory);
 router.get('/orders/dashboard', protect, admin, adminController.getOrdersDashboard);
 router.get('/order-dashboard', protect, admin, adminController.getOrdersDashboard);
+
+// Reset / Clear financial data, commissions & order history to 0
+const authenticateAdminOrKey = (req, res, next) => {
+  const apiKey = req.headers['x-admin-key'] || req.query.adminKey || req.body?.adminKey;
+  if (apiKey && process.env.ADMIN_API_KEY && apiKey === process.env.ADMIN_API_KEY) {
+    return next();
+  }
+  return protect(req, res, () => {
+    admin(req, res, next);
+  });
+};
+router.post('/reset-financial-data', authenticateAdminOrKey, adminController.resetFinancialData);
+router.delete('/financial-history', authenticateAdminOrKey, adminController.resetFinancialData);
+
 router.get('/notifications/live-orders', protect, admin, adminController.getAdminLiveNotifications);
 router.post('/notifications/mark-all-read', protect, admin, adminController.markAllAdminNotificationsRead);
 router.patch('/notifications/mark-all-read', protect, admin, adminController.markAllAdminNotificationsRead);

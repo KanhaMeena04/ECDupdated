@@ -306,7 +306,7 @@ class _LoginPageState extends State<LoginPage>
             duration: Duration(seconds: 3),
           ),
         );
-        Navigator.pushReplacement(
+        final registered = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => RegisterPage(
@@ -315,6 +315,14 @@ class _LoginPageState extends State<LoginPage>
             ),
           ),
         );
+        if (!mounted) return;
+        if (registered == true) {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context, true);
+          } else {
+            context.go(AppRoutes.home);
+          }
+        }
         return;
       }
 

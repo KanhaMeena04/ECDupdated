@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const Order = require("../models/Order");
 const Restaurant = require("../models/Restaurant");
 const Rider = require("../models/Rider");
 const Role = require("../models/Role");
@@ -1116,7 +1117,16 @@ exports.userVerifyOtp = async (req, res) => {
 
     const customerIdCode = await ensureCustomerId(user);
     const token = generateToken(res, user);
-    const hasRealName = Boolean(user.name && !user.name.startsWith("User ") && user.name !== "New Customer");
+    let hasOrders = false;
+    try {
+      const orderCount = await Order.countDocuments({
+        $or: [{ customer: user._id }, { user: user._id }]
+      });
+      hasOrders = orderCount > 0;
+    } catch (orderErr) {
+      console.error("Error checking user order count in userVerifyOtp:", orderErr.message);
+    }
+    const hasRealName = Boolean(user.name && !user.name.startsWith("User ") && user.name !== "New Customer" && user.name.trim().length > 0);
     const isNewUser = !hasRealName && !hasOrders;
 
     return res.status(200).json({

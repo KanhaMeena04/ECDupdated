@@ -50,10 +50,10 @@ exports.getOverview = async (req, res) => {
           totalTips: { $sum: { $ifNull: ["$tip", 0] } },
           totalCommission: { $sum: { $ifNull: ["$adminCommission", 0] } },
           totalRestaurantCommission: {
-            $sum: { $ifNull: ["$restaurantShare", 0] },
+            $sum: { $ifNull: ["$restaurantCommission", { $ifNull: ["$restaurantShare", 0] }] },
           },
           totalRiderEarning: {
-            $sum: { $ifNull: ["$riderEarning", 0] },
+            $sum: { $ifNull: ["$riderEarning", { $ifNull: ["$driverEarnings", 0] }] },
           },
         },
       },
@@ -323,6 +323,7 @@ exports.getOverview = async (req, res) => {
       
       // Financial Overview
       todayGOV: Number(todayGOV.toFixed(2)),
+      todayEarnings: Number(todayGOV.toFixed(2)),
       todayDiscounts: Number(todayDiscounts.toFixed(2)),
       todayDeliveryFees: Number(todayDeliveryFees.toFixed(2)),
       todayPlatformFees: Number(todayPlatformFees.toFixed(2)),
@@ -330,10 +331,10 @@ exports.getOverview = async (req, res) => {
       todayTax: Number(todayTax.toFixed(2)),
       todayAdminRevenue: Number(todayAdminRevenue.toFixed(2)),
       todayRiderEarnings: Number(todayRiderEarnings.toFixed(2)),
-      totalEarnings: Number(totalsRow.totalEarnings || 0),
-      totalCommission: Number(totalsRow.totalCommission || 0),
-      totalRestaurantCommission: Number(totalsRow.totalRestaurantCommission || 0),
-      totalDeliveryCommission: Number(totalsRow.totalRiderEarning || 0),
+      totalEarnings: Number(Number(totalsRow.totalEarnings || 0).toFixed(2)),
+      totalCommission: Number(Number(totalsRow.totalCommission || 0).toFixed(2)),
+      totalRestaurantCommission: Number(Number(totalsRow.totalRestaurantCommission || 0).toFixed(2)),
+      totalDeliveryCommission: Number(Number(totalsRow.totalRiderEarning || 0).toFixed(2)),
 
       // Visual Series & Lists
       salesSeries,

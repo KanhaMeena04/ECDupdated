@@ -26,7 +26,7 @@ class _SplashPageState extends State<SplashPage> {
         context.read<UserProvider>().fetchProfile();
       }
     });
-    _timer = Timer(const Duration(seconds: 5), () {
+    _timer = Timer(const Duration(milliseconds: 1200), () {
       if (mounted) {
         _navigate();
       }
@@ -42,13 +42,10 @@ class _SplashPageState extends State<SplashPage> {
   Future<void> _navigate() async {
     SharedPreferences pref = await SharedPreferences.getInstance();
     bool onboardDone = pref.getBool('onboardStatus') ?? false;
-    String? location = pref.getString('user_location');
 
     if (mounted) {
       if (!onboardDone) {
         context.go(AppRoutes.onboarding);
-      } else if (location == null || location.isEmpty) {
-        context.go(AppRoutes.locationSetup);
       } else {
         context.go(AppRoutes.home);
       }
@@ -62,28 +59,6 @@ class _SplashPageState extends State<SplashPage> {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Skip Button
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 10,
-            right: 15,
-            child: TextButton(
-              onPressed: _navigate,
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white.withOpacity(0.8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: const Text(
-                'Skip',
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
           // Logo centered in top half
           Positioned(
             top: size.height * 0.2,

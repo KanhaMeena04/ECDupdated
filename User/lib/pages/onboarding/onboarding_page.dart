@@ -49,14 +49,18 @@ class _OnboardingPageState extends State<OnboardingPage> {
     super.dispose();
   }
 
-  void _onNextPressed() {
+  void _onNextPressed() async {
     if (_currentPage < _items.length - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     } else {
-      context.go(AppRoutes.locationSetup);
+      final pref = await SharedPreferences.getInstance();
+      await pref.setBool('onboardStatus', true);
+      if (mounted) {
+        context.go(AppRoutes.home);
+      }
     }
   }
 
@@ -184,7 +188,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
               top: 12,
               right: 16,
               child: TextButton(
-                onPressed: () => context.go(AppRoutes.locationSetup),
+                onPressed: () async {
+                  final pref = await SharedPreferences.getInstance();
+                  await pref.setBool('onboardStatus', true);
+                  if (context.mounted) {
+                    context.go(AppRoutes.home);
+                  }
+                },
                 style: TextButton.styleFrom(
                   backgroundColor: Colors.black.withOpacity(0.05),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

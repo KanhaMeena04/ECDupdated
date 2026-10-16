@@ -2287,3 +2287,84 @@ exports.sendCustomPush = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Reset/Clear all financial stats, commission histories, and orders to 0
+exports.resetFinancialData = async (req, res) => {
+  try {
+    const Order = require('../models/Order');
+    const AdminCommissionWallet = require('../models/AdminCommissionWallet');
+    const RiderWallet = require('../models/RiderWallet');
+    const RestaurantWallet = require('../models/RestaurantWallet');
+    const SettlementLedger = require('../models/SettlementLedger');
+    const PaymentTransaction = require('../models/PaymentTransaction');
+
+    // 1. Delete all order documents to wipe past earnings, commission & delivery boy stats
+    const orderDeleteResult = await Order.deleteMany({});
+
+    // 2. Reset Admin Commission Wallet to zero
+    await AdminCommissionWallet.updateMany({}, {
+      $set: {
+        balance: 0,
+        totalCommission: 0,
+        totalPaidOut: 0,
+        lastPayoutAmount: 0,
+        commissionFromRestaurants: 0,
+        commissionFromDelivery: 0,
+        lastUpdated: new Date()
+      }
+    });
+
+    // 3. Reset all Rider Wallets (Delivery boy commission & earnings) to zero
+    await RiderWallet.updateMany({}, {
+      $set: {
+        cashInHand: 0,
+        totalEarnings: 0,
+        availableBalance: 0,
+        totalPayouts: 0,
+        isFrozen: false,
+        lastDepositAmount: 0,
+        lastPayoutAmount: 0
+      }
+    });
+
+    // 4. Reset all Restaurant Wallets to zero
+    await RestaurantWallet.updateMany({}, {
+      $set: {
+        balance: 0,
+        totalEarnings: 0,
+        totalPaidOut: 0,
+        pendingAmount: 0,
+        lastPayoutAmount: 0
+      }
+    });
+
+    // 5. Delete past settlements & payment transaction histories
+    const settlementDeleteResult = await SettlementLedger.deleteMany({});
+    const paymentTxDeleteResult = await PaymentTransaction.deleteMany({});
+
+    let walletTxDeleted = 0;
+    try {
+      const WalletTransaction = require('../models/WalletTransaction');
+      const wRes = await WalletTransaction.deleteMany({});
+      walletTxDeleted = wRes.deletedCount;
+    } catch (_) {}
+
+    return res.status(200).json({
+      success: true,
+      message: "Financial data, commissions, and order histories have been successfully reset to 0.",
+      stats: {
+        ordersDeleted: orderDeleteResult.deletedCount,
+        settlementsDeleted: settlementDeleteResult.deletedCount,
+        paymentTransactionsDeleted: paymentTxDeleteResult.deletedCount,
+        walletTransactionsDeleted: walletTxDeleted,
+        totalEarnings: 0,
+        totalAdminCommission: 0,
+        totalDeliveryBoyCommission: 0,
+        totalRestaurantCommission: 0
+      }
+    });
+  } catch (error) {
+    console.error("Error in resetFinancialData:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
