@@ -47,3 +47,7 @@ ECDbackend/scratch/*.log
 
 # MongoDB local database files
 ECDbackend/data/db/
+
+# Release and memory backup files
+*.backup-before-release
+
