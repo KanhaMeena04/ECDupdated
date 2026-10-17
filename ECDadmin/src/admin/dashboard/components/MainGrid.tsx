@@ -8,7 +8,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '../../utils/utils';
+import { API_BASE_URL } from '../../../utils/utils';
 import { Doughnut, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
