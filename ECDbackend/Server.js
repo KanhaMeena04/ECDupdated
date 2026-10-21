@@ -245,6 +245,8 @@ app.use('/api/user', userRoutes);
 app.use('/api/v1/user', userRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/api/users', userRoutes);
+app.use('/api/v1/api/user', userRoutes);
 
 const notificationRoutes = require('./routes/notificationRoutes');
 app.use('/api/notifications', notificationRoutes);

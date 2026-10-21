@@ -95,7 +95,7 @@ class RestaurantNotificationService {
         return false;
       }
 
-      final url = Uri.parse('${ApiConstants.baseUrl}/api/users/fcm-token');
+      final url = Uri.parse('${ApiConstants.baseUrl}/users/fcm-token');
       final response = await http.post(
         url,
         headers: {
