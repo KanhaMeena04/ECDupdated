@@ -18,6 +18,7 @@ import {
   IconButton,
   Tooltip,
   Autocomplete,
+  Checkbox,
 } from "@mui/material";
 import {
   Plus,
@@ -45,6 +46,8 @@ const EditRestaurantMenuForm = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedItemIds, setSelectedItemIds] = useState([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Restaurant details & auto-approve switch
   const [restaurant, setRestaurant] = useState(null);
@@ -812,6 +815,82 @@ const EditRestaurantMenuForm = () => {
   const pendingCount = menu.filter((i) => !i.isApproved && i.approvalStatus === "pending").length;
   const oosCount = menu.filter((i) => !i.available).length;
 
+  const isAllSelected =
+    filteredMenu.length > 0 &&
+    filteredMenu.every((item) => selectedItemIds.includes(item._id));
+
+  const isIndeterminate =
+    selectedItemIds.length > 0 &&
+    !isAllSelected &&
+    filteredMenu.some((item) => selectedItemIds.includes(item._id));
+
+  const handleToggleSelect = (itemId) => {
+    setSelectedItemIds((prev) =>
+      prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      const filteredIds = new Set(filteredMenu.map((i) => i._id));
+      setSelectedItemIds((prev) => prev.filter((id) => !filteredIds.has(id)));
+    } else {
+      const newIds = new Set([...selectedItemIds, ...filteredMenu.map((i) => i._id)]);
+      setSelectedItemIds(Array.from(newIds));
+    }
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedItemIds([]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedItemIds.length === 0) return;
+    const count = selectedItemIds.length;
+    if (
+      !window.confirm(
+        `Are you sure you want to permanently delete ${count} selected menu item(s)?\n\nThis cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setIsBulkDeleting(true);
+    const token = localStorage.getItem("token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    try {
+      try {
+        await axios.post(
+          `${API_BASE_URL}/api/menu/items/bulk-delete`,
+          {
+            productIds: selectedItemIds,
+            restaurantId: restaurant?._id || restaurantId,
+          },
+          { headers, withCredentials: true }
+        );
+      } catch (bulkErr) {
+        await Promise.all(
+          selectedItemIds.map((id) =>
+            axios.delete(`${API_BASE_URL}/api/menu/item/${id}`, {
+              headers,
+              withCredentials: true,
+            })
+          )
+        );
+      }
+
+      toast.success(`Successfully deleted ${count} menu item(s)`);
+      setSelectedItemIds([]);
+      fetchMenu();
+    } catch (err) {
+      console.error("Bulk delete error:", err);
+      toast.error(err?.response?.data?.message || "Failed to delete selected menu items");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-6 bg-slate-50 min-h-screen space-y-6">
       {/* Top Header */}
@@ -966,6 +1045,50 @@ const EditRestaurantMenuForm = () => {
         </div>
       </div>
 
+      {/* Bulk Action Bar (Visible when items selected) */}
+      {selectedItemIds.length > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 px-5 flex flex-wrap items-center justify-between gap-3 shadow-sm transition-all duration-200">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
+              {selectedItemIds.length}
+            </span>
+            <div>
+              <p className="text-xs font-bold text-slate-800">
+                {selectedItemIds.length} food item{selectedItemIds.length > 1 ? "s" : ""} selected
+              </p>
+              <p className="text-[11px] text-slate-500">
+                Select items to perform bulk deletion or clear selection
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className="px-3.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+            >
+              {isAllSelected ? "Deselect All Visible" : `Select All Visible (${filteredMenu.length})`}
+            </button>
+            <button
+              type="button"
+              onClick={handleDeselectAll}
+              className="px-3.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
+            >
+              <Trash2 size={14} className={isBulkDeleting ? "animate-spin" : ""} />
+              {isBulkDeleting ? "Deleting..." : `Delete Selected (${selectedItemIds.length})`}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Menu Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {loading ? (
@@ -983,6 +1106,20 @@ const EditRestaurantMenuForm = () => {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-bold">
+                <th className="py-3.5 px-3 w-12 text-center">
+                  <Checkbox
+                    size="small"
+                    checked={isAllSelected}
+                    indeterminate={isIndeterminate}
+                    onChange={handleSelectAll}
+                    sx={{
+                      color: "#94a3b8",
+                      "&.Mui-checked": { color: "#059669" },
+                      "&.MuiCheckbox-indeterminate": { color: "#059669" },
+                      padding: 0,
+                    }}
+                  />
+                </th>
                 <th className="py-3.5 px-4">Dish</th>
                 <th className="py-3.5 px-4">Category</th>
                 <th className="py-3.5 px-4">Type</th>
@@ -1005,9 +1142,31 @@ const EditRestaurantMenuForm = () => {
                 const hasHalfFull = item.portionType === "half_full" || Boolean(item.portions?.half?.sellingPrice || item.portions?.full?.sellingPrice);
                 const hasSizes = item.portionType === "size" || Boolean(item.portions?.small?.sellingPrice || item.portions?.medium?.sellingPrice || item.portions?.large?.sellingPrice);
                 const addOnsList = item.addOns || item.addons || [];
+                const isSelected = selectedItemIds.includes(item._id);
 
                 return (
-                  <tr key={item._id} className="hover:bg-slate-50/70 transition">
+                  <tr
+                    key={item._id}
+                    className={`transition ${
+                      isSelected
+                        ? "bg-emerald-50/50 hover:bg-emerald-50/80"
+                        : "hover:bg-slate-50/70"
+                    }`}
+                  >
+                    {/* Item Select Checkbox */}
+                    <td className="py-3.5 px-3 text-center">
+                      <Checkbox
+                        size="small"
+                        checked={isSelected}
+                        onChange={() => handleToggleSelect(item._id)}
+                        sx={{
+                          color: "#cbd5e1",
+                          "&.Mui-checked": { color: "#059669" },
+                          padding: 0,
+                        }}
+                      />
+                    </td>
+
                     {/* Dish Info */}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">

@@ -1293,6 +1293,42 @@ exports.deleteProduct = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.bulkDeleteProducts = async (req, res) => {
+  try {
+    const { productIds, restaurantId } = req.body;
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({ success: false, message: "No product IDs provided for deletion" });
+    }
+
+    const validIds = productIds.filter(id => id && mongoose.Types.ObjectId.isValid(id));
+    if (validIds.length > 0) {
+      await Product.deleteMany({ _id: { $in: validIds } });
+    }
+
+    const pullFilter = {
+      $pull: {
+        product: { $in: productIds },
+        menu: { _id: { $in: productIds } }
+      }
+    };
+
+    if (restaurantId && mongoose.Types.ObjectId.isValid(restaurantId)) {
+      await Restaurant.findByIdAndUpdate(restaurantId, pullFilter);
+    } else {
+      await Restaurant.updateMany({ $or: [{ product: { $in: productIds } }, { "menu._id": { $in: productIds } }] }, pullFilter);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully deleted ${productIds.length} menu items`,
+      count: productIds.length
+    });
+  } catch (error) {
+    console.error("bulkDeleteProducts error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
 exports.editCategory = async (req, res) => {
   try {
     const categoryId = req.params.id;
