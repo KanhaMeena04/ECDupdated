@@ -237,7 +237,11 @@ const EditRestaurantMenuForm = () => {
   const handleDeleteItem = async (productId) => {
     if (!window.confirm("Are you sure you want to delete this menu item?")) return;
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
+      // Instant optimistic UI update
+      setMenu((prev) => prev.filter((item) => item._id !== productId));
+      setSelectedItemIds((prev) => prev.filter((id) => id !== productId));
+
       await axios.delete(`${API_BASE_URL}/api/menu/item/${productId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         withCredentials: true,
@@ -245,7 +249,9 @@ const EditRestaurantMenuForm = () => {
       toast.success("Menu item deleted");
       fetchMenu();
     } catch (err) {
+      console.error("Failed to delete menu item:", err);
       toast.error(err?.response?.data?.message || "Failed to delete menu item");
+      fetchMenu();
     }
   };
 
@@ -856,22 +862,27 @@ const EditRestaurantMenuForm = () => {
     }
 
     setIsBulkDeleting(true);
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const idsToDelete = [...selectedItemIds];
+
+    // Instant optimistic UI update
+    setMenu((prev) => prev.filter((item) => !idsToDelete.includes(item._id)));
+    setSelectedItemIds([]);
 
     try {
       try {
         await axios.post(
           `${API_BASE_URL}/api/menu/items/bulk-delete`,
           {
-            productIds: selectedItemIds,
+            productIds: idsToDelete,
             restaurantId: restaurant?._id || restaurantId,
           },
           { headers, withCredentials: true }
         );
       } catch (bulkErr) {
         await Promise.all(
-          selectedItemIds.map((id) =>
+          idsToDelete.map((id) =>
             axios.delete(`${API_BASE_URL}/api/menu/item/${id}`, {
               headers,
               withCredentials: true,
@@ -881,11 +892,11 @@ const EditRestaurantMenuForm = () => {
       }
 
       toast.success(`Successfully deleted ${count} menu item(s)`);
-      setSelectedItemIds([]);
       fetchMenu();
     } catch (err) {
       console.error("Bulk delete error:", err);
       toast.error(err?.response?.data?.message || "Failed to delete selected menu items");
+      fetchMenu();
     } finally {
       setIsBulkDeleting(false);
     }
