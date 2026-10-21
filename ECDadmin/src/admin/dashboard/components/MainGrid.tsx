@@ -1,10 +1,12 @@
 import React from 'react';
 import { 
-  Box, Container, Grid as MuiGrid, Paper, Typography
+  Box, Container, Grid as MuiGrid, Paper, Typography,
+  Dialog, DialogTitle, DialogContent, DialogActions, IconButton, CircularProgress
 } from '@mui/material';
 import { 
   People, LocalShipping, Storefront, AttachMoney, 
-  TrendingUp, CardGiftcard, DeliveryDining, Payments, Restaurant, SupportAgent, RestartAlt
+  TrendingUp, CardGiftcard, DeliveryDining, Payments, Restaurant, SupportAgent, RestartAlt,
+  History, Close, CalendarMonth, ReceiptLong
 } from '@mui/icons-material';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -46,36 +48,65 @@ const MainGrid = () => {
   const navigate = useNavigate();
   const { totals, salesSeries: apiSalesSeries, loading, error, refetch } = useDashboardData();
   const [isResetting, setIsResetting] = React.useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = React.useState(false);
+  const [resetHistory, setResetHistory] = React.useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = React.useState(false);
+
+  const fetchResetHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
+      const res = await axios.get(`${API_BASE_URL}/api/admin/financial-reset-history`, {
+        withCredentials: true,
+        headers: {
+          'x-admin-key': 'ecd_admin_super_secret_2026',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setResetHistory(res.data.data);
+      }
+    } catch (err: any) {
+      console.error("Failed to load financial reset history:", err);
+      toast.error("Failed to load reset history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const openHistoryModal = () => {
+    setIsHistoryOpen(true);
+    fetchResetHistory();
+  };
 
   const handleResetFinancials = async () => {
     const confirmed = window.confirm(
       "Are you sure you want to reset all earnings and commission data to ₹0.00?\n\n" +
-      "This will:\n" +
-      "• Reset Total Earnings to ₹0.00\n" +
-      "• Reset Total Admin Commission to ₹0.00\n" +
-      "• Reset Total Delivery Boy Commission to ₹0.00\n" +
-      "• Reset Total Restaurant Commission to ₹0.00\n" +
-      "• Clear past order earning history\n\n" +
-      "Users, Restaurants, and Riders accounts will NOT be deleted. New incoming orders will calculate fresh in real-time."
+      "• All past financial stats will be saved to Reset History\n" +
+      "• Total Earnings, Today Earnings, and Commissions will be reset to ₹0.00\n" +
+      "• Fresh live revenue will start accumulating from ₹0.00 from now on\n" +
+      "• Orders, customer accounts, and restaurants will NOT be deleted."
     );
 
     if (!confirmed) return;
 
     setIsResetting(true);
     try {
+      const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
       const res = await axios.post(
         `${API_BASE_URL}/api/admin/reset-financial-data`,
         {},
         {
           withCredentials: true,
           headers: {
-            'x-admin-key': 'ecd_admin_super_secret_2026'
+            'x-admin-key': 'ecd_admin_super_secret_2026',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
           }
         }
       );
 
       if (res.data?.success) {
-        toast.success(res.data.message || "Financial data reset to ₹0 successfully!");
+        toast.success(res.data.message || "Financial data reset to ₹0.00 successfully!");
         if (refetch) refetch();
       } else {
         toast.error(res.data?.message || "Failed to reset financial data");
@@ -90,6 +121,8 @@ const MainGrid = () => {
   // Define default/initial fallback values if API returns empty data
   const rawDashboard: any = totals || {};
   const dashboard = {
+    lastResetAt: rawDashboard.lastResetAt || null,
+    lastResetInfo: rawDashboard.lastResetInfo || null,
     totalUsers: Number(rawDashboard.totalUsers ?? 0),
     totalRiders: Number(rawDashboard.totalRiders ?? 0),
     totalRestaurants: Number(rawDashboard.totalRestaurants ?? 0),
@@ -209,16 +242,47 @@ const MainGrid = () => {
               Real-time platform metrics, live transactions & financial overview
             </Typography>
           </div>
-          <button
-            onClick={handleResetFinancials}
-            disabled={isResetting}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-all shadow-sm disabled:opacity-50 cursor-pointer self-start sm:self-auto"
-            title="Reset total earnings, admin commission, and delivery commission to zero"
-          >
-            <RestartAlt fontSize="small" className={isResetting ? 'animate-spin' : ''} />
-            {isResetting ? 'Resetting to ₹0...' : 'Reset Financial Stats to ₹0'}
-          </button>
+          <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+            <button
+              onClick={openHistoryModal}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-all shadow-sm cursor-pointer"
+              title="View archived financial statistics reset history"
+            >
+              <History fontSize="small" />
+              Reset History
+            </button>
+            <button
+              onClick={handleResetFinancials}
+              disabled={isResetting}
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+              title="Reset total earnings, admin commission, and delivery commission to zero"
+            >
+              <RestartAlt fontSize="small" className={isResetting ? 'animate-spin' : ''} />
+              {isResetting ? 'Resetting to ₹0...' : 'Reset Financial Stats to ₹0'}
+            </button>
+          </div>
         </div>
+
+        {/* Live Fresh Financials Indicator Banner (Visible when stats have been reset) */}
+        {dashboard.lastResetAt && (
+          <div className="mb-4 p-3 bg-emerald-50/90 border border-emerald-200 rounded-2xl flex items-center justify-between flex-wrap gap-2 text-xs shadow-2xs">
+            <div className="flex items-center gap-2.5 text-emerald-950 flex-wrap">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+              <span className="font-black uppercase tracking-wider text-[10px] bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md text-emerald-800">
+                Fresh Data Active
+              </span>
+              <span className="text-slate-700">
+                Displaying live revenue & commissions accumulated since reset on: <strong>{new Date(dashboard.lastResetAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</strong>
+              </span>
+            </div>
+            <button
+              onClick={openHistoryModal}
+              className="text-emerald-700 font-bold hover:text-emerald-900 underline cursor-pointer text-xs"
+            >
+              View Previous Archived Stats →
+            </button>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="stats-cards-wrapper border border-[#94B2AA]/30 bg-white rounded-2xl shadow-sm p-2 mb-6">
@@ -442,6 +506,143 @@ const MainGrid = () => {
             </div>
           </Paper>
         </div>
+
+        {/* Financial Reset History Modal */}
+        <Dialog
+          open={isHistoryOpen}
+          onClose={() => setIsHistoryOpen(false)}
+          maxWidth="md"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: '24px',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            }
+          }}
+        >
+          <DialogTitle sx={{ px: 3, py: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200">
+                <History fontSize="small" />
+              </div>
+              <div>
+                <Typography variant="h6" className="font-black text-slate-800 leading-tight text-base">
+                  Financial Reset History
+                </Typography>
+                <Typography variant="caption" className="text-slate-400 font-medium block mt-0.5">
+                  Historical snapshots of revenue, commissions & order counts archived before each reset
+                </Typography>
+              </div>
+            </div>
+            <IconButton onClick={() => setIsHistoryOpen(false)} size="small" sx={{ color: '#94a3b8', '&:hover': { color: '#1e293b' } }}>
+              <Close fontSize="small" />
+            </IconButton>
+          </DialogTitle>
+
+          <DialogContent dividers sx={{ p: 3, backgroundColor: '#f8fafc', maxHeight: '65vh' }}>
+            {historyLoading ? (
+              <div className="py-20 text-center">
+                <CircularProgress size={32} sx={{ color: '#059669', mb: 2 }} />
+                <p className="text-xs text-slate-500 font-medium">Fetching archived reset records from database...</p>
+              </div>
+            ) : resetHistory.length === 0 ? (
+              <div className="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                  <ReceiptLong style={{ fontSize: 28 }} />
+                </div>
+                <h4 className="text-sm font-bold text-slate-800">No Past Reset History Found</h4>
+                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+                  Financial statistics are currently accumulating continuously in real-time. When you click "Reset Financial Stats to ₹0", a complete snapshot will be automatically archived here.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {resetHistory.map((item: any, idx: number) => {
+                  const dateStr = item.resetAt
+                    ? new Date(item.resetAt).toLocaleString('en-IN', {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })
+                    : 'Past Reset';
+                  const m = item.metrics || {};
+
+                  return (
+                    <div
+                      key={item._id || idx}
+                      className="p-4 sm:p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-1.5 shadow-2xs">
+                            <CalendarMonth style={{ fontSize: 13 }} />
+                            {dateStr}
+                          </span>
+                          <span className="text-xs font-bold text-slate-400">
+                            Reset #{resetHistory.length - idx}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          Reset by: <strong className="text-slate-800">{item.resetBy?.name || 'Super Admin'}</strong>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                          <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Archived Earnings</p>
+                          <p className="text-base font-black text-slate-900 mt-1">
+                            ₹{Number(m.totalEarnings || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-100">
+                          <p className="text-[10px] uppercase font-bold text-amber-600 tracking-wider">Admin Commission</p>
+                          <p className="text-base font-black text-amber-800 mt-1">
+                            ₹{Number(m.totalCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100">
+                          <p className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider">Restaurant Comm.</p>
+                          <p className="text-base font-black text-emerald-800 mt-1">
+                            ₹{Number(m.totalRestaurantCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100">
+                          <p className="text-[10px] uppercase font-bold text-blue-600 tracking-wider">Delivery Boy Comm.</p>
+                          <p className="text-base font-black text-blue-800 mt-1">
+                            ₹{Number(m.totalDeliveryCommission || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-slate-500 pt-3 mt-3 border-t border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <span>Delivered Orders: <strong className="text-slate-800 font-bold">{m.ordersDelivered ?? 0}</strong></span>
+                          <span>Total Orders: <strong className="text-slate-800 font-bold">{m.ordersTotal ?? 0}</strong></span>
+                        </div>
+                        <span className="text-slate-400 italic truncate max-w-sm">{item.note || 'Manual Reset from Admin Dashboard'}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="text-xs text-slate-400 font-medium">
+              {resetHistory.length > 0 ? `${resetHistory.length} archived reset snapshot(s)` : 'No records'}
+            </span>
+            <button
+              onClick={() => setIsHistoryOpen(false)}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+            >
+              Close
+            </button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </Box>
   );
