@@ -67,7 +67,23 @@ const corsConfig = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "x-auth-token", "Accept", "Origin", "X-Requested-With"]
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "x-auth-token",
+    "x-admin-key",
+    "X-Admin-Key",
+    "x-access-token",
+    "x-refresh-token",
+    "Accept",
+    "Origin",
+    "X-Requested-With",
+    "Cache-Control",
+    "Pragma",
+    "adminKey",
+    "adminkey"
+  ],
+  exposedHeaders: ["x-admin-key", "Authorization"]
 };
 
 const io = socketIO(server, {
@@ -154,6 +170,16 @@ const initPaymentCronJobs = require('./services/paymentCronJobs');
 
 app.use(cookieParser());
 app.use(cors(corsConfig));
+app.use((req, res, next) => {
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, x-auth-token, x-admin-key, X-Admin-Key, x-access-token, x-refresh-token, Accept, Origin, X-Requested-With, Cache-Control, Pragma, adminKey, adminkey"
+  );
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
 const { handleStripeWebhook } = require('./controllers/paymentController');
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));

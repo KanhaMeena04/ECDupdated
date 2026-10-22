@@ -57,6 +57,7 @@ const MainGrid = () => {
     try {
       const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
       const res = await axios.get(`${API_BASE_URL}/api/admin/financial-reset-history`, {
+        params: { adminKey: 'ecd_admin_super_secret_2026' },
         withCredentials: true,
         headers: {
           'x-admin-key': 'ecd_admin_super_secret_2026',
@@ -68,7 +69,7 @@ const MainGrid = () => {
       }
     } catch (err: any) {
       console.error("Failed to load financial reset history:", err);
-      toast.error("Failed to load reset history");
+      toast.error(err.response?.data?.message || err.message || "Failed to load reset history");
     } finally {
       setHistoryLoading(false);
     }
@@ -95,8 +96,12 @@ const MainGrid = () => {
       const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
       const res = await axios.post(
         `${API_BASE_URL}/api/admin/reset-financial-data`,
-        {},
         {
+          adminKey: 'ecd_admin_super_secret_2026',
+          note: 'Financial stats reset to ₹0 from Super Admin Dashboard'
+        },
+        {
+          params: { adminKey: 'ecd_admin_super_secret_2026' },
           withCredentials: true,
           headers: {
             'x-admin-key': 'ecd_admin_super_secret_2026',
@@ -112,6 +117,7 @@ const MainGrid = () => {
         toast.error(res.data?.message || "Failed to reset financial data");
       }
     } catch (err: any) {
+      console.error("Error resetting financial data:", err);
       toast.error(err.response?.data?.message || err.message || "Error resetting financial data");
     } finally {
       setIsResetting(false);
