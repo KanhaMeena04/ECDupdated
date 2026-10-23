@@ -60,20 +60,20 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBjEqhW74292IN8fvmycPa6_KLAHdoTbZA',
-    appId: '1:168004879111:ios:a6e4d2a67f68c69d263ba2',
+    appId: '1:168004879111:ios:0fc32648701e2111263ba2',
     messagingSenderId: '168004879111',
     projectId: 'ecdkart-24dbe',
     storageBucket: 'ecdkart-24dbe.firebasestorage.app',
-    iosBundleId: 'com.example.ecdRestaurant',
+    iosBundleId: 'com.ecdkart.restaurant',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyBjEqhW74292IN8fvmycPa6_KLAHdoTbZA',
-    appId: '1:168004879111:ios:a6e4d2a67f68c69d263ba2',
+    appId: '1:168004879111:ios:0fc32648701e2111263ba2',
     messagingSenderId: '168004879111',
     projectId: 'ecdkart-24dbe',
     storageBucket: 'ecdkart-24dbe.firebasestorage.app',
-    iosBundleId: 'com.example.ecdRestaurant',
+    iosBundleId: 'com.ecdkart.restaurant',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

@@ -5,7 +5,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>ECDKART RIDER</string>
+		<string>ECDKART Rider</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>ECDKART RIDER</string>
+		<string>ECDKART Rider</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
@@ -47,5 +47,43 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<!-- Privacy Permissions -->
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>ECDKART Rider requires access to your location to assign nearby delivery orders and provide turn-by-turn navigation.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>ECDKART Rider requires background location access to share live delivery status with customers and restaurants while on active delivery routes.</string>
+		<key>NSLocationAlwaysUsageDescription</key>
+		<string>ECDKART Rider tracks your location during active orders to update customers on order arrival.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>ECDKART Rider requires camera access to take your profile selfie and capture identity verification documents (driving license, vehicle registration).</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>ECDKART Rider requires photo library access to upload your KYC identification documents and vehicle papers.</string>
+		<!-- Background Modes for Live Location Tracking and FCM Alerts -->
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>location</string>
+			<string>fetch</string>
+			<string>remote-notification</string>
+			<string>audio</string>
+		</array>
+		<!-- Embedded Views for Google Maps -->
+		<key>io.flutter.embedded_views_preview</key>
+		<true/>
+		<!-- App Transport Security -->
+		<key>NSAppTransportSecurity</key>
+		<dict>
+			<key>NSAllowsArbitraryLoads</key>
+			<true/>
+		</dict>
+		<!-- URL Schemes for Navigation & Calls -->
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>tel</string>
+			<string>mailto</string>
+			<string>https</string>
+			<string>http</string>
+			<string>comgooglemaps</string>
+			<string>waze</string>
+		</array>
 	</dict>
 </plist>
