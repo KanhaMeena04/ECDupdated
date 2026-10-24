@@ -4,27 +4,35 @@ import { API_BASE_URL } from "../../utils/utils";
 
 const normalizeZoneItem = (item) => {
   const zoneObj = item.zone && typeof item.zone === "object" ? item.zone : null;
-  const rawName = item.name || item.zone || (zoneObj && zoneObj.name) || "";
-  const name = typeof rawName === "string" ? rawName.trim() : String(rawName || "");
-  const id = item._id || (zoneObj && zoneObj._id) || name;
-  const rawCity = item.city || (item.cityObj && item.cityObj.name) || "";
-  const city = typeof rawCity === "string" ? rawCity.trim() : (rawCity?.name || "");
+  const rawZone = item.zone && typeof item.zone === "string" ? item.zone.trim() : (zoneObj?.name || "");
+  const rawCity = item.city && typeof item.city === "string" ? item.city.trim() : (item.cityObj?.name || "");
   const pincode = item.pincode || (zoneObj && zoneObj.pincode) || "";
   const state = item.state || "";
   const district = item.district || "";
+
+  const cityName = rawCity || rawZone || "City Area";
+  const zoneName = rawZone || rawCity || "Main Zone";
+  const label = (cityName && zoneName && cityName.toLowerCase() !== zoneName.toLowerCase())
+    ? `${cityName} - ${zoneName}`
+    : (cityName || zoneName);
+
+  const id = item._id || (zoneObj && zoneObj._id) || label;
 
   return {
     ...item,
     _id: id,
     id,
-    name,
-    zone: name,
-    city,
+    name: label,
+    zone: zoneName,
+    city: cityName,
+    cityName,
+    zoneName,
     pincode: pincode ? String(pincode).trim() : "",
     state,
     district,
-    displayName: `${name}${pincode ? ` (${pincode} - ${city})` : city ? ` (${city})` : ""}`,
-    label: `${name}${pincode ? ` (${pincode} - ${city})` : city ? ` (${city})` : ""}`,
+    village: item.village || "",
+    displayName: `${label}${pincode ? ` (${pincode})` : ""}`,
+    label: `${label}${pincode ? ` (${pincode})` : ""}`,
   };
 };
 
@@ -49,27 +57,36 @@ const useZones = (filters = {}, keepPreviousOnError = false) => {
         Object.assign(params, customParams);
       }
 
-      let res;
+      let rawList = [];
+
+      // 1. Primary source: fetch directly from /api/service-areas (where Admin adds all service areas)
       try {
-        res = await axios.get(`${API_BASE_URL}/api/zones`, {
+        const saRes = await axios.get(`${API_BASE_URL}/api/service-areas`, {
           params,
           withCredentials: true,
         });
-      } catch (err) {
-        // Fallback to /api/service-areas if /api/zones failed
-        res = await axios.get(`${API_BASE_URL}/api/service-areas`, {
-          params,
-          withCredentials: true,
-        });
+        if (Array.isArray(saRes.data?.areas) && saRes.data.areas.length > 0) {
+          rawList = saRes.data.areas;
+        } else if (Array.isArray(saRes.data) && saRes.data.length > 0) {
+          rawList = saRes.data;
+        }
+      } catch (saErr) {
+        console.warn("Direct /api/service-areas fetch failed:", saErr?.message);
       }
 
-      let rawList = [];
-      if (Array.isArray(res.data)) {
-        rawList = res.data;
-      } else if (Array.isArray(res.data?.zones)) {
-        rawList = res.data.zones;
-      } else if (Array.isArray(res.data?.areas)) {
-        rawList = res.data.areas;
+      // 2. Fallback: if service-areas was empty, try /api/zones
+      if (rawList.length === 0) {
+        try {
+          const zRes = await axios.get(`${API_BASE_URL}/api/zones`, {
+            params,
+            withCredentials: true,
+          });
+          if (Array.isArray(zRes.data) && zRes.data.length > 0) {
+            rawList = zRes.data;
+          } else if (Array.isArray(zRes.data?.zones) && zRes.data.zones.length > 0) {
+            rawList = zRes.data.zones;
+          }
+        } catch (_) {}
       }
 
       const normalized = rawList.map(normalizeZoneItem).filter((z) => Boolean(z.name));

@@ -388,20 +388,20 @@ const AdminCreateRiderForm = ({
               </option>
               {matchingPinZones.length > 0 ? (
                 <>
-                  <optgroup label={`📍 Matching PIN ${extractedPin} (${matchingPinZones.length} Area${matchingPinZones.length > 1 ? "s" : ""})`}>
+                  <optgroup label={`📍 Available For PIN ${extractedPin} (${matchingPinZones.length} Area${matchingPinZones.length > 1 ? "s" : ""})`}>
                     {matchingPinZones.map((z) => (
                       <option key={z._id || z.name} value={z.name}>
-                        {z.name} {z.pincode ? `(PIN: ${z.pincode} - ${z.city || ""})` : z.city ? `(${z.city})` : ""}
+                        {z.displayName || z.name}
                       </option>
                     ))}
                   </optgroup>
                   {zonesData.filter((z) => !matchingPinZones.some((m) => m.name === z.name)).length > 0 && (
-                    <optgroup label="All Other Service Areas">
+                    <optgroup label="All Other Available Service Areas">
                       {zonesData
                         .filter((z) => !matchingPinZones.some((m) => m.name === z.name))
                         .map((z) => (
                           <option key={z._id || z.name} value={z.name}>
-                            {z.name} {z.pincode ? `(PIN: ${z.pincode} - ${z.city || ""})` : z.city ? `(${z.city})` : ""}
+                            {z.displayName || z.name}
                           </option>
                         ))}
                     </optgroup>
@@ -412,7 +412,7 @@ const AdminCreateRiderForm = ({
                   <optgroup label={`📍 Matching City: ${selectedCity} (${matchingCityZones.length} Area${matchingCityZones.length > 1 ? "s" : ""})`}>
                     {matchingCityZones.map((z) => (
                       <option key={z._id || z.name} value={z.name}>
-                        {z.name} {z.pincode ? `(PIN: ${z.pincode} - ${z.city || ""})` : z.city ? `(${z.city})` : ""}
+                        {z.displayName || z.name}
                       </option>
                     ))}
                   </optgroup>
@@ -422,7 +422,7 @@ const AdminCreateRiderForm = ({
                         .filter((z) => !matchingCityZones.some((m) => m.name === z.name))
                         .map((z) => (
                           <option key={z._id || z.name} value={z.name}>
-                            {z.name} {z.pincode ? `(PIN: ${z.pincode} - ${z.city || ""})` : z.city ? `(${z.city})` : ""}
+                            {z.displayName || z.name}
                           </option>
                         ))}
                     </optgroup>
@@ -431,7 +431,7 @@ const AdminCreateRiderForm = ({
               ) : (
                 zonesData.map((z) => (
                   <option key={z._id || z.name} value={z.name}>
-                    {z.name} {z.pincode ? `(PIN: ${z.pincode} - ${z.city || ""})` : z.city ? `(${z.city})` : ""}
+                    {z.displayName || z.name}
                   </option>
                 ))
               )}

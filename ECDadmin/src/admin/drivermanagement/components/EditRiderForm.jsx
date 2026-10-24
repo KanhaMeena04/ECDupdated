@@ -495,18 +495,21 @@ const EditRiderForm = ({
                       value={formData.workZone || ""}
                       onChange={handleChange}
                       disabled={zLoading}
-                      error={!!zError}
+                      error={false}
                       sx={fieldSx}
+                      FormHelperTextProps={{
+                        sx: { color: matchingPinZones.length > 0 ? "#059669" : "#64748b", fontWeight: 500 }
+                      }}
                       helperText={
                         zLoading
                           ? "Loading service areas..."
                           : matchingPinZones.length > 0
                           ? `📍 ${matchingPinZones.length} service area(s) match PIN ${extractedPin}`
                           : extractedPin
-                          ? `No zones for PIN ${extractedPin}. Showing all active zones.`
+                          ? `No areas for PIN ${extractedPin}. Showing all available service areas.`
                           : currentCity
                           ? `📍 Showing service areas for ${currentCity}`
-                          : zError || ""
+                          : ""
                       }
                     >
                       {matchingPinZones.length > 0 ? (
@@ -516,19 +519,19 @@ const EditRiderForm = ({
                           </MenuItem>,
                           ...matchingPinZones.map((zone) => (
                             <MenuItem key={zone._id || zone.name} value={zone.name || zone.zone}>
-                              {zone.name || zone.zone} {zone.pincode ? `(PIN: ${zone.pincode} - ${zone.city || ""})` : zone.city ? `(${zone.city})` : ""}
+                              {zone.displayName || zone.name}
                             </MenuItem>
                           )),
                           ...(zones.filter((z) => !matchingPinZones.some((m) => m.name === z.name)).length > 0
                             ? [
                                 <MenuItem key="hdr-other" disabled sx={{ fontWeight: 800, fontSize: "11px", color: "#64748b", bgcolor: "#f8fafc", mt: 1 }}>
-                                  ALL OTHER SERVICE AREAS
+                                  ALL OTHER AVAILABLE SERVICE AREAS
                                 </MenuItem>,
                                 ...zones
                                   .filter((z) => !matchingPinZones.some((m) => m.name === z.name))
                                   .map((zone) => (
                                     <MenuItem key={zone._id || zone.name} value={zone.name || zone.zone}>
-                                      {zone.name || zone.zone} {zone.pincode ? `(PIN: ${zone.pincode} - ${zone.city || ""})` : zone.city ? `(${zone.city})` : ""}
+                                      {zone.displayName || zone.name}
                                     </MenuItem>
                                   )),
                               ]
@@ -541,7 +544,7 @@ const EditRiderForm = ({
                           </MenuItem>,
                           ...matchingCityZones.map((zone) => (
                             <MenuItem key={zone._id || zone.name} value={zone.name || zone.zone}>
-                              {zone.name || zone.zone} {zone.pincode ? `(PIN: ${zone.pincode} - ${zone.city || ""})` : zone.city ? `(${zone.city})` : ""}
+                              {zone.displayName || zone.name}
                             </MenuItem>
                           )),
                           ...(zones.filter((z) => !matchingCityZones.some((m) => m.name === z.name)).length > 0
@@ -553,7 +556,7 @@ const EditRiderForm = ({
                                   .filter((z) => !matchingCityZones.some((m) => m.name === z.name))
                                   .map((zone) => (
                                     <MenuItem key={zone._id || zone.name} value={zone.name || zone.zone}>
-                                      {zone.name || zone.zone} {zone.pincode ? `(PIN: ${zone.pincode} - ${zone.city || ""})` : zone.city ? `(${zone.city})` : ""}
+                                      {zone.displayName || zone.name}
                                     </MenuItem>
                                   )),
                               ]
@@ -562,7 +565,7 @@ const EditRiderForm = ({
                       ) : (
                         zones.map((zone) => (
                           <MenuItem key={zone._id || zone.name} value={zone.name || zone.zone}>
-                            {zone.name || zone.zone} {zone.pincode ? `(PIN: ${zone.pincode} - ${zone.city || ""})` : zone.city ? `(${zone.city})` : ""}
+                            {zone.displayName || zone.name}
                           </MenuItem>
                         ))
                       )}
