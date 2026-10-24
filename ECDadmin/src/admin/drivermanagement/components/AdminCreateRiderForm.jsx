@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Alert } from "@mui/material";
 import { KeyRound, Smartphone, Mail, User, MapPin, Upload, Image, ShieldCheck } from "lucide-react";
 import { useCities } from "../../api/city";
@@ -32,7 +32,50 @@ const AdminCreateRiderForm = ({
     name: c.name,
     label: c.isServiceAvailable ? `${c.name} 📍 (Services Available)` : `${c.name} (Haryana)`
   }));
-  const zoneOptions = zonesData.map((z) => ({ _id: z._id, name: z.name }));
+
+  // Dynamic Pincode and City matching with Service Areas
+  const addressText = `${formData.address || ""} ${formData.address2 || ""}`;
+  const extractedPin = (formData.zipCode || "").toString().trim() || addressText.match(/\b\d{6}\b/)?.[0] || "";
+  const selectedCity = (formData.workCity || formData.city || "").trim();
+
+  // Zones matching driver's pincode
+  const matchingPinZones = useMemo(() => {
+    if (!extractedPin) return [];
+    return zonesData.filter((z) => (z.pincode || "").toString().trim() === extractedPin);
+  }, [zonesData, extractedPin]);
+
+  // Zones matching selected city
+  const matchingCityZones = useMemo(() => {
+    if (!selectedCity) return [];
+    const cityLower = selectedCity.toLowerCase();
+    return zonesData.filter((z) => (z.city || "").toLowerCase().includes(cityLower));
+  }, [zonesData, selectedCity]);
+
+  // Auto-sync zone and city/pincode when matching service area is found
+  useEffect(() => {
+    if (matchingPinZones.length > 0) {
+      if (!formData.workZone) {
+        setFieldValue("workZone", matchingPinZones[0].name);
+      }
+      if (!formData.workCity && matchingPinZones[0].city) {
+        setFieldValue("workCity", matchingPinZones[0].city);
+      }
+      if (!formData.city && matchingPinZones[0].city) {
+        setFieldValue("city", matchingPinZones[0].city);
+      }
+    }
+  }, [extractedPin, matchingPinZones.length]);
+
+  const handleZoneSelect = (e) => {
+    const val = e.target.value;
+    handleChange(e);
+    const chosen = zonesData.find((z) => z.name === val || z._id === val);
+    if (chosen) {
+      if (!formData.workCity && chosen.city) setFieldValue("workCity", chosen.city);
+      if (!formData.city && chosen.city) setFieldValue("city", chosen.city);
+      if (!formData.zipCode && chosen.pincode) setFieldValue("zipCode", chosen.pincode);
+    }
+  };
 
   const handleProfilePicUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -324,22 +367,80 @@ const AdminCreateRiderForm = ({
 
           {/* Work Zones */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-              Assigned Delivery Zone
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Assigned Delivery Zone
+              </label>
+              {extractedPin && matchingPinZones.length > 0 && (
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  📍 {matchingPinZones.length} area{matchingPinZones.length > 1 ? "s" : ""} match PIN {extractedPin}
+                </span>
+              )}
+            </div>
             <select
               name="workZone"
               value={formData.workZone || ""}
-              onChange={handleChange}
+              onChange={handleZoneSelect}
               className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition"
             >
-              <option value="">Select Delivery Zone</option>
-              {zoneOptions.map((z) => (
-                <option key={z._id} value={z.name}>
-                  {z.name}
-                </option>
-              ))}
+              <option value="">
+                {zonesLoading ? "Loading delivery zones..." : "Select Delivery Zone"}
+              </option>
+              {matchingPinZones.length > 0 ? (
+                <>
+                  <optgroup label={`📍 Matching PIN ${extractedPin} (${matchingPinZones.length} Area${matchingPinZones.length > 1 ? "s" : ""})`}>
+                    {matchingPinZones.map((z) => (
+                      <option key={z._id || z.name} value={z.name}>
+                        {z.name} {z.pincode ? `(PIN: ${z.pincode} - ${z.city || ""})` : z.city ? `(${z.city})` : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                  {zonesData.filter((z) => !matchingPinZones.some((m) => m.name === z.name)).length > 0 && (
+                    <optgroup label="All Other Service Areas">
+                      {zonesData
+                        .filter((z) => !matchingPinZones.some((m) => m.name === z.name))
+                        .map((z) => (
+                          <option key={z._id || z.name} value={z.name}>
+                            {z.name} {z.pincode ? `(PIN: ${z.pincode} - ${z.city || ""})` : z.city ? `(${z.city})` : ""}
+                          </option>
+                        ))}
+                    </optgroup>
+                  )}
+                </>
+              ) : matchingCityZones.length > 0 ? (
+                <>
+                  <optgroup label={`📍 Matching City: ${selectedCity} (${matchingCityZones.length} Area${matchingCityZones.length > 1 ? "s" : ""})`}>
+                    {matchingCityZones.map((z) => (
+                      <option key={z._id || z.name} value={z.name}>
+                        {z.name} {z.pincode ? `(PIN: ${z.pincode} - ${z.city || ""})` : z.city ? `(${z.city})` : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                  {zonesData.filter((z) => !matchingCityZones.some((m) => m.name === z.name)).length > 0 && (
+                    <optgroup label="Other Service Areas">
+                      {zonesData
+                        .filter((z) => !matchingCityZones.some((m) => m.name === z.name))
+                        .map((z) => (
+                          <option key={z._id || z.name} value={z.name}>
+                            {z.name} {z.pincode ? `(PIN: ${z.pincode} - ${z.city || ""})` : z.city ? `(${z.city})` : ""}
+                          </option>
+                        ))}
+                    </optgroup>
+                  )}
+                </>
+              ) : (
+                zonesData.map((z) => (
+                  <option key={z._id || z.name} value={z.name}>
+                    {z.name} {z.pincode ? `(PIN: ${z.pincode} - ${z.city || ""})` : z.city ? `(${z.city})` : ""}
+                  </option>
+                ))
+              )}
             </select>
+            {extractedPin && matchingPinZones.length === 0 && !zonesLoading && (
+              <p className="text-[11px] text-amber-600 mt-1">
+                ℹ️ No direct service areas found for PIN {extractedPin}. You can select any other active zone from the list.
+              </p>
+            )}
           </div>
 
           {/* Zip Code */}

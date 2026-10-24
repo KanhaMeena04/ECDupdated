@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const City = require('../models/City');
 const ServiceArea = require('../models/ServiceArea');
 const { getPaginationParams } = require('../utils/pagination');
@@ -324,15 +325,108 @@ exports.deleteZone = async (req, res) => {
 };
 exports.getPublicZones = async (req, res) => {
   try {
-    const { city } = req.query;
-    const query = { 'isActive': true };
-    if (city) query._id = city;
-    const cities = await City.find(city ? { _id: city } : {}).select('name zones');
-    const result = [];
-    for (const c of cities) {
-      const zones = (c.zones || []).filter(z => z.isActive);
-      for (const z of zones) result.push({ city: { _id: c._id, name: c.name }, zone: z });
+    let { city, pincode, address, search } = req.query;
+
+    // Extract 6-digit pincode from address if not explicitly passed
+    if (!pincode && address) {
+      const pinMatch = String(address).match(/\b\d{6}\b/);
+      if (pinMatch) pincode = pinMatch[0];
     }
+
+    const saQuery = { isServiceActive: { $ne: false } };
+
+    if (pincode && String(pincode).trim()) {
+      saQuery.pincode = String(pincode).trim();
+    }
+
+    if (city && String(city).trim()) {
+      const cleanCity = String(city).trim();
+      saQuery.$or = [
+        { city: { $regex: cleanCity, $options: 'i' } },
+        { district: { $regex: cleanCity, $options: 'i' } },
+        { state: { $regex: cleanCity, $options: 'i' } },
+      ];
+    }
+
+    if (search && String(search).trim()) {
+      const cleanSearch = String(search).trim();
+      saQuery.$or = [
+        { zone: { $regex: cleanSearch, $options: 'i' } },
+        { city: { $regex: cleanSearch, $options: 'i' } },
+        { village: { $regex: cleanSearch, $options: 'i' } },
+        { pincode: { $regex: cleanSearch, $options: 'i' } },
+      ];
+    }
+
+    let serviceAreas = await ServiceArea.find(saQuery).sort({ city: 1, zone: 1 });
+
+    // Fallback: If filtered by pincode or city and nothing found, fetch by city or all active areas
+    if (serviceAreas.length === 0 && (pincode || city)) {
+      if (city) {
+        serviceAreas = await ServiceArea.find({
+          isServiceActive: { $ne: false },
+          $or: [
+            { city: { $regex: String(city).trim(), $options: 'i' } },
+            { district: { $regex: String(city).trim(), $options: 'i' } }
+          ]
+        }).sort({ city: 1, zone: 1 });
+      }
+      if (serviceAreas.length === 0) {
+        serviceAreas = await ServiceArea.find({ isServiceActive: { $ne: false } }).sort({ city: 1, zone: 1 });
+      }
+    }
+
+    // Format service areas into a normalized zone list
+    const result = serviceAreas.map((area) => ({
+      _id: area._id,
+      id: area._id,
+      name: area.zone,
+      zone: area.zone,
+      city: area.city,
+      district: area.district,
+      state: area.state,
+      pincode: area.pincode,
+      village: area.village || '',
+      deliveryRadiusKm: area.deliveryRadiusKm || 10,
+      baseDeliveryFee: area.baseDeliveryFee || 30,
+      coordinates: area.coordinates || { lat: 0, lng: 0 },
+      isServiceActive: area.isServiceActive,
+      displayName: `${area.zone} (${area.pincode ? `${area.pincode} - ` : ''}${area.city})`,
+      label: `${area.zone} (${area.pincode ? `${area.pincode} - ` : ''}${area.city})`,
+      cityObj: { name: area.city },
+      zoneObj: { _id: area._id, name: area.zone }
+    }));
+
+    // Include zones from City model if any exist
+    try {
+      const cityQuery = { isActive: { $ne: false } };
+      if (city && mongoose.Types.ObjectId.isValid(city)) {
+        cityQuery._id = city;
+      }
+      const cities = await City.find(cityQuery).select('name zones');
+      for (const c of cities) {
+        const cZones = (c.zones || []).filter(z => z.isActive);
+        for (const z of cZones) {
+          const alreadyExists = result.some(r => (r.name || '').toLowerCase() === (z.name || '').toLowerCase());
+          if (!alreadyExists) {
+            result.push({
+              _id: z._id,
+              id: z._id,
+              name: z.name,
+              zone: z.name,
+              city: c.name,
+              district: '',
+              state: c.state || '',
+              pincode: '',
+              displayName: `${z.name} (${c.name})`,
+              label: `${z.name} (${c.name})`,
+              isServiceActive: true
+            });
+          }
+        }
+      }
+    } catch (_) {}
+
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });

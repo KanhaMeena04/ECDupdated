@@ -27,6 +27,10 @@ const riderSchema = new mongoose.Schema({
     },
     workCity: { type: String, default: "" }, 
     workZone: { type: String, default: "" },
+    serviceArea: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ServiceArea'
+    },
     vehicle: {
         type: mongoose.Schema.Types.Mixed,
         default: {}

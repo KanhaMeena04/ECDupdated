@@ -86,6 +86,34 @@ router.get('/active', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
+// Public/Admin: Match service areas by pincode, city, or address
+router.get('/match', async (req, res) => {
+  try {
+    let { pincode, city, address } = req.query;
+    if (!pincode && address) {
+      const pinMatch = String(address).match(/\b\d{6}\b/);
+      if (pinMatch) pincode = pinMatch[0];
+    }
+    const filter = { isServiceActive: true };
+    if (pincode && String(pincode).trim()) {
+      filter.pincode = String(pincode).trim();
+    }
+    if (city && String(city).trim()) {
+      filter.city = { $regex: String(city).trim(), $options: 'i' };
+    }
+    let areas = await ServiceArea.find(filter).sort({ zone: 1 });
+    if (areas.length === 0 && (pincode || city)) {
+      if (city) {
+        areas = await ServiceArea.find({ isServiceActive: true, city: { $regex: String(city).trim(), $options: 'i' } }).sort({ zone: 1 });
+      }
+      if (areas.length === 0) {
+        areas = await ServiceArea.find({ isServiceActive: true }).sort({ city: 1, zone: 1 });
+      }
+    }
+    res.json({ success: true, count: areas.length, areas });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 // Public/App: Check serviceability by pincode, city, zone, or lat/lng

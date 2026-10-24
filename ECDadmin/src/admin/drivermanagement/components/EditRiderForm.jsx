@@ -293,6 +293,37 @@ const EditRiderForm = ({
   const { cities = [], loading: cLoading, error: cError } = useCities();
   const { zones = [], loading: zLoading, error: zError } = useZones();
 
+  const addressStr = typeof formData.address === 'string'
+    ? formData.address
+    : [formData.address?.street, formData.address?.city, formData.address?.state, formData.address?.zipCode].filter(Boolean).join(', ');
+
+  const extractedPin = (formData.zipCode || (typeof formData.address === 'object' ? formData.address?.zipCode : "") || addressStr.match(/\b\d{6}\b/)?.[0] || "").toString().trim();
+  const currentCity = (formData.workCity || (typeof formData.address === 'object' ? formData.address?.city : "") || "").trim();
+
+  // Service areas matching driver's address/pincode
+  const matchingPinZones = React.useMemo(() => {
+    if (!extractedPin) return [];
+    return zones.filter((z) => (z.pincode || "").toString().trim() === extractedPin);
+  }, [zones, extractedPin]);
+
+  const matchingCityZones = React.useMemo(() => {
+    if (!currentCity) return [];
+    const cLow = currentCity.toLowerCase();
+    return zones.filter((z) => (z.city || "").toLowerCase().includes(cLow));
+  }, [zones, currentCity]);
+
+  // Sync city if rider has matching zone with city and workCity is not set
+  React.useEffect(() => {
+    if (matchingPinZones.length > 0) {
+      if (!formData.workZone) {
+        handleChange({ target: { name: "workZone", value: matchingPinZones[0].name || matchingPinZones[0].zone } });
+      }
+      if (!formData.workCity && matchingPinZones[0].city) {
+        handleChange({ target: { name: "workCity", value: matchingPinZones[0].city } });
+      }
+    }
+  }, [extractedPin, matchingPinZones.length]);
+
   if (!formData) return null;
 
   // Custom SX for TextFields to match brand
@@ -389,7 +420,7 @@ const EditRiderForm = ({
                         name="address"
                         multiline
                         rows={2}
-                        value={formData.address || ""}
+                        value={addressStr}
                         onChange={handleChange}
                         sx={fieldSx}
                       />
@@ -445,10 +476,15 @@ const EditRiderForm = ({
                       sx={fieldSx}
                     >
                       {cities.map((city) => (
-                        <MenuItem key={city._id} value={city._id}>
+                        <MenuItem key={city._id} value={city.name || city._id}>
                           {city.name}
                         </MenuItem>
                       ))}
+                      {formData.workCity && !cities.some(c => c.name === formData.workCity || c._id === formData.workCity) && (
+                        <MenuItem value={formData.workCity}>
+                          {formData.workCity}
+                        </MenuItem>
+                      )}
                     </TextField>
 
                     <TextField
@@ -461,13 +497,81 @@ const EditRiderForm = ({
                       disabled={zLoading}
                       error={!!zError}
                       sx={fieldSx}
-                      helperText={zError || (zones.length === 0 ? "No zones available" : "")}
+                      helperText={
+                        zLoading
+                          ? "Loading service areas..."
+                          : matchingPinZones.length > 0
+                          ? `📍 ${matchingPinZones.length} service area(s) match PIN ${extractedPin}`
+                          : extractedPin
+                          ? `No zones for PIN ${extractedPin}. Showing all active zones.`
+                          : currentCity
+                          ? `📍 Showing service areas for ${currentCity}`
+                          : zError || ""
+                      }
                     >
-                      {zones.map((zone) => (
-                        <MenuItem key={zone._id} value={zone._id}>
-                          {zone.name}
+                      {matchingPinZones.length > 0 ? (
+                        [
+                          <MenuItem key="hdr-pin" disabled sx={{ fontWeight: 800, fontSize: "11px", color: "#059669", bgcolor: "#ecfdf5" }}>
+                            📍 {matchingPinZones.length} SERVICE AREA{matchingPinZones.length > 1 ? "S" : ""} MATCHING PIN {extractedPin}
+                          </MenuItem>,
+                          ...matchingPinZones.map((zone) => (
+                            <MenuItem key={zone._id || zone.name} value={zone.name || zone.zone}>
+                              {zone.name || zone.zone} {zone.pincode ? `(PIN: ${zone.pincode} - ${zone.city || ""})` : zone.city ? `(${zone.city})` : ""}
+                            </MenuItem>
+                          )),
+                          ...(zones.filter((z) => !matchingPinZones.some((m) => m.name === z.name)).length > 0
+                            ? [
+                                <MenuItem key="hdr-other" disabled sx={{ fontWeight: 800, fontSize: "11px", color: "#64748b", bgcolor: "#f8fafc", mt: 1 }}>
+                                  ALL OTHER SERVICE AREAS
+                                </MenuItem>,
+                                ...zones
+                                  .filter((z) => !matchingPinZones.some((m) => m.name === z.name))
+                                  .map((zone) => (
+                                    <MenuItem key={zone._id || zone.name} value={zone.name || zone.zone}>
+                                      {zone.name || zone.zone} {zone.pincode ? `(PIN: ${zone.pincode} - ${zone.city || ""})` : zone.city ? `(${zone.city})` : ""}
+                                    </MenuItem>
+                                  )),
+                              ]
+                            : []),
+                        ]
+                      ) : matchingCityZones.length > 0 ? (
+                        [
+                          <MenuItem key="hdr-city" disabled sx={{ fontWeight: 800, fontSize: "11px", color: "#0284c7", bgcolor: "#f0f9ff" }}>
+                            📍 {matchingCityZones.length} SERVICE AREA{matchingCityZones.length > 1 ? "S" : ""} IN {currentCity}
+                          </MenuItem>,
+                          ...matchingCityZones.map((zone) => (
+                            <MenuItem key={zone._id || zone.name} value={zone.name || zone.zone}>
+                              {zone.name || zone.zone} {zone.pincode ? `(PIN: ${zone.pincode} - ${zone.city || ""})` : zone.city ? `(${zone.city})` : ""}
+                            </MenuItem>
+                          )),
+                          ...(zones.filter((z) => !matchingCityZones.some((m) => m.name === z.name)).length > 0
+                            ? [
+                                <MenuItem key="hdr-other-c" disabled sx={{ fontWeight: 800, fontSize: "11px", color: "#64748b", bgcolor: "#f8fafc", mt: 1 }}>
+                                  OTHER SERVICE AREAS
+                                </MenuItem>,
+                                ...zones
+                                  .filter((z) => !matchingCityZones.some((m) => m.name === z.name))
+                                  .map((zone) => (
+                                    <MenuItem key={zone._id || zone.name} value={zone.name || zone.zone}>
+                                      {zone.name || zone.zone} {zone.pincode ? `(PIN: ${zone.pincode} - ${zone.city || ""})` : zone.city ? `(${zone.city})` : ""}
+                                    </MenuItem>
+                                  )),
+                              ]
+                            : []),
+                        ]
+                      ) : (
+                        zones.map((zone) => (
+                          <MenuItem key={zone._id || zone.name} value={zone.name || zone.zone}>
+                            {zone.name || zone.zone} {zone.pincode ? `(PIN: ${zone.pincode} - ${zone.city || ""})` : zone.city ? `(${zone.city})` : ""}
+                          </MenuItem>
+                        ))
+                      )}
+
+                      {formData.workZone && !zones.some((z) => (z.name || z.zone) === formData.workZone || z._id === formData.workZone) && (
+                        <MenuItem value={formData.workZone}>
+                          {formData.workZone} (Current Assigned)
                         </MenuItem>
-                      ))}
+                      )}
                     </TextField>
 
                     <Divider sx={{ my: 2 }}>
