@@ -51,29 +51,39 @@ const AdminCreateRiderForm = ({
     return zonesData.filter((z) => (z.city || "").toLowerCase().includes(cityLower));
   }, [zonesData, selectedCity]);
 
+  // Determine current select value
+  const selectedZoneValue = useMemo(() => {
+    if (!formData.workZone) return "";
+    const matched = zonesData.find(
+      (z) => z.name === formData.workZone || z.zone === formData.workZone || z._id === formData.workZone
+    );
+    return matched ? matched.name : formData.workZone;
+  }, [formData.workZone, zonesData]);
+
   // Auto-sync zone and city/pincode when matching service area is found
   useEffect(() => {
     if (matchingPinZones.length > 0) {
-      if (!formData.workZone) {
-        setFieldValue("workZone", matchingPinZones[0].name);
+      const best = matchingPinZones[0];
+      if (!formData.workZone || !matchingPinZones.some((m) => m.name === formData.workZone || m.zone === formData.workZone)) {
+        setFieldValue("workZone", best.name);
       }
-      if (!formData.workCity && matchingPinZones[0].city) {
-        setFieldValue("workCity", matchingPinZones[0].city);
+      if (best.city && (!formData.workCity || formData.workCity !== best.city)) {
+        setFieldValue("workCity", best.city);
       }
-      if (!formData.city && matchingPinZones[0].city) {
-        setFieldValue("city", matchingPinZones[0].city);
+      if (best.city && (!formData.city || formData.city !== best.city)) {
+        setFieldValue("city", best.city);
       }
     }
-  }, [extractedPin, matchingPinZones.length]);
+  }, [extractedPin, matchingPinZones]);
 
   const handleZoneSelect = (e) => {
     const val = e.target.value;
     handleChange(e);
-    const chosen = zonesData.find((z) => z.name === val || z._id === val);
+    const chosen = zonesData.find((z) => z.name === val || z._id === val || z.zone === val);
     if (chosen) {
-      if (!formData.workCity && chosen.city) setFieldValue("workCity", chosen.city);
-      if (!formData.city && chosen.city) setFieldValue("city", chosen.city);
-      if (!formData.zipCode && chosen.pincode) setFieldValue("zipCode", chosen.pincode);
+      if (chosen.city) setFieldValue("workCity", chosen.city);
+      if (chosen.city) setFieldValue("city", chosen.city);
+      if (chosen.pincode) setFieldValue("zipCode", chosen.pincode);
     }
   };
 
@@ -379,19 +389,26 @@ const AdminCreateRiderForm = ({
             </div>
             <select
               name="workZone"
-              value={formData.workZone || ""}
+              value={selectedZoneValue}
               onChange={handleZoneSelect}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition font-medium"
             >
               <option value="">
                 {zonesLoading ? "Loading delivery zones..." : "Select Delivery Zone"}
               </option>
+
+              {formData.workZone && !zonesData.some((z) => z.name === formData.workZone || z.zone === formData.workZone || z._id === formData.workZone) && (
+                <option value={formData.workZone}>
+                  {formData.workZone} (Current Assigned)
+                </option>
+              )}
+
               {matchingPinZones.length > 0 ? (
                 <>
                   <optgroup label={`📍 Available For PIN ${extractedPin} (${matchingPinZones.length} Area${matchingPinZones.length > 1 ? "s" : ""})`}>
                     {matchingPinZones.map((z) => (
                       <option key={z._id || z.name} value={z.name}>
-                        {z.displayName || z.name}
+                        {z.displayName || `${z.city} - ${z.name} (PIN: ${z.pincode})`}
                       </option>
                     ))}
                   </optgroup>
@@ -401,7 +418,7 @@ const AdminCreateRiderForm = ({
                         .filter((z) => !matchingPinZones.some((m) => m.name === z.name))
                         .map((z) => (
                           <option key={z._id || z.name} value={z.name}>
-                            {z.displayName || z.name}
+                            {z.displayName || `${z.city} - ${z.name} (PIN: ${z.pincode})`}
                           </option>
                         ))}
                     </optgroup>
@@ -412,7 +429,7 @@ const AdminCreateRiderForm = ({
                   <optgroup label={`📍 Matching City: ${selectedCity} (${matchingCityZones.length} Area${matchingCityZones.length > 1 ? "s" : ""})`}>
                     {matchingCityZones.map((z) => (
                       <option key={z._id || z.name} value={z.name}>
-                        {z.displayName || z.name}
+                        {z.displayName || `${z.city} - ${z.name} (PIN: ${z.pincode})`}
                       </option>
                     ))}
                   </optgroup>
@@ -422,7 +439,7 @@ const AdminCreateRiderForm = ({
                         .filter((z) => !matchingCityZones.some((m) => m.name === z.name))
                         .map((z) => (
                           <option key={z._id || z.name} value={z.name}>
-                            {z.displayName || z.name}
+                            {z.displayName || `${z.city} - ${z.name} (PIN: ${z.pincode})`}
                           </option>
                         ))}
                     </optgroup>
@@ -431,14 +448,19 @@ const AdminCreateRiderForm = ({
               ) : (
                 zonesData.map((z) => (
                   <option key={z._id || z.name} value={z.name}>
-                    {z.displayName || z.name}
+                    {z.displayName || `${z.city} - ${z.name} (PIN: ${z.pincode})`}
                   </option>
                 ))
               )}
             </select>
+            {extractedPin && matchingPinZones.length > 0 && (
+              <p className="text-[11px] text-emerald-600 mt-1 font-medium">
+                ✓ Available for PIN {extractedPin}: {matchingPinZones.map((m) => `${m.city}${m.zone && m.zone !== m.city ? ` - ${m.zone}` : ""}`).join(", ")}
+              </p>
+            )}
             {extractedPin && matchingPinZones.length === 0 && !zonesLoading && (
               <p className="text-[11px] text-amber-600 mt-1">
-                ℹ️ No direct service areas found for PIN {extractedPin}. You can select any other active zone from the list.
+                ℹ️ No direct service areas found for PIN {extractedPin}. You can select any other active zone from the list above.
               </p>
             )}
           </div>
