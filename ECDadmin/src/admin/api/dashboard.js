@@ -14,7 +14,9 @@ function useDashboardData() {
     setError(null);
 
     try {
+      const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
       const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         withCredentials: true,
       });
 

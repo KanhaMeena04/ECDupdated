@@ -3337,9 +3337,6 @@ exports.vendorAddMenuItem = async (req, res) => {
     }
 
     const norm = normalizePortionsAndVariations(req.body);
-    const finalSellingPrice = Number(norm.sellingPrice ?? 0);
-    const finalMrp = Number(norm.mrp ?? finalSellingPrice);
-    const finalB2bPrice = Number(norm.b2bPrice ?? finalSellingPrice);
 
     const rawFoodType = (foodType || (isVeg === false || isVeg === 'false' ? 'non-veg' : 'veg')).toString().toLowerCase();
     const resolvedFoodType = rawFoodType.includes('egg') ? 'egg' : (rawFoodType.includes('non') ? 'non-veg' : 'veg');

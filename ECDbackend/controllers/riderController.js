@@ -2507,6 +2507,20 @@ exports.createRiderByAdmin = async (req, res) => {
       zipCode: zipCode || ""
     };
 
+    let resolvedServiceAreaId = null;
+    if (workZone || zipCode) {
+      try {
+        const ServiceArea = require('../models/ServiceArea');
+        const sa = await ServiceArea.findOne({
+          $or: [
+            ...(workZone ? [{ zone: new RegExp(`^${workZone.trim()}$`, 'i') }] : []),
+            ...(zipCode ? [{ pincode: zipCode.toString().trim() }] : [])
+          ]
+        });
+        if (sa) resolvedServiceAreaId = sa._id;
+      } catch (_) {}
+    }
+
     const [newRider] = await Rider.create([{
       user: newUser._id,
       name: cleanName,
@@ -2518,6 +2532,7 @@ exports.createRiderByAdmin = async (req, res) => {
       address: finalAddress,
       workCity: workCity || city || "",
       workZone: workZone || "",
+      serviceArea: resolvedServiceAreaId,
       vehicle: finalVehicle,
       documents: finalProcessedDocuments,
       bankDetails: finalBankDetails,
@@ -3193,6 +3208,19 @@ exports.updateRiderByAdmin = async (req, res) => {
       ...(verificationStatus ? { verificationStatus } : {}),
       ...(riderVerified !== undefined ? { riderVerified } : {}),
     };
+
+    if (workZone) {
+      try {
+        const ServiceArea = require('../models/ServiceArea');
+        const sa = await ServiceArea.findOne({
+          $or: [
+            { zone: new RegExp(`^${workZone.trim()}$`, 'i') },
+            ...(mongoose.Types.ObjectId.isValid(workZone) ? [{ _id: workZone }] : [])
+          ]
+        });
+        if (sa) updateDoc.serviceArea = sa._id;
+      } catch (_) {}
+    }
 
     if (vehicle) {
       updateDoc.vehicle = { ...(rider.vehicle || {}), ...vehicle };

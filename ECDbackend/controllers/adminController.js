@@ -2288,20 +2288,84 @@ exports.sendCustomPush = async (req, res) => {
   }
 };
 
-// Reset/Clear all financial stats, commission histories, and orders to 0
+// Reset/Clear all financial stats, archive current metrics to FinancialResetHistory, and restart fresh data
 exports.resetFinancialData = async (req, res) => {
   try {
     const Order = require('../models/Order');
+    const FinancialResetHistory = require('../models/FinancialResetHistory');
     const AdminCommissionWallet = require('../models/AdminCommissionWallet');
     const RiderWallet = require('../models/RiderWallet');
     const RestaurantWallet = require('../models/RestaurantWallet');
-    const SettlementLedger = require('../models/SettlementLedger');
-    const PaymentTransaction = require('../models/PaymentTransaction');
 
-    // 1. Delete all order documents to wipe past earnings, commission & delivery boy stats
-    const orderDeleteResult = await Order.deleteMany({});
+    // 1. Find previous reset record to know the start of the period being reset
+    const lastReset = await FinancialResetHistory.findOne({}).sort({ resetAt: -1 }).lean();
+    const lastResetAt = lastReset ? new Date(lastReset.resetAt) : null;
 
-    // 2. Reset Admin Commission Wallet to zero
+    // 2. Aggregate current metrics since last reset (or all time if first reset)
+    const deliveredMatch = { status: "delivered" };
+    if (lastResetAt) {
+      deliveredMatch.createdAt = { $gte: lastResetAt };
+    }
+
+    const earningsAgg = await Order.aggregate([
+      { $match: deliveredMatch },
+      {
+        $group: {
+          _id: null,
+          totalEarnings: { $sum: { $ifNull: ["$totalAmount", 0] } },
+          totalCommission: { $sum: { $ifNull: ["$adminCommission", 0] } },
+          totalRestaurantCommission: {
+            $sum: { $ifNull: ["$restaurantCommission", { $ifNull: ["$restaurantShare", 0] }] },
+          },
+          totalDeliveryCommission: {
+            $sum: { $ifNull: ["$riderEarning", { $ifNull: ["$driverEarnings", 0] }] },
+          },
+          ordersDelivered: { $sum: 1 }
+        }
+      }
+    ]);
+    const currentTotals = earningsAgg[0] || {};
+
+    const startToday = new Date();
+    startToday.setHours(0, 0, 0, 0);
+    const todayEffectiveStart = (lastResetAt && lastResetAt > startToday) ? lastResetAt : startToday;
+    const todayAgg = await Order.aggregate([
+      { $match: { createdAt: { $gte: todayEffectiveStart } } },
+      { $group: { _id: null, todayEarnings: { $sum: { $ifNull: ["$totalAmount", 0] } } } }
+    ]);
+    const currentTodayEarnings = todayAgg[0]?.todayEarnings || 0;
+
+    const ordersTotalMatch = lastResetAt ? { createdAt: { $gte: lastResetAt } } : {};
+    const totalOrdersCount = await Order.countDocuments(ordersTotalMatch);
+    const cancelledCount = await Order.countDocuments({ ...ordersTotalMatch, status: "cancelled" });
+    const failedCount = await Order.countDocuments({ ...ordersTotalMatch, status: "failed" });
+
+    // 3. Create the archive record in FinancialResetHistory
+    const resetAt = new Date();
+    const historyRecord = await FinancialResetHistory.create({
+      resetAt,
+      resetBy: {
+        id: req.user?._id,
+        name: req.user?.name || req.user?.ownerName || 'Super Admin',
+        email: req.user?.email || 'admin@ecdkart.com'
+      },
+      previousPeriodStart: lastResetAt,
+      periodEnd: resetAt,
+      metrics: {
+        totalEarnings: Number(Number(currentTotals.totalEarnings || 0).toFixed(2)),
+        todayEarnings: Number(Number(currentTodayEarnings || 0).toFixed(2)),
+        totalCommission: Number(Number(currentTotals.totalCommission || 0).toFixed(2)),
+        totalRestaurantCommission: Number(Number(currentTotals.totalRestaurantCommission || 0).toFixed(2)),
+        totalDeliveryCommission: Number(Number(currentTotals.totalDeliveryCommission || 0).toFixed(2)),
+        ordersDelivered: Number(currentTotals.ordersDelivered || 0),
+        ordersTotal: totalOrdersCount,
+        ordersCancelled: cancelledCount,
+        ordersFailed: failedCount
+      },
+      note: req.body?.note || 'Financial stats reset to ₹0 via Admin Dashboard'
+    });
+
+    // 4. Reset wallet balances
     await AdminCommissionWallet.updateMany({}, {
       $set: {
         balance: 0,
@@ -2310,61 +2374,54 @@ exports.resetFinancialData = async (req, res) => {
         lastPayoutAmount: 0,
         commissionFromRestaurants: 0,
         commissionFromDelivery: 0,
-        lastUpdated: new Date()
+        lastUpdated: resetAt
       }
-    });
+    }).catch(() => {});
 
-    // 3. Reset all Rider Wallets (Delivery boy commission & earnings) to zero
     await RiderWallet.updateMany({}, {
       $set: {
         cashInHand: 0,
         totalEarnings: 0,
         availableBalance: 0,
         totalPayouts: 0,
-        isFrozen: false,
-        lastDepositAmount: 0,
-        lastPayoutAmount: 0
+        lastUpdated: resetAt
       }
-    });
+    }).catch(() => {});
 
-    // 4. Reset all Restaurant Wallets to zero
     await RestaurantWallet.updateMany({}, {
       $set: {
         balance: 0,
         totalEarnings: 0,
         totalPaidOut: 0,
         pendingAmount: 0,
-        lastPayoutAmount: 0
+        lastUpdated: resetAt
       }
-    });
-
-    // 5. Delete past settlements & payment transaction histories
-    const settlementDeleteResult = await SettlementLedger.deleteMany({});
-    const paymentTxDeleteResult = await PaymentTransaction.deleteMany({});
-
-    let walletTxDeleted = 0;
-    try {
-      const WalletTransaction = require('../models/WalletTransaction');
-      const wRes = await WalletTransaction.deleteMany({});
-      walletTxDeleted = wRes.deletedCount;
-    } catch (_) {}
+    }).catch(() => {});
 
     return res.status(200).json({
       success: true,
-      message: "Financial data, commissions, and order histories have been successfully reset to 0.",
-      stats: {
-        ordersDeleted: orderDeleteResult.deletedCount,
-        settlementsDeleted: settlementDeleteResult.deletedCount,
-        paymentTransactionsDeleted: paymentTxDeleteResult.deletedCount,
-        walletTransactionsDeleted: walletTxDeleted,
-        totalEarnings: 0,
-        totalAdminCommission: 0,
-        totalDeliveryBoyCommission: 0,
-        totalRestaurantCommission: 0
-      }
+      message: "Financial statistics have been successfully reset to ₹0.00. Previous metrics have been archived to Reset History.",
+      resetAt,
+      historyRecord
     });
   } catch (error) {
     console.error("Error in resetFinancialData:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get all financial reset history records
+exports.getFinancialResetHistory = async (req, res) => {
+  try {
+    const FinancialResetHistory = require('../models/FinancialResetHistory');
+    const history = await FinancialResetHistory.find({}).sort({ resetAt: -1 }).limit(100).lean();
+    return res.status(200).json({
+      success: true,
+      count: history.length,
+      data: history
+    });
+  } catch (error) {
+    console.error("Error in getFinancialResetHistory:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };

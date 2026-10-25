@@ -5,6 +5,11 @@ const Rider = require("../models/Rider");
 exports.getOverview = async (req, res) => {
   try {
     const Product = require("../models/Product");
+    const FinancialResetHistory = require("../models/FinancialResetHistory");
+
+    // Check if there is an active financial reset timestamp
+    const lastReset = await FinancialResetHistory.findOne({}).sort({ resetAt: -1 }).lean();
+    const lastResetAt = lastReset ? new Date(lastReset.resetAt) : null;
 
     const [
       totalUsers,
@@ -35,6 +40,10 @@ exports.getOverview = async (req, res) => {
     ]);
 
     const deliveredMatch = { status: "delivered" };
+    if (lastResetAt) {
+      deliveredMatch.createdAt = { $gte: lastResetAt };
+    }
+
     const earningsAgg = await Order.aggregate([
       { $match: deliveredMatch },
       {
@@ -65,8 +74,9 @@ exports.getOverview = async (req, res) => {
     const end = new Date();
     end.setHours(23, 59, 59, 999);
 
+    const todayEffectiveStart = (lastResetAt && lastResetAt > start) ? lastResetAt : start;
     const todayAgg = await Order.aggregate([
-      { $match: { createdAt: { $gte: start, $lte: end } } },
+      { $match: { createdAt: { $gte: todayEffectiveStart, $lte: end } } },
       {
         $group: {
           _id: "$status",
@@ -321,7 +331,13 @@ exports.getOverview = async (req, res) => {
       ordersCancelled,
       ordersFailed,
       
-      // Financial Overview
+      // Financial Overview (Fresh since last reset)
+      lastResetAt: lastResetAt ? lastResetAt.toISOString() : null,
+      lastResetInfo: lastReset ? {
+        resetAt: lastReset.resetAt,
+        resetBy: lastReset.resetBy?.name || 'Super Admin',
+        archivedTotalEarnings: lastReset.metrics?.totalEarnings || 0
+      } : null,
       todayGOV: Number(todayGOV.toFixed(2)),
       todayEarnings: Number(todayGOV.toFixed(2)),
       todayDiscounts: Number(todayDiscounts.toFixed(2)),
