@@ -17,7 +17,7 @@ const EditRestaurantBannerForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const { editBanner, getBannerById } = useRestaurantBanner();
+  const { editBanner, getBannerById, loading } = useRestaurantBanner();
   const { restaurants, loading: restaurantLoading } = useRestaurantNameList();
   const { cities, loading: cityLoading } = useCities();
 
@@ -92,18 +92,24 @@ const EditRestaurantBannerForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const payload = new FormData();
-    payload.append('title', formData.title || 'Promo Banner');
-    payload.append('restaurant', formData.restaurant || 'all');
-    payload.append('city', formData.city || 'all');
-    payload.append('isActive', formData.status === 'active');
+    try {
+      const payload = new FormData();
+      payload.append('title', formData.title || 'Promo Banner');
+      payload.append('restaurant', formData.restaurant || 'all');
+      payload.append('city', formData.city || 'all');
+      payload.append('isActive', formData.status === 'active');
 
-    if (formData.bannerImage) {
-      payload.append('image', formData.bannerImage);
+      if (formData.bannerImage) {
+        payload.append('image', formData.bannerImage);
+      }
+
+      await editBanner(id, payload);
+      alert('✅ Banner updated successfully!');
+      navigate('/restaurant-banner');
+    } catch (err) {
+      console.error('Error updating banner:', err);
+      alert('Failed to update banner: ' + (err.response?.data?.message || err.message));
     }
-
-    await editBanner(id, payload);
-    navigate('/restaurant-banner');
   };
 
   if (!initialized) return null;
@@ -215,11 +221,12 @@ const EditRestaurantBannerForm = () => {
           <div className="col-span-2 mt-4">
             <Button
               type="submit"
+              disabled={loading}
               variant="contained"
               sx={{ backgroundColor: '#248C70' }}
               className="px-8 py-2 capitalize shadow-none"
             >
-              Update
+              {loading ? 'Updating...' : 'Update'}
             </Button>
           </div>
 
