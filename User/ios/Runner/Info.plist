@@ -5,7 +5,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>ecdKart</string>
+		<string>ECDKART</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>ecdKart</string>
+		<string>ECDKART</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
@@ -47,5 +47,44 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<!-- Privacy Permissions -->
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>ECDKART requires access to your location to discover nearby restaurants and deliver food directly to your address.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>ECDKART requires location access to pinpoint delivery addresses and track live order delivery.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>ECDKART requires camera access to take profile pictures and scan vouchers.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>ECDKART requires photo library access to upload profile pictures.</string>
+		<!-- Background Modes for FCM Push Notifications -->
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>fetch</string>
+			<string>remote-notification</string>
+		</array>
+		<!-- Embedded Views for Google Maps -->
+		<key>io.flutter.embedded_views_preview</key>
+		<true/>
+		<!-- App Transport Security -->
+		<key>NSAppTransportSecurity</key>
+		<dict>
+			<key>NSAllowsArbitraryLoads</key>
+			<true/>
+		</dict>
+		<!-- URL Schemes for External Apps / Payments -->
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>tel</string>
+			<string>mailto</string>
+			<string>https</string>
+			<string>http</string>
+			<string>comgooglemaps</string>
+			<string>googlechromes</string>
+			<string>upi</string>
+			<string>paytmmp</string>
+			<string>gpay</string>
+			<string>phonepe</string>
+			<string>credpay</string>
+		</array>
 	</dict>
 </plist>

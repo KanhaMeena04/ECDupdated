@@ -86,6 +86,8 @@ router.get('/active', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
+});
+
 // Public/Admin: Match service areas by pincode, city, or address
 router.get('/match', async (req, res) => {
   try {
