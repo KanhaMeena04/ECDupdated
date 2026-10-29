@@ -224,6 +224,7 @@ class _HomeTabState extends State<_HomeTab> {
       _fetchRecommendations();
       _fetchRecommendedDishes();
       _fetchSpecialDishes();
+      _fetchBanners();
     }
   }
 
@@ -315,6 +316,7 @@ class _HomeTabState extends State<_HomeTab> {
       final dishes = await RestaurantApiService.getRecommendedDishes(
         lat: loc.lat,
         lng: loc.lng,
+        city: loc.location,
       );
       if (mounted) {
         setState(() {
@@ -333,6 +335,7 @@ class _HomeTabState extends State<_HomeTab> {
       final dishes = await RestaurantApiService.getSpecialDishes(
         lat: loc.lat,
         lng: loc.lng,
+        city: loc.location,
       );
       if (mounted) {
         setState(() {
@@ -577,13 +580,23 @@ class _HomeTabState extends State<_HomeTab> {
 
   Future<void> _fetchBanners() async {
     try {
-      final banners = await RestaurantApiService.getBanners();
-      setState(() {
-        _banners = banners;
-        _isLoadingBanners = false;
-      });
+      final loc = context.read<LocationProvider>();
+      final city = loc.serviceArea?['city'] ?? loc.location;
+      final banners = await RestaurantApiService.getBanners(
+        lat: loc.lat,
+        lng: loc.lng,
+        city: city,
+      );
+      if (mounted) {
+        setState(() {
+          _banners = banners;
+          _isLoadingBanners = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoadingBanners = false);
+      if (mounted) {
+        setState(() => _isLoadingBanners = false);
+      }
     }
   }
 
@@ -601,7 +614,11 @@ class _HomeTabState extends State<_HomeTab> {
 
   Future<void> _fetchPopularDishes() async {
     try {
-      final dishes = await RestaurantApiService.getPopularDishes();
+      final loc = context.read<LocationProvider>();
+      final dishes = await RestaurantApiService.getPopularDishes(
+        lat: loc.lat,
+        lng: loc.lng,
+      );
       setState(() {
         _popularDishes = dishes;
         _isLoadingPopularDishes = false;
@@ -1121,74 +1138,89 @@ class _HomeTabState extends State<_HomeTab> {
                           ),
                         ],
                         if (_isSectionActive('banners_carousel')) ...[
-                          _isLoadingBanners 
-                              ? const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 24),
-                                  child: Center(child: CircularProgressIndicator(color: Colors.white)),
-                                )
-                              : _banners.isEmpty
-                                  ? const SizedBox(height: 12)
-                                  : Padding(
-                                      padding: const EdgeInsets.only(bottom: 16.0),
-                                      child: CarouselSlider.builder(
-                                        itemCount: _banners.length,
-                                        itemBuilder: (context, index, realIndex) {
-                                          final banner = _banners[index];
-                                          return GestureDetector(
-                                            onTap: () => _handleBannerTap(banner),
-                                            child: Container(
-                                              margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey[200],
-                                                borderRadius: BorderRadius.circular(18),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.black.withValues(alpha: 0.25),
-                                                    blurRadius: 6,
-                                                    offset: const Offset(0, 3),
-                                                  ),
-                                                ],
-                                              ),
-                                              clipBehavior: Clip.antiAlias,
-                                              child: Image.network(
-                                                banner.imageUrl,
-                                                fit: BoxFit.cover,
-                                                width: double.infinity,
-                                                height: double.infinity,
-                                                errorBuilder: (context, error, stack) {
-                                                  debugPrint('\u274c Banner image load error: $error | URL: ${banner.imageUrl}');
-                                                  return Container(
-                                                    color: const Color(0xFF248C70).withValues(alpha: 0.2),
-                                                    child: const Center(
-                                                      child: Icon(Icons.local_offer, color: Color(0xFF248C70), size: 48),
-                                                    ),
-                                                  );
-                                                },
-                                                loadingBuilder: (context, child, progress) {
-                                                  if (progress == null) return child;
-                                                  return Container(
-                                                    color: Colors.grey[100],
-                                                    child: const Center(
-                                                      child: CircularProgressIndicator(
-                                                        color: Color(0xFF248C70),
-                                                        strokeWidth: 2,
-                                                      ),
-                                                    ),
-                                                  );
-                                                },
+                          () {
+                            final activeLocationBanners = _banners.where((b) {
+                              if (b.type == 'restaurant' || b.targetModel.toLowerCase() == 'restaurant') {
+                                if (b.targetId.isNotEmpty) {
+                                  final isServiceable = _restaurants.any((r) => r.id == b.targetId || r.slug == b.targetId);
+                                  if (!isServiceable) return false;
+                                }
+                              }
+                              return true;
+                            }).toList();
+
+                            if (_isLoadingBanners) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 24),
+                                child: Center(child: CircularProgressIndicator(color: Colors.white)),
+                              );
+                            }
+                            if (activeLocationBanners.isEmpty) {
+                              return const SizedBox(height: 12);
+                            }
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                              child: CarouselSlider.builder(
+                                itemCount: activeLocationBanners.length,
+                                itemBuilder: (context, index, realIndex) {
+                                  final banner = activeLocationBanners[index];
+                                  return GestureDetector(
+                                    onTap: () => _handleBannerTap(banner),
+                                    child: Container(
+                                      margin: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[200],
+                                        borderRadius: BorderRadius.circular(18),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.25),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: Image.network(
+                                        banner.imageUrl,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        errorBuilder: (context, error, stack) {
+                                          debugPrint('❌ Banner image load error: $error | URL: ${banner.imageUrl}');
+                                          return Container(
+                                            color: const Color(0xFF248C70).withValues(alpha: 0.2),
+                                            child: const Center(
+                                              child: Icon(Icons.local_offer, color: Color(0xFF248C70), size: 48),
+                                            ),
+                                          );
+                                        },
+                                        loadingBuilder: (context, child, progress) {
+                                          if (progress == null) return child;
+                                          return Container(
+                                            color: Colors.grey[100],
+                                            child: const Center(
+                                              child: CircularProgressIndicator(
+                                                color: Color(0xFF248C70),
+                                                strokeWidth: 2,
                                               ),
                                             ),
                                           );
                                         },
-                                        options: CarouselOptions(
-                                          height: 180,
-                                          viewportFraction: 0.93,
-                                          autoPlay: _banners.length > 1,
-                                          autoPlayInterval: const Duration(seconds: 3),
-                                          enlargeCenterPage: true,
-                                        ),
                                       ),
                                     ),
+                                  );
+                                },
+                                options: CarouselOptions(
+                                  height: 180,
+                                  viewportFraction: 0.93,
+                                  autoPlay: activeLocationBanners.length > 1,
+                                  autoPlayInterval: const Duration(seconds: 3),
+                                  enlargeCenterPage: true,
+                                ),
+                              ),
+                            );
+                          }(),
                         ] else ...[
                           const SizedBox(height: 12),
                         ],
@@ -1462,7 +1494,10 @@ class _HomeTabState extends State<_HomeTab> {
   }
 
   Widget _buildPopularDishesSection(Map<String, dynamic> sec, bool isDark) {
-    if (!_isLoadingPopularDishes && _popularDishes.isEmpty) {
+    final validRestaurantIds = _restaurants.map((r) => r.id).toSet();
+    final filteredDishes = _popularDishes.where((d) => d.restaurantId.isNotEmpty && validRestaurantIds.contains(d.restaurantId)).toList();
+
+    if (!_isLoadingPopularDishes && filteredDishes.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -1489,11 +1524,11 @@ class _HomeTabState extends State<_HomeTab> {
               ),
               GestureDetector(
                 onTap: () {
-                  if (_popularDishes.isNotEmpty) {
+                  if (filteredDishes.isNotEmpty) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => DishRestaurantsPage(dish: _popularDishes.first),
+                        builder: (_) => DishRestaurantsPage(dish: filteredDishes.first),
                       ),
                     );
                   }
@@ -1522,9 +1557,9 @@ class _HomeTabState extends State<_HomeTab> {
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _popularDishes.length,
+                  itemCount: filteredDishes.length,
                   itemBuilder: (context, index) {
-                    final dish = _popularDishes[index];
+                    final dish = filteredDishes[index];
                     return _PopularDishHomeCard(dish: dish, isDark: isDark);
                   },
                 ),
@@ -1538,7 +1573,15 @@ class _HomeTabState extends State<_HomeTab> {
         ? (sec['title'] as String).trim()
         : 'Recommended for You';
 
-    List<MenuItem> dishList = _recommendedDishes;
+    final validRestaurantIds = _restaurants.map((r) => r.id).toSet();
+    final validRestaurantSlugs = _restaurants.map((r) => r.slug).where((s) => s.isNotEmpty).toSet();
+
+    List<MenuItem> dishList = _recommendedDishes.where((d) {
+      final hasRestId = d.restaurantId.isNotEmpty && validRestaurantIds.contains(d.restaurantId);
+      final hasSlug = d.restaurantSlug != null && d.restaurantSlug.isNotEmpty && validRestaurantSlugs.contains(d.restaurantSlug);
+      return hasRestId || hasSlug;
+    }).toList();
+
     if (dishList.isEmpty && _restaurants.isNotEmpty) {
       final List<MenuItem> extracted = [];
       for (final r in _restaurants) {
@@ -1635,7 +1678,15 @@ class _HomeTabState extends State<_HomeTab> {
         ? (sec['title'] as String).trim()
         : 'Special Dishes';
 
-    List<MenuItem> dishList = _specialDishes;
+    final validRestaurantIds = _restaurants.map((r) => r.id).toSet();
+    final validRestaurantSlugs = _restaurants.map((r) => r.slug).where((s) => s.isNotEmpty).toSet();
+
+    List<MenuItem> dishList = _specialDishes.where((d) {
+      final hasRestId = d.restaurantId.isNotEmpty && validRestaurantIds.contains(d.restaurantId);
+      final hasSlug = d.restaurantSlug != null && d.restaurantSlug.isNotEmpty && validRestaurantSlugs.contains(d.restaurantSlug);
+      return hasRestId || hasSlug;
+    }).toList();
+
     if (dishList.isEmpty && _restaurants.isNotEmpty) {
       final List<MenuItem> extracted = [];
       for (final r in _restaurants) {

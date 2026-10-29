@@ -10,6 +10,8 @@ class BannerModel {
   final String link;
   final int position;
   final bool isActive;
+  final String city;
+  final String cityName;
 
   BannerModel({
     required this.id,
@@ -21,6 +23,8 @@ class BannerModel {
     this.link = '',
     this.position = 0,
     required this.isActive,
+    this.city = '',
+    this.cityName = '',
   });
 
   factory BannerModel.fromJson(Map<String, dynamic> json) {
@@ -42,6 +46,8 @@ class BannerModel {
     final bType = (json['type'] ?? (tId.isNotEmpty ? 'restaurant' : 'static')).toString().trim().toLowerCase();
     final bLink = (json['link'] ?? json['externalUrl'] ?? json['ctaUrl'] ?? '').toString().trim();
     final bPos = int.tryParse((json['position'] ?? 0).toString()) ?? 0;
+    final bCity = (json['city'] ?? '').toString().trim();
+    final bCityName = (json['cityName'] ?? '').toString().trim();
 
     return BannerModel(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
@@ -53,6 +59,8 @@ class BannerModel {
       link: bLink,
       position: bPos,
       isActive: json['isActive'] == true || json['isActive'] == 'true' || json['isActive'] == null || json['status'] == 'active',
+      city: bCity,
+      cityName: bCityName,
     );
   }
 }

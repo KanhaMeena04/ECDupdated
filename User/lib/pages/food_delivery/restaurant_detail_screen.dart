@@ -10,6 +10,7 @@ import '../../providers/theme_provider.dart';
 import '../../services/restaurant_api_service.dart';
 import '../cart/cart_page.dart';
 import 'restaurant_profile_screen.dart';
+import 'package:ecdkart_app/services/meta_app_events_service.dart';
 
 class RestaurantDetailScreen extends StatefulWidget {
   final Restaurant? restaurant;
@@ -75,7 +76,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     try {
       final identifier = (widget.slug != null && widget.slug!.isNotEmpty)
           ? widget.slug!
-          : ((widget.restaurantId != null && widget.restaurantId!.isNotEmpty) ? widget.restaurantId! : '');
+          : ((widget.restaurantId != null && widget.restaurantId!.isNotEmpty)
+              ? widget.restaurantId!
+              : '');
       if (identifier.isEmpty) {
         setState(() {
           _isLoadingRestaurant = false;
@@ -84,8 +87,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
         return;
       }
 
-      final restaurant = await RestaurantApiService.getRestaurantDetails(identifier);
-      final menu = await RestaurantApiService.getRestaurantMenu(restaurant.id.isNotEmpty ? restaurant.id : identifier);
+      final restaurant =
+          await RestaurantApiService.getRestaurantDetails(identifier);
+      final menu = await RestaurantApiService.getRestaurantMenu(
+          restaurant.id.isNotEmpty ? restaurant.id : identifier);
       if (mounted) {
         setState(() {
           _restaurant = restaurant;
@@ -108,7 +113,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   Future<void> _fetchMenu() async {
     if (_restaurant == null) return;
     try {
-      final identifier = _restaurant!.id.isNotEmpty ? _restaurant!.id : _restaurant!.slug;
+      final identifier =
+          _restaurant!.id.isNotEmpty ? _restaurant!.id : _restaurant!.slug;
       final menu = await RestaurantApiService.getRestaurantMenu(identifier);
       if (mounted) {
         setState(() {
@@ -124,9 +130,17 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   }
 
   List<String> get _categories {
-    final cats = _menu.map((m) => m.category.trim()).where((c) => c.isNotEmpty).toSet().toList();
+    final cats = _menu
+        .map((m) => m.category.trim())
+        .where((c) => c.isNotEmpty)
+        .toSet()
+        .toList();
     // Also include distinct subcategories (e.g. Cold Drinks) so user can filter them directly
-    final subcats = _menu.map((m) => m.subcategory.trim()).where((s) => s.isNotEmpty).toSet().toList();
+    final subcats = _menu
+        .map((m) => m.subcategory.trim())
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList();
     cats.addAll(subcats);
     cats.sort();
     return ['All', ...cats];
@@ -136,19 +150,21 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     List<MenuItem> list = List.from(_menu);
     if (_selectedCategory != 'All') {
       final sel = _selectedCategory.toLowerCase().trim();
-      list = list.where((m) =>
-        m.category.toLowerCase().trim() == sel ||
-        m.subcategory.toLowerCase().trim() == sel
-      ).toList();
+      list = list
+          .where((m) =>
+              m.category.toLowerCase().trim() == sel ||
+              m.subcategory.toLowerCase().trim() == sel)
+          .toList();
     }
     if (_searchQuery.trim().isNotEmpty) {
       final query = _searchQuery.toLowerCase().trim();
-      list = list.where((m) =>
-        m.name.toLowerCase().contains(query) ||
-        m.category.toLowerCase().contains(query) ||
-        m.subcategory.toLowerCase().contains(query) ||
-        m.description.toLowerCase().contains(query)
-      ).toList();
+      list = list
+          .where((m) =>
+              m.name.toLowerCase().contains(query) ||
+              m.category.toLowerCase().contains(query) ||
+              m.subcategory.toLowerCase().contains(query) ||
+              m.description.toLowerCase().contains(query))
+          .toList();
     }
     return list;
   }
@@ -158,8 +174,12 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     List<MenuItem> list = List.from(_menu);
     // Score based on rating, offer price, and popularity
     list.sort((a, b) {
-      final scoreA = (a.rating * 2) + (a.comparisonTag != null ? 5 : 0) + (a.originalPrice != null ? 3 : 0);
-      final scoreB = (b.rating * 2) + (b.comparisonTag != null ? 5 : 0) + (b.originalPrice != null ? 3 : 0);
+      final scoreA = (a.rating * 2) +
+          (a.comparisonTag != null ? 5 : 0) +
+          (a.originalPrice != null ? 3 : 0);
+      final scoreB = (b.rating * 2) +
+          (b.comparisonTag != null ? 5 : 0) +
+          (b.originalPrice != null ? 3 : 0);
       return scoreB.compareTo(scoreA);
     });
 
@@ -188,7 +208,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
         backgroundColor: isDark ? Colors.black : Colors.white,
         appBar: AppBar(
           leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
+            icon: Icon(Icons.arrow_back,
+                color: isDark ? Colors.white : Colors.black),
             onPressed: () => Navigator.pop(context),
           ),
           backgroundColor: isDark ? Colors.black : Colors.white,
@@ -343,12 +364,14 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(Icons.location_on_outlined, color: Colors.white70, size: 13),
+                                const Icon(Icons.location_on_outlined,
+                                    color: Colors.white70, size: 13),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
                                     r.address.trim(),
-                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                    style: const TextStyle(
+                                        color: Colors.white70, fontSize: 12),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -365,7 +388,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                               _StatChip(
                                 icon: Icons.star_rounded,
                                 iconColor: Colors.amber,
-                                label: '${r.rating > 0 ? r.rating.toStringAsFixed(1) : "New"} (${_fmt(r.reviewCount)} reviews) >',
+                                label:
+                                    '${r.rating > 0 ? r.rating.toStringAsFixed(1) : "New"} (${_fmt(r.reviewCount)} reviews) >',
                                 onTap: () => _showReviewsSheet(context, r.id),
                               ),
                               _StatChip(
@@ -380,8 +404,12 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                               ),
                               _StatChip(
                                 icon: Icons.circle,
-                                iconColor: (r.isOpen && r.isActive) ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                                label: (r.isOpen && r.isActive) ? 'Open' : 'Closed',
+                                iconColor: (r.isOpen && r.isActive)
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFEF4444),
+                                label: (r.isOpen && r.isActive)
+                                    ? 'Open'
+                                    : 'Closed',
                               ),
                             ],
                           ),
@@ -400,10 +428,12 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
               child: Container(
                 width: double.infinity,
                 color: const Color(0xFFFEE2E2),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 20),
+                    const Icon(Icons.warning_amber_rounded,
+                        color: Color(0xFFDC2626), size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -434,7 +464,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                         color: isDark ? Colors.grey[850] : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isDark ? Colors.grey[700]! : Colors.grey.shade300,
+                          color:
+                              isDark ? Colors.grey[700]! : Colors.grey.shade300,
                         ),
                       ),
                       child: Row(
@@ -446,12 +477,21 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                               },
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: !cartProvider.isSelfPickup ? AppColors.primary : Colors.transparent,
+                                  color: !cartProvider.isSelfPickup
+                                      ? AppColors.primary
+                                      : Colors.transparent,
                                   borderRadius: BorderRadius.circular(8),
                                   boxShadow: !cartProvider.isSelfPickup
-                                      ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                                      ? [
+                                          BoxShadow(
+                                              color: AppColors.primary
+                                                  .withValues(alpha: 0.3),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2))
+                                        ]
                                       : null,
                                 ),
                                 child: Row(
@@ -460,13 +500,21 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                     Icon(
                                       Icons.delivery_dining,
                                       size: 18,
-                                      color: !cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                                      color: !cartProvider.isSelfPickup
+                                          ? Colors.white
+                                          : (isDark
+                                              ? Colors.grey[400]
+                                              : Colors.grey[700]),
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
                                       'Delivery',
                                       style: TextStyle(
-                                        color: !cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                                        color: !cartProvider.isSelfPickup
+                                            ? Colors.white
+                                            : (isDark
+                                                ? Colors.grey[400]
+                                                : Colors.grey[700]),
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
                                       ),
@@ -484,12 +532,21 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                               },
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: cartProvider.isSelfPickup ? AppColors.primary : Colors.transparent,
+                                  color: cartProvider.isSelfPickup
+                                      ? AppColors.primary
+                                      : Colors.transparent,
                                   borderRadius: BorderRadius.circular(8),
                                   boxShadow: cartProvider.isSelfPickup
-                                      ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                                      ? [
+                                          BoxShadow(
+                                              color: AppColors.primary
+                                                  .withValues(alpha: 0.3),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2))
+                                        ]
                                       : null,
                                 ),
                                 child: Row(
@@ -498,13 +555,21 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                     Icon(
                                       Icons.shopping_bag_outlined,
                                       size: 18,
-                                      color: cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                                      color: cartProvider.isSelfPickup
+                                          ? Colors.white
+                                          : (isDark
+                                              ? Colors.grey[400]
+                                              : Colors.grey[700]),
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
                                       'Self Pickup 🛍️',
                                       style: TextStyle(
-                                        color: cartProvider.isSelfPickup ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                                        color: cartProvider.isSelfPickup
+                                            ? Colors.white
+                                            : (isDark
+                                                ? Colors.grey[400]
+                                                : Colors.grey[700]),
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
                                       ),
@@ -518,7 +583,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       ),
                     )
                   : Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
                         color: isDark ? Colors.grey[850] : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(10),
@@ -526,14 +592,17 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.delivery_dining, size: 18, color: AppColors.primary),
+                          const Icon(Icons.delivery_dining,
+                              size: 18, color: AppColors.primary),
                           const SizedBox(width: 8),
                           Text(
                             'Home Delivery Available (Self-Pickup Not Supported)',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white70 : const Color(0xFF374151),
+                              color: isDark
+                                  ? Colors.white70
+                                  : const Color(0xFF374151),
                             ),
                           ),
                         ],
@@ -578,7 +647,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
           // â”€â”€ Menu items â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           _isLoadingMenu
               ? const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                  child: Center(
+                      child:
+                          CircularProgressIndicator(color: AppColors.primary)),
                 )
               : SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
@@ -593,7 +664,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                           restaurantImageUrl: r.imageUrl,
                           restaurantAddress: r.address,
                           minOrderValue: r.minOrderValue,
-                          restaurantIsOnline: r.isOnline && r.isOpen && !r.isTemporarilyClosed && r.isActive,
+                          restaurantIsOnline: r.isOnline &&
+                              r.isOpen &&
+                              !r.isTemporarilyClosed &&
+                              r.isActive,
                           deliveryTimeMin: r.deliveryTimeMin,
                         );
                       },
@@ -690,11 +764,13 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
           ),
           child: Column(
             children: [
-              const Text('Customer Reviews', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text('Customer Reviews',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Expanded(
                 child: FutureBuilder<List<dynamic>>(
-                  future: RestaurantApiService.getRestaurantReviews(restaurantId),
+                  future:
+                      RestaurantApiService.getRestaurantReviews(restaurantId),
                   builder: (ctx, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
@@ -726,18 +802,31 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                   CircleAvatar(
                                     radius: 16,
                                     backgroundColor: AppColors.primary,
-                                    child: Text(name[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 12)),
+                                    child: Text(name[0].toUpperCase(),
+                                        style: const TextStyle(
+                                            color: Colors.white, fontSize: 12)),
                                   ),
                                   const SizedBox(width: 8),
-                                  Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold))),
-                                  const Icon(Icons.star, color: Colors.amber, size: 16),
+                                  Expanded(
+                                      child: Text(name,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold))),
+                                  const Icon(Icons.star,
+                                      color: Colors.amber, size: 16),
                                   const SizedBox(width: 4),
-                                  Text(rating, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(rating,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold)),
                                 ],
                               ),
                               if (comment.isNotEmpty) ...[
                                 const SizedBox(height: 8),
-                                Text(comment, style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13)),
+                                Text(comment,
+                                    style: TextStyle(
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.black87,
+                                        fontSize: 13)),
                               ]
                             ],
                           ),
@@ -800,7 +889,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
-                              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.15),
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.05)
+                                  : Colors.black.withValues(alpha: 0.15),
                               blurRadius: 30,
                               offset: const Offset(0, 10),
                             ),
@@ -932,7 +1023,10 @@ class _StatChip extends StatelessWidget {
           Icon(icon, color: iconColor, size: 13),
           const SizedBox(width: 4),
           Text(label,
-              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -981,7 +1075,9 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
               margin: const EdgeInsets.only(right: 8),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: isActive ? const Color(0xFFE89D1E) : (isDark ? Colors.grey[800] : const Color(0xFFF3F4F6)),
+                color: isActive
+                    ? const Color(0xFFE89D1E)
+                    : (isDark ? Colors.grey[800] : const Color(0xFFF3F4F6)),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -989,7 +1085,9 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                  color: isActive ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF6B7280)),
+                  color: isActive
+                      ? Colors.white
+                      : (isDark ? Colors.white70 : const Color(0xFF6B7280)),
                 ),
               ),
             ),
@@ -1027,7 +1125,8 @@ class _SearchBarHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => 60.0;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       color: isDark ? Colors.black : const Color(0xFFF5FAF8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -1052,14 +1151,17 @@ class _SearchBarHeaderDelegate extends SliverPersistentHeaderDelegate {
         child: TextField(
           controller: controller,
           onChanged: onChanged,
-          style: TextStyle(fontSize: 14, color: isDark ? Colors.white : const Color(0xFF1F2937)),
+          style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.white : const Color(0xFF1F2937)),
           decoration: InputDecoration(
             hintText: 'Search dishes in $restaurantName...',
             hintStyle: TextStyle(
               fontSize: 13,
               color: isDark ? Colors.grey.shade500 : const Color(0xFF9CA3AF),
             ),
-            prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
+            prefixIcon: const Icon(Icons.search_rounded,
+                color: AppColors.primary, size: 20),
             suffixIcon: searchQuery.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.clear_rounded, size: 18),
@@ -1146,21 +1248,44 @@ class _MenuItemCard extends StatelessWidget {
       if (s is Map) {
         final sp = (s['sellingPrice'] as num?)?.toDouble() ?? 0.0;
         final mrp = (s['mrp'] as num?)?.toDouble() ?? 0.0;
-        if (sp > 0) options.add({'key': 'small', 'label': 'Small', 'price': sp, 'mrp': mrp > sp ? mrp : null});
+        if (sp > 0) {
+          options.add({
+            'key': 'small',
+            'label': 'Small',
+            'price': sp,
+            'mrp': mrp > sp ? mrp : null,
+          });
+        }
       }
       if (m is Map) {
         final sp = (m['sellingPrice'] as num?)?.toDouble() ?? 0.0;
         final mrp = (m['mrp'] as num?)?.toDouble() ?? 0.0;
-        if (sp > 0) options.add({'key': 'medium', 'label': 'Medium', 'price': sp, 'mrp': mrp > sp ? mrp : null});
+        if (sp > 0) {
+          options.add({
+            'key': 'medium',
+            'label': 'Medium',
+            'price': sp,
+            'mrp': mrp > sp ? mrp : null,
+          });
+        }
       }
       if (l is Map) {
         final sp = (l['sellingPrice'] as num?)?.toDouble() ?? 0.0;
         final mrp = (l['mrp'] as num?)?.toDouble() ?? 0.0;
-        if (sp > 0) options.add({'key': 'large', 'label': 'Large', 'price': sp, 'mrp': mrp > sp ? mrp : null});
+        if (sp > 0) {
+          options.add({
+            'key': 'large',
+            'label': 'Large',
+            'price': sp,
+            'mrp': mrp > sp ? mrp : null,
+          });
+        }
       }
     } else if (item.variations.isNotEmpty) {
       for (var v in item.variations) {
-        final vName = v['name'] is Map ? (v['name']['en'] ?? v['name'].values.first ?? 'Option') : (v['name'] ?? 'Option');
+        final vName = v['name'] is Map
+            ? (v['name']['en'] ?? v['name'].values.first ?? 'Option')
+            : (v['name'] ?? 'Option');
         final vPrice = (v['price'] as num?)?.toDouble() ?? 0.0;
         if (vPrice > 0 || item.price > 0) {
           options.add({
@@ -1202,8 +1327,10 @@ class _MenuItemCard extends StatelessWidget {
               (p) => p['key'] == selectedPortionKey,
               orElse: () => availablePortions.first,
             );
-            final double portionPrice = (activePortion['price'] as num).toDouble();
-            final double addOnsTotal = selectedAddOns.fold(0.0, (sum, a) => sum + ((a['price'] as num?)?.toDouble() ?? 0.0));
+            final double portionPrice =
+                (activePortion['price'] as num).toDouble();
+            final double addOnsTotal = selectedAddOns.fold(0.0,
+                (sum, a) => sum + ((a['price'] as num?)?.toDouble() ?? 0.0));
             final double grandTotal = portionPrice + addOnsTotal;
 
             return Container(
@@ -1212,7 +1339,8 @@ class _MenuItemCard extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1F2937) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1232,7 +1360,8 @@ class _MenuItemCard extends StatelessWidget {
 
                   // Header with item info & close button
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       children: [
                         ClipRRect(
@@ -1256,7 +1385,9 @@ class _MenuItemCard extends StatelessWidget {
                                     height: 12,
                                     decoration: BoxDecoration(
                                       border: Border.all(
-                                        color: item.isVeg ? Colors.green : Colors.red,
+                                        color: item.isVeg
+                                            ? Colors.green
+                                            : Colors.red,
                                         width: 1.5,
                                       ),
                                       borderRadius: BorderRadius.circular(2),
@@ -1266,7 +1397,9 @@ class _MenuItemCard extends StatelessWidget {
                                         width: 6,
                                         height: 6,
                                         decoration: BoxDecoration(
-                                          color: item.isVeg ? Colors.green : Colors.red,
+                                          color: item.isVeg
+                                              ? Colors.green
+                                              : Colors.red,
                                           shape: BoxShape.circle,
                                         ),
                                       ),
@@ -1279,7 +1412,9 @@ class _MenuItemCard extends StatelessWidget {
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w800,
-                                        color: isDark ? Colors.white : const Color(0xFF111827),
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF111827),
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -1292,7 +1427,9 @@ class _MenuItemCard extends StatelessWidget {
                                 'Customize your order',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark ? Colors.white60 : Colors.grey.shade600,
+                                  color: isDark
+                                      ? Colors.white60
+                                      : Colors.grey.shade600,
                                 ),
                               ),
                             ],
@@ -1300,7 +1437,10 @@ class _MenuItemCard extends StatelessWidget {
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(ctx),
-                          icon: Icon(Icons.close, color: isDark ? Colors.white70 : Colors.grey.shade700),
+                          icon: Icon(Icons.close,
+                              color: isDark
+                                  ? Colors.white70
+                                  : Colors.grey.shade700),
                         ),
                       ],
                     ),
@@ -1310,7 +1450,8 @@ class _MenuItemCard extends StatelessWidget {
                   // Scrollable Portion & Add-on list
                   Flexible(
                     child: ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       shrinkWrap: true,
                       children: [
                         // Portion selection section
@@ -1319,7 +1460,9 @@ class _MenuItemCard extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                item.portionType == 'size' ? 'SELECT SIZE' : 'SELECT PORTION',
+                                item.portionType == 'size'
+                                    ? 'SELECT SIZE'
+                                    : 'SELECT PORTION',
                                 style: const TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w800,
@@ -1328,9 +1471,11 @@ class _MenuItemCard extends StatelessWidget {
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.15),
+                                  color:
+                                      AppColors.primary.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Text(
@@ -1347,30 +1492,43 @@ class _MenuItemCard extends StatelessWidget {
                           const SizedBox(height: 8),
                           Container(
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF111827) : const Color(0xFFF9FAFB),
+                              color: isDark
+                                  ? const Color(0xFF111827)
+                                  : const Color(0xFFF9FAFB),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                              border: Border.all(
+                                  color: isDark
+                                      ? Colors.grey.shade800
+                                      : Colors.grey.shade200),
                             ),
                             child: Column(
                               children: availablePortions.map((portion) {
-                                final isSelected = portion['key'] == selectedPortionKey;
-                                final pPrice = (portion['price'] as num).toDouble();
+                                final isSelected =
+                                    portion['key'] == selectedPortionKey;
+                                final pPrice =
+                                    (portion['price'] as num).toDouble();
                                 final pMrp = portion['mrp'] as double?;
 
                                 return InkWell(
                                   onTap: () {
                                     setModalState(() {
-                                      selectedPortionKey = portion['key'] as String;
+                                      selectedPortionKey =
+                                          portion['key'] as String;
                                     });
                                   },
                                   borderRadius: BorderRadius.circular(12),
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
                                     child: Row(
                                       children: [
                                         Icon(
-                                          isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-                                          color: isSelected ? AppColors.primary : Colors.grey.shade400,
+                                          isSelected
+                                              ? Icons.radio_button_checked
+                                              : Icons.radio_button_off,
+                                          color: isSelected
+                                              ? AppColors.primary
+                                              : Colors.grey.shade400,
                                           size: 20,
                                         ),
                                         const SizedBox(width: 10),
@@ -1379,8 +1537,12 @@ class _MenuItemCard extends StatelessWidget {
                                             portion['label'] as String,
                                             style: TextStyle(
                                               fontSize: 14,
-                                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                              color: isDark ? Colors.white : const Color(0xFF1F2937),
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w500,
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF1F2937),
                                             ),
                                           ),
                                         ),
@@ -1389,7 +1551,8 @@ class _MenuItemCard extends StatelessWidget {
                                             '₹${pMrp.toInt()}',
                                             style: TextStyle(
                                               fontSize: 12,
-                                              decoration: TextDecoration.lineThrough,
+                                              decoration:
+                                                  TextDecoration.lineThrough,
                                               color: Colors.grey.shade400,
                                             ),
                                           ),
@@ -1400,7 +1563,9 @@ class _MenuItemCard extends StatelessWidget {
                                           style: TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w800,
-                                            color: isDark ? Colors.white : const Color(0xFF111827),
+                                            color: isDark
+                                                ? Colors.white
+                                                : const Color(0xFF111827),
                                           ),
                                         ),
                                       ],
@@ -1440,34 +1605,48 @@ class _MenuItemCard extends StatelessWidget {
                           const SizedBox(height: 8),
                           Container(
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF111827) : const Color(0xFFF9FAFB),
+                              color: isDark
+                                  ? const Color(0xFF111827)
+                                  : const Color(0xFFF9FAFB),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                              border: Border.all(
+                                  color: isDark
+                                      ? Colors.grey.shade800
+                                      : Colors.grey.shade200),
                             ),
                             child: Column(
                               children: item.addOns.map((addOn) {
                                 final aName = addOn['name']?.toString() ?? '';
-                                final aPrice = (addOn['price'] as num?)?.toDouble() ?? 0.0;
-                                final isChecked = selectedAddOns.any((a) => a['name'] == aName);
+                                final aPrice =
+                                    (addOn['price'] as num?)?.toDouble() ?? 0.0;
+                                final isChecked = selectedAddOns
+                                    .any((a) => a['name'] == aName);
 
                                 return InkWell(
                                   onTap: () {
                                     setModalState(() {
                                       if (isChecked) {
-                                        selectedAddOns.removeWhere((a) => a['name'] == aName);
+                                        selectedAddOns.removeWhere(
+                                            (a) => a['name'] == aName);
                                       } else {
-                                        selectedAddOns.add({'name': aName, 'price': aPrice});
+                                        selectedAddOns.add(
+                                            {'name': aName, 'price': aPrice});
                                       }
                                     });
                                   },
                                   borderRadius: BorderRadius.circular(12),
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
                                     child: Row(
                                       children: [
                                         Icon(
-                                          isChecked ? Icons.check_box : Icons.check_box_outline_blank,
-                                          color: isChecked ? AppColors.primary : Colors.grey.shade400,
+                                          isChecked
+                                              ? Icons.check_box
+                                              : Icons.check_box_outline_blank,
+                                          color: isChecked
+                                              ? AppColors.primary
+                                              : Colors.grey.shade400,
                                           size: 20,
                                         ),
                                         const SizedBox(width: 10),
@@ -1476,8 +1655,12 @@ class _MenuItemCard extends StatelessWidget {
                                             aName,
                                             style: TextStyle(
                                               fontSize: 14,
-                                              fontWeight: isChecked ? FontWeight.w700 : FontWeight.w500,
-                                              color: isDark ? Colors.white : const Color(0xFF1F2937),
+                                              fontWeight: isChecked
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w500,
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : const Color(0xFF1F2937),
                                             ),
                                           ),
                                         ),
@@ -1486,7 +1669,9 @@ class _MenuItemCard extends StatelessWidget {
                                           style: TextStyle(
                                             fontSize: 13.5,
                                             fontWeight: FontWeight.w700,
-                                            color: isDark ? Colors.greenAccent : const Color(0xFF15803D),
+                                            color: isDark
+                                                ? Colors.greenAccent
+                                                : const Color(0xFF15803D),
                                           ),
                                         ),
                                       ],
@@ -1538,7 +1723,9 @@ class _MenuItemCard extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
-                                color: isDark ? Colors.white : const Color(0xFF111827),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF111827),
                               ),
                             ),
                           ],
@@ -1549,17 +1736,20 @@ class _MenuItemCard extends StatelessWidget {
                             onPressed: () {
                               Navigator.pop(ctx);
 
-                              final String pLabel = activePortion['label'] as String;
-                              final String customName = availablePortions.length > 1
-                                  ? '${item.name} ($pLabel)'
-                                  : item.name;
+                              final String pLabel =
+                                  activePortion['label'] as String;
+                              final String customName =
+                                  availablePortions.length > 1
+                                      ? '${item.name} ($pLabel)'
+                                      : item.name;
 
                               final addOnSuffix = selectedAddOns.isNotEmpty
                                   ? ' + ${selectedAddOns.map((a) => a['name']).join(', ')}'
                                   : '';
                               final fullDisplayName = '$customName$addOnSuffix';
 
-                              final customProductId = '${item.id}::${activePortion['key']}::${selectedAddOns.map((a) => a['name']).join('_')}';
+                              final customProductId =
+                                  '${item.id}::${activePortion['key']}::${selectedAddOns.map((a) => a['name']).join('_')}';
 
                               final customProduct = Product(
                                 id: customProductId,
@@ -1575,7 +1765,9 @@ class _MenuItemCard extends StatelessWidget {
                               _directAddToCart(
                                 context,
                                 customProduct,
-                                portion: activePortion['key'] == 'standard' ? null : (activePortion['key'] as String),
+                                portion: activePortion['key'] == 'standard'
+                                    ? null
+                                    : (activePortion['key'] as String),
                                 portionName: pLabel,
                                 addOns: selectedAddOns,
                               );
@@ -1584,17 +1776,21 @@ class _MenuItemCard extends StatelessWidget {
                               backgroundColor: AppColors.primary,
                               foregroundColor: AppColors.dark,
                               padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
                               elevation: 0,
                             ),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.shopping_bag_outlined, size: 18, color: AppColors.dark),
+                                Icon(Icons.shopping_bag_outlined,
+                                    size: 18, color: AppColors.dark),
                                 SizedBox(width: 8),
                                 Text(
                                   'Add Item to Cart',
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                                  style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800),
                                 ),
                               ],
                             ),
@@ -1624,14 +1820,16 @@ class _MenuItemCard extends StatelessWidget {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text(
             'Start new cart?',
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
           ),
           content: RichText(
             text: TextSpan(
-              style: const TextStyle(fontSize: 14, color: Color(0xFF374151), height: 1.5),
+              style: const TextStyle(
+                  fontSize: 14, color: Color(0xFF374151), height: 1.5),
               children: [
                 const TextSpan(text: 'Your cart has items from '),
                 TextSpan(
@@ -1639,14 +1837,16 @@ class _MenuItemCard extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const TextSpan(
-                    text: '.\n\nAdding items from a different restaurant will clear your current cart.'),
+                    text:
+                        '.\n\nAdding items from a different restaurant will clear your current cart.'),
               ],
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Keep current', style: TextStyle(color: Color(0xFF6B7280))),
+              child: const Text('Keep current',
+                  style: TextStyle(color: Color(0xFF6B7280))),
             ),
             ElevatedButton(
               onPressed: () {
@@ -1665,14 +1865,23 @@ class _MenuItemCard extends StatelessWidget {
                   portionName: portionName,
                   addOns: addOns,
                 );
+                // META_EVENT_CART_SWITCH_RESTAURANT
+                unawaited(
+                  MetaAppEventsService.addToCart(
+                    itemId: product.id,
+                    price: product.price.toDouble(),
+                  ),
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.dark,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
                 elevation: 0,
               ),
-              child: const Text('Start new cart', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text('Start new cart',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -1692,6 +1901,13 @@ class _MenuItemCard extends StatelessWidget {
         portionName: portionName,
         addOns: addOns,
       );
+      // META_EVENT_CART_NORMAL_ADD
+      unawaited(
+        MetaAppEventsService.addToCart(
+          itemId: product.id,
+          price: product.price.toDouble(),
+        ),
+      );
     }
   }
 
@@ -1701,7 +1917,8 @@ class _MenuItemCard extends StatelessWidget {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('⚠️ Restaurant is currently closed and not accepting orders.'),
+          content: Text(
+              '⚠️ Restaurant is currently closed and not accepting orders.'),
           backgroundColor: Color(0xFFDC2626),
           duration: Duration(seconds: 2),
         ),
@@ -1712,7 +1929,8 @@ class _MenuItemCard extends StatelessWidget {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('⚠️ Sorry, this item is currently out of stock / unavailable!'),
+          content: Text(
+              '⚠️ Sorry, this item is currently out of stock / unavailable!'),
           backgroundColor: Color(0xFFDC2626),
           duration: Duration(seconds: 2),
         ),
@@ -1730,9 +1948,14 @@ class _MenuItemCard extends StatelessWidget {
   // ── Build formatted price display for portions / sizes ────────────────────
   Widget _buildPriceDisplay(bool isDark) {
     if (item.portionType == 'half_full' && item.portions != null) {
-      final fullPrice = (item.portions!['full']?['sellingPrice'] as num?)?.toInt();
-      final halfPrice = (item.portions!['half']?['sellingPrice'] as num?)?.toInt();
-      if (fullPrice != null && fullPrice > 0 && halfPrice != null && halfPrice > 0) {
+      final fullPrice =
+          (item.portions!['full']?['sellingPrice'] as num?)?.toInt();
+      final halfPrice =
+          (item.portions!['half']?['sellingPrice'] as num?)?.toInt();
+      if (fullPrice != null &&
+          fullPrice > 0 &&
+          halfPrice != null &&
+          halfPrice > 0) {
         return RichText(
           text: TextSpan(
             style: TextStyle(
@@ -1742,15 +1965,27 @@ class _MenuItemCard extends StatelessWidget {
             ),
             children: [
               TextSpan(text: 'Full: ₹$fullPrice '),
-              TextSpan(text: '• ', style: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.normal)),
+              TextSpan(
+                  text: '• ',
+                  style: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontWeight: FontWeight.normal)),
               TextSpan(text: 'Half: ₹$halfPrice'),
             ],
           ),
         );
       } else if (fullPrice != null && fullPrice > 0) {
-        return Text('Full: ₹$fullPrice', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF2C2C2C)));
+        return Text('Full: ₹$fullPrice',
+            style: TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF2C2C2C)));
       } else if (halfPrice != null && halfPrice > 0) {
-        return Text('Half: ₹$halfPrice', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: isDark ? Colors.white : const Color(0xFF2C2C2C)));
+        return Text('Half: ₹$halfPrice',
+            style: TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF2C2C2C)));
       }
     } else if (item.portionType == 'size' && item.portions != null) {
       final s = (item.portions!['small']?['sellingPrice'] as num?)?.toInt();
@@ -1845,10 +2080,15 @@ class _MenuItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    final matchingItems = cartProvider.items.where((ci) => ci.product.id == item.id || ci.product.id.startsWith('${item.id}::')).toList();
+    final matchingItems = cartProvider.items
+        .where((ci) =>
+            ci.product.id == item.id ||
+            ci.product.id.startsWith('${item.id}::'))
+        .toList();
     final inCart = matchingItems.isNotEmpty;
     final qty = matchingItems.fold(0, (sum, ci) => sum + ci.quantity);
-    final bool hasImage = item.imageUrl.trim().isNotEmpty && item.imageUrl.trim() != 'null';
+    final bool hasImage =
+        item.imageUrl.trim().isNotEmpty && item.imageUrl.trim() != 'null';
 
     Widget buildActionControl() {
       if (!restaurantIsOnline) {
@@ -1860,7 +2100,8 @@ class _MenuItemCard extends StatelessWidget {
           ),
           child: const Text(
             'CLOSED',
-            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+            style: TextStyle(
+                color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
           ),
         );
       }
@@ -1870,7 +2111,8 @@ class _MenuItemCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF3B1F20) : const Color(0xFFFEE2E2),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.5)),
+            border: Border.all(
+                color: const Color(0xFFEF4444).withValues(alpha: 0.5)),
           ),
           child: const Text(
             'OUT OF STOCK',
@@ -1889,7 +2131,8 @@ class _MenuItemCard extends StatelessWidget {
           onRemove: () {
             if (matchingItems.isNotEmpty) {
               final lastItem = matchingItems.last;
-              cartProvider.updateQuantity(lastItem.product.id, lastItem.quantity - 1);
+              cartProvider.updateQuantity(
+                  lastItem.product.id, lastItem.quantity - 1);
             }
           },
         );
@@ -1921,7 +2164,8 @@ class _MenuItemCard extends StatelessWidget {
                       width: 124,
                       height: 100,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox(width: 124, height: 100),
+                      errorBuilder: (_, __, ___) =>
+                          const SizedBox(width: 124, height: 100),
                     ),
                   ),
                   Positioned(
@@ -2000,7 +2244,9 @@ class _MenuItemCard extends StatelessWidget {
                     height: 14,
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: item.isVeg ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                        color: item.isVeg
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFDC2626),
                         width: 1.4,
                       ),
                       borderRadius: BorderRadius.circular(3),
@@ -2010,7 +2256,9 @@ class _MenuItemCard extends StatelessWidget {
                         width: 6.5,
                         height: 6.5,
                         decoration: BoxDecoration(
-                          color: item.isVeg ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                          color: item.isVeg
+                              ? const Color(0xFF16A34A)
+                              : const Color(0xFFDC2626),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -2144,7 +2392,8 @@ class _QtyControl extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onRemove;
 
-  const _QtyControl({required this.qty, required this.onAdd, required this.onRemove});
+  const _QtyControl(
+      {required this.qty, required this.onAdd, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -2232,7 +2481,8 @@ class _CartBar extends StatelessWidget {
                             width: 40,
                             height: 40,
                             color: Colors.grey[800],
-                            child: const Icon(Icons.fastfood, color: Colors.white54, size: 20),
+                            child: const Icon(Icons.fastfood,
+                                color: Colors.white54, size: 20),
                           )
                         : SafeImage(
                             cartProvider.items.last.product.image,
@@ -2243,7 +2493,8 @@ class _CartBar extends StatelessWidget {
                               width: 40,
                               height: 40,
                               color: Colors.grey[800],
-                              child: const Icon(Icons.fastfood, color: Colors.white54, size: 20),
+                              child: const Icon(Icons.fastfood,
+                                  color: Colors.white54, size: 20),
                             ),
                           ),
                   ),
@@ -2338,7 +2589,9 @@ class _CartSheet extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white : const Color(0xFF2C2C2C),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF2C2C2C),
                               ),
                             ),
                             Text(
@@ -2356,7 +2609,8 @@ class _CartSheet extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : const Color(0xFF2C2C2C),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF2C2C2C),
                         ),
                       ),
                     ],
@@ -2522,7 +2776,11 @@ class _MenuSheetRow extends StatelessWidget {
                         fontSize: 17,
                         fontWeight:
                             isHeader ? FontWeight.w700 : FontWeight.w500,
-                        color: isHeader ? green : (isDark ? Colors.white70 : const Color(0xFF4B5563)),
+                        color: isHeader
+                            ? green
+                            : (isDark
+                                ? Colors.white70
+                                : const Color(0xFF4B5563)),
                         letterSpacing: -0.3,
                       ),
                     ),
@@ -2547,7 +2805,9 @@ class _MenuSheetRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: isHeader ? FontWeight.w700 : FontWeight.w500,
-                color: isHeader ? green : (isDark ? Colors.grey[400] : const Color(0xFF6B7280)),
+                color: isHeader
+                    ? green
+                    : (isDark ? Colors.grey[400] : const Color(0xFF6B7280)),
               ),
             ),
           ],
@@ -2667,7 +2927,8 @@ class _RecommendedDishesSection extends StatelessWidget {
                     color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color: AppColors.primary.withValues(alpha: isDark ? 0.3 : 0.18),
+                      color: AppColors.primary
+                          .withValues(alpha: isDark ? 0.3 : 0.18),
                       width: 1.0,
                     ),
                     boxShadow: [
@@ -2698,7 +2959,8 @@ class _RecommendedDishesSection extends StatelessWidget {
                             top: 4,
                             left: 4,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: AppColors.primary,
                                 borderRadius: BorderRadius.circular(6),
@@ -2726,14 +2988,18 @@ class _RecommendedDishesSection extends StatelessWidget {
                             padding: const EdgeInsets.all(1),
                             decoration: BoxDecoration(
                               border: Border.all(
-                                color: item.isVeg ? const Color(0xFF0F8A5F) : const Color(0xFFE53935),
+                                color: item.isVeg
+                                    ? const Color(0xFF0F8A5F)
+                                    : const Color(0xFFE53935),
                                 width: 1,
                               ),
                               borderRadius: BorderRadius.circular(2),
                             ),
                             child: Container(
                               decoration: BoxDecoration(
-                                color: item.isVeg ? const Color(0xFF0F8A5F) : const Color(0xFFE53935),
+                                color: item.isVeg
+                                    ? const Color(0xFF0F8A5F)
+                                    : const Color(0xFFE53935),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -2745,7 +3011,9 @@ class _RecommendedDishesSection extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w800,
-                                color: isDark ? Colors.white : const Color(0xFF1F2937),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF1F2937),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -2769,7 +3037,9 @@ class _RecommendedDishesSection extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w900,
-                                  color: isDark ? Colors.white : const Color(0xFF111827),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF111827),
                                 ),
                               ),
                               Text(
@@ -2786,14 +3056,20 @@ class _RecommendedDishesSection extends StatelessWidget {
                           // Add Button
                           Builder(
                             builder: (context) {
-                              final bool isRestaurantOpen = restaurant.isOnline && restaurant.isOpen && !restaurant.isTemporarilyClosed && restaurant.isActive;
+                              final bool isRestaurantOpen =
+                                  restaurant.isOnline &&
+                                      restaurant.isOpen &&
+                                      !restaurant.isTemporarilyClosed &&
+                                      restaurant.isActive;
                               return GestureDetector(
                                 onTap: () {
                                   if (!isRestaurantOpen) {
-                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    ScaffoldMessenger.of(context)
+                                        .hideCurrentSnackBar();
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('⚠️ Restaurant is currently closed and not accepting orders.'),
+                                        content: Text(
+                                            '⚠️ Restaurant is currently closed and not accepting orders.'),
                                         backgroundColor: Color(0xFFDC2626),
                                         duration: Duration(seconds: 2),
                                       ),
@@ -2801,55 +3077,94 @@ class _RecommendedDishesSection extends StatelessWidget {
                                     return;
                                   }
                                   if (item.outOfStock) {
-                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    ScaffoldMessenger.of(context)
+                                        .hideCurrentSnackBar();
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('⚠️ Sorry, this item is currently out of stock!'),
+                                        content: Text(
+                                            '⚠️ Sorry, this item is currently out of stock!'),
                                         backgroundColor: Color(0xFFDC2626),
                                         duration: Duration(seconds: 2),
                                       ),
                                     );
                                     return;
                                   }
-                                  if (cartProvider.isFromDifferentRestaurant(restaurant.id)) {
+                                  if (cartProvider.isFromDifferentRestaurant(
+                                      restaurant.id)) {
                                     showDialog(
                                       context: context,
                                       builder: (_) => AlertDialog(
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                        title: const Text('Start new cart?', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(16)),
+                                        title: const Text('Start new cart?',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 17)),
                                         content: RichText(
                                           text: TextSpan(
-                                            style: const TextStyle(fontSize: 14, color: Color(0xFF374151), height: 1.5),
+                                            style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xFF374151),
+                                                height: 1.5),
                                             children: [
-                                              const TextSpan(text: 'Your cart has items from '),
-                                              TextSpan(text: cartProvider.restaurantName ?? 'another restaurant', style: const TextStyle(fontWeight: FontWeight.w700)),
-                                              const TextSpan(text: '.\n\nAdding items from a different restaurant will clear your current cart.'),
+                                              const TextSpan(
+                                                  text:
+                                                      'Your cart has items from '),
+                                              TextSpan(
+                                                  text: cartProvider
+                                                          .restaurantName ??
+                                                      'another restaurant',
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w700)),
+                                              const TextSpan(
+                                                  text:
+                                                      '.\n\nAdding items from a different restaurant will clear your current cart.'),
                                             ],
                                           ),
                                         ),
                                         actions: [
-                                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Keep current', style: TextStyle(color: Color(0xFF6B7280)))),
+                                          TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: const Text('Keep current',
+                                                  style: TextStyle(
+                                                      color:
+                                                          Color(0xFF6B7280)))),
                                           ElevatedButton(
                                             onPressed: () {
                                               Navigator.pop(context);
-                                              cartProvider.switchRestaurantAndAdd(
+                                              cartProvider
+                                                  .switchRestaurantAndAdd(
                                                 item.toProduct(),
                                                 restaurantId: restaurant.id,
                                                 restaurantName: restaurant.name,
-                                                restaurantImageUrl: restaurant.imageUrl,
-                                                restaurantAddress: restaurant.address,
-                                                deliveryTimeMin: restaurant.deliveryTimeMin,
-                                                minOrderValue: restaurant.minOrderValue,
+                                                restaurantImageUrl:
+                                                    restaurant.imageUrl,
+                                                restaurantAddress:
+                                                    restaurant.address,
+                                                deliveryTimeMin:
+                                                    restaurant.deliveryTimeMin,
+                                                minOrderValue:
+                                                    restaurant.minOrderValue,
                                                 imageUrl: item.imageUrl,
                                               );
                                             },
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: AppColors.primary,
+                                              backgroundColor:
+                                                  AppColors.primary,
                                               foregroundColor: AppColors.dark,
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          10)),
                                               elevation: 0,
                                             ),
-                                            child: const Text('Start new cart', style: TextStyle(fontWeight: FontWeight.w700)),
+                                            child: const Text('Start new cart',
+                                                style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.w700)),
                                           ),
                                         ],
                                       ),
@@ -2857,8 +3172,10 @@ class _RecommendedDishesSection extends StatelessWidget {
                                     return;
                                   }
 
+                                  final addedProduct = item.toProduct();
+
                                   cartProvider.addItem(
-                                    item.toProduct(),
+                                    addedProduct,
                                     restaurantId: restaurant.id,
                                     restaurantName: restaurant.name,
                                     restaurantImageUrl: restaurant.imageUrl,
@@ -2867,23 +3184,37 @@ class _RecommendedDishesSection extends StatelessWidget {
                                     minOrderValue: restaurant.minOrderValue,
                                     imageUrl: item.imageUrl,
                                   );
-                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+                                  unawaited(
+                                    MetaAppEventsService.addToCart(
+                                      itemId: addedProduct.id,
+                                      price: addedProduct.price.toDouble(),
+                                    ),
+                                  );
+                                  ScaffoldMessenger.of(context)
+                                      .hideCurrentSnackBar();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Added ${item.name} to cart!'),
+                                      content:
+                                          Text('Added ${item.name} to cart!'),
                                       backgroundColor: AppColors.primary,
                                       duration: const Duration(seconds: 1),
                                       behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
                                     ),
                                   );
                                 },
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 5),
                                   decoration: BoxDecoration(
                                     color: !isRestaurantOpen
                                         ? Colors.grey.shade400
-                                        : (item.outOfStock ? Colors.red.shade400 : AppColors.primary),
+                                        : (item.outOfStock
+                                            ? Colors.red.shade400
+                                            : AppColors.primary),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(

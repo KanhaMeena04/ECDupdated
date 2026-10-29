@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/restaurant_api_service.dart';
 import '../../core/models/restaurant_models.dart';
+import 'package:ecdkart_app/services/meta_app_events_service.dart';
 
 class RestaurantScreen extends StatefulWidget {
   final String slug;
@@ -27,7 +28,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
   Future<void> _fetchData() async {
     try {
-      final restaurant = await RestaurantApiService.getRestaurantDetails(widget.slug);
+      final restaurant =
+          await RestaurantApiService.getRestaurantDetails(widget.slug);
       final menu = await RestaurantApiService.getRestaurantMenu(widget.slug);
       if (mounted) {
         setState(() {
@@ -46,7 +48,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = context.watch<ThemeProvider>().isDarkMode;
-    
+
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -56,7 +58,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         backgroundColor: isDark ? Colors.black : Colors.white,
         appBar: AppBar(
           leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
+            icon: Icon(Icons.arrow_back,
+                color: isDark ? Colors.white : Colors.black),
             onPressed: () => Navigator.pop(context),
           ),
           backgroundColor: isDark ? Colors.black : Colors.white,
@@ -73,41 +76,42 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? Colors.black : const Color(0xFFF5FAF8),
-      floatingActionButton: _menu.isNotEmpty 
-        ? GestureDetector(
-            onTap: () => _showMenuSheet(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F2937),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.30),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.restaurant_menu, color: Colors.white, size: 17),
-                  SizedBox(width: 6),
-                  Text(
-                    'Menu',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
+      floatingActionButton: _menu.isNotEmpty
+          ? GestureDetector(
+              onTap: () => _showMenuSheet(context),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1F2937),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.30),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.restaurant_menu, color: Colors.white, size: 17),
+                    SizedBox(width: 6),
+                    Text(
+                      'Menu',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          )
-        : null,
+            )
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: CustomScrollView(
         slivers: [
@@ -119,8 +123,11 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  SafeImage(_restaurant!.imageUrl, fit: BoxFit.cover, 
-                    errorBuilder: (_, __, ___) => Image.asset('assets/static/restraunt.jpg', fit: BoxFit.cover)),
+                  SafeImage(_restaurant!.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Image.asset(
+                          'assets/static/restraunt.jpg',
+                          fit: BoxFit.cover)),
                   Container(color: Colors.black.withOpacity(0.4)),
                 ],
               ),
@@ -132,7 +139,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: isDark ? Colors.black : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,7 +181,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   ),
                   const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -212,7 +221,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isDark ? Colors.black.withOpacity(0.9) : Colors.white,
-          border: isDark ? Border.all(color: Colors.grey.withOpacity(0.4)) : null,
+          border:
+              isDark ? Border.all(color: Colors.grey.withOpacity(0.4)) : null,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(color: Colors.grey.withOpacity(0.15), blurRadius: 8),
@@ -292,7 +302,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       height: 100,
                       width: 100,
                       color: AppColors.primary.withOpacity(0.08),
-                      child: const Icon(Icons.fastfood, size: 36, color: AppColors.primary),
+                      child: const Icon(Icons.fastfood,
+                          size: 36, color: AppColors.primary),
                     ),
                   ),
                 ),
@@ -303,12 +314,16 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text('ADD', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                    child: const Text('ADD',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w800)),
                   ),
                 ),
               ],
@@ -373,7 +388,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                 isHeader: true,
                                 onTap: () => Navigator.pop(ctx),
                               ),
-                              const Divider(height: 1, color: Color(0xFFF3F4F6)),
+                              const Divider(
+                                  height: 1, color: Color(0xFFF3F4F6)),
                               ...catCounts.entries.map((e) => Column(
                                     children: [
                                       _MenuSheetRow(
@@ -382,7 +398,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                         isHeader: false,
                                         onTap: () => Navigator.pop(ctx),
                                       ),
-                                      const Divider(height: 1, color: Color(0xFFF3F4F6)),
+                                      const Divider(
+                                          height: 1, color: Color(0xFFF3F4F6)),
                                     ],
                                   )),
                             ],
@@ -395,7 +412,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             child: GestureDetector(
                               onTap: () => Navigator.pop(ctx),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 18, vertical: 10),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF1F2937),
                                   borderRadius: BorderRadius.circular(30),
@@ -403,7 +421,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                 child: const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.close, color: Colors.white, size: 16),
+                                    Icon(Icons.close,
+                                        color: Colors.white, size: 16),
                                     SizedBox(width: 6),
                                     Text(
                                       'Close',

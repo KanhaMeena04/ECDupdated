@@ -55,6 +55,7 @@ const RestaurantBannerTable = () => {
               <TableCell>#</TableCell>
               <TableCell>Banner Title</TableCell>
               <TableCell>Picture</TableCell>
+              <TableCell>City / Area</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Action</TableCell>
             </TableRow>
@@ -81,6 +82,12 @@ const RestaurantBannerTable = () => {
                       No Image
                     </Typography>
                   )}
+                </TableCell>
+
+                <TableCell>
+                  <span className="text-xs px-2 py-1 rounded bg-gray-100 font-medium text-gray-700">
+                    {row.cityName ? `📍 ${row.cityName}` : (row.city && row.city !== 'all' ? `📍 ${row.city}` : '🌐 All Cities')}
+                  </span>
                 </TableCell>
 
                 <TableCell>

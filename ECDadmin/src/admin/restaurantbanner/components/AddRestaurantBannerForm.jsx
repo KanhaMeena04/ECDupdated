@@ -104,9 +104,7 @@ const AddRestaurantBannerForm = () => {
       payload.append('restaurant', formData.restaurant);
     }
     payload.append("title", formData.title || "Promo Banner");
-    if (formData.city && formData.city !== 'all') {
-      payload.append('city', formData.city);
-    }
+    payload.append('city', formData.city || 'all');
     payload.append('isActive', formData.status === 'active' || formData.status === 'true' || formData.status === '');
     payload.append('type', (formData.restaurant && formData.restaurant !== 'all') ? 'restaurant' : 'static');
     payload.append('position', 1);

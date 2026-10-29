@@ -126,13 +126,28 @@ class RestaurantApiService {
     }
   }
 
-  static Future<List<BannerModel>> getBanners() async {
+  static Future<List<BannerModel>> getBanners({double? lat, double? lng, String? city}) async {
     if (kFrontendPreviewMode) {
       return _getMockBanners();
     }
     try {
-      debugPrint('🎯 Fetching banners from: $bannersUrl');
-      final response = await http.get(Uri.parse(bannersUrl)).timeout(const Duration(seconds: 15));
+      final queryParams = <String, String>{};
+      if (lat != null && lng != null) {
+        queryParams['lat'] = lat.toString();
+        queryParams['lng'] = lng.toString();
+      }
+      if (city != null && city.trim().isNotEmpty) {
+        queryParams['city'] = city.trim();
+      }
+      final parsedUri = Uri.parse(bannersUrl);
+      final uri = queryParams.isNotEmpty
+          ? parsedUri.replace(queryParameters: {
+              ...parsedUri.queryParameters,
+              ...queryParams,
+            })
+          : parsedUri;
+      debugPrint('🎯 Fetching banners from: $uri');
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
       debugPrint('🎯 Banners response status: ${response.statusCode}');
       debugPrint('🎯 Banners response body: ${response.body.substring(0, response.body.length > 300 ? 300 : response.body.length)}');
       
@@ -529,9 +544,13 @@ class RestaurantApiService {
     return [];
   }
 
-  static Future<List<PopularDish>> getPopularDishes() async {
+  static Future<List<PopularDish>> getPopularDishes({double? lat, double? lng}) async {
     try {
-      final response = await http.get(Uri.parse(popularDishesUrl)).timeout(const Duration(seconds: 15));
+      String urlStr = popularDishesUrl;
+      if (lat != null && lng != null && lat != 0 && lng != 0) {
+        urlStr += (urlStr.contains('?') ? '&' : '?') + 'lat=$lat&lng=$lng';
+      }
+      final response = await http.get(Uri.parse(urlStr)).timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         final List<dynamic> data = jsonResponse is List
@@ -906,11 +925,18 @@ class RestaurantApiService {
   }
 
   /// Fetch dynamic recommended dishes shuffled and personalized
-  static Future<List<MenuItem>> getRecommendedDishes({double? lat, double? lng}) async {
+  static Future<List<MenuItem>> getRecommendedDishes({double? lat, double? lng, String? city}) async {
     try {
       String urlStr = '$apiBaseUrl/home/recommended-dishes';
+      final queryParams = <String>[];
       if (lat != null && lng != null && lat != 0 && lng != 0) {
-        urlStr += '?lat=$lat&lng=$lng';
+        queryParams.add('lat=$lat&lng=$lng');
+      }
+      if (city != null && city.trim().isNotEmpty) {
+        queryParams.add('city=${Uri.encodeComponent(city.trim())}');
+      }
+      if (queryParams.isNotEmpty) {
+        urlStr += '?${queryParams.join('&')}';
       }
       final headers = await _getHeaders();
       final response = await http.get(Uri.parse(urlStr), headers: headers).timeout(const Duration(seconds: 12));
@@ -928,11 +954,18 @@ class RestaurantApiService {
   }
 
   /// Fetch dynamic special dishes configured in CMS and shuffled
-  static Future<List<MenuItem>> getSpecialDishes({double? lat, double? lng}) async {
+  static Future<List<MenuItem>> getSpecialDishes({double? lat, double? lng, String? city}) async {
     try {
       String urlStr = '$apiBaseUrl/home/special-dishes';
+      final queryParams = <String>[];
       if (lat != null && lng != null && lat != 0 && lng != 0) {
-        urlStr += '?lat=$lat&lng=$lng';
+        queryParams.add('lat=$lat&lng=$lng');
+      }
+      if (city != null && city.trim().isNotEmpty) {
+        queryParams.add('city=${Uri.encodeComponent(city.trim())}');
+      }
+      if (queryParams.isNotEmpty) {
+        urlStr += '?${queryParams.join('&')}';
       }
       final headers = await _getHeaders();
       final response = await http.get(Uri.parse(urlStr), headers: headers).timeout(const Duration(seconds: 12));

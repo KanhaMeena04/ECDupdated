@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +16,7 @@ import '../order/order_tracking_page.dart';
 import 'address_selection_page.dart';
 import '../profile/location_setup_page.dart';
 import '../../widgets/flip_animation_widgets.dart';
+import 'package:ecdkart_app/services/meta_app_events_service.dart';
 
 class ReviewPayPage extends StatefulWidget {
   final double subtotal;
@@ -44,7 +46,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
   // Options state (Screenshot 2, 3)
   bool _leaveAtDoor = false;
   double _selectedTip = 0.0; // 0.0 = "Not Now", 5.0, 10.0, 20.0
-  String _selectedPaymentMethod = 'Cash on Delivery'; // Default Cash on Delivery
+  String _selectedPaymentMethod =
+      'Cash on Delivery'; // Default Cash on Delivery
 
   @override
   void initState() {
@@ -80,8 +83,14 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     } else if (restaurantId != null) {
       final feeResult =
           await OrderApiService.calculateDeliveryFee(restaurantId, lat, lng);
-      if (feeResult != null && (feeResult['deliveryCharge'] != null || feeResult['deliveryFee'] != null || feeResult['fee'] != null)) {
-        fetchedFee = ((feeResult['deliveryCharge'] ?? feeResult['deliveryFee'] ?? feeResult['fee']) as num).toDouble();
+      if (feeResult != null &&
+          (feeResult['deliveryCharge'] != null ||
+              feeResult['deliveryFee'] != null ||
+              feeResult['fee'] != null)) {
+        fetchedFee = ((feeResult['deliveryCharge'] ??
+                feeResult['deliveryFee'] ??
+                feeResult['fee']) as num)
+            .toDouble();
       }
     }
 
@@ -121,7 +130,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     _showError("Payment Failed: ${response.message}");
 
     if (_pendingOrderId != null) {
-      await context.read<OrderProvider>()
+      await context
+          .read<OrderProvider>()
           .failOrder(_pendingOrderId!, "Payment Failed/Cancelled");
     }
   }
@@ -140,7 +150,10 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
       );
 
       if (result != null && result['success'] == true) {
-        final confirmedId = _pendingOrderId ?? result['orderId']?.toString() ?? response.orderId ?? '';
+        final confirmedId = _pendingOrderId ??
+            result['orderId']?.toString() ??
+            response.orderId ??
+            '';
         _onOrderSuccess(confirmedId);
       } else {
         setState(() => _isProcessing = false);
@@ -165,9 +178,13 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     final selectedAddress = (addressProvider.addresses.isNotEmpty &&
             (_selectedAddressIndex ?? 0) < addressProvider.addresses.length)
         ? addressProvider.addresses[_selectedAddressIndex ?? 0]
-        : (addressProvider.addresses.isNotEmpty ? addressProvider.addresses.first : null);
+        : (addressProvider.addresses.isNotEmpty
+            ? addressProvider.addresses.first
+            : null);
     final deliveryAddress = cart.isSelfPickup
-        ? (cart.restaurantAddress ?? cart.restaurantName ?? 'Self Pickup at Restaurant')
+        ? (cart.restaurantAddress ??
+            cart.restaurantName ??
+            'Self Pickup at Restaurant')
         : (selectedAddress?.fullAddress ?? 'Selected Delivery Address');
 
     final cartItems = cart.items
@@ -177,6 +194,13 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
               'subtotal': i.totalPrice,
             }))
         .toList();
+
+    // META_EVENT_PURCHASE_ORDER_SUCCESS
+    unawaited(
+      MetaAppEventsService.purchase(
+        amount: cart.finalAmount.toDouble(),
+      ),
+    );
 
     cart.clear();
     setState(() => _isProcessing = false);
@@ -210,7 +234,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     if (cart.isSelfPickup && _selectedPaymentMethod == 'Cash on Delivery') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Self-Pickup orders only support Online/Prepaid payment. Please choose an online payment method.'),
+          content: Text(
+              'Self-Pickup orders only support Online/Prepaid payment. Please choose an online payment method.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -223,7 +248,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
         if (userProvider.isCodBlocked) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Cash on Delivery is blocked for your account by Admin. Please select Online Payment or Wallet.'),
+              content: Text(
+                  'Cash on Delivery is blocked for your account by Admin. Please select Online Payment or Wallet.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -241,16 +267,19 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     final cart = context.read<CartProvider>();
 
     List<String> dateOptions = PickupSlotHelper.getDynamicDates();
-    String selectedDate = cart.pickupDate.isNotEmpty && dateOptions.contains(cart.pickupDate)
-        ? cart.pickupDate
-        : dateOptions.first;
+    String selectedDate =
+        cart.pickupDate.isNotEmpty && dateOptions.contains(cart.pickupDate)
+            ? cart.pickupDate
+            : dateOptions.first;
     if (cart.pickupDate.isNotEmpty && !dateOptions.contains(cart.pickupDate)) {
       dateOptions.insert(0, cart.pickupDate);
       selectedDate = cart.pickupDate;
     }
 
-    List<String> timeSlotOptions = PickupSlotHelper.get30MinTimeSlots(selectedDate);
-    String selectedTimeSlot = cart.pickupTimeSlot.isNotEmpty && timeSlotOptions.contains(cart.pickupTimeSlot)
+    List<String> timeSlotOptions =
+        PickupSlotHelper.get30MinTimeSlots(selectedDate);
+    String selectedTimeSlot = cart.pickupTimeSlot.isNotEmpty &&
+            timeSlotOptions.contains(cart.pickupTimeSlot)
         ? cart.pickupTimeSlot
         : timeSlotOptions.first;
 
@@ -294,7 +323,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.close, size: 20, color: Colors.black87),
+                        child: const Icon(Icons.close,
+                            size: 20, color: Colors.black87),
                       ),
                     ),
                   ),
@@ -302,7 +332,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
 
                   Row(
                     children: const [
-                      Icon(Icons.event_available_rounded, color: Color(0xFF248C70), size: 24),
+                      Icon(Icons.event_available_rounded,
+                          color: Color(0xFF248C70), size: 24),
                       SizedBox(width: 10),
                       Text(
                         'Schedule Self Pick-up Slot',
@@ -343,7 +374,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                             lastDate: now.add(const Duration(days: 90)),
                           );
                           if (picked != null) {
-                            final formatted = PickupSlotHelper.formatDate(picked);
+                            final formatted =
+                                PickupSlotHelper.formatDate(picked);
                             setSheetState(() {
                               if (!dateOptions.contains(formatted)) {
                                 dateOptions.add(formatted);
@@ -353,10 +385,12 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                           }
                         },
                         child: const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                          padding:
+                              EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                           child: Row(
                             children: [
-                              Icon(Icons.calendar_month, size: 18, color: Color(0xFF248C70)),
+                              Icon(Icons.calendar_month,
+                                  size: 18, color: Color(0xFF248C70)),
                               SizedBox(width: 4),
                               Text(
                                 'Calendar',
@@ -381,9 +415,12 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: dateOptions.contains(selectedDate) ? selectedDate : dateOptions.first,
+                        value: dateOptions.contains(selectedDate)
+                            ? selectedDate
+                            : dateOptions.first,
                         isExpanded: true,
-                        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
+                        icon: const Icon(Icons.keyboard_arrow_down,
+                            color: Colors.black54),
                         items: dateOptions.map((date) {
                           return DropdownMenuItem<String>(
                             value: date,
@@ -431,7 +468,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                             ? selectedTimeSlot
                             : timeSlotOptions.first,
                         isExpanded: true,
-                        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
+                        icon: const Icon(Icons.keyboard_arrow_down,
+                            color: Colors.black54),
                         items: timeSlotOptions.map((slot) {
                           return DropdownMenuItem<String>(
                             value: slot,
@@ -461,7 +499,9 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                     decoration: BoxDecoration(
                       color: const Color(0xFFE8F5E9),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF248C70).withValues(alpha: 0.3)),
+                      border: Border.all(
+                          color:
+                              const Color(0xFF248C70).withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: const [
@@ -556,7 +596,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     }
 
     final isCod = _selectedPaymentMethod == 'Cash on Delivery';
-    final isSelf = cart.orderType == 'pickup' || cart.orderType == 'self_pickup';
+    final isSelf =
+        cart.orderType == 'pickup' || cart.orderType == 'self_pickup';
 
     final orderData = {
       'restaurantId': cart.restaurantId ?? '',
@@ -597,7 +638,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
       } else {
         setState(() => _isProcessing = false);
         if (mounted) {
-          _showError(result['message'] ?? 'Failed to place order. Please try again.');
+          _showError(
+              result['message'] ?? 'Failed to place order. Please try again.');
         }
       }
     } catch (e) {
@@ -609,13 +651,15 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
   }
 
   // ── Online Payment Simulation Modal (UPI / Credit Card / Debit Card) ─────
-  void _showOnlinePaymentSimulationModal(BuildContext context, double grandTotal) {
+  void _showOnlinePaymentSimulationModal(
+      BuildContext context, double grandTotal) {
     bool isUpi = _selectedPaymentMethod.contains('UPI') ||
         _selectedPaymentMethod.contains('Google Pay') ||
         _selectedPaymentMethod.contains('PhonePe');
 
     final upiController = TextEditingController(text: 'user@okicici');
-    final cardNumberController = TextEditingController(text: '4532 •••• •••• 8892');
+    final cardNumberController =
+        TextEditingController(text: '4532 •••• •••• 8892');
     final expiryController = TextEditingController(text: '08/28');
     final cvvController = TextEditingController(text: '345');
     bool isPayingLocal = false;
@@ -647,7 +691,9 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                         Row(
                           children: [
                             Icon(
-                              isUpi ? Icons.account_balance_wallet_rounded : Icons.credit_card_rounded,
+                              isUpi
+                                  ? Icons.account_balance_wallet_rounded
+                                  : Icons.credit_card_rounded,
                               color: AppColors.primary,
                               size: 24,
                             ),
@@ -669,7 +715,6 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                       ],
                     ),
                     const Divider(height: 20),
-
                     if (isUpi) ...[
                       const Text(
                         'Enter UPI ID / VPA',
@@ -688,9 +733,11 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                           fillColor: const Color(0xFFF9FAFB),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE5E7EB)),
                           ),
-                          prefixIcon: const Icon(Icons.vibration, color: AppColors.primary, size: 20),
+                          prefixIcon: const Icon(Icons.vibration,
+                              color: AppColors.primary, size: 20),
                         ),
                       ),
                     ] else ...[
@@ -712,7 +759,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          prefixIcon: const Icon(Icons.payment, color: AppColors.primary, size: 20),
+                          prefixIcon: const Icon(Icons.payment,
+                              color: AppColors.primary, size: 20),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -749,7 +797,6 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                         ],
                       ),
                     ],
-
                     const SizedBox(height: 20),
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -762,18 +809,22 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                         children: [
                           const Text(
                             'Amount Payable',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF374151)),
                           ),
                           Text(
                             '₹${grandTotal.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primary),
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.primary),
                           ),
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 20),
-
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -782,7 +833,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                             ? null
                             : () async {
                                 setModalState(() => isPayingLocal = true);
-                                await Future.delayed(const Duration(milliseconds: 1000));
+                                await Future.delayed(
+                                    const Duration(milliseconds: 1000));
                                 if (context.mounted) {
                                   Navigator.pop(ctx); // Close payment modal
                                   _processAndConfirmOrder(); // Place order & show Order Confirmed modal!
@@ -802,10 +854,14 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                                   SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2),
                                   ),
                                   SizedBox(width: 10),
-                                  Text('Processing Payment...', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                                  Text('Processing Payment...',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700)),
                                 ],
                               )
                             : Text(
@@ -1013,16 +1069,22 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                                 decoration: BoxDecoration(
                                   color: Colors.blue.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                                  border: Border.all(
+                                      color:
+                                          Colors.blue.withValues(alpha: 0.2)),
                                 ),
                                 child: Row(
                                   children: const [
-                                    Icon(Icons.info_outline, size: 18, color: Colors.blue),
+                                    Icon(Icons.info_outline,
+                                        size: 18, color: Colors.blue),
                                     SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
                                         'Self-Pickup orders require Online / Prepaid payment.',
-                                        style: TextStyle(fontSize: 12, color: Color(0xFF1E3A8A), fontWeight: FontWeight.w600),
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF1E3A8A),
+                                            fontWeight: FontWeight.w600),
                                       ),
                                     ),
                                   ],
@@ -1037,10 +1099,14 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                             return Container(
                               decoration: BoxDecoration(
                                 border: Border.all(
-                                  color: isCodBlocked ? Colors.red.withOpacity(0.3) : const Color(0xFFF3F4F6),
+                                  color: isCodBlocked
+                                      ? Colors.red.withOpacity(0.3)
+                                      : const Color(0xFFF3F4F6),
                                 ),
                                 borderRadius: BorderRadius.circular(16),
-                                color: isCodBlocked ? Colors.red.withOpacity(0.04) : Colors.transparent,
+                                color: isCodBlocked
+                                    ? Colors.red.withOpacity(0.04)
+                                    : Colors.transparent,
                               ),
                               child: RadioListTile<String>(
                                 value: 'Cash on Delivery',
@@ -1053,36 +1119,45 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
-                                        color: isCodBlocked ? Colors.grey : null,
+                                        color:
+                                            isCodBlocked ? Colors.grey : null,
                                       ),
                                     ),
-                                      if (isCodBlocked) ...[
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: const Text(
-                                            'Blocked by Admin',
-                                            style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
-                                          ),
+                                    if (isCodBlocked) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
                                         ),
-                                      ],
+                                        child: const Text(
+                                          'Blocked by Admin',
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
                                     ],
-                                  ),
-                                  subtitle: isCodBlocked
-                                      ? const Text('Disabled for your account by Admin',
-                                          style: TextStyle(fontSize: 11, color: Colors.red))
-                                      : null,
-                                  onChanged: isCodBlocked
-                                      ? null
-                                      : (v) => setModalState(() => tempSelected = v!),
+                                  ],
                                 ),
-                              );
-                            },
-                          ),
+                                subtitle: isCodBlocked
+                                    ? const Text(
+                                        'Disabled for your account by Admin',
+                                        style: TextStyle(
+                                            fontSize: 11, color: Colors.red))
+                                    : null,
+                                onChanged: isCodBlocked
+                                    ? null
+                                    : (v) =>
+                                        setModalState(() => tempSelected = v!),
+                              ),
+                            );
+                          },
+                        ),
 
                         const SizedBox(height: 24),
 
@@ -1149,7 +1224,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                 child: Image.asset(
                   'assets/order.jpg',
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(color: Colors.black54),
+                  errorBuilder: (_, __, ___) =>
+                      Container(color: Colors.black54),
                 ),
               ),
 
@@ -1166,7 +1242,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
               // 3. Center Order Confirmed Content Card
               Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                   child: Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -1222,7 +1299,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
 
                         // Order ID Badge
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
@@ -1254,7 +1332,10 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                                     restaurantName: restaurantName,
                                     deliveryAddress: deliveryAddress,
                                     items: items,
-                                    orderType: (cart.orderType == 'pickup' || cart.orderType == 'self_pickup') ? 'self_pickup' : 'delivery',
+                                    orderType: (cart.orderType == 'pickup' ||
+                                            cart.orderType == 'self_pickup')
+                                        ? 'self_pickup'
+                                        : 'delivery',
                                     pickupDate: cart.pickupDate,
                                     pickupTimeSlot: cart.pickupTimeSlot,
                                   ),
@@ -1289,10 +1370,12 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                           child: OutlinedButton(
                             onPressed: () {
                               Navigator.pop(ctx);
-                              Navigator.popUntil(context, (route) => route.isFirst);
+                              Navigator.popUntil(
+                                  context, (route) => route.isFirst);
                             },
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.primary, width: 1.5),
+                              side: const BorderSide(
+                                  color: AppColors.primary, width: 1.5),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -1332,9 +1415,13 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
             : null);
 
     final displayAddress = cart.isSelfPickup
-        ? (cart.restaurantAddress ?? cart.restaurantName ?? 'Self Pickup at Restaurant')
+        ? (cart.restaurantAddress ??
+            cart.restaurantName ??
+            'Self Pickup at Restaurant')
         : (savedAddress?.fullAddress ?? 'Selected Delivery Address');
-    final displayLabel = cart.isSelfPickup ? 'Self Pickup Location' : (savedAddress?.label ?? 'Delivery Address');
+    final displayLabel = cart.isSelfPickup
+        ? 'Self Pickup Location'
+        : (savedAddress?.label ?? 'Delivery Address');
 
     final grandTotal = CartProvider.safeNum(cart.finalAmount);
     final isCod = _selectedPaymentMethod == 'Cash on Delivery';
@@ -1383,7 +1470,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                             color: Color(0xFF1F2937),
                           ),
                         ),
-                        Icon(Icons.storefront_rounded, color: AppColors.primary, size: 22),
+                        Icon(Icons.storefront_rounded,
+                            color: AppColors.primary, size: 22),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -1392,14 +1480,17 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFE8F5E9),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF248C70).withValues(alpha: 0.3)),
+                        border: Border.all(
+                            color:
+                                const Color(0xFF248C70).withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.event_available, color: Color(0xFF248C70), size: 18),
+                              const Icon(Icons.event_available,
+                                  color: Color(0xFF248C70), size: 18),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
@@ -1427,12 +1518,21 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                     const SizedBox(height: 12),
                     const Text(
                       'Pickup Counter Address:',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      cart.restaurantAddress ?? (cart.restaurantName != null ? '${cart.restaurantName}' : 'Selected Restaurant Store Counter'),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+                      cart.restaurantAddress ??
+                          (cart.restaurantName != null
+                              ? '${cart.restaurantName}'
+                              : 'Selected Restaurant Store Counter'),
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937)),
                     ),
                   ] else ...[
                     GestureDetector(
@@ -1463,7 +1563,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                               color: Color(0xFF1F2937),
                             ),
                           ),
-                          Icon(Icons.chevron_right, color: Color(0xFF6B7280), size: 20),
+                          Icon(Icons.chevron_right,
+                              color: Color(0xFF6B7280), size: 20),
                         ],
                       ),
                     ),
@@ -1536,7 +1637,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                             color: Color(0xFF1F2937),
                           ),
                         ),
-                        Icon(Icons.chevron_right, color: Color(0xFF6B7280), size: 20),
+                        Icon(Icons.chevron_right,
+                            color: Color(0xFF6B7280), size: 20),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -1548,20 +1650,19 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                       ),
                     ),
                     const SizedBox(height: 14),
-
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
                           _tipPill(label: 'Not Now', amount: 0.0, cart: cart),
                           ...cart.tipOptions.map((opt) => Padding(
-                            padding: const EdgeInsets.only(left: 8.0),
-                            child: _tipPill(
-                              label: '₹${opt.toStringAsFixed(2)}',
-                              amount: opt,
-                              cart: cart,
-                            ),
-                          )),
+                                padding: const EdgeInsets.only(left: 8.0),
+                                child: _tipPill(
+                                  label: '₹${opt.toStringAsFixed(2)}',
+                                  amount: opt,
+                                  cart: cart,
+                                ),
+                              )),
                         ],
                       ),
                     ),
@@ -1591,7 +1692,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                             color: Color(0xFF1F2937),
                           ),
                         ),
-                        Icon(Icons.chevron_right, color: Color(0xFF6B7280), size: 20),
+                        Icon(Icons.chevron_right,
+                            color: Color(0xFF6B7280), size: 20),
                       ],
                     ),
                   ),
@@ -1630,7 +1732,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                   ),
                   const SizedBox(height: 12),
 
-                  _billRow('Item total', '₹${cart.totalAmount.toStringAsFixed(0)}'),
+                  _billRow(
+                      'Item total', '₹${cart.totalAmount.toStringAsFixed(0)}'),
                   const SizedBox(height: 10),
 
                   if (cart.isSelfPickup) ...[
@@ -1680,17 +1783,20 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                   ],
 
                   if (cart.isPlatformFeeEnabled) ...[
-                    _billRow('Platform fee', '₹${cart.platformFee.toStringAsFixed(2)}'),
+                    _billRow('Platform fee',
+                        '₹${cart.platformFee.toStringAsFixed(2)}'),
                     const SizedBox(height: 10),
                   ],
 
                   if (cart.isPackagingFeeEnabled) ...[
-                    _billRow('Restaurant packaging fee', '₹${cart.packagingFee.toStringAsFixed(2)}'),
+                    _billRow('Restaurant packaging fee',
+                        '₹${cart.packagingFee.toStringAsFixed(2)}'),
                     const SizedBox(height: 10),
                   ],
 
                   if (cart.isTaxEnabled && cart.gstAmount > 0) ...[
-                    _billRow('GST (govt. taxes)', '₹${cart.gstAmount.toStringAsFixed(2)}'),
+                    _billRow('GST (govt. taxes)',
+                        '₹${cart.gstAmount.toStringAsFixed(2)}'),
                   ],
 
                   if (cart.discountAmount > 0) ...[
@@ -1720,17 +1826,20 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
 
                   if (_selectedTip > 0) ...[
                     const SizedBox(height: 10),
-                    _billRow('Rider Tip', '₹${_selectedTip.toStringAsFixed(2)}'),
+                    _billRow(
+                        'Rider Tip', '₹${_selectedTip.toStringAsFixed(2)}'),
                   ],
 
                   const SizedBox(height: 14),
                   const _DashedDivider(),
                   const SizedBox(height: 14),
 
-                  _billRow('Grand Total', '₹${cart.grandTotalRaw.toStringAsFixed(2)}'),
+                  _billRow('Grand Total',
+                      '₹${cart.grandTotalRaw.toStringAsFixed(2)}'),
                   const SizedBox(height: 8),
 
-                  _billRow('Cash round off', '₹${cart.cashRoundOff.toStringAsFixed(2)}'),
+                  _billRow('Cash round off',
+                      '₹${cart.cashRoundOff.toStringAsFixed(2)}'),
                   const SizedBox(height: 10),
 
                   Row(
@@ -1762,7 +1871,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                     children: [
                       const Text(
                         'By Completing this order, I agree to all ',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                        style:
+                            TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
                       ),
                       GestureDetector(
                         onTap: () {
@@ -1805,8 +1915,10 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     );
   }
 
-  Widget _tipPill({required String label, required double amount, CartProvider? cart}) {
-    final isSelected = cart != null ? cart.selectedTip == amount : _selectedTip == amount;
+  Widget _tipPill(
+      {required String label, required double amount, CartProvider? cart}) {
+    final isSelected =
+        cart != null ? cart.selectedTip == amount : _selectedTip == amount;
     return GestureDetector(
       onTap: () {
         setState(() => _selectedTip = amount);
@@ -1907,7 +2019,8 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
           SizedBox(
             height: 48,
             child: ElevatedButton(
-              onPressed: _isProcessing ? null : () => _handleMainAction(grandTotal),
+              onPressed:
+                  _isProcessing ? null : () => _handleMainAction(grandTotal),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -1927,7 +2040,9 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                     )
                   : Text(
                       cart.orderType == 'pickup'
-                          ? (isCod ? 'Schedule Slot & Place Order' : 'Schedule Slot & Pay')
+                          ? (isCod
+                              ? 'Schedule Slot & Place Order'
+                              : 'Schedule Slot & Pay')
                           : (isCod ? 'Place Order' : 'Pay Now'),
                       style: const TextStyle(
                         color: Colors.white,
@@ -2024,4 +2139,3 @@ class _DeliveryRespectNoteCard extends StatelessWidget {
     );
   }
 }
-

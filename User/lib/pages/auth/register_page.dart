@@ -12,11 +12,13 @@ import 'package:ecdkart_app/services/user_api_service.dart';
 import 'package:ecdkart_app/providers/user_provider.dart';
 import 'package:ecdkart_app/providers/location_provider.dart';
 import 'package:ecdkart_app/routes/app_routes.dart';
+import 'package:ecdkart_app/services/meta_app_events_service.dart';
 
 class RegisterPage extends StatefulWidget {
   final String? initialMobile;
   final bool isPhoneVerified;
-  const RegisterPage({super.key, this.initialMobile, this.isPhoneVerified = false});
+  const RegisterPage(
+      {super.key, this.initialMobile, this.isPhoneVerified = false});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -35,11 +37,11 @@ class _RegisterPageState extends State<RegisterPage> {
   TapGestureRecognizer? _termsRecognizer;
   TapGestureRecognizer? _privacyRecognizer;
 
-  TapGestureRecognizer get termsRecognizer =>
-      _termsRecognizer ??= (TapGestureRecognizer()..onTap = _showTermsBottomSheet);
+  TapGestureRecognizer get termsRecognizer => _termsRecognizer ??=
+      (TapGestureRecognizer()..onTap = _showTermsBottomSheet);
 
-  TapGestureRecognizer get privacyRecognizer =>
-      _privacyRecognizer ??= (TapGestureRecognizer()..onTap = _showPrivacyBottomSheet);
+  TapGestureRecognizer get privacyRecognizer => _privacyRecognizer ??=
+      (TapGestureRecognizer()..onTap = _showPrivacyBottomSheet);
 
   @override
   void initState() {
@@ -213,7 +215,8 @@ class _RegisterPageState extends State<RegisterPage> {
                 child: ListView.separated(
                   padding: const EdgeInsets.all(20),
                   itemCount: sections.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     final section = sections[index];
                     return Container(
@@ -271,7 +274,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
     if (mobile.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 10-digit mobile number')),
+        const SnackBar(
+            content: Text('Please enter a valid 10-digit mobile number')),
       );
       return;
     }
@@ -280,7 +284,12 @@ class _RegisterPageState extends State<RegisterPage> {
       // Mobile is already verified with OTP on login screen!
       setState(() => _isLoading = true);
       final fullName = '$firstName $lastName'.trim();
-      final updateSuccess = await UserApiService.updateProfile(fullName, email: email, phone: mobile);
+      final updateSuccess = await UserApiService.updateProfile(fullName,
+          email: email, phone: mobile);
+      // META_EVENT_REGISTER_PROFILE_UPDATE
+      if (updateSuccess) {
+        unawaited(MetaAppEventsService.registrationCompleted());
+      }
       if (!mounted) return;
       setState(() => _isLoading = false);
 
@@ -295,7 +304,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Welcome, $fullName! Registration completed successfully.'),
+          content:
+              Text('Welcome, $fullName! Registration completed successfully.'),
           backgroundColor: const Color(0xFF248C70),
         ),
       );
@@ -325,8 +335,10 @@ class _RegisterPageState extends State<RegisterPage> {
     _showOtpModal(firstName, lastName, mobile, email);
   }
 
-  void _showOtpModal(String firstName, String lastName, String mobile, String email) {
-    final List<TextEditingController> otpCtrls = List.generate(6, (_) => TextEditingController());
+  void _showOtpModal(
+      String firstName, String lastName, String mobile, String email) {
+    final List<TextEditingController> otpCtrls =
+        List.generate(6, (_) => TextEditingController());
     bool isVerifying = false;
 
     showDialog(
@@ -336,7 +348,8 @@ class _RegisterPageState extends State<RegisterPage> {
         return StatefulBuilder(
           builder: (dialogCtx, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
               title: const Text(
                 'Enter 6-Digit OTP',
                 textAlign: TextAlign.center,
@@ -361,18 +374,23 @@ class _RegisterPageState extends State<RegisterPage> {
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
                           maxLength: 1,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                           decoration: InputDecoration(
                             counterText: '',
                             contentPadding: EdgeInsets.zero,
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade300),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0xFF248C70), width: 2),
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF248C70), width: 2),
                             ),
                           ),
                           onChanged: (val) {
@@ -397,26 +415,34 @@ class _RegisterPageState extends State<RegisterPage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF248C70),
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
                         ),
                         onPressed: () async {
                           final otpCode = otpCtrls.map((c) => c.text).join();
                           if (otpCode.length < 6) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter full 6-digit OTP')),
+                              const SnackBar(
+                                  content:
+                                      Text('Please enter full 6-digit OTP')),
                             );
                             return;
                           }
 
                           setDialogState(() => isVerifying = true);
 
-                          final authRes = await AuthService.verifyOtp(mobile, otpCode);
+                          final authRes =
+                              await AuthService.verifyOtp(mobile, otpCode);
                           if (!ctx.mounted) return;
 
                           if (authRes.success) {
                             // Update profile in backend
                             final fullName = '$firstName $lastName'.trim();
-                            await UserApiService.updateProfile(fullName, email: email, phone: mobile);
+                            await UserApiService.updateProfile(fullName,
+                                email: email, phone: mobile);
+                            // META_EVENT_REGISTER_OTP_PROFILE
+                            unawaited(
+                                MetaAppEventsService.registrationCompleted());
 
                             if (mounted) {
                               context.read<UserProvider>().setUserInfo(
@@ -432,7 +458,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Account registered & verified successfully!'),
+                                content: Text(
+                                    'Account registered & verified successfully!'),
                                 backgroundColor: Color(0xFF248C70),
                               ),
                             );
@@ -445,11 +472,14 @@ class _RegisterPageState extends State<RegisterPage> {
                           } else {
                             setDialogState(() => isVerifying = false);
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(authRes.message), backgroundColor: AppColors.error),
+                              SnackBar(
+                                  content: Text(authRes.message),
+                                  backgroundColor: AppColors.error),
                             );
                           }
                         },
-                        child: const Text('Verify OTP & Register', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text('Verify OTP & Register',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
                 ],
@@ -503,7 +533,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ],
               ),
             ),
-            
+
             // Heading
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -531,7 +561,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Form Section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -572,9 +602,14 @@ class _RegisterPageState extends State<RegisterPage> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.check_circle_rounded, color: Color(0xFF248C70), size: 18),
+                                  Icon(Icons.check_circle_rounded,
+                                      color: Color(0xFF248C70), size: 18),
                                   SizedBox(width: 4),
-                                  Text('Verified', style: TextStyle(color: Color(0xFF248C70), fontSize: 12, fontWeight: FontWeight.bold)),
+                                  Text('Verified',
+                                      style: TextStyle(
+                                          color: Color(0xFF248C70),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold)),
                                 ],
                               ),
                             )
@@ -589,9 +624,9 @@ class _RegisterPageState extends State<RegisterPage> {
                       keyboardType: TextInputType.emailAddress,
                       controller: _emailController,
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Create Account Button
                     SizedBox(
                       height: 46,
@@ -606,9 +641,12 @@ class _RegisterPageState extends State<RegisterPage> {
                           elevation: 0,
                         ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
                             : Text(
-                                widget.isPhoneVerified ? 'Complete Registration' : 'Create Account',
+                                widget.isPhoneVerified
+                                    ? 'Complete Registration'
+                                    : 'Create Account',
                                 style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
@@ -618,13 +656,14 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Terms and Privacy
                     Center(
                       child: RichText(
                         textAlign: TextAlign.center,
                         text: TextSpan(
-                          style: const TextStyle(color: Colors.black87, fontSize: 11, height: 1.4),
+                          style: const TextStyle(
+                              color: Colors.black87, fontSize: 11, height: 1.4),
                           children: [
                             const TextSpan(text: 'I agree to the '),
                             TextSpan(
@@ -649,14 +688,15 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Already have an account
                     Center(
                       child: GestureDetector(
                         onTap: () => context.pop(),
                         child: RichText(
                           text: const TextSpan(
-                            style: TextStyle(color: Colors.black87, fontSize: 13),
+                            style:
+                                TextStyle(color: Colors.black87, fontSize: 13),
                             children: [
                               TextSpan(text: 'Already have an account? '),
                               TextSpan(
@@ -721,14 +761,16 @@ class _RegisterPageState extends State<RegisterPage> {
               hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
               prefixIcon: prefixIcon,
               suffixIcon: suffixIcon,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF248C70), width: 1.5),
+                borderSide:
+                    const BorderSide(color: Color(0xFF248C70), width: 1.5),
               ),
               filled: true,
               fillColor: readOnly ? Colors.grey.shade50 : Colors.white,
@@ -740,4 +782,3 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 }
-

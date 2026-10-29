@@ -629,6 +629,29 @@ exports.addBanner = async (req, res) => {
         const targetModelVal = targetModel || (restaurant && restaurant !== 'all' ? 'Restaurant' : undefined);
         const targetIdVal = targetId || (restaurant && restaurant !== 'all' ? restaurant : undefined);
 
+        // Resolve city and cityName
+        const City = require('../models/City');
+        let resolvedCityId = null;
+        let resolvedCityName = null;
+
+        if (city && city !== 'all' && city !== 'undefined' && city !== 'null' && String(city).trim() !== '') {
+            const cleanCity = String(city).trim();
+            let matchedCity = null;
+            if (mongoose.Types.ObjectId.isValid(cleanCity)) {
+                matchedCity = await City.findById(cleanCity);
+            }
+            if (!matchedCity) {
+                matchedCity = await City.findOne({ name: { $regex: new RegExp(`^${cleanCity}$`, 'i') } });
+            }
+            if (matchedCity) {
+                resolvedCityId = matchedCity._id.toString();
+                resolvedCityName = matchedCity.name;
+            } else {
+                resolvedCityId = cleanCity;
+                resolvedCityName = cleanCity;
+            }
+        }
+
         const banner = await Banner.create({ 
             title: title || 'Promo Banner', 
             image: finalImageStr, 
@@ -637,7 +660,8 @@ exports.addBanner = async (req, res) => {
             targetModel: targetModelVal, 
             position: Number(position) || 1,
             restaurant: restaurant && restaurant !== 'all' ? restaurant : undefined,
-            city: city && city !== 'all' ? city : undefined,
+            city: resolvedCityId || undefined,
+            cityName: resolvedCityName || undefined,
             isActive: isActive !== undefined ? isAct : true,
         });
         res.status(201).json({ message: "Banner created", data: banner });
@@ -650,14 +674,33 @@ exports.getAllBanners = async (req, res) => {
     try {
         const { page, limit, skip } = getPaginationParams(req, 50);
         const search = req.query.search || '';
-        const query = buildSearchQuery(search, ['title', 'type']);
+        const query = buildSearchQuery(search, ['title', 'type', 'cityName']);
         const total = await Banner.countDocuments(query);
         const banners = await Banner.find(query)
             .skip(skip)
             .limit(limit)
-            .sort({ position: 1 });
+            .sort({ position: 1, createdAt: -1 })
+            .lean();
+
+        // Attach resolved cityName if missing
+        const City = require('../models/City');
+        const allCities = await City.find({}).lean();
+        const cityMap = new Map();
+        allCities.forEach(c => cityMap.set(c._id.toString(), c.name));
+
+        const formatted = banners.map(b => {
+            let cName = b.cityName;
+            if (!cName && b.city && cityMap.has(b.city.toString())) {
+                cName = cityMap.get(b.city.toString());
+            }
+            return {
+                ...b,
+                cityName: cName || (b.city && b.city !== 'all' ? b.city : 'All Cities')
+            };
+        });
+
         res.status(200).json({
-            banners,
+            banners: formatted,
             total,
             page,
             limit,
@@ -669,9 +712,16 @@ exports.getAllBanners = async (req, res) => {
 };
 exports.getBannerById = async (req, res) => {
     try {
-        const banner = await Banner.findById(req.params.id);
+        const banner = await Banner.findById(req.params.id).lean();
         if (!banner) {
             return res.status(404).json({ message: "Banner not found" });
+        }
+        if (!banner.cityName && banner.city) {
+            const City = require('../models/City');
+            if (mongoose.Types.ObjectId.isValid(banner.city)) {
+                const c = await City.findById(banner.city).lean();
+                if (c) banner.cityName = c.name;
+            }
         }
         res.status(200).json(banner);
     } catch (error) {
@@ -695,9 +745,42 @@ exports.updateBanner = async (req, res) => {
             updateData.isActive = updateData.isActive === true || updateData.isActive === 'true' || updateData.isActive === 1 || updateData.isActive === '1';
         }
 
-        if (updateData.restaurant && updateData.restaurant !== 'all' && !updateData.targetId) {
+        // Restaurant resolution
+        if (updateData.restaurant === 'all' || updateData.restaurant === '') {
+            updateData.restaurant = null;
+            updateData.targetId = null;
+            updateData.targetModel = null;
+            updateData.type = 'static';
+        } else if (updateData.restaurant && updateData.restaurant !== 'all') {
             updateData.targetId = updateData.restaurant;
             updateData.targetModel = 'Restaurant';
+            updateData.type = 'restaurant';
+        }
+
+        // City resolution
+        if (updateData.city !== undefined) {
+            const City = require('../models/City');
+            const cityVal = updateData.city;
+            if (!cityVal || cityVal === 'all' || cityVal === 'undefined' || cityVal === 'null' || String(cityVal).trim() === '') {
+                updateData.city = null;
+                updateData.cityName = null;
+            } else {
+                const cleanCity = String(cityVal).trim();
+                let matchedCity = null;
+                if (mongoose.Types.ObjectId.isValid(cleanCity)) {
+                    matchedCity = await City.findById(cleanCity);
+                }
+                if (!matchedCity) {
+                    matchedCity = await City.findOne({ name: { $regex: new RegExp(`^${cleanCity}$`, 'i') } });
+                }
+                if (matchedCity) {
+                    updateData.city = matchedCity._id.toString();
+                    updateData.cityName = matchedCity.name;
+                } else {
+                    updateData.city = cleanCity;
+                    updateData.cityName = cleanCity;
+                }
+            }
         }
 
         const updatedBanner = await Banner.findByIdAndUpdate(

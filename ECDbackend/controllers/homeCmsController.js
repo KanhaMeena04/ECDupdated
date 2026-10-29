@@ -95,7 +95,80 @@ exports.getPublicHomeScreenSections = async (req, res) => {
       .sort({ priority: 1, createdAt: 1 })
       .lean();
 
-    const banners = await Banner.find({ isActive: true }).sort({ position: 1 }).lean();
+    let banners = await Banner.find({ isActive: true }).sort({ position: 1 }).lean();
+
+    const userLat = parseFloat(req.query.lat);
+    const userLng = parseFloat(req.query.lng);
+    const hasCoordinates = Number.isFinite(userLat) && Number.isFinite(userLng) && (userLat !== 0 || userLng !== 0);
+    const userCity = req.query.city ? String(req.query.city).trim().toLowerCase() : '';
+
+    if (userCity || hasCoordinates) {
+      const City = require('../models/City');
+      const Restaurant = require('../models/Restaurant');
+      const { calculateDistance } = require('../utils/locationUtils');
+
+      let userCityDoc = null;
+      if (userCity) {
+        userCityDoc = await City.findOne({
+          $or: [
+            { name: { $regex: new RegExp(`^${userCity}$`, 'i') } },
+            ...(mongoose.Types.ObjectId.isValid(userCity) ? [{ _id: userCity }] : [])
+          ]
+        }).lean();
+      }
+
+      const restaurantIds = banners
+        .map(b => b.restaurant || (b.targetModel === 'Restaurant' ? b.targetId : null))
+        .filter(id => id && mongoose.Types.ObjectId.isValid(id.toString()));
+
+      const restMap = new Map();
+      if (restaurantIds.length > 0) {
+        const foundRestaurants = await Restaurant.find({ _id: { $in: restaurantIds } })
+          .select("name city area location deliveryRadius geofenceRadius serviceRadius isActive restaurantApproved isTemporarilyClosed").lean();
+        foundRestaurants.forEach(r => restMap.set(r._id.toString(), r));
+      }
+
+      banners = banners.filter(b => {
+        const bannerCityId = b.city ? b.city.toString() : null;
+        const bannerCityName = (b.cityName || '').toLowerCase();
+        const isUniversalCity = !bannerCityId || bannerCityId === 'all';
+
+        const restId = (b.restaurant || (b.targetModel === 'Restaurant' ? b.targetId : null))?.toString();
+        const linkedRest = restId ? restMap.get(restId) : null;
+
+        if (linkedRest) {
+          if (linkedRest.isActive === false || linkedRest.restaurantApproved === false) return false;
+          if (hasCoordinates && linkedRest.location?.coordinates?.length === 2) {
+            const [rLong, rLat] = linkedRest.location.coordinates;
+            if (Number.isFinite(rLat) && Number.isFinite(rLong)) {
+              const dist = calculateDistance([userLng, userLat], [rLong, rLat]);
+              const radius = Number(linkedRest.geofenceRadius ?? linkedRest.deliveryRadius ?? linkedRest.serviceRadius ?? 5) || 5;
+              if (dist > radius) return false;
+            }
+          }
+          if (userCity && linkedRest.city) {
+            const restCityClean = linkedRest.city.toLowerCase().trim();
+            const userCityNameClean = (userCityDoc?.name || userCity).toLowerCase().trim();
+            if (!restCityClean.includes(userCityNameClean) && !userCityNameClean.includes(restCityClean)) return false;
+          }
+        }
+
+        if (!isUniversalCity) {
+          if (userCity) {
+            const userCityNameClean = (userCityDoc?.name || userCity).toLowerCase().trim();
+            const userCityId = userCityDoc?._id?.toString();
+            const matchesId = userCityId && bannerCityId === userCityId;
+            const matchesName = bannerCityName && (bannerCityName === userCityNameClean || bannerCityName.includes(userCityNameClean) || userCityNameClean.includes(bannerCityName));
+            const matchesRawCity = bannerCityId && (bannerCityId.toLowerCase() === userCityNameClean || userCityNameClean.includes(bannerCityId.toLowerCase()));
+            if (!matchesId && !matchesName && !matchesRawCity) return false;
+          } else if (hasCoordinates && userCityDoc) {
+            if (bannerCityId !== userCityDoc._id.toString() && bannerCityName !== userCityDoc.name.toLowerCase()) return false;
+          }
+        }
+
+        return true;
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -240,14 +313,42 @@ exports.getRecommendedDishes = async (req, res) => {
     const Order = require("../models/Order");
     const { isRestaurantOpenNow } = require("../utils/restaurantAvailability");
 
+    const { calculateDistance } = require("../utils/locationUtils");
+
     const restaurants = await Restaurant.find({
       isActive: true,
       restaurantApproved: { $ne: false },
       isTemporarilyClosed: { $ne: true }
-    }).select("name image address city area location deliveryTime timing").lean();
+    }).select("name image address city area location deliveryTime timing geofenceRadius deliveryRadius serviceRadius").lean();
 
-    const openRestaurants = restaurants.filter(r => isRestaurantOpenNow(r));
-    const targetRestaurants = openRestaurants.length > 0 ? openRestaurants : restaurants;
+    const userLat = parseFloat(req.query.lat);
+    const userLng = parseFloat(req.query.lng);
+    const hasCoordinates = Number.isFinite(userLat) && Number.isFinite(userLng) && (userLat !== 0 || userLng !== 0);
+
+    let nearbyRestaurants = restaurants;
+    if (hasCoordinates) {
+      nearbyRestaurants = restaurants.filter(r => {
+        if (r.location?.coordinates?.length === 2) {
+          const [rLong, rLat] = r.location.coordinates;
+          if (Number.isFinite(rLat) && Number.isFinite(rLong)) {
+            const dist = calculateDistance([userLng, userLat], [rLong, rLat]);
+            const radius = Number(r.geofenceRadius ?? r.deliveryRadius ?? r.serviceRadius ?? 5) || 5;
+            return dist <= radius;
+          }
+        }
+        return false;
+      });
+    } else if (req.query.city) {
+      const cityRegex = new RegExp(req.query.city.trim(), 'i');
+      nearbyRestaurants = restaurants.filter(r => r.city && cityRegex.test(r.city));
+    }
+
+    if (nearbyRestaurants.length === 0) {
+      return res.status(200).json({ success: true, count: 0, dishes: [] });
+    }
+
+    const openRestaurants = nearbyRestaurants.filter(r => isRestaurantOpenNow(r));
+    const targetRestaurants = openRestaurants.length > 0 ? openRestaurants : nearbyRestaurants;
     if (targetRestaurants.length === 0) {
       return res.status(200).json({ success: true, count: 0, dishes: [] });
     }
@@ -378,14 +479,42 @@ exports.getSpecialDishes = async (req, res) => {
 
     const specialSec = await HomeScreenSection.findOne({ sectionKey: "special_dishes", isActive: true });
 
+    const { calculateDistance } = require("../utils/locationUtils");
+
     const restaurants = await Restaurant.find({
       isActive: true,
       restaurantApproved: { $ne: false },
       isTemporarilyClosed: { $ne: true }
-    }).select("name image address city area location deliveryTime timing").lean();
+    }).select("name image address city area location deliveryTime timing geofenceRadius deliveryRadius serviceRadius").lean();
 
-    const openRestaurants = restaurants.filter(r => isRestaurantOpenNow(r));
-    const targetRestaurants = openRestaurants.length > 0 ? openRestaurants : restaurants;
+    const userLat = parseFloat(req.query.lat);
+    const userLng = parseFloat(req.query.lng);
+    const hasCoordinates = Number.isFinite(userLat) && Number.isFinite(userLng) && (userLat !== 0 || userLng !== 0);
+
+    let nearbyRestaurants = restaurants;
+    if (hasCoordinates) {
+      nearbyRestaurants = restaurants.filter(r => {
+        if (r.location?.coordinates?.length === 2) {
+          const [rLong, rLat] = r.location.coordinates;
+          if (Number.isFinite(rLat) && Number.isFinite(rLong)) {
+            const dist = calculateDistance([userLng, userLat], [rLong, rLat]);
+            const radius = Number(r.geofenceRadius ?? r.deliveryRadius ?? r.serviceRadius ?? 5) || 5;
+            return dist <= radius;
+          }
+        }
+        return false;
+      });
+    } else if (req.query.city) {
+      const cityRegex = new RegExp(req.query.city.trim(), 'i');
+      nearbyRestaurants = restaurants.filter(r => r.city && cityRegex.test(r.city));
+    }
+
+    if (nearbyRestaurants.length === 0) {
+      return res.status(200).json({ success: true, count: 0, dishes: [] });
+    }
+
+    const openRestaurants = nearbyRestaurants.filter(r => isRestaurantOpenNow(r));
+    const targetRestaurants = openRestaurants.length > 0 ? openRestaurants : nearbyRestaurants;
     if (targetRestaurants.length === 0) {
       return res.status(200).json({ success: true, count: 0, dishes: [] });
     }

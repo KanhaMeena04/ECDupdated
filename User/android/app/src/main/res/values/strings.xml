@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- App name -->
+    <string name="app_name">ecdKart</string>
+
+    <!-- Meta App Events -->
+    <string name="facebook_app_id">1672557760878715</string>
+    <string name="facebook_client_token">bb10a59a8c60fbdc2c25a8153e101109</string>
+    <string name="fb_login_protocol_scheme">fb1672557760878715</string>
+
+</resources>

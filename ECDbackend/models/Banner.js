@@ -15,6 +15,7 @@ const bannerSchema = new mongoose.Schema(
     },
     restaurant: { type: mongoose.Schema.Types.Mixed },
     city: { type: String },
+    cityName: { type: String },
     isActive: { type: Boolean, default: true },
     position: { type: Number, default: 0 }, // For sorting order
   },

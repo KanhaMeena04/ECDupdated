@@ -539,13 +539,105 @@ exports.getCategories = async (req, res) => {
 exports.getBanners = async (req, res) => {
   try {
     const Banner = require('../models/Banner');
+    const City = require('../models/City');
+    const Restaurant = require('../models/Restaurant');
+
     const banners = await Banner.find({
       $or: [
         { isActive: true },
         { isActive: 'true' },
         { isActive: { $exists: false } }
       ]
-    }).sort({ position: 1, createdAt: -1 });
+    }).sort({ position: 1, createdAt: -1 }).lean();
+
+    const userLat = parseFloat(req.query.lat);
+    const userLng = parseFloat(req.query.lng);
+    const hasCoordinates = Number.isFinite(userLat) && Number.isFinite(userLng) && (userLat !== 0 || userLng !== 0);
+    const userCity = req.query.city ? String(req.query.city).trim().toLowerCase() : '';
+
+    let userCityDoc = null;
+    if (userCity) {
+      userCityDoc = await City.findOne({
+        $or: [
+          { name: { $regex: new RegExp(`^${userCity}$`, 'i') } },
+          ...(mongoose.Types.ObjectId.isValid(userCity) ? [{ _id: userCity }] : [])
+        ]
+      }).lean();
+    }
+
+    // Collect linked restaurants
+    const restaurantIds = banners
+      .map(b => b.restaurant || (b.targetModel === 'Restaurant' ? b.targetId : null))
+      .filter(id => id && mongoose.Types.ObjectId.isValid(id.toString()));
+
+    const restaurantsMap = new Map();
+    if (restaurantIds.length > 0) {
+      const foundRestaurants = await Restaurant.find({
+        _id: { $in: restaurantIds }
+      }).select("name city area location deliveryRadius geofenceRadius serviceRadius isActive restaurantApproved isTemporarilyClosed").lean();
+
+      foundRestaurants.forEach(r => restaurantsMap.set(r._id.toString(), r));
+    }
+
+    // Filter banners
+    const filteredBanners = banners.filter(b => {
+      const bannerCityId = b.city ? b.city.toString() : null;
+      const bannerCityName = (b.cityName || '').toLowerCase();
+      const isUniversalCity = !bannerCityId || bannerCityId === 'all';
+
+      const restId = (b.restaurant || (b.targetModel === 'Restaurant' ? b.targetId : null))?.toString();
+      const linkedRestaurant = restId ? restaurantsMap.get(restId) : null;
+
+      // 1. Linked Restaurant checks
+      if (linkedRestaurant) {
+        if (linkedRestaurant.isActive === false || linkedRestaurant.restaurantApproved === false) {
+          return false;
+        }
+
+        if (hasCoordinates && linkedRestaurant.location?.coordinates?.length === 2) {
+          const [rLong, rLat] = linkedRestaurant.location.coordinates;
+          if (Number.isFinite(rLat) && Number.isFinite(rLong)) {
+            const dist = calculateDistanceKm(userLat, userLng, rLat, rLong);
+            const radius = Number(linkedRestaurant.geofenceRadius ?? linkedRestaurant.deliveryRadius ?? linkedRestaurant.serviceRadius ?? 5) || 5;
+            if (dist > radius) {
+              return false; // Out of delivery range for this user
+            }
+          }
+        }
+
+        if (userCity && linkedRestaurant.city) {
+          const restCityClean = linkedRestaurant.city.toLowerCase().trim();
+          const userCityNameClean = (userCityDoc?.name || userCity).toLowerCase().trim();
+          if (!restCityClean.includes(userCityNameClean) && !userCityNameClean.includes(restCityClean)) {
+            return false; // Restaurant belongs to another city
+          }
+        }
+      }
+
+      // 2. City Filtering for Banner
+      if (!isUniversalCity) {
+        if (userCity) {
+          const userCityNameClean = (userCityDoc?.name || userCity).toLowerCase().trim();
+          const userCityId = userCityDoc?._id?.toString();
+
+          const matchesId = userCityId && bannerCityId === userCityId;
+          const matchesName = bannerCityName && (bannerCityName === userCityNameClean || bannerCityName.includes(userCityNameClean) || userCityNameClean.includes(bannerCityName));
+          const matchesRawCity = bannerCityId && (bannerCityId.toLowerCase() === userCityNameClean || userCityNameClean.includes(bannerCityId.toLowerCase()));
+
+          if (!matchesId && !matchesName && !matchesRawCity) {
+            return false; // Does not match user's city
+          }
+        } else if (hasCoordinates && userCityDoc) {
+          const userCityId = userCityDoc._id.toString();
+          const userCityNameClean = userCityDoc.name.toLowerCase();
+          if (bannerCityId !== userCityId && bannerCityName !== userCityNameClean) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
 
     // Helper: resolve relative /uploads/ paths to full URL
     const baseOrigin = process.env.BACKEND_URL ||
@@ -560,7 +652,7 @@ exports.getBanners = async (req, res) => {
       return img;
     };
 
-    const formattedBanners = banners.map(b => {
+    const formattedBanners = filteredBanners.map(b => {
       const resolvedImage = resolveImageUrl(b.image);
       return {
         _id: b._id,
@@ -573,6 +665,7 @@ exports.getBanners = async (req, res) => {
         targetModel: b.targetModel || (b.restaurant ? 'Restaurant' : undefined),
         restaurant: b.restaurant,
         city: b.city,
+        cityName: b.cityName,
         position: b.position !== undefined ? b.position : 0,
         link: b.link || b.externalUrl || '',
         isActive: b.isActive !== false && b.isActive !== 'false'
@@ -601,13 +694,47 @@ exports.getPopularDishes = async (req, res) => {
   try {
     const Product = require('../models/Product');
     const Order = require('../models/Order');
+    const Restaurant = require('../models/Restaurant');
     const { formatProductForUser } = require('../utils/responseFormatter');
+
+    const userLat = parseFloat(req.query.lat);
+    const userLng = parseFloat(req.query.lng);
+    const hasCoordinates = Number.isFinite(userLat) && Number.isFinite(userLng) && (userLat !== 0 || userLng !== 0);
+
+    let nearbyRestIds = null;
+    if (hasCoordinates) {
+      const allRests = await Restaurant.find({
+        isActive: true,
+        restaurantApproved: { $ne: false },
+        isTemporarilyClosed: { $ne: true }
+      }).select("location geofenceRadius deliveryRadius serviceRadius").lean();
+
+      nearbyRestIds = allRests.filter(r => {
+        if (r.location?.coordinates?.length === 2) {
+          const [rLong, rLat] = r.location.coordinates;
+          if (Number.isFinite(rLat) && Number.isFinite(rLong)) {
+            const dist = calculateDistanceKm(userLat, userLng, rLat, rLong);
+            const radius = Number(r.geofenceRadius || r.deliveryRadius || r.serviceRadius || 5);
+            return dist <= radius;
+          }
+        }
+        return false;
+      }).map(r => r._id);
+
+      if (nearbyRestIds.length === 0) {
+        return res.status(200).json({ success: true, dishes: [], products: [], count: 0 });
+      }
+    }
 
     // 1. Calculate top ordered products from delivered orders
     let topProductIds = [];
     try {
+      const matchStage = { status: "delivered" };
+      if (nearbyRestIds) {
+        matchStage.restaurant = { $in: nearbyRestIds };
+      }
       const popularOrders = await Order.aggregate([
-        { $match: { status: "delivered" } },
+        { $match: matchStage },
         { $unwind: "$items" },
         { $group: { _id: "$items.product", count: { $sum: "$items.quantity" } } },
         { $sort: { count: -1 } },
@@ -619,12 +746,19 @@ exports.getPopularDishes = async (req, res) => {
     }
 
     let products = [];
+    const baseProductFilter = {
+      available: { $ne: false },
+      outOfStock: { $ne: true },
+      isApproved: { $ne: false }
+    };
+    if (nearbyRestIds) {
+      baseProductFilter.restaurant = { $in: nearbyRestIds };
+    }
+
     if (topProductIds.length > 0) {
       products = await Product.find({
-        _id: { $in: topProductIds },
-        available: { $ne: false },
-        outOfStock: { $ne: true },
-        isApproved: { $ne: false }
+        ...baseProductFilter,
+        _id: { $in: topProductIds }
       })
       .populate('restaurant', 'name image isOnline isActive isTemporarilyClosed location address cuisine')
       .populate('category', 'name title')
@@ -636,10 +770,8 @@ exports.getPopularDishes = async (req, res) => {
       const existingIds = products.map(p => p._id.toString());
       const remainingLimit = 10 - products.length;
       const additional = await Product.find({
-        _id: { $nin: existingIds },
-        available: { $ne: false },
-        outOfStock: { $ne: true },
-        isApproved: { $ne: false }
+        ...baseProductFilter,
+        _id: { $nin: existingIds }
       })
       .sort({ isFeatured: -1, rating: -1, createdAt: -1 })
       .limit(remainingLimit)
@@ -658,7 +790,7 @@ exports.getPopularDishes = async (req, res) => {
     });
   } catch (error) {
     console.error("Get Popular Dishes Error:", error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

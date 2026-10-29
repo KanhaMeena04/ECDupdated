@@ -47,10 +47,11 @@ const EditRestaurantBannerForm = () => {
           return;
         }
 
+        const rawCity = banner.city?._id || banner.city || 'all';
         setFormData({
           title: banner.title || '',
-          restaurant: banner.restaurant?._id || banner.restaurant || '',
-          city: banner.city?._id || banner.city || '',
+          restaurant: banner.restaurant?._id || banner.restaurant || 'all',
+          city: rawCity,
           status: banner.isActive !== false ? 'active' : 'inactive',
           bannerImage: null
         });
@@ -64,6 +65,16 @@ const EditRestaurantBannerForm = () => {
 
     if (!initialized && id) hydrate();
   }, [id, state, getBannerById, navigate, initialized]);
+
+  // Sync city if banner had city name string instead of _id
+  useEffect(() => {
+    if (cities?.length && formData.city && formData.city !== 'all') {
+      const match = cities.find(c => c._id === formData.city || (c.name && c.name.toLowerCase() === formData.city.toString().toLowerCase()));
+      if (match && formData.city !== match._id) {
+        setFormData(prev => ({ ...prev, city: match._id }));
+      }
+    }
+  }, [cities, formData.city]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -83,8 +94,8 @@ const EditRestaurantBannerForm = () => {
 
     const payload = new FormData();
     payload.append('title', formData.title || 'Promo Banner');
-    if (formData.restaurant) payload.append('restaurant', formData.restaurant);
-    if (formData.city) payload.append('city', formData.city);
+    payload.append('restaurant', formData.restaurant || 'all');
+    payload.append('city', formData.city || 'all');
     payload.append('isActive', formData.status === 'active');
 
     if (formData.bannerImage) {
@@ -123,14 +134,14 @@ const EditRestaurantBannerForm = () => {
               <label className="text-sm text-gray-500 font-medium">Restaurant</label>
               <Select
                 name="restaurant"
-                value={formData.restaurant}
+                value={formData.restaurant || 'all'}
                 onChange={handleChange}
                 size="small"
                 className="bg-white"
                 disabled={restaurantLoading}
               >
-                <MenuItem value="">
-                  <em>All Restaurants (Universal Banner)</em>
+                <MenuItem value="all">
+                  <em>🌐 All Restaurants (Universal Banner)</em>
                 </MenuItem>
                 {restaurants.map(rest => (
                   <MenuItem key={rest._id} value={rest._id}>
@@ -158,15 +169,16 @@ const EditRestaurantBannerForm = () => {
           {/* RIGHT */}
           <div className="space-y-6">
             <div className="flex flex-col gap-2">
-              <label className="text-sm text-gray-500 font-medium">City</label>
+              <label className="text-sm text-gray-500 font-medium">City / Service Area</label>
               <Select
                 name="city"
-                value={formData.city}
+                value={formData.city || 'all'}
                 onChange={handleChange}
                 size="small"
                 className="bg-white"
                 disabled={cityLoading}
               >
+                <MenuItem value="all">📍 All Cities (All Service Areas)</MenuItem>
                 {cities.map(city => (
                   <MenuItem key={city._id} value={city._id}>
                     {city.name} {city.isServiceAvailable ? '📍 (Services Available)' : ''}

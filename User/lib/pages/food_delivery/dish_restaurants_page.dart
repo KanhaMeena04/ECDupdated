@@ -6,6 +6,7 @@ import '../../core/models/product.dart';
 import '../../core/models/restaurant_models.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/location_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../services/restaurant_api_service.dart';
@@ -132,8 +133,9 @@ class _DishRestaurantsPageState extends State<DishRestaurantsPage> {
     final categoryName = _currentCategoryTitle;
 
     try {
-      final results = await RestaurantApiService.searchRestaurants(categoryName);
-      final popularDishes = await RestaurantApiService.getPopularDishes();
+      final loc = context.read<LocationProvider>();
+      final results = await RestaurantApiService.searchRestaurants(categoryName, lat: loc.lat, lng: loc.lng);
+      final popularDishes = await RestaurantApiService.getPopularDishes(lat: loc.lat, lng: loc.lng);
       final allProducts = popularDishes.map((d) => Product(
         id: d.id,
         name: d.name,
