@@ -228,11 +228,20 @@ class RestaurantApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> prepareOrder(String orderId) async {
+  static Future<Map<String, dynamic>> prepareOrder(String orderId, {int? prepTime, String? customToken}) async {
     try {
+      final token = (customToken != null && customToken.isNotEmpty)
+          ? customToken
+          : (ApiConstants.authToken.isNotEmpty
+              ? ApiConstants.authToken
+              : (await RestaurantAuthService.getToken() ?? ''));
       final response = await http.post(
         Uri.parse(ApiConstants.prepareOrder(orderId)),
-        headers: _getHeaders(),
+        headers: _getHeaders(token),
+        body: jsonEncode({
+          'status': 'preparing',
+          if (prepTime != null) 'prepTime': prepTime,
+        }),
       ).timeout(const Duration(seconds: 15));
 
       final data = jsonDecode(response.body);

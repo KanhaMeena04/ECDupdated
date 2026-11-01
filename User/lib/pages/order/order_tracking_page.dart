@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -2341,6 +2342,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
+                // Delivery OTP Verification Card
+                _buildDeliveryOtpCard(),
+
                 // 3. Dynamic Driver Or Restaurant Info Card
                 _buildDriverOrRestaurantCard(),
 
@@ -2491,6 +2495,105 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             child: Icon(icon, size: 20, color: const Color(0xFF374151)),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDeliveryOtpCard() {
+    final curStatus = (_trackingData?['status'] ?? _trackingData?['order']?['status'] ?? '').toString().toLowerCase();
+    if (curStatus == 'delivered' || curStatus == 'completed' || curStatus == 'cancelled' || curStatus == 'failed') {
+      return const SizedBox.shrink();
+    }
+    final rawOtp = (_trackingData?['deliveryOtp'] ?? _trackingData?['order']?['deliveryOtp'] ?? '').toString().trim();
+    if (rawOtp.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.shield_rounded, color: Color(0xFF059669), size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Delivery Verification Code',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Share with rider upon arrival',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Text(
+                    rawOtp,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 4,
+                      color: Color(0xFF065F46),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    icon: const Icon(Icons.copy_rounded, size: 20, color: Color(0xFF059669)),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: rawOtp));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Delivery OTP $rawOtp copied!'),
+                          backgroundColor: const Color(0xFF059669),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

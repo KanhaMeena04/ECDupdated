@@ -784,14 +784,21 @@ exports.getCompletedOrdersForRider = async (req, res) => {
       return sendError(res, 404, "Rider profile not found");
     }
     const { page, limit, skip } = getPaginationParams(req, 20);
-    const riderIds = [riderProfile._id, req.user._id];
+    const riderIds = [
+      riderProfile._id,
+      req.user._id,
+      riderProfile._id.toString(),
+      req.user._id.toString(),
+      ...(riderProfile.riderId ? [riderProfile.riderId] : [])
+    ];
     const query = {
       $and: [
         {
           $or: [
             { rider: { $in: riderIds } },
             { 'assignedRider.riderId': { $in: riderIds } },
-            { driver: { $in: riderIds } }
+            { driver: { $in: riderIds } },
+            { riderId: { $in: riderIds } }
           ]
         },
         {
@@ -3545,8 +3552,10 @@ exports.verifyDelivery = async (req, res) => {
     }
     const oldStatus = order.status;
     order.status = 'delivered';
+    order.deliveryStatus = 'delivered';
     order.deliveryOtpVerifiedAt = new Date();
     order.deliveredAt = new Date();
+    if (!order.rider) order.rider = riderProfile._id;
     order.timeline.push({
       status: 'delivered',
       timestamp: new Date(),
@@ -3589,7 +3598,7 @@ exports.verifyDelivery = async (req, res) => {
     } catch (rewErr) {
       console.error('Failed to credit customer rewards on rider delivery:', rewErr.message);
     }
-    await Rider.findOneAndUpdate({ user: req.user._id }, { isAvailable: true });
+    await Rider.findOneAndUpdate({ user: req.user._id }, { isAvailable: true, isOnline: true });
     const RideRequest = require('../models/RideRequest');
     await RideRequest.updateMany(
       { rider: riderProfile._id, status: 'pending' },

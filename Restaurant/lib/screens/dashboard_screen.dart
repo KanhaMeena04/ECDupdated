@@ -248,13 +248,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (_isFirstFetch) {
           for (var o in parsedOrders) {
             _knownOrderIds.add(o.id);
+            if (o.backendId.isNotEmpty) _knownOrderIds.add(o.backendId);
           }
           _isFirstFetch = false;
         } else {
-          final newIncoming = parsedOrders.where((o) => (o.status == 'Placed' || o.status == 'Pending') && !_knownOrderIds.contains(o.id)).toList();
+          final newIncoming = parsedOrders.where((o) => (o.status == 'Placed' || o.status == 'Pending') && !_knownOrderIds.contains(o.id) && !_knownOrderIds.contains(o.backendId)).toList();
           if (newIncoming.isNotEmpty) {
             for (var o in newIncoming) {
               _knownOrderIds.add(o.id);
+              if (o.backendId.isNotEmpty) _knownOrderIds.add(o.backendId);
               _showNewOrderAlertDialog(o);
             }
           }
@@ -873,6 +875,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: OutlinedButton(
                         onPressed: () {
                           _stopOrderRingtone();
+                          _knownOrderIds.add(newOrder.id);
+                          if (newOrder.backendId.isNotEmpty) _knownOrderIds.add(newOrder.backendId);
                           Navigator.pop(alertContext);
                           _rejectOrder(newOrder);
                         },
@@ -890,6 +894,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: ElevatedButton(
                         onPressed: () {
                           _stopOrderRingtone();
+                          _knownOrderIds.add(newOrder.id);
+                          if (newOrder.backendId.isNotEmpty) _knownOrderIds.add(newOrder.backendId);
                           Navigator.pop(alertContext);
                           _acceptOrder(newOrder);
                         },
@@ -911,6 +917,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       },
     ).then((_) {
       _stopOrderRingtone();
+      _knownOrderIds.add(newOrder.id);
+      if (newOrder.backendId.isNotEmpty) _knownOrderIds.add(newOrder.backendId);
     });
   }
 
@@ -966,22 +974,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ElevatedButton(
                   onPressed: () async {
                     Navigator.pop(dialogCtx);
+                    _stopOrderRingtone();
+                    _knownOrderIds.add(order.id);
+                    if (order.backendId.isNotEmpty) {
+                      _knownOrderIds.add(order.backendId);
+                    }
                     setState(() {
                       order.status = 'Preparing';
                       order.prepTimeMinutes = tempTime;
                     });
+                    final targetId = order.backendId.isNotEmpty ? order.backendId : order.id;
                     try {
                       final token = (await SharedPreferences.getInstance()).getString('token') ?? '';
                       await http.post(
-                        Uri.parse('${ApiConstants.baseUrl}/orders/restaurant/prepare/${order.backendId.isNotEmpty ? order.backendId : order.id}'),
+                        Uri.parse('${ApiConstants.baseUrl}/orders/restaurant/prepare/$targetId'),
                         headers: {
                           'Content-Type': 'application/json',
                           if (token.isNotEmpty) 'Authorization': 'Bearer $token',
                         },
                         body: jsonEncode({'prepTime': tempTime, 'status': 'preparing'}),
-                      ).timeout(const Duration(seconds: 5));
+                      ).timeout(const Duration(seconds: 8));
                     } catch (_) {}
-                    await RestaurantApiService.prepareOrder(order.id);
+                    await RestaurantApiService.prepareOrder(targetId, prepTime: tempTime);
                     _fetchLiveOrders(isSilent: true);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(

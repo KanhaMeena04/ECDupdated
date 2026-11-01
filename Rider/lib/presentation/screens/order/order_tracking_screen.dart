@@ -422,9 +422,141 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         );
       }
     } else if (_currentDeliveryStatus == 'out_for_delivery' || _currentDeliveryStatus == 'on_the_way' || _currentDeliveryStatus == 'reached_customer_location' || _currentDeliveryStatus == 'delivery_arrived') {
-      setState(() => _isLoading = true);
-      context.read<DriverBloc>().add(UpdateOrderStatus(orderId: orderId, status: 'delivered'));
+      _showDeliveryOtpPromptDialog(orderId);
     }
+  }
+
+  void _showDeliveryOtpPromptDialog(String orderId) {
+    final otpController = TextEditingController();
+    bool isVerifying = false;
+    String? errorText;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: primaryGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.verified_user_rounded, color: primaryGreen, size: 24),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Verify Delivery OTP',
+                  style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Please ask the customer for the 4-digit verification code to complete delivery.',
+                style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[700]),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 4,
+                textAlign: TextAlign.center,
+                autofocus: true,
+                style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 8),
+                decoration: InputDecoration(
+                  counterText: '',
+                  hintText: '----',
+                  hintStyle: GoogleFonts.poppins(letterSpacing: 8, color: Colors.grey[400]),
+                  errorText: errorText,
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: primaryGreen, width: 2)),
+                ),
+                onChanged: (_) {
+                  if (errorText != null) setDialogState(() => errorText = null);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isVerifying ? null : () => Navigator.pop(dialogCtx),
+              child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey[700], fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              onPressed: isVerifying
+                  ? null
+                  : () async {
+                      final code = otpController.text.trim();
+                      if (code.length != 4) {
+                        setDialogState(() => errorText = 'Please enter 4-digit code');
+                        return;
+                      }
+                      setDialogState(() {
+                        isVerifying = true;
+                        errorText = null;
+                      });
+
+                      try {
+                        final res = await ApiService.completeDeliveryWithOTP(
+                          orderId: orderId,
+                          otp: code,
+                        );
+
+                        if (res['success'] == true) {
+                          if (Navigator.canPop(dialogCtx)) Navigator.pop(dialogCtx);
+                          setState(() {
+                            _currentDeliveryStatus = 'delivered';
+                            _currentOrderStage = 3;
+                            _isLoading = false;
+                          });
+                          if (mounted) {
+                            context.read<DriverBloc>().add(
+                              UpdateOrderStatus(
+                                orderId: orderId,
+                                status: 'delivered',
+                                otp: code,
+                              ),
+                            );
+                            _showOrderDeliveredDialog();
+                          }
+                        } else {
+                          setDialogState(() {
+                            isVerifying = false;
+                            errorText = res['message'] ?? 'Invalid OTP code. Try again.';
+                          });
+                        }
+                      } catch (e) {
+                        setDialogState(() {
+                          isVerifying = false;
+                          errorText = 'Verification failed: $e';
+                        });
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryGreen,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              ),
+              child: isVerifying
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text('Verify & Deliver', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showOrderDeliveredDialog() {

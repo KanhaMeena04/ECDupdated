@@ -721,7 +721,7 @@ exports.placeOrder = async (req, res) => {
       await sendNotification(
         user._id,
         "🎉 Order Placed Successfully!",
-        `Your order #${newOrder.orderNumber} has been placed with ${restNameStr} for ₹${newOrder.totalAmount}.`,
+        `Your order #${newOrder.orderNumber} has been placed with ${restNameStr} for ₹${newOrder.totalAmount}. ${!isSelfPickup ? 'Delivery OTP: ' + deliveryOtp : 'Pickup OTP: ' + pickupOtp}`,
         {
           orderId: newOrder.orderNumber,
           backendOrderId: newOrder._id.toString(),
@@ -1207,6 +1207,11 @@ exports.getOrderDetailsCustomer = async (req, res) => {
         riderId: orderObj.riderId || orderObj.rider?.riderId || (orderObj.rider ? "RDR001" : null),
         status: orderObj.status,
         statusLabel: mapStatusLabel(orderObj.status),
+        orderType: orderObj.orderType || (orderObj.isSelfPickup ? "self_pickup" : "delivery"),
+        isSelfPickup: Boolean(orderObj.orderType === "self_pickup" || orderObj.orderType === "pickup" || orderObj.isSelfPickup === true),
+        deliveryOtp: orderObj.deliveryOtp,
+        pickupOtp: orderObj.pickupOtp || orderObj.selfPickupCode,
+        selfPickupCode: orderObj.selfPickupCode || orderObj.pickupOtp,
         createdAt: orderObj.createdAt,
         totalAmount: unifiedBill.totalAmount,
         amount: unifiedBill.totalAmount,
@@ -2234,6 +2239,18 @@ exports.updateOrderStatus = async (req, res) => {
         allowedTransitions: validation.error,
       });
     }
+    if (status === 'delivered') {
+      const isPickupOrder = order.orderType === 'self_pickup' || order.orderType === 'pickup' || order.isSelfPickup === true;
+      if (!isPickupOrder && order.deliveryOtp) {
+        const enteredOtp = (req.body.otp || req.body.deliveryOtp || req.body.code || '').toString().trim();
+        if (!enteredOtp || enteredOtp !== order.deliveryOtp.toString().trim()) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid Delivery OTP. Please enter the correct 4-digit code provided by customer."
+          });
+        }
+      }
+    }
     const oldStatus = order.status;
     order.status = status;
     order.deliveryStatus = status;
@@ -2957,6 +2974,7 @@ exports.trackOrder = async (req, res) => {
       isSelfPickup,
       pickupOtp: order.pickupOtp || order.selfPickupCode || '',
       selfPickupCode: order.selfPickupCode || order.pickupOtp || '',
+      deliveryOtp: order.deliveryOtp || '',
       isRated: Boolean(order.isRated),
       customerArrived: Boolean(order.customerArrived),
       customerArrivedAt: order.customerArrivedAt || null,
@@ -4499,15 +4517,32 @@ exports.getOrdersForRestaurantById = async (req, res) => {
 
 exports.prepareOrderVendor = async (req, res) => {
   try {
-    const orderId = req.params.orderId || req.params.id;
-    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
-    const orderFilter = isObjectId
-      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
-      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
-    const order = await Order.findOne(orderFilter);
+    const rawId = (req.params.orderId || req.params.id || "").toString().trim();
+    const cleanId = rawId.replace(/^ORD-?/i, '');
+    let order = null;
+    if (mongoose.Types.ObjectId.isValid(rawId) && rawId.length === 24) {
+      order = await Order.findById(rawId);
+    }
+    if (!order) {
+      order = await Order.findOne({
+        $or: [
+          { orderId: rawId },
+          { orderNumber: rawId },
+          { orderId: cleanId },
+          { orderNumber: cleanId },
+          { orderNumber: new RegExp(cleanId, 'i') },
+          { orderId: new RegExp(cleanId, 'i') },
+          ...(mongoose.Types.ObjectId.isValid(rawId) ? [{ _id: rawId }] : [])
+        ]
+      });
+    }
     if (!order) return res.status(404).json({ message: "Order not found" });
     order.status = "preparing";
-    order.timeline.push({ status: "preparing", timestamp: new Date() });
+    order.deliveryStatus = "preparing";
+    if (req.body && req.body.prepTime) {
+      order.prepTimeMinutes = parseInt(req.body.prepTime) || 15;
+    }
+    order.timeline.push({ status: "preparing", timestamp: new Date(), label: "Preparing", description: "Food is being prepared by kitchen" });
     await order.save();
 
     const enriched = enrichOrderWithUnifiedPricing(order.toObject());

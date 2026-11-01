@@ -306,6 +306,9 @@ class ApiService {
     String? otp,
   }) async {
     try {
+      if (status == 'delivered' && otp != null && otp.trim().isNotEmpty) {
+        return await completeDeliveryWithOTP(orderId: orderId, otp: otp.trim());
+      }
       final response = await http.put(
         Uri.parse("${ApiConstants.baseUrl}/orders/$orderId/status"),
         headers: await _getHeaders(),

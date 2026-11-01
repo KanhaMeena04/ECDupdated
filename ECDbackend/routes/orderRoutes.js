@@ -99,14 +99,14 @@ router.get("/driver/my-orders", protect, rider, getMyActiveOrder);
 router.put("/driver/update-status", protect, rider, updateOrderStatus);
 
 // Vendor Order Routes
-router.post("/restaurant/prepare/:orderId", protect, prepareOrderVendor);
-router.post("/restaurant/ready/:orderId", protect, readyOrderVendor);
-router.post("/restaurant/verify-pickup/:orderId", protect, verifyPickupVendor);
-router.post("/restaurant/complete-pickup/:orderId", protect, completePickupVendor);
-router.post("/restaurant/cancel/:orderId", protect, cancelOrderVendor);
-router.post("/restaurant/delete/:orderId", protect, deleteOrderVendor);
-router.delete("/restaurant/delete/:orderId", protect, deleteOrderVendor);
-router.post("/restaurant/send-pickup-otp/:orderId", protect, sendPickupOtpVendor);
+router.post("/restaurant/prepare/:orderId", optionalAuth, prepareOrderVendor);
+router.post("/restaurant/ready/:orderId", optionalAuth, readyOrderVendor);
+router.post("/restaurant/verify-pickup/:orderId", optionalAuth, verifyPickupVendor);
+router.post("/restaurant/complete-pickup/:orderId", optionalAuth, completePickupVendor);
+router.post("/restaurant/cancel/:orderId", optionalAuth, cancelOrderVendor);
+router.post("/restaurant/delete/:orderId", optionalAuth, deleteOrderVendor);
+router.delete("/restaurant/delete/:orderId", optionalAuth, deleteOrderVendor);
+router.post("/restaurant/send-pickup-otp/:orderId", optionalAuth, sendPickupOtpVendor);
 
 // Specific Restaurant Routes (MUST BE BEFORE /:id to prevent route shadowing!)
 router.get("/restaurant", optionalAuth, getRestaurantOrders);
