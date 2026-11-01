@@ -17,6 +17,8 @@ import 'address_selection_page.dart';
 import '../profile/location_setup_page.dart';
 import '../../widgets/flip_animation_widgets.dart';
 import 'package:ecdkart_app/services/meta_app_events_service.dart';
+import '../../services/auth_service.dart';
+import '../auth/login_page.dart';
 
 class ReviewPayPage extends StatefulWidget {
   final double subtotal;
@@ -215,8 +217,44 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     );
   }
 
-  void _handleMainAction(double grandTotal) {
+  Future<bool> _ensureUserAuthenticated() async {
+    final userProvider = context.read<UserProvider>();
+    final token = await AuthService.getToken();
+    final isLoggedIn = (token != null && token.isNotEmpty) && userProvider.isLoggedIn;
+
+    if (!isLoggedIn) {
+      if (!mounted) return false;
+      final loginResult = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const LoginPage(),
+        ),
+      );
+
+      final updatedToken = await AuthService.getToken();
+      final nowLoggedIn = (updatedToken != null && updatedToken.isNotEmpty) || (loginResult == true);
+      if (!nowLoggedIn) {
+        return false;
+      }
+
+      if (mounted) {
+        await context.read<UserProvider>().fetchProfile();
+        await context.read<AddressProvider>().fetchAddresses();
+        setState(() {});
+      }
+      return true;
+    }
+    return true;
+  }
+
+  void _handleMainAction(double grandTotal) async {
     if (_isProcessing) return;
+
+    // ── Seamless Guest / Logged-Out Auth Gate ─────────────────────────
+    // If user is guest or logged out, prompt login/registration directly
+    // and seamlessly continue placing order right after OTP verification!
+    final authenticated = await _ensureUserAuthenticated();
+    if (!authenticated) return;
 
     final cart = context.read<CartProvider>();
 
@@ -229,7 +267,10 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     _proceedToPayment(grandTotal);
   }
 
-  void _proceedToPayment(double grandTotal) {
+  void _proceedToPayment(double grandTotal) async {
+    final authenticated = await _ensureUserAuthenticated();
+    if (!authenticated) return;
+
     final cart = context.read<CartProvider>();
     if (cart.isSelfPickup && _selectedPaymentMethod == 'Cash on Delivery') {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -561,16 +602,53 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
   }
 
   Future<void> _processAndConfirmOrder() async {
+    final authenticated = await _ensureUserAuthenticated();
+    if (!authenticated) return;
+
     setState(() => _isProcessing = true);
     final cart = context.read<CartProvider>();
     final addressProvider = context.read<AddressProvider>();
+    final isCod = _selectedPaymentMethod == 'Cash on Delivery';
+    final isSelf =
+        cart.orderType == 'pickup' || cart.orderType == 'self_pickup';
+
     final selectedAddress = (addressProvider.addresses.isNotEmpty &&
             (_selectedAddressIndex ?? 0) < addressProvider.addresses.length)
         ? addressProvider.addresses[_selectedAddressIndex ?? 0]
-        : null;
+        : (addressProvider.addresses.isNotEmpty
+            ? addressProvider.addresses.first
+            : null);
+
+    // If delivery order and customer has no address at all, prompt to add/select address
+    if (!isSelf && selectedAddress == null) {
+      setState(() => _isProcessing = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select or add a delivery address to place your order.'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AddressSelectionPage(),
+          ),
+        );
+        if (result != null && result is int && mounted) {
+          setState(() {
+            _selectedAddressIndex = result;
+          });
+          await _updateDeliveryFee();
+          await _processAndConfirmOrder();
+        }
+      }
+      return;
+    }
 
     final locProvider = context.read<LocationProvider>();
     if (!cart.isSelfPickup && !locProvider.isServiceable) {
+      setState(() => _isProcessing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -594,10 +672,6 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
       }
       return;
     }
-
-    final isCod = _selectedPaymentMethod == 'Cash on Delivery';
-    final isSelf =
-        cart.orderType == 'pickup' || cart.orderType == 'self_pickup';
 
     final orderData = {
       'restaurantId': cart.restaurantId ?? '',
@@ -639,6 +713,19 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
         if (mounted) {
           _onOrderSuccess(_pendingOrderId!);
         }
+      } else if (result['message'] != null &&
+          result['message'].toString().toLowerCase().contains('not authorized')) {
+        // Stale or expired token - seamlessly re-authenticate and retry order!
+        await AuthService.logout();
+        if (mounted) {
+          context.read<UserProvider>().clearUser();
+          final reLoggedIn = await _ensureUserAuthenticated();
+          if (reLoggedIn) {
+            await _processAndConfirmOrder();
+            return;
+          }
+        }
+        setState(() => _isProcessing = false);
       } else {
         setState(() => _isProcessing = false);
         if (mounted) {

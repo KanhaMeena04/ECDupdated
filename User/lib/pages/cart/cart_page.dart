@@ -84,7 +84,7 @@ class _CartPageState extends State<CartPage> {
 
     final userProvider = context.read<UserProvider>();
     String? token = await AuthService.getToken();
-    final isLoggedIn = (token != null && token.isNotEmpty) || userProvider.isLoggedIn;
+    final isLoggedIn = (token != null && token.isNotEmpty) && userProvider.isLoggedIn;
 
     if (!isLoggedIn) {
       if (!mounted) return;

@@ -12,6 +12,9 @@ import '../../providers/address_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../routes/app_routes.dart';
 import '../../providers/order_provider.dart';
+import '../../services/auth_service.dart';
+import '../../providers/user_provider.dart';
+import '../auth/login_page.dart';
 
 class CheckoutFlow extends StatefulWidget {
   final double subtotal;
@@ -166,6 +169,23 @@ class _CheckoutFlowState extends State<CheckoutFlow> {
   }
 
   void _placeOrder() async {
+    final userProvider = context.read<UserProvider>();
+    final token = await AuthService.getToken();
+    final isLoggedIn = (token != null && token.isNotEmpty) && userProvider.isLoggedIn;
+    if (!isLoggedIn) {
+      if (!mounted) return;
+      final loginSuccess = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+      final updatedToken = await AuthService.getToken();
+      final nowLoggedIn = (updatedToken != null && updatedToken.isNotEmpty) || (loginSuccess == true);
+      if (!nowLoggedIn) return;
+      if (mounted) {
+        await context.read<UserProvider>().fetchProfile();
+        await context.read<AddressProvider>().fetchAddresses();
+      }
+    }
     final cart = context.read<CartProvider>();
     final addressProvider = context.read<AddressProvider>();
 
