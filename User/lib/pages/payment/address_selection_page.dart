@@ -19,7 +19,7 @@ class _AddressSelectionPageState extends State<AddressSelectionPage> {
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.selectedIndex;
+    _selectedIndex = widget.selectedIndex ?? context.read<AddressProvider>().selectedIndex;
     Future.microtask(() {
       context.read<AddressProvider>().fetchAddresses();
     });
@@ -34,6 +34,9 @@ class _AddressSelectionPageState extends State<AddressSelectionPage> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
+        if (_selectedIndex != null) {
+          context.read<AddressProvider>().selectAddress(_selectedIndex!);
+        }
         Navigator.pop(context, _selectedIndex);
       },
       child: Scaffold(
@@ -151,6 +154,7 @@ class _AddressSelectionPageState extends State<AddressSelectionPage> {
                           ),
                           onTap: () {
                             setState(() => _selectedIndex = i);
+                            context.read<AddressProvider>().selectAddress(i);
                           },
                         ),
                       );
@@ -163,6 +167,9 @@ class _AddressSelectionPageState extends State<AddressSelectionPage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
+                  if (_selectedIndex != null) {
+                    context.read<AddressProvider>().selectAddress(_selectedIndex!);
+                  }
                   Navigator.pop(context, _selectedIndex);
                 },
                 style: ElevatedButton.styleFrom(

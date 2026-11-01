@@ -59,6 +59,13 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
 
+    final cart = context.read<CartProvider>();
+    if (cart.paymentMethod.isNotEmpty) {
+      _selectedPaymentMethod = cart.paymentMethod;
+    }
+    final addrProvider = context.read<AddressProvider>();
+    _selectedAddressIndex = addrProvider.selectedIndex;
+
     Future.microtask(() {
       context.read<AddressProvider>().fetchAddresses();
       _loadSettings();

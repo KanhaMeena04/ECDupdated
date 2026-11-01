@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:ecdkart_app/widgets/safe_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +10,7 @@ import '../../core/models/restaurant_models.dart';
 import '../../services/coupon_api_service.dart';
 import '../checkout/order_success_page.dart';
 import '../payment/review_pay_page.dart';
+import '../payment/address_selection_page.dart';
 import '../../providers/address_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -44,9 +45,7 @@ class _CartPageState extends State<CartPage> {
     final addressProvider = context.read<AddressProvider>();
     final locationProvider = context.read<LocationProvider>();
 
-    final selectedAddress = addressProvider.addresses.isNotEmpty
-        ? addressProvider.addresses.first
-        : null;
+    final selectedAddress = addressProvider.selectedAddress;
 
     final lat = selectedAddress?.latitude ?? locationProvider.lat ?? 22.7196;
     final lng = selectedAddress?.longitude ?? locationProvider.lng ?? 75.8577;
@@ -1837,6 +1836,249 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
     );
   }
 
+  Future<void> _handleAddressSelection(BuildContext ctx) async {
+    final cart = ctx.read<CartProvider>();
+    if (cart.isSelfPickup) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(
+          content: Text('Self-pickup order: Food will be collected directly from the restaurant.'),
+          backgroundColor: AppColors.primary,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final addrProvider = ctx.read<AddressProvider>();
+    final selectedIdx = await Navigator.push<int>(
+      ctx,
+      MaterialPageRoute(
+        builder: (_) => AddressSelectionPage(
+          selectedIndex: addrProvider.selectedIndex,
+        ),
+      ),
+    );
+
+    if (selectedIdx != null && ctx.mounted) {
+      addrProvider.selectAddress(selectedIdx);
+      final addresses = addrProvider.addresses;
+      if (selectedIdx >= 0 && selectedIdx < addresses.length) {
+        final chosen = addresses[selectedIdx];
+        if (chosen.latitude != null && chosen.longitude != null) {
+          await cart.calculateDeliveryFee(chosen.latitude!, chosen.longitude!);
+        }
+      }
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _handlePaymentMethodSelection(BuildContext ctx) {
+    final cart = ctx.read<CartProvider>();
+    final userProvider = ctx.read<UserProvider>();
+    final isDark = Theme.of(ctx).brightness == Brightness.dark;
+    String currentMethod = cart.paymentMethod.isNotEmpty ? cart.paymentMethod : 'Cash on Delivery';
+
+    showModalBottomSheet(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) {
+        return StatefulBuilder(
+          builder: (modalStateCtx, setSheetState) {
+            final isCodBlocked = userProvider.isCodBlocked;
+            final isPickup = cart.isSelfPickup;
+
+            return Container(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Select Payment Method',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: isDark ? Colors.white : const Color(0xFF1F2937),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(modalCtx),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Option 1: Cash on Delivery (UPI / Cash)
+                  _buildPaymentOptionTile(
+                    title: 'Cash on Delivery (UPI / Cash)',
+                    subtitle: isPickup
+                        ? 'Not available for self-pickup orders'
+                        : (isCodBlocked ? 'Disabled by Admin' : 'Pay via Cash or UPI at doorstep'),
+                    icon: Icons.money_rounded,
+                    value: 'Cash on Delivery',
+                    selectedValue: currentMethod,
+                    disabled: isPickup || isCodBlocked,
+                    isDark: isDark,
+                    onSelect: (val) {
+                      setSheetState(() => currentMethod = val);
+                      cart.setPaymentMethod(val);
+                      if (mounted) setState(() {});
+                      Navigator.pop(modalCtx);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Option 2: UPI (Google Pay, PhonePe, Paytm, QR)
+                  _buildPaymentOptionTile(
+                    title: 'UPI (Google Pay / PhonePe / Paytm)',
+                    subtitle: 'Instant payment via any UPI app or scan QR',
+                    icon: Icons.account_balance_wallet_rounded,
+                    value: 'UPI / Online',
+                    selectedValue: currentMethod,
+                    disabled: false,
+                    isDark: isDark,
+                    onSelect: (val) {
+                      setSheetState(() => currentMethod = val);
+                      cart.setPaymentMethod(val);
+                      if (mounted) setState(() {});
+                      Navigator.pop(modalCtx);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Option 3: Credit / Debit Cards
+                  _buildPaymentOptionTile(
+                    title: 'Credit / Debit Cards',
+                    subtitle: 'Visa, MasterCard, RuPay, Maestro & more',
+                    icon: Icons.credit_card_rounded,
+                    value: 'Card Payment',
+                    selectedValue: currentMethod,
+                    disabled: false,
+                    isDark: isDark,
+                    onSelect: (val) {
+                      setSheetState(() => currentMethod = val);
+                      cart.setPaymentMethod(val);
+                      if (mounted) setState(() {});
+                      Navigator.pop(modalCtx);
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPaymentOptionTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required String value,
+    required String selectedValue,
+    required bool disabled,
+    required bool isDark,
+    required Function(String) onSelect,
+  }) {
+    final isSelected = selectedValue == value;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: disabled ? null : () => onSelect(value),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.primary.withValues(alpha: 0.08)
+                : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF9FAFB)),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? AppColors.primary
+                  : (isDark ? Colors.grey.shade800 : const Color(0xFFE5E7EB)),
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.primary.withValues(alpha: 0.2)
+                      : (disabled ? Colors.grey.shade200 : AppColors.primary.withValues(alpha: 0.1)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  color: disabled ? Colors.grey : AppColors.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: disabled
+                            ? Colors.grey
+                            : (isDark ? Colors.white : const Color(0xFF1F2937)),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: disabled
+                            ? Colors.red.shade400
+                            : (isDark ? Colors.grey.shade400 : const Color(0xFF6B7280)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 22)
+              else if (!disabled)
+                const Icon(Icons.radio_button_off_rounded, color: Color(0xFF9CA3AF), size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showBillDetailsModal(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -1900,119 +2142,136 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     children: [
-                      // Address Banner Card
-                      Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                      // Address Banner Card (Clickable)
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _handleAddressSelection(modalContext),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE5E7EB)),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.home_rounded, color: AppColors.primary, size: 24),
+                          child: Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE5E7EB)),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Builder(
-                                builder: (context) {
-                                  final cart = context.watch<CartProvider>();
-                                  final addrProvider = context.watch<AddressProvider>();
-                                  final selectedAddr = addrProvider.addresses.isNotEmpty ? addrProvider.addresses.first : null;
-                                  final String addrTitle = cart.isSelfPickup
-                                      ? 'Pickup from Restaurant'
-                                      : (selectedAddr != null ? 'Delivering to ${selectedAddr.label.isNotEmpty ? selectedAddr.label : "Home"}' : 'Select Delivery Address');
-                                  final String addrSubtitle = cart.isSelfPickup
-                                      ? (cart.restaurantAddress ?? cart.restaurantName ?? 'Restaurant Location')
-                                      : (selectedAddr?.fullAddress ?? 'Tap to select delivery address');
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(Icons.home_rounded, color: AppColors.primary, size: 24),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Builder(
+                                    builder: (context) {
+                                      final cart = context.watch<CartProvider>();
+                                      final addrProvider = context.watch<AddressProvider>();
+                                      final selectedAddr = addrProvider.selectedAddress;
+                                      final String addrTitle = cart.isSelfPickup
+                                          ? 'Pickup from Restaurant'
+                                          : (selectedAddr != null ? 'Delivering to ${selectedAddr.label.isNotEmpty ? selectedAddr.label : "Home"}' : 'Select Delivery Address');
+                                      final String addrSubtitle = cart.isSelfPickup
+                                          ? (cart.restaurantAddress ?? cart.restaurantName ?? 'Restaurant Location')
+                                          : (selectedAddr?.fullAddress ?? 'Tap to select delivery address');
 
-                                  return Column(
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            addrTitle,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w900,
+                                              color: isDark ? Colors.white : const Color(0xFF1F2937),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            addrSubtitle,
+                                            style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : const Color(0xFF6B7280)),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_right_rounded, color: Color(0xFF9CA3AF), size: 22),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Payment Method Banner Card (Clickable)
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _handlePaymentMethodSelection(modalContext),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE5E7EB)),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 24),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        addrTitle,
+                                        'Payment Method',
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w900,
                                           color: isDark ? Colors.white : const Color(0xFF1F2937),
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        addrSubtitle,
-                                        style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : const Color(0xFF6B7280)),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
+                                      Builder(
+                                        builder: (context) {
+                                          final userProvider = context.watch<UserProvider>();
+                                          final cart = context.watch<CartProvider>();
+                                          if (userProvider.isCodBlocked) {
+                                            return const Text(
+                                              'Online / Wallet (COD Blocked by Admin)',
+                                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.red),
+                                            );
+                                          }
+                                          return Text(
+                                            cart.paymentMethod.isNotEmpty ? cart.paymentMethod : 'Cash on Delivery (UPI/Cash)',
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                          );
+                                        },
                                       ),
                                     ],
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Payment Method Banner Card
-                      Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: isDark ? Colors.grey.shade800 : const Color(0xFFE5E7EB)),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 24),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Payment Method',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w900,
-                                      color: isDark ? Colors.white : const Color(0xFF1F2937),
-                                    ),
                                   ),
-                                  Builder(
-                                    builder: (context) {
-                                      final userProvider = context.watch<UserProvider>();
-                                      if (userProvider.isCodBlocked) {
-                                        return const Text(
-                                          'Online / Wallet (COD Blocked by Admin)',
-                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.red),
-                                        );
-                                      }
-                                      return const Text(
-                                        'Cash on Delivery (UPI/Cash)',
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
+                                ),
+                                const Icon(Icons.chevron_right_rounded, color: Color(0xFF9CA3AF), size: 22),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
 
@@ -2060,28 +2319,57 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
                   color: isDark ? Colors.white : const Color(0xFF1F2937),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '00:${_secondsRemaining.toString().padLeft(2, '0')}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.primary,
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => _showBillDetailsModal(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.receipt_long_rounded, size: 14, color: AppColors.primary),
+                          SizedBox(width: 4),
+                          Text(
+                            'Bill',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '00:${_secondsRemaining.toString().padLeft(2, '0')}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 16),
 
-          // Pay Card (Clickable)
+          // Pay Card (Clickable -> Opens Payment Method Selection)
           GestureDetector(
-            onTap: () => _showBillDetailsModal(context),
+            onTap: () => _handlePaymentMethodSelection(context),
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -2101,23 +2389,36 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
                   ),
                   const SizedBox(width: 14),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Pay ₹${toPay.toStringAsFixed(0)} on delivery (UPI/cash)',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : const Color(0xFF1F2937),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Cash or UPI at time of doorstep delivery',
-                          style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
-                        ),
-                      ],
+                    child: Builder(
+                      builder: (context) {
+                        final cart = context.watch<CartProvider>();
+                        final pMethod = cart.paymentMethod;
+                        final String payTitle = pMethod == 'Cash on Delivery'
+                            ? 'Pay ₹${toPay.toStringAsFixed(0)} on delivery (UPI/cash)'
+                            : 'Pay ₹${toPay.toStringAsFixed(0)} via $pMethod';
+                        final String paySubtitle = pMethod == 'Cash on Delivery'
+                            ? 'Cash or UPI at time of doorstep delivery'
+                            : 'Tap to change payment method';
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              payTitle,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: isDark ? Colors.white : const Color(0xFF1F2937),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              paySubtitle,
+                              style: TextStyle(fontSize: 11, color: isDark ? Colors.grey.shade400 : const Color(0xFF6B7280)),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                   const Icon(Icons.chevron_right_rounded, color: Color(0xFF9CA3AF), size: 20),
@@ -2127,9 +2428,9 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
           ),
           const SizedBox(height: 12),
 
-          // Delivery Address Card (Clickable)
+          // Delivery Address Card (Clickable -> Opens Address Selection)
           GestureDetector(
-            onTap: () => _showBillDetailsModal(context),
+            onTap: () => _handleAddressSelection(context),
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -2153,7 +2454,7 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
                       builder: (context) {
                         final cart = context.watch<CartProvider>();
                         final addrProvider = context.watch<AddressProvider>();
-                        final selectedAddr = addrProvider.addresses.isNotEmpty ? addrProvider.addresses.first : null;
+                        final selectedAddr = addrProvider.selectedAddress;
                         final String addrTitle = cart.isSelfPickup
                             ? 'Pickup from Restaurant'
                             : (selectedAddr != null ? 'Delivering to ${selectedAddr.label.isNotEmpty ? selectedAddr.label : "Home"}' : 'Select Delivery Address');

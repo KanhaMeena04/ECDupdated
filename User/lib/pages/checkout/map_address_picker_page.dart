@@ -857,21 +857,6 @@ class _MapAddressPickerPageState extends State<MapAddressPickerPage> {
                             ),
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF248C70).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            'Google Maps API',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF248C70),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
