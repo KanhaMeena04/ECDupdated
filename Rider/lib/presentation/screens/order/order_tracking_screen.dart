@@ -518,7 +518,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           if (Navigator.canPop(dialogCtx)) Navigator.pop(dialogCtx);
                           setState(() {
                             _currentDeliveryStatus = 'delivered';
-                            _currentOrderStage = 3;
                             _isLoading = false;
                           });
                           if (mounted) {
