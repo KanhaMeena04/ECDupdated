@@ -181,11 +181,16 @@ class _CheckoutFlowState extends State<CheckoutFlow> {
       'orderType': _isSelfPickup ? 'self_pickup' : 'delivery',
       'isSelfPickup': _isSelfPickup,
       'items': cart.items
-          .map((i) => {
-                'productId': i.product.id,
-                'quantity': i.quantity,
-                'price': i.product.price,
-              })
+          .map((i) {
+            final rawId = i.product.id;
+            final cleanId = rawId.contains('::') ? rawId.split('::').first : rawId;
+            return {
+              'product': cleanId,
+              'productId': cleanId,
+              'quantity': i.quantity,
+              'price': i.product.price,
+            };
+          })
           .toList(),
       'addressId': addressProvider.addresses.isNotEmpty ? addressProvider.addresses[_selectedAddressIndex].id : '',
       'address': addressProvider.addresses.isNotEmpty ? addressProvider.addresses[_selectedAddressIndex].id : '',

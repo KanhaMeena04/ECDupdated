@@ -5,23 +5,41 @@ import 'notification_api_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  debugPrint("Handling background FCM message in User app: ${message.messageId}");
+  try {
+    await Firebase.initializeApp();
+    debugPrint("Handling background FCM message in User app: ${message.messageId}");
+  } catch (e) {
+    debugPrint("Background FCM error: $e");
+  }
 }
 
 class NotificationService {
-  static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   static bool _initialized = false;
+
+  static FirebaseMessaging? get _messagingInstance {
+    try {
+      return FirebaseMessaging.instance;
+    } catch (e) {
+      debugPrint('FirebaseMessaging not available: $e');
+      return null;
+    }
+  }
 
   static Future<void> initialize() async {
     if (_initialized) return;
 
     try {
+      final messaging = _messagingInstance;
+      if (messaging == null) {
+        debugPrint('NotificationService: Firebase not initialized, skipping FCM.');
+        return;
+      }
+
       // Set background messaging handler
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
       // Request permission (Required for iOS, Android 13+)
-      NotificationSettings settings = await _firebaseMessaging.requestPermission(
+      NotificationSettings settings = await messaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
@@ -31,7 +49,7 @@ class NotificationService {
       debugPrint('User granted notification permission: ${settings.authorizationStatus}');
 
       // Configure foreground notification presentation options
-      await _firebaseMessaging.setForegroundNotificationPresentationOptions(
+      await messaging.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,
         sound: true,
@@ -41,7 +59,7 @@ class NotificationService {
       await registerToken();
 
       // Listen for token refreshes
-      _firebaseMessaging.onTokenRefresh.listen((newToken) {
+      messaging.onTokenRefresh.listen((newToken) {
         debugPrint("User FCM Token refreshed: $newToken");
         NotificationApiService.registerDevice(newToken);
       });
@@ -66,7 +84,9 @@ class NotificationService {
 
   static Future<String?> getToken() async {
     try {
-      return await _firebaseMessaging.getToken();
+      final messaging = _messagingInstance;
+      if (messaging == null) return null;
+      return await messaging.getToken().timeout(const Duration(seconds: 4));
     } catch (e) {
       debugPrint('Error getting FCM token: $e');
       return null;

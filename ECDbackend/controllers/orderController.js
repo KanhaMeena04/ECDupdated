@@ -568,10 +568,14 @@ exports.placeOrder = async (req, res) => {
         let pImage = item.image || (item.product && typeof item.product === 'object' ? item.product.image : null);
         let pPrice = (typeof item.price === 'number' && item.price > 0) ? item.price : ((item.product && typeof item.product === 'object' && typeof item.product.price === 'number') ? item.product.price : null);
 
-        const prodId = item.product?._id || item.product || item.productId;
-        if ((!pName || !pPrice || !pImage) && prodId && mongoose.Types.ObjectId.isValid(prodId)) {
+        let prodId = item.product?._id || item.product || item.productId;
+        if (typeof prodId === 'string' && prodId.includes('::')) {
+          prodId = prodId.split('::')[0];
+        }
+        const validProdObjectId = (prodId && mongoose.Types.ObjectId.isValid(prodId)) ? prodId : null;
+        if ((!pName || !pPrice || !pImage) && validProdObjectId) {
           try {
-            const dbProd = await Product.findById(prodId).select('name image price basePrice pricing');
+            const dbProd = await Product.findById(validProdObjectId).select('name image price basePrice pricing');
             if (dbProd) {
               if (!pName) pName = typeof dbProd.name === 'object' ? (dbProd.name.en || Object.values(dbProd.name)[0]) : dbProd.name;
               if (!pImage) pImage = dbProd.image || '';
@@ -581,14 +585,14 @@ exports.placeOrder = async (req, res) => {
         }
 
         return {
-          product: prodId,
+          product: validProdObjectId,
           name: pName || 'Food Item',
           image: pImage || '',
           quantity: item.quantity || item.qty || 1,
           price: Number(pPrice || 0),
           variation: item.variation ? { name: item.variation.name, price: item.variation.price } : undefined,
           addOns: item.addOns || [],
-          restaurant: restaurantId
+          restaurant: restaurant._id || restaurantId
         };
       })
     );
@@ -616,8 +620,8 @@ exports.placeOrder = async (req, res) => {
       customerId: customerIdCode,
       orderNumber,
       orderId: orderNumber,
-      restaurant: restaurantId,
-      store: restaurantId,
+      restaurant: restaurant._id,
+      store: restaurant._id,
       restaurantName: resolvedRestName,
       restaurantId: restaurantIdCode,
       cancellationWindowMinutes: dynamicCancellationMins,
@@ -792,25 +796,49 @@ exports.placeOrder = async (req, res) => {
         timestamp: new Date(),
         order: newOrder,
       };
-      socketService.emitToRestaurant(restaurantId.toString(), "order:new", restaurantOrderPayload);
-      socketService.emitToRestaurant(restaurantId.toString(), "restaurant:new_order", restaurantOrderPayload);
-      socketService.emitToRestaurant(restaurantId.toString(), "newOrder", restaurantOrderPayload);
-      
-      if (restaurant && restaurant.owner) {
-        const ownerIdStr = (restaurant.owner._id || restaurant.owner).toString();
-        socketService.emitToUser(ownerIdStr, "order:new", restaurantOrderPayload);
-        socketService.emitToUser(ownerIdStr, "newOrder", restaurantOrderPayload);
-        socketService.emitToUser(ownerIdStr, "restaurant:new_order", restaurantOrderPayload);
+      const restIdStr = (restaurant._id || restaurantId).toString();
+      const restCode = (restaurant.restaurantId || restaurantIdCode || "").toString();
+      const restPhone = (restaurant.contactNumber || restaurant.phone || restaurant.ownerMobile || "").toString().replace(/\D/g, "");
+      const ownerIdStr = (restaurant.owner?._id || restaurant.owner || "").toString();
+
+      const targetRooms = new Set();
+      if (restIdStr) {
+        targetRooms.add(`restaurant_${restIdStr}`);
+        targetRooms.add(`restaurant:${restIdStr}`);
+        targetRooms.add(restIdStr);
       }
+      if (restCode) {
+        targetRooms.add(`restaurant_${restCode}`);
+        targetRooms.add(`restaurant:${restCode}`);
+        targetRooms.add(restCode);
+      }
+      if (restPhone && restPhone.length >= 10) {
+        const tenDigit = restPhone.slice(-10);
+        targetRooms.add(`restaurant_${tenDigit}`);
+        targetRooms.add(`restaurant:${tenDigit}`);
+        targetRooms.add(tenDigit);
+      }
+      if (ownerIdStr) {
+        targetRooms.add(`user_${ownerIdStr}`);
+        targetRooms.add(`user:${ownerIdStr}`);
+        targetRooms.add(ownerIdStr);
+      }
+      targetRooms.add("restaurants");
+
+      targetRooms.forEach(room => {
+        socketService.emitToRestaurant(room, "order:new", restaurantOrderPayload);
+        socketService.emitToRestaurant(room, "restaurant:new_order", restaurantOrderPayload);
+        socketService.emitToRestaurant(room, "newOrder", restaurantOrderPayload);
+      });
 
       try {
         const io = req.app.get("io") || socketService.getIO();
         if (io) {
-          io.to(`restaurant_${restaurantId}`).emit("newOrder", restaurantOrderPayload);
-          io.to(`restaurant_${restaurantId}`).emit("order:new", restaurantOrderPayload);
-          io.to(`restaurant:${restaurantId}`).emit("newOrder", restaurantOrderPayload);
-          io.to(`restaurant:${restaurantId}`).emit("order:new", restaurantOrderPayload);
-          io.to("restaurants").emit("newOrder", restaurantOrderPayload);
+          targetRooms.forEach(room => {
+            io.to(room).emit("newOrder", restaurantOrderPayload);
+            io.to(room).emit("order:new", restaurantOrderPayload);
+            io.to(room).emit("restaurant:new_order", restaurantOrderPayload);
+          });
         }
       } catch (_) {}
     } catch (e) {
@@ -883,6 +911,185 @@ exports.placeOrder = async (req, res) => {
   } catch (error) {
     console.error("Place order error:", error);
     return sendError(res, 500, "Failed to place order", error.message);
+  }
+};
+
+exports.verifyPayment = async (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      orderId,
+      orderNumber,
+      id
+    } = req.body || {};
+
+    const searchTarget = razorpay_order_id || orderId || orderNumber || id || req.params.id;
+    if (!searchTarget) {
+      return res.status(400).json({ success: false, message: "Missing order or payment reference" });
+    }
+
+    let order = null;
+    if (razorpay_order_id) {
+      order = await Order.findOne({
+        $or: [
+          { razorpayOrderId: razorpay_order_id },
+          { "paymentDetails.razorpay_order_id": razorpay_order_id }
+        ]
+      });
+    }
+    if (!order && searchTarget) {
+      if (mongoose.Types.ObjectId.isValid(searchTarget)) {
+        order = await Order.findById(searchTarget);
+      }
+      if (!order) {
+        order = await Order.findOne({
+          $or: [
+            { orderNumber: searchTarget },
+            { orderId: searchTarget },
+            { "paymentDetails.razorpay_order_id": searchTarget }
+          ]
+        });
+      }
+    }
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    order.paymentStatus = "paid";
+    if (order.status === "pending") {
+      order.status = "placed";
+    }
+    if (razorpay_payment_id) {
+      order.paymentDetails = {
+        ...(order.paymentDetails || {}),
+        razorpay_payment_id,
+        razorpay_order_id: razorpay_order_id || order.paymentDetails?.razorpay_order_id,
+        razorpay_signature: razorpay_signature || order.paymentDetails?.razorpay_signature,
+        paidAt: new Date()
+      };
+    }
+    await order.save();
+
+    const restaurant = await Restaurant.findById(order.restaurant).populate('owner', 'name email mobile');
+    const user = order.customer ? await User.findById(order.customer) : null;
+    const restNameStr = restaurant?.name ? (typeof restaurant.name === "string" ? restaurant.name : (restaurant.name.en || restaurant.name.name || "Restaurant")) : (order.restaurantName || "Restaurant");
+    const deliveryAddress = order.deliveryAddress || { addressLine: 'Customer Address', location: { coordinates: [0, 0] } };
+
+    const restaurantOrderPayload = {
+      orderId: order.orderNumber,
+      orderNumber: order.orderNumber,
+      _id: order._id,
+      id: order.orderNumber,
+      backendId: order._id.toString(),
+      restaurantId: order.restaurantId,
+      restaurant: order.restaurant ? order.restaurant.toString() : "",
+      customerId: order.customerId,
+      customerName: user ? user.name : (order.customerName || "Customer"),
+      customerPhone: user ? (user.mobile || user.phone) : (order.customerPhone || ""),
+      customerLocation: {
+        latitude: deliveryAddress.location?.coordinates ? deliveryAddress.location.coordinates[1] : 0,
+        longitude: deliveryAddress.location?.coordinates ? deliveryAddress.location.coordinates[0] : 0,
+        coordinates: deliveryAddress.location?.coordinates || [0, 0]
+      },
+      deliveryAddress: deliveryAddress.addressLine || order.deliveryAddress,
+      customer: {
+        id: order.customer,
+        customerId: order.customerId,
+        name: user ? user.name : (order.customerName || "Customer"),
+        phone: user ? (user.mobile || user.phone) : (order.customerPhone || ""),
+        address: deliveryAddress.addressLine || order.deliveryAddress,
+        location: deliveryAddress.location?.coordinates || [0, 0]
+      },
+      restaurantName: restNameStr,
+      items: order.items,
+      itemCount: order.items?.length || 0,
+      amount: order.totalAmount,
+      totalAmount: order.totalAmount,
+      total: order.totalAmount,
+      payableAmount: order.totalAmount,
+      bill: order.billDetails,
+      paymentMethod: order.paymentMethod,
+      status: "placed",
+      timestamp: new Date(),
+      order: order
+    };
+
+    if (restaurant) {
+      const restIdStr = restaurant._id.toString();
+      const restCode = (restaurant.restaurantId || "").toString();
+      const restPhone = (restaurant.contactNumber || restaurant.phone || restaurant.ownerMobile || "").toString().replace(/\D/g, "");
+      const ownerIdStr = (restaurant.owner?._id || restaurant.owner || "").toString();
+
+      const targetRooms = new Set();
+      if (restIdStr) {
+        targetRooms.add(`restaurant_${restIdStr}`);
+        targetRooms.add(`restaurant:${restIdStr}`);
+        targetRooms.add(restIdStr);
+      }
+      if (restCode) {
+        targetRooms.add(`restaurant_${restCode}`);
+        targetRooms.add(`restaurant:${restCode}`);
+        targetRooms.add(restCode);
+      }
+      if (restPhone && restPhone.length >= 10) {
+        const tenDigit = restPhone.slice(-10);
+        targetRooms.add(`restaurant_${tenDigit}`);
+        targetRooms.add(`restaurant:${tenDigit}`);
+        targetRooms.add(tenDigit);
+      }
+      if (ownerIdStr) {
+        targetRooms.add(`user_${ownerIdStr}`);
+        targetRooms.add(`user:${ownerIdStr}`);
+        targetRooms.add(ownerIdStr);
+      }
+      targetRooms.add("restaurants");
+
+      targetRooms.forEach(room => {
+        socketService.emitToRestaurant(room, "order:new", restaurantOrderPayload);
+        socketService.emitToRestaurant(room, "restaurant:new_order", restaurantOrderPayload);
+        socketService.emitToRestaurant(room, "newOrder", restaurantOrderPayload);
+      });
+
+      try {
+        const io = req.app.get("io") || socketService.getIO();
+        if (io) {
+          targetRooms.forEach(room => {
+            io.to(room).emit("newOrder", restaurantOrderPayload);
+            io.to(room).emit("order:new", restaurantOrderPayload);
+            io.to(room).emit("restaurant:new_order", restaurantOrderPayload);
+          });
+        }
+      } catch (_) {}
+
+      if (restaurant.owner) {
+        try {
+          await sendNotification(
+            restaurant.owner._id || restaurant.owner,
+            "New Order Received",
+            `Order #${order.orderNumber} - ₹${order.totalAmount}`,
+            { orderId: order.orderNumber, backendOrderId: order._id, restaurantId: order.restaurant, totalAmount: order.totalAmount }
+          );
+        } catch (_) {}
+      }
+    }
+
+    try {
+      socketService.emitToAdmin("order:new", restaurantOrderPayload);
+      const io = req.app.get("io") || socketService.getIO();
+      if (io) io.to("admin:dashboard").emit("newOrder", restaurantOrderPayload);
+    } catch (_) {}
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment verified successfully",
+      order: enrichOrderWithUnifiedPricing(order.toObject())
+    });
+  } catch (error) {
+    console.error("Verify payment error:", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.getMyOrders = async (req, res) => {
@@ -4210,36 +4417,57 @@ exports.notifyCustomerArrived = async (req, res) => {
 exports.getOrdersForRestaurantById = async (req, res) => {
   try {
     const paramId = req.params.id;
+    let targetRestDoc = null;
     let targetRestId = null;
 
-    if (isValidObjectId(paramId)) {
-      const restDoc = await Restaurant.findById(paramId).select('_id');
-      if (restDoc) {
-        targetRestId = restDoc._id;
-      } else {
-        const restByOwner = await Restaurant.findOne({ owner: paramId }).select('_id');
-        if (restByOwner) targetRestId = restByOwner._id;
+    if (mongoose.Types.ObjectId.isValid(paramId)) {
+      targetRestDoc = await Restaurant.findById(paramId);
+      if (targetRestDoc) targetRestId = targetRestDoc._id;
+      if (!targetRestDoc) {
+        targetRestDoc = await Restaurant.findOne({ owner: paramId });
+        if (targetRestDoc) targetRestId = targetRestDoc._id;
       }
     }
 
-    if (!targetRestId && typeof paramId === 'string') {
-      const cleanPhone = paramId.replace(/\D/g, '');
-      if (cleanPhone.length >= 10) {
-        const restByPhone = await Restaurant.findOne({
-          $or: [
+    if (!targetRestId && paramId) {
+      const cleanPhone = String(paramId).replace(/\D/g, "");
+      targetRestDoc = await Restaurant.findOne({
+        $or: [
+          { restaurantId: paramId },
+          { slug: paramId },
+          ...(cleanPhone.length >= 10 ? [
+            { contactNumber: cleanPhone },
             { contactNumber: new RegExp(cleanPhone.slice(-10)) },
             { ownerMobile: new RegExp(cleanPhone.slice(-10)) },
+            { phone: cleanPhone },
             { phone: new RegExp(cleanPhone.slice(-10)) }
-          ]
-        }).select('_id');
-        if (restByPhone) targetRestId = restByPhone._id;
-      }
+          ] : [])
+        ]
+      });
+      if (targetRestDoc) targetRestId = targetRestDoc._id;
     }
 
-    if (targetRestId) {
-      const orders = await Order.find({ restaurant: targetRestId })
+    if (!targetRestId && req.user) {
+      targetRestDoc = await Restaurant.findOne({ owner: req.user._id });
+      if (!targetRestDoc && req.user.restaurantId) {
+        targetRestDoc = await Restaurant.findById(req.user.restaurantId);
+      }
+      if (targetRestDoc) targetRestId = targetRestDoc._id;
+    }
+
+    if (targetRestId || targetRestDoc) {
+      const restId = targetRestId || targetRestDoc._id;
+      const restCode = targetRestDoc?.restaurantId;
+      const orders = await Order.find({
+        $or: [
+          { restaurant: restId },
+          { store: restId },
+          ...(restCode ? [{ restaurantId: restCode }] : [])
+        ]
+      })
         .populate("customer", "name email mobile phone")
         .populate({ path: "rider", populate: { path: "user", select: "name mobile profilePic" } })
+        .populate("items.product", "name image price")
         .sort({ createdAt: -1 });
 
       const formattedOrders = orders.map((order) => {
@@ -4259,7 +4487,7 @@ exports.getOrdersForRestaurantById = async (req, res) => {
       return res.status(200).json({ success: true, orders: formattedOrders });
     }
 
-    if (isValidObjectId(paramId)) {
+    if (mongoose.Types.ObjectId.isValid(paramId)) {
       return exports.getOrderDetailsRestaurant(req, res);
     }
 
@@ -4518,48 +4746,7 @@ exports.sendPickupOtpVendor = async (req, res) => {
   }
 };
 
-exports.getOrdersForRestaurantById = async (req, res) => {
-  try {
-    const id = req.params.id;
-    let restaurant = null;
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      restaurant = await Restaurant.findById(id);
-    }
-    if (!restaurant) {
-      const cleanMobile = (id || "").toString().replace(/\D/g, "");
-      const ownerUser = cleanMobile ? await User.findOne({ mobile: cleanMobile }) : null;
-      restaurant = await Restaurant.findOne({
-        $or: [
-          { restaurantId: id },
-          { slug: id },
-          ...(cleanMobile ? [{ contactNumber: cleanMobile }, { contactNumber: { $regex: cleanMobile } }, { phone: cleanMobile }] : []),
-          ...(ownerUser ? [{ owner: ownerUser._id }] : []),
-          ...(mongoose.Types.ObjectId.isValid(id) ? [{ _id: id }] : [])
-        ]
-      });
-    }
-
-    let query = {};
-    if (restaurant) {
-      query = { restaurant: restaurant._id };
-    } else if (mongoose.Types.ObjectId.isValid(id)) {
-      query = { restaurant: id };
-    } else {
-      return res.status(200).json({ success: true, orders: [] });
-    }
-
-    const orders = await Order.find(query)
-      .populate("customer", "name email mobile phone")
-      .populate("rider", "user rating vehicle")
-      .populate("rider.user", "name mobile profilePic")
-      .populate("items.product", "name image price")
-      .sort({ createdAt: -1 });
-
-    return res.status(200).json({ success: true, orders: orders || [] });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
+// duplicate getOrdersForRestaurantById removed
 
 exports.customerCancelOrder = async (req, res) => {
   try {

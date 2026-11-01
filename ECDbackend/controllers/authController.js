@@ -426,6 +426,8 @@ exports.loginUser = async (req, res) => {
     const token = generateToken(res, user);
     res.status(200).json({
       token,
+      restaurantId: restaurantDoc?._id || null,
+      restaurant: restaurantDoc || null,
       user: {
         _id: user._id,
         id: user._id,

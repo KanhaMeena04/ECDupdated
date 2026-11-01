@@ -155,7 +155,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _restaurantName = storedName.isNotEmpty ? storedName : 'My Restaurant';
               }
               _isOnline = data['isActive'] ?? data['restaurant']?['isActive'] ?? true;
-              final extractedRestId = data['restaurant']?['_id'] ?? data['_id'] ?? data['restaurantId'] ?? data['restaurant']?['id'] ?? data['id'];
+              final extractedRestId = data['restaurant']?['_id'] ?? data['_id'] ?? data['restaurantId'] ?? data['restaurant']?['id'] ?? data['id'] ?? data['user']?['restaurantId'];
               if (extractedRestId != null && extractedRestId.toString().isNotEmpty && extractedRestId.toString() != 'null') {
                 _restaurantId = extractedRestId.toString();
                 prefs.setString('restaurantId', _restaurantId);
@@ -165,6 +165,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ApiConstants.setAuthenticatedSession(restaurantId: _restaurantId, authToken: sToken);
                   } catch (_) {}
                 }
+                _setupSocketListener();
               }
             });
           }
@@ -309,17 +310,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
   void _setupSocketListener() async {
     final prefs = await SharedPreferences.getInstance();
-    final restId = _restaurantId.isNotEmpty ? _restaurantId : (prefs.getString('restaurantId') ?? '');
+    var restId = _restaurantId.isNotEmpty ? _restaurantId : (prefs.getString('restaurantId') ?? '');
+    final savedPhone = prefs.getString('userPhone') ?? '';
+    if (restId.isEmpty && savedPhone.isNotEmpty) restId = savedPhone;
     final token = prefs.getString('token') ?? '';
     if (restId.isNotEmpty) {
       await RestaurantSocketService.init(restId, token);
-      _newOrderSocketCallback = (data) {
-        if (mounted) {
-          debugPrint('Dashboard received live new order socket event!');
-          _fetchLiveOrders(isSilent: true);
-        }
-      };
-      RestaurantSocketService.onNewOrder(_newOrderSocketCallback!);
+      if (_newOrderSocketCallback == null) {
+        _newOrderSocketCallback = (data) {
+          if (mounted) {
+            debugPrint('Dashboard received live new order socket event!');
+            _fetchLiveOrders(isSilent: true);
+          }
+        };
+        RestaurantSocketService.onNewOrder(_newOrderSocketCallback!);
+      }
       RestaurantSocketService.onStatusUpdate((data) {
         if (!mounted || data == null) return;
         final Map<String, dynamic>? payload = (data is Map<String, dynamic>)

@@ -70,9 +70,13 @@ class RestaurantSocketService {
 
   static void _joinRoom() {
     if (_currentRestaurantId.isNotEmpty && _socket?.connected == true) {
-      _socket?.emit('joinOrder', 'restaurant_$_currentRestaurantId');
+      _socket?.emit('joinRestaurant', _currentRestaurantId);
       _socket?.emit('joinRoom', 'restaurant_$_currentRestaurantId');
-      debugPrint('[RestaurantSocket] Joined room: restaurant_$_currentRestaurantId');
+      _socket?.emit('joinRoom', 'restaurant:$_currentRestaurantId');
+      _socket?.emit('joinRoom', _currentRestaurantId);
+      _socket?.emit('joinOrder', 'restaurant_$_currentRestaurantId');
+      _socket?.emit('joinRoom', 'restaurants');
+      debugPrint('[RestaurantSocket] Joined rooms for restaurant: $_currentRestaurantId');
     }
   }
 

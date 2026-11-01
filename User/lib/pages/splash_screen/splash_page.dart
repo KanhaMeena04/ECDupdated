@@ -15,19 +15,31 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
-
   Timer? _timer;
+  bool _navigated = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.read<UserProvider>().fetchProfile();
+        try {
+          context.read<UserProvider>().fetchProfile();
+        } catch (e) {
+          debugPrint('Splash prefetch profile error: $e');
+        }
       }
     });
+
     _timer = Timer(const Duration(milliseconds: 1200), () {
-      if (mounted) {
+      if (mounted && !_navigated) {
+        _navigate();
+      }
+    });
+
+    // Failsafe timer: after 2.5s maximum, force navigation so app NEVER gets stuck
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      if (mounted && !_navigated) {
         _navigate();
       }
     });
@@ -40,13 +52,27 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> _navigate() async {
-    SharedPreferences pref = await SharedPreferences.getInstance();
-    bool onboardDone = pref.getBool('onboardStatus') ?? false;
+    if (_navigated) return;
+    _navigated = true;
 
-    if (mounted) {
+    try {
+      final pref = await SharedPreferences.getInstance().timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => throw TimeoutException('Prefs timeout'),
+      );
+      final onboardDone = pref.getBool('onboardStatus') ?? false;
+
+      if (!mounted) return;
+
       if (!onboardDone) {
         context.go(AppRoutes.onboarding);
       } else {
+        context.go(AppRoutes.home);
+      }
+    } catch (e, stack) {
+      debugPrint('Splash navigation error: $e\n$stack');
+      if (mounted) {
+        // Safe fallback - default to home
         context.go(AppRoutes.home);
       }
     }

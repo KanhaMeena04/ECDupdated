@@ -27,26 +27,48 @@ void main() async {
   } catch (e) {
     debugPrint('Preheat error: $e');
   }
+
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    await NotificationService.initialize();
+    // Timeout Firebase init so a slow network or cold start never blocks app launch
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)
+        .timeout(const Duration(seconds: 3));
+
+    // Initialize notification service in background (non-blocking)
+    NotificationService.initialize().catchError((e) {
+      debugPrint('NotificationService init error: $e');
+    });
 
     if (!kIsWeb) {
-      await FirebaseCrashlytics.instance
-          .setCrashlyticsCollectionEnabled(kReleaseMode);
+      try {
+        await FirebaseCrashlytics.instance
+            .setCrashlyticsCollectionEnabled(kReleaseMode);
 
-      FlutterError.onError = (FlutterErrorDetails details) {
-        FlutterError.presentError(details);
-        FirebaseCrashlytics.instance.recordFlutterFatalError(details);
-      };
+        FlutterError.onError = (FlutterErrorDetails details) {
+          FlutterError.presentError(details);
+          try {
+            FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+          } catch (_) {}
+        };
 
-      PlatformDispatcher.instance.onError = (error, stack) {
-        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-        return true;
-      };
+        PlatformDispatcher.instance.onError = (error, stack) {
+          try {
+            FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+          } catch (_) {}
+          return true;
+        };
+      } catch (ce) {
+        debugPrint('Crashlytics setup notice: $ce');
+      }
     }
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      debugPrint('Platform error: $error\n$stack');
+      return true;
+    };
   }
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);

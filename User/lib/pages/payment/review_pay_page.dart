@@ -603,14 +603,18 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
       'restaurantId': cart.restaurantId ?? '',
       'paymentMethod': isCod ? 'cod' : 'online',
       'items': cart.items
-          .map((item) => ({
-                'product': item.product.id,
-                'productId': item.product.id,
-                'name': item.product.name,
-                'image': item.product.image,
-                'price': item.product.price,
-                'quantity': item.quantity,
-              }))
+          .map((item) {
+            final rawId = item.product.id;
+            final cleanId = rawId.contains('::') ? rawId.split('::').first : rawId;
+            return {
+              'product': cleanId,
+              'productId': cleanId,
+              'name': item.product.name,
+              'image': item.product.image,
+              'price': item.product.price,
+              'quantity': item.quantity,
+            };
+          })
           .toList(),
       'totalPrice': cart.finalAmount,
       'tipAmount': isSelf ? 0 : _selectedTip,

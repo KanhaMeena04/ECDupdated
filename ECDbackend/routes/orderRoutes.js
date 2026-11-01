@@ -3,6 +3,7 @@ const router = express.Router();
 const rateLimit = require("express-rate-limit");
 const {
   protect,
+  optionalAuth,
   customer,
   restaurantOwner,
   rider,
@@ -82,6 +83,7 @@ const {
   failOrderCustomer,
   verifySelfPickupOTP,
   rateCustomer,
+  verifyPayment,
 } = require("../controllers/orderController");
 const { getMyActiveOrder } = require("../controllers/riderController");
 const { calculateDeliveryFee } = require("../controllers/paymentSystemController");
@@ -106,6 +108,18 @@ router.post("/restaurant/delete/:orderId", protect, deleteOrderVendor);
 router.delete("/restaurant/delete/:orderId", protect, deleteOrderVendor);
 router.post("/restaurant/send-pickup-otp/:orderId", protect, sendPickupOtpVendor);
 
+// Specific Restaurant Routes (MUST BE BEFORE /:id to prevent route shadowing!)
+router.get("/restaurant", optionalAuth, getRestaurantOrders);
+router.get("/restaurant/pending", protect, restaurantOwner, getPendingOrdersForRestaurant);
+router.get("/restaurant/completed", protect, restaurantOwner, getCompletedOrdersForRestaurant);
+
+
+router.get("/restaurant/:id/details", optionalAuth, getRestaurantOrderDetails);
+router.get("/restaurant/:id", optionalAuth, getOrdersForRestaurantById);
+
+// Payment Verification Route (MUST BE BEFORE /:id!)
+router.post("/verify-payment", optionalAuth, verifyPayment);
+
 router.get("/:id/details", protect, generalOrderLimiter, getOrderDetails);
 router.get("/:id", protect, generalOrderLimiter, getOrderDetails);
 router.get("/:id/customer", protect, customer, generalOrderLimiter, getOrderDetailsCustomer); // ✅ Explicit customer route
@@ -117,11 +131,11 @@ router.get("/:id/timeline", protect, generalOrderLimiter, getOrderTimeline);
 router.post("/:id/rate-rider", protect, customer, validateRateRider, handleValidationErrors, generalOrderLimiter, rateRider);
 router.post("/:id/rate-customer", protect, rateCustomer);
 router.post("/:id/resend-otp", protect, generalOrderLimiter, resendOTP);
-router.get("/restaurant", protect, restaurantOwner, getRestaurantOrders);
-router.get("/restaurant/:id/details", protect, restaurantOwner, getRestaurantOrderDetails);
-router.get("/restaurant/:id", protect, getOrdersForRestaurantById);
-router.get("/restaurant/pending", protect, restaurantOwner, getPendingOrdersForRestaurant);
-router.get("/restaurant/completed", protect, restaurantOwner, getCompletedOrdersForRestaurant);
+
+
+
+
+
 const canUpdateOrderStatus = (req, res, next) => {
   if (req.user && ['restaurant_owner', 'rider', 'driver', 'admin'].includes(req.user.role)) {
     return next();

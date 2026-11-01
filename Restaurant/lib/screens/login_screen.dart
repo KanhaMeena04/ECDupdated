@@ -1626,12 +1626,16 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final token = data['token'] ?? data['authToken'] ?? '';
-        final restaurantId =
-            data['restaurantId'] ?? data['restaurant']?['_id'] ?? '';
+        final restaurantId = (data['restaurantId'] ??
+                data['restaurant']?['_id'] ??
+                data['user']?['restaurantId'] ??
+                data['restaurant']?['id'] ??
+                '')
+            .toString();
         final bool isApproved =
             data['isApproved'] == true || data['restaurantApproved'] == true;
         final bool hasRestaurant =
-            data['restaurant'] != null || restaurantId.isNotEmpty;
+            data['restaurant'] != null || (restaurantId.isNotEmpty && restaurantId != 'null');
 
         String restName = '';
         if (data['name'] != null && data['name'].toString().isNotEmpty) {
@@ -1645,15 +1649,17 @@ class _LoginScreenState extends State<LoginScreen> {
           restName = data['user']['name'].toString();
         }
 
-        if (token.isNotEmpty && restaurantId.isNotEmpty) {
-          ApiConstants.setAuthenticatedSession(
-            restaurantId: restaurantId,
-            authToken: token,
-          );
+        if (token.isNotEmpty) {
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('restaurantId', restaurantId);
           await prefs.setString('token', token);
           await prefs.setString('userPhone', phone);
+          if (restaurantId.isNotEmpty && restaurantId != 'null') {
+            ApiConstants.setAuthenticatedSession(
+              restaurantId: restaurantId,
+              authToken: token,
+            );
+            await prefs.setString('restaurantId', restaurantId);
+          }
           if (restName.isNotEmpty && restName != 'null') {
             await prefs.setString('restaurantName', restName);
           }
@@ -1758,8 +1764,12 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final token = data['token'] ?? data['authToken'] ?? '';
-        final restaurantId =
-            data['restaurantId'] ?? data['restaurant']?['_id'] ?? '';
+        final restaurantId = (data['restaurantId'] ??
+                data['restaurant']?['_id'] ??
+                data['user']?['restaurantId'] ??
+                data['restaurant']?['id'] ??
+                '')
+            .toString();
         final bool isApproved =
             data['isApproved'] == true || data['restaurantApproved'] == true;
 
@@ -1775,15 +1785,17 @@ class _LoginScreenState extends State<LoginScreen> {
           restName = data['user']['name'].toString();
         }
 
-        if (token.isNotEmpty && restaurantId.isNotEmpty) {
-          ApiConstants.setAuthenticatedSession(
-            restaurantId: restaurantId,
-            authToken: token,
-          );
+        if (token.isNotEmpty) {
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('restaurantId', restaurantId);
           await prefs.setString('token', token);
           await prefs.setString('userPhone', phone);
+          if (restaurantId.isNotEmpty && restaurantId != 'null') {
+            ApiConstants.setAuthenticatedSession(
+              restaurantId: restaurantId,
+              authToken: token,
+            );
+            await prefs.setString('restaurantId', restaurantId);
+          }
           if (restName.isNotEmpty && restName != 'null') {
             await prefs.setString('restaurantName', restName);
           }

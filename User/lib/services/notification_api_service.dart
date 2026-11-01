@@ -27,13 +27,7 @@ class NotificationApiService {
     if (kFrontendPreviewMode) return true;
     try {
       final response = await http.post(
-        Uri.parse('$notificationsUrl/register-device'),
-        headers: await _getHeaders(),
-        body: jsonEncode({
-          'fcmToken': fcmToken,
-          'platform': kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android'),
-        }),
-      );
+        Uri.parse('$notificationsUrl/register-device'), headers: await _getHeaders(), body: jsonEncode({'fcmToken': fcmToken, 'platform': kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android')})).timeout(const Duration(seconds: 5));
       
       debugPrint('API Response [registerDevice]: ${response.statusCode}');
       return response.statusCode == 200 || response.statusCode == 201;
@@ -138,3 +132,4 @@ class NotificationApiService {
     }
   }
 }
+
