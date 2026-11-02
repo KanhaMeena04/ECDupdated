@@ -371,6 +371,27 @@ const LiveSupportChat = () => {
 
   return (
     <div className="space-y-4">
+      <style>{`
+        .chat-custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .chat-custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 9999px;
+        }
+        .chat-custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 9999px;
+        }
+        .chat-custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #248C70;
+        }
+        .chat-custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+      `}</style>
+
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-[#173F35] to-[#248C70] rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -406,11 +427,11 @@ const LiveSupportChat = () => {
       </div>
 
       {/* Main Chat Workspace */}
-      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[620px] max-h-[750px]">
+      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden grid grid-cols-1 md:grid-cols-12 h-[calc(100vh-190px)] min-h-[620px] max-h-[850px]">
         {/* Left Column: Conversations List & Search (4 cols) */}
-        <div className="md:col-span-4 border-r border-gray-200 flex flex-col h-full bg-gray-50/50">
+        <div className="md:col-span-4 border-r border-gray-200 flex flex-col h-full min-h-0 bg-gray-50/50 overflow-hidden">
           {/* Search & Filter Header */}
-          <div className="p-3.5 border-b border-gray-200 space-y-2.5 bg-white">
+          <div className="p-3.5 border-b border-gray-200 space-y-2.5 bg-white shrink-0">
             <div className="relative">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
               <input
@@ -481,7 +502,7 @@ const LiveSupportChat = () => {
           </div>
 
           {/* Left Panel Scroll Area */}
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-100 chat-custom-scrollbar" style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
             {/* 1. Directory Search Results View (when user types search) */}
             {searchQuery.trim().length > 0 ? (
               <div className="divide-y divide-gray-100">
@@ -689,11 +710,11 @@ const LiveSupportChat = () => {
         </div>
 
         {/* Right Column: Chat Stream & Message Sender (8 cols) */}
-        <div className="md:col-span-8 flex flex-col h-full bg-white">
+        <div className="md:col-span-8 flex flex-col h-full min-h-0 bg-white overflow-hidden">
           {selectedChat ? (
             <>
               {/* Chat Stream Header */}
-              <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white shadow-sm">
+              <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white shadow-sm shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-[#248C70] text-white flex items-center justify-center font-black text-sm">
                     {selectedChat.userName ? selectedChat.userName[0].toUpperCase() : "C"}
@@ -756,7 +777,7 @@ const LiveSupportChat = () => {
               </div>
 
               {/* Chat Messages Stream Area */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 bg-[#F8FAFC]">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-3 bg-[#F8FAFC] chat-custom-scrollbar" style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
                 {loadingChat ? (
                   <div className="p-8 text-center text-xs font-semibold text-gray-500">
                     Loading conversation history...
@@ -807,7 +828,8 @@ const LiveSupportChat = () => {
               </div>
 
               {/* Quick Reply Snippets */}
-              <div className="px-4 py-2 border-t border-gray-100 bg-white flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              {/* Quick Reply Templates Bar */}
+              <div className="px-4 py-2 border-t border-gray-100 bg-white flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
                 <span className="text-[10px] font-bold text-gray-400 shrink-0">Quick Reply:</span>
                 {quickReplies.map((q, idx) => (
                   <button
@@ -825,7 +847,7 @@ const LiveSupportChat = () => {
               </div>
 
               {/* Message Input Box */}
-              <form onSubmit={handleSendReply} className="p-3 border-t border-gray-200 bg-white flex items-center gap-2">
+              <form onSubmit={handleSendReply} className="p-3 border-t border-gray-200 bg-white flex items-center gap-2 shrink-0">
                 <input
                   ref={replyInputRef}
                   type="text"
