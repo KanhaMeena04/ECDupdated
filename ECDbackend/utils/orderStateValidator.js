@@ -199,7 +199,7 @@ const validateRiderDelivery = (order, riderId) => {
   if (!order.rider || order.rider.toString() !== riderId.toString()) {
     return { valid: false, error: 'Order not assigned to you' };
   }
-  const allowed = ["delivery_arrived", "out_for_delivery", "picked_up", "on_the_way", "reached_customer_location", "assigned"];
+  const allowed = ["delivery_arrived", "out_for_delivery", "picked_up", "on_the_way", "reached_customer_location", "assigned", "delivered"];
   if (!allowed.includes(order.status)) {
     return { valid: false, error: `Cannot deliver order from status: ${order.status}` };
   }

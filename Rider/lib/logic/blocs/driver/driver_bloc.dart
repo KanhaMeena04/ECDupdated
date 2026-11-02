@@ -289,6 +289,8 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
 
         if (result['data'] is Map && result['data']['message'] != null) {
           message = result['data']['message'].toString();
+        } else if (result['message'] != null && result['message'].toString().isNotEmpty) {
+          message = result['message'].toString();
         }
 
         if (event.status == 'delivered' || event.status == 'completed') {
@@ -331,6 +333,8 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
 
         if (result['data'] is Map && result['data']['message'] != null) {
           errorMessage = result['data']['message'].toString();
+        } else if (result['message'] != null && result['message'].toString().isNotEmpty) {
+          errorMessage = result['message'].toString();
         }
 
         emit(DriverError(

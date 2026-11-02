@@ -3539,6 +3539,9 @@ exports.verifyDelivery = async (req, res) => {
     if (!order) return res.status(404).json({ message: "Order not found" });
     const riderProfile = await Rider.findOne({ user: req.user._id });
     if (!riderProfile) return res.status(404).json({ message: "Rider profile not found" });
+    if (order.status === 'delivered' || order.deliveryStatus === 'delivered') {
+      return res.status(200).json({ success: true, message: "Order Delivered Successfully!", order });
+    }
     const riderCheck = orderStateValidator.validateRiderDelivery(order, riderProfile._id);
     if (!riderCheck.valid) return res.status(400).json({ message: riderCheck.error });
     if (new Date() > order.deliveryOtpExpiresAt) {

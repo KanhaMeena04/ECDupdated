@@ -521,13 +521,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                             _isLoading = false;
                           });
                           if (mounted) {
-                            context.read<DriverBloc>().add(
-                              UpdateOrderStatus(
-                                orderId: orderId,
-                                status: 'delivered',
-                                otp: code,
-                              ),
-                            );
+                            context.read<DriverBloc>().add(const LoadActiveOrders());
                             _showOrderDeliveredDialog();
                           }
                         } else {
