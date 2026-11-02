@@ -230,7 +230,22 @@ export default function PricingControlTower() {
     try {
       setLoading(true);
       await api.put("/api/pricing/surge-config", {
-        ...surgeConfig,
+        peakHour: {
+          ...surgeConfig.peakHour,
+          fee: surgeConfig.peakHour?.fee !== "" && surgeConfig.peakHour?.fee !== undefined ? Number(surgeConfig.peakHour.fee) : 0,
+        },
+        nightCharge: {
+          ...surgeConfig.nightCharge,
+          fee: surgeConfig.nightCharge?.fee !== "" && surgeConfig.nightCharge?.fee !== undefined ? Number(surgeConfig.nightCharge.fee) : 0,
+        },
+        rainCharge: {
+          ...surgeConfig.rainCharge,
+          fee: surgeConfig.rainCharge?.fee !== "" && surgeConfig.rainCharge?.fee !== undefined ? Number(surgeConfig.rainCharge.fee) : 0,
+        },
+        highDemandCharge: {
+          ...surgeConfig.highDemandCharge,
+          fee: surgeConfig.highDemandCharge?.fee !== "" && surgeConfig.highDemandCharge?.fee !== undefined ? Number(surgeConfig.highDemandCharge.fee) : 0,
+        },
         reason: "Admin updated surge pricing charges",
       });
       showAlert("Surge pricing saved successfully!");
@@ -291,10 +306,19 @@ export default function PricingControlTower() {
       };
 
       await api.put("/api/pricing/fee-config", {
-        platformFeeConfig,
-        packagingFeeConfig,
+        platformFeeConfig: {
+          ...platformFeeConfig,
+          fee: platformFeeConfig.fee !== "" && platformFeeConfig.fee !== undefined ? Number(platformFeeConfig.fee) : 0,
+        },
+        packagingFeeConfig: {
+          ...packagingFeeConfig,
+          globalPackagingFee: packagingFeeConfig.globalPackagingFee !== "" && packagingFeeConfig.globalPackagingFee !== undefined ? Number(packagingFeeConfig.globalPackagingFee) : 0,
+        },
         tipConfig: updatedTipConfig,
-        taxConfig,
+        taxConfig: {
+          ...taxConfig,
+          gstPercent: taxConfig.gstPercent !== "" && taxConfig.gstPercent !== undefined ? Number(taxConfig.gstPercent) : 0,
+        },
         reason: "Admin updated platform, packaging, rider tip & tax fee settings",
       });
       setTipConfig(updatedTipConfig);
@@ -534,7 +558,7 @@ export default function PricingControlTower() {
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={4}>
-                  <TextField fullWidth size="small" label="Fee (₹)" type="number" value={surgeConfig.peakHour?.fee || 15} onChange={(e) => setSurgeConfig({ ...surgeConfig, peakHour: { ...surgeConfig.peakHour, fee: e.target.value } })} />
+                  <TextField fullWidth size="small" label="Fee (₹)" type="number" value={surgeConfig.peakHour?.fee !== undefined && surgeConfig.peakHour?.fee !== null ? surgeConfig.peakHour.fee : 15} onChange={(e) => setSurgeConfig({ ...surgeConfig, peakHour: { ...surgeConfig.peakHour, fee: e.target.value } })} />
                 </Grid>
                 <Grid item xs={4}>
                   <TextField fullWidth size="small" label="Start Time" value={surgeConfig.peakHour?.startTime || "12:00"} onChange={(e) => setSurgeConfig({ ...surgeConfig, peakHour: { ...surgeConfig.peakHour, startTime: e.target.value } })} />
@@ -562,7 +586,7 @@ export default function PricingControlTower() {
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={4}>
-                  <TextField fullWidth size="small" label="Fee (₹)" type="number" value={surgeConfig.nightCharge?.fee || 25} onChange={(e) => setSurgeConfig({ ...surgeConfig, nightCharge: { ...surgeConfig.nightCharge, fee: e.target.value } })} />
+                  <TextField fullWidth size="small" label="Fee (₹)" type="number" value={surgeConfig.nightCharge?.fee !== undefined && surgeConfig.nightCharge?.fee !== null ? surgeConfig.nightCharge.fee : 25} onChange={(e) => setSurgeConfig({ ...surgeConfig, nightCharge: { ...surgeConfig.nightCharge, fee: e.target.value } })} />
                 </Grid>
                 <Grid item xs={4}>
                   <TextField fullWidth size="small" label="Start Time" value={surgeConfig.nightCharge?.startTime || "23:00"} onChange={(e) => setSurgeConfig({ ...surgeConfig, nightCharge: { ...surgeConfig.nightCharge, startTime: e.target.value } })} />
@@ -590,7 +614,7 @@ export default function PricingControlTower() {
               <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                 Special rain delivery incentive charge
               </Typography>
-              <TextField fullWidth size="small" label="Rain Fee (₹)" type="number" value={surgeConfig.rainCharge?.fee || 20} onChange={(e) => setSurgeConfig({ ...surgeConfig, rainCharge: { ...surgeConfig.rainCharge, fee: e.target.value } })} />
+              <TextField fullWidth size="small" label="Rain Fee (₹)" type="number" value={surgeConfig.rainCharge?.fee !== undefined && surgeConfig.rainCharge?.fee !== null ? surgeConfig.rainCharge.fee : 20} onChange={(e) => setSurgeConfig({ ...surgeConfig, rainCharge: { ...surgeConfig.rainCharge, fee: e.target.value } })} />
             </Card>
 
             <Card sx={{ borderRadius: 3, p: 3, mb: 3 }}>
@@ -608,7 +632,7 @@ export default function PricingControlTower() {
               <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                 Applied during sudden order surges
               </Typography>
-              <TextField fullWidth size="small" label="Surge Fee (₹)" type="number" value={surgeConfig.highDemandCharge?.fee || 15} onChange={(e) => setSurgeConfig({ ...surgeConfig, highDemandCharge: { ...surgeConfig.highDemandCharge, fee: e.target.value } })} />
+              <TextField fullWidth size="small" label="Surge Fee (₹)" type="number" value={surgeConfig.highDemandCharge?.fee !== undefined && surgeConfig.highDemandCharge?.fee !== null ? surgeConfig.highDemandCharge.fee : 15} onChange={(e) => setSurgeConfig({ ...surgeConfig, highDemandCharge: { ...surgeConfig.highDemandCharge, fee: e.target.value } })} />
             </Card>
 
             <Button variant="contained" fullWidth sx={{ bgcolor: PRIMARY_COLOR, fontWeight: 700 }} onClick={handleSaveSurgeConfig}>

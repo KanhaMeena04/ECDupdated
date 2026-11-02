@@ -456,7 +456,7 @@ exports.placeOrder = async (req, res) => {
       const platformFee = sysSettings?.platformFeeConfig?.enabled !== false ? (sysSettings?.platformFeeConfig?.fee || 0) : 0;
       const discount = Number(req.body.discount || 0);
       const tip = isSelfPickup ? 0 : Number(req.body.tip || 0);
-      const commRate = Number(restaurant.adminCommission || sysSettings?.commissionConfig?.globalCommissionPercent || 20);
+      const commRate = Number(restaurant.adminCommission !== undefined && restaurant.adminCommission !== null && !isNaN(restaurant.adminCommission) ? restaurant.adminCommission : (sysSettings?.commissionConfig?.globalCommissionPercent ?? 20));
       const adminCommissionAmount = Math.round(((subtotal * commRate) / 100) * 100) / 100;
       const restaurantNetPayable = Math.max(0, Math.round((subtotal + packaging - adminCommissionAmount) * 100) / 100);
       const toPay = req.body.totalAmount || Math.max(0, Math.round((subtotal + tax + packaging + deliveryFee + platformFee - discount + tip) * 100) / 100);

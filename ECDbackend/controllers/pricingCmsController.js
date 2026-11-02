@@ -186,6 +186,7 @@ exports.updateSurgeConfig = async (req, res) => {
     if (nightCharge) settings.surgeConfig.nightCharge = { ...settings.surgeConfig.nightCharge, ...nightCharge };
     if (rainCharge) settings.surgeConfig.rainCharge = { ...settings.surgeConfig.rainCharge, ...rainCharge };
     if (highDemandCharge) settings.surgeConfig.highDemandCharge = { ...settings.surgeConfig.highDemandCharge, ...highDemandCharge };
+    settings.markModified('surgeConfig');
 
     await settings.save();
 

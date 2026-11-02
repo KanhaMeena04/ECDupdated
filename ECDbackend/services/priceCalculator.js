@@ -62,14 +62,25 @@ async function calculateOrderPrice({
     }
 
     // 2. Tax & Packaging Calculation
-    const taxRate = restaurant.taxConfig?.gstPercent ? (restaurant.taxConfig.gstPercent / 100) : 0.05;
-    const tax = itemTotal * taxRate;
+    let tax = 0;
+    let taxRate = 0;
+    const isTaxEnabled = adminSetting.taxConfig?.enabled !== false;
+    if (isTaxEnabled) {
+      const adminGst = (adminSetting.taxConfig?.gstPercent !== undefined && adminSetting.taxConfig?.gstPercent !== null)
+        ? Number(adminSetting.taxConfig.gstPercent)
+        : 5;
+      const effectiveGst = (restaurant.taxConfig?.gstPercent !== undefined && restaurant.taxConfig?.gstPercent !== null && restaurant.taxConfig?.gstPercent !== '')
+        ? Number(restaurant.taxConfig.gstPercent)
+        : adminGst;
+      taxRate = effectiveGst / 100;
+      tax = itemTotal * taxRate;
+    }
     
     let packaging = 0;
     if (adminSetting.packagingFeeConfig?.enabled !== false) {
-      packaging = restaurant.packagingCharge !== undefined && restaurant.packagingCharge > 0
-        ? restaurant.packagingCharge
-        : (adminSetting.packagingFeeConfig?.globalPackagingFee || 0);
+      packaging = (restaurant.packagingCharge !== undefined && restaurant.packagingCharge !== null && restaurant.packagingCharge !== '')
+        ? Number(restaurant.packagingCharge)
+        : Number(adminSetting.packagingFeeConfig?.globalPackagingFee ?? 0);
     }
 
     // 3. Delivery Fee & Distance Slab Calculation
@@ -143,10 +154,17 @@ async function calculateOrderPrice({
     let platformFee = 0;
     if (adminSetting.platformFeeConfig?.enabled !== false) {
       if (adminSetting.platformFeeConfig?.type === 'percentage') {
-        platformFee = (itemTotal * (adminSetting.platformFeeConfig.fee || 2)) / 100;
-        platformFee = Math.max(adminSetting.platformFeeConfig.minFee || 0, Math.min(platformFee, adminSetting.platformFeeConfig.maxFee || 50));
+        const feePct = (adminSetting.platformFeeConfig?.fee !== undefined && adminSetting.platformFeeConfig?.fee !== null)
+          ? Number(adminSetting.platformFeeConfig.fee)
+          : 2;
+        platformFee = (itemTotal * feePct) / 100;
+        const minFee = Number(adminSetting.platformFeeConfig?.minFee ?? 0);
+        const maxFee = Number(adminSetting.platformFeeConfig?.maxFee ?? 50);
+        platformFee = Math.max(minFee, Math.min(platformFee, maxFee));
       } else {
-        platformFee = adminSetting.platformFeeConfig?.fee || 5;
+        platformFee = (adminSetting.platformFeeConfig?.fee !== undefined && adminSetting.platformFeeConfig?.fee !== null)
+          ? Number(adminSetting.platformFeeConfig.fee)
+          : 5;
       }
     }
 
@@ -267,21 +285,22 @@ function calculateSlabDeliveryFee(distance, deliveryFeeConfig) {
     return { fee, rule: `Extended Slab > ${highest.maxDistanceKm} KM` };
   }
 
-  return { fee: deliveryFeeConfig.baseFee || 30, rule: 'Global Base Fee' };
+  return { fee: deliveryFeeConfig?.baseFee !== undefined ? Number(deliveryFeeConfig.baseFee) : 30, rule: 'Global Base Fee' };
 }
 
 /**
  * Calculates delivery fee for restaurant-specific distance rules.
  */
 function calculateRestaurantDeliveryFee(distance, restaurant) {
-  let baseFee = restaurant.baseDeliveryFee || 40;
+  let baseFee = restaurant.baseDeliveryFee !== undefined ? Number(restaurant.baseDeliveryFee) : 40;
   if (restaurant.perKmCharge && distance > 0) {
-    const baseDistance = restaurant.baseDeliveryDistance || 3;
+    const baseDistance = restaurant.baseDeliveryDistance !== undefined ? Number(restaurant.baseDeliveryDistance) : 3;
     if (distance > baseDistance) {
-      baseFee += (distance - baseDistance) * restaurant.perKmCharge;
+      baseFee += (distance - baseDistance) * Number(restaurant.perKmCharge);
     }
   }
-  return Math.min(baseFee, restaurant.maxDeliveryFee || 100);
+  const maxFee = restaurant.maxDeliveryFee !== undefined ? Number(restaurant.maxDeliveryFee) : 100;
+  return Math.min(baseFee, maxFee);
 }
 
 /**
@@ -295,26 +314,36 @@ function calculateSurgeFee(surgeConfig) {
 
   // Peak Hour Charge
   if (surgeConfig.peakHour?.enabled) {
-    if (currentHour >= surgeConfig.peakHour.startTime && currentHour <= surgeConfig.peakHour.endTime) {
-      totalExtra += (surgeConfig.peakHour.fee || 0);
+    const startTime = surgeConfig.peakHour.startTime || "12:00";
+    const endTime = surgeConfig.peakHour.endTime || "15:00";
+    if (currentHour >= startTime && currentHour <= endTime) {
+      totalExtra += Number(surgeConfig.peakHour.fee ?? 0);
     }
   }
 
   // Night Charge
   if (surgeConfig.nightCharge?.enabled) {
-    if (currentHour >= surgeConfig.nightCharge.startTime || currentHour <= surgeConfig.nightCharge.endTime) {
-      totalExtra += (surgeConfig.nightCharge.fee || 0);
+    const startTime = surgeConfig.nightCharge.startTime || "23:00";
+    const endTime = surgeConfig.nightCharge.endTime || "06:00";
+    if (startTime > endTime) {
+      if (currentHour >= startTime || currentHour <= endTime) {
+        totalExtra += Number(surgeConfig.nightCharge.fee ?? 0);
+      }
+    } else {
+      if (currentHour >= startTime && currentHour <= endTime) {
+        totalExtra += Number(surgeConfig.nightCharge.fee ?? 0);
+      }
     }
   }
 
   // Rain Charge
   if (surgeConfig.rainCharge?.enabled) {
-    totalExtra += (surgeConfig.rainCharge.fee || 0);
+    totalExtra += Number(surgeConfig.rainCharge.fee ?? 0);
   }
 
   // High Demand Charge
   if (surgeConfig.highDemandCharge?.enabled) {
-    totalExtra += (surgeConfig.highDemandCharge.fee || 0);
+    totalExtra += Number(surgeConfig.highDemandCharge.fee ?? 0);
   }
 
   return totalExtra;
@@ -328,8 +357,8 @@ function calculateSurgeFee(surgeConfig) {
  */
 async function calculateCommissionPrecedence({ restaurant, categoriesInCart, adminSetting, itemTotal }) {
   // 1. Restaurant Specific Commission Override
-  if (restaurant.adminCommission !== undefined && restaurant.adminCommission > 0) {
-    const rate = restaurant.adminCommission;
+  if (restaurant.adminCommission !== undefined && restaurant.adminCommission !== null && !isNaN(restaurant.adminCommission) && (restaurant.adminOverride?.isOverridden || restaurant.adminCommission >= 0)) {
+    const rate = Number(restaurant.adminCommission);
     return { rate, amount: (itemTotal * rate) / 100, rule: `Restaurant Override (${rate}%)` };
   }
 
@@ -338,15 +367,17 @@ async function calculateCommissionPrecedence({ restaurant, categoriesInCart, adm
     const categoryCommissions = adminSetting.commissionConfig.categoryCommissions;
     for (const catId of categoriesInCart) {
       const match = categoryCommissions.find(c => c.category?.toString() === catId.toString());
-      if (match && match.commissionPercent) {
-        const rate = match.commissionPercent;
+      if (match && match.commissionPercent !== undefined && match.commissionPercent !== null && !isNaN(match.commissionPercent)) {
+        const rate = Number(match.commissionPercent);
         return { rate, amount: (itemTotal * rate) / 100, rule: `Category Override (${match.categoryName || 'Category'} ${rate}%)` };
       }
     }
   }
 
   // 3. Global Default Commission
-  const globalRate = adminSetting.commissionConfig?.globalCommissionPercent ?? 20;
+  const globalRate = adminSetting.commissionConfig?.globalCommissionPercent !== undefined
+    ? Number(adminSetting.commissionConfig.globalCommissionPercent)
+    : 20;
   return { rate: globalRate, amount: (itemTotal * globalRate) / 100, rule: `Global Default (${globalRate}%)` };
 }
 
