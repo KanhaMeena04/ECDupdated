@@ -69,8 +69,9 @@ async function calculateOrderPrice({
       const adminGst = (adminSetting.taxConfig?.gstPercent !== undefined && adminSetting.taxConfig?.gstPercent !== null)
         ? Number(adminSetting.taxConfig.gstPercent)
         : 5;
-      const effectiveGst = (restaurant.taxConfig?.gstPercent !== undefined && restaurant.taxConfig?.gstPercent !== null && restaurant.taxConfig?.gstPercent !== '')
-        ? Number(restaurant.taxConfig.gstPercent)
+      const restGst = Number(restaurant.taxConfig?.gstPercent);
+      const effectiveGst = (!isNaN(restGst) && restGst > 0)
+        ? restGst
         : adminGst;
       taxRate = effectiveGst / 100;
       tax = itemTotal * taxRate;
@@ -78,8 +79,9 @@ async function calculateOrderPrice({
     
     let packaging = 0;
     if (adminSetting.packagingFeeConfig?.enabled !== false) {
-      packaging = (restaurant.packagingCharge !== undefined && restaurant.packagingCharge !== null && restaurant.packagingCharge !== '')
-        ? Number(restaurant.packagingCharge)
+      const restPackaging = Number(restaurant.packagingCharge);
+      packaging = (!isNaN(restPackaging) && restPackaging > 0)
+        ? restPackaging
         : Number(adminSetting.packagingFeeConfig?.globalPackagingFee ?? 0);
     }
 

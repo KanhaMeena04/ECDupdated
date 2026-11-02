@@ -738,7 +738,7 @@ export default function PricingControlTower() {
 
               <TextField
                 fullWidth size="small" label="Platform Fee Amount (₹)" type="number"
-                value={platformFeeConfig.fee}
+                value={platformFeeConfig.fee !== undefined && platformFeeConfig.fee !== null ? platformFeeConfig.fee : ""}
                 onChange={(e) => setPlatformFeeConfig({ ...platformFeeConfig, fee: e.target.value })}
                 sx={{ mb: 2 }}
               />
@@ -765,7 +765,7 @@ export default function PricingControlTower() {
 
               <TextField
                 fullWidth size="small" label="Global Packaging Fee (₹)" type="number"
-                value={packagingFeeConfig.globalPackagingFee}
+                value={packagingFeeConfig.globalPackagingFee !== undefined && packagingFeeConfig.globalPackagingFee !== null ? packagingFeeConfig.globalPackagingFee : ""}
                 onChange={(e) => setPackagingFeeConfig({ ...packagingFeeConfig, globalPackagingFee: e.target.value })}
                 sx={{ mb: 2 }}
               />
@@ -821,8 +821,8 @@ export default function PricingControlTower() {
 
               <TextField
                 fullWidth size="small" label="GST Percentage (%)" type="number"
-                value={taxConfig.gstPercent}
-                onChange={(e) => setTaxConfig({ ...taxConfig, gstPercent: Number(e.target.value) })}
+                value={taxConfig.gstPercent !== undefined && taxConfig.gstPercent !== null ? taxConfig.gstPercent : ""}
+                onChange={(e) => setTaxConfig({ ...taxConfig, gstPercent: e.target.value })}
                 sx={{ mb: 2 }}
               />
 
