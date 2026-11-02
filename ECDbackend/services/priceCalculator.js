@@ -111,10 +111,31 @@ async function calculateOrderPrice({
         deliveryRuleApplied += ' [Free Delivery Threshold Met]';
       }
 
-      // Calculate Surge / Extra Charges
-      extraDeliveryCharges = calculateSurgeFee(adminSetting.surgeConfig);
-      if (extraDeliveryCharges > 0) {
-        surgeApplied = true;
+      // Check First User / First Order Free Delivery Eligibility
+      let isFirstOrder = false;
+      const isFirstOrderFreeEnabled = adminSetting.deliveryFeeConfig?.firstOrderFreeDelivery !== false;
+      if (isFirstOrderFreeEnabled && userId && mongoose.Types.ObjectId.isValid(userId)) {
+        try {
+          const existingOrdersCount = await Order.countDocuments({
+            user: userId,
+            status: { $nin: ['cancelled', 'failed'] }
+          });
+          if (existingOrdersCount === 0) {
+            isFirstOrder = true;
+            deliveryFee = 0;
+            extraDeliveryCharges = 0;
+            freeDeliveryApplied = true;
+            deliveryRuleApplied = 'First Order Free Delivery (New User)';
+          }
+        } catch (_) {}
+      }
+
+      // Calculate Surge / Extra Charges (skip if first order free delivery)
+      if (!isFirstOrder) {
+        extraDeliveryCharges = calculateSurgeFee(adminSetting.surgeConfig);
+        if (extraDeliveryCharges > 0) {
+          surgeApplied = true;
+        }
       }
     }
 

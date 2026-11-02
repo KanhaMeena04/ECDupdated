@@ -109,6 +109,9 @@ class CartProvider with ChangeNotifier {
   bool _isPackagingFeeEnabled = true;
   bool _isTaxEnabled = true;
   bool _isTipEnabled = true;
+  bool _isCodEnabled = true;
+  double _maxCodAmount = 1000.0;
+  bool _firstOrderFreeDelivery = true;
 
   double get minOrderValue => _minOrderValue;
   void setMinOrderValue(double val) {
@@ -128,6 +131,11 @@ class CartProvider with ChangeNotifier {
   bool get isTaxEnabled => _isTaxEnabled;
   bool get isDeliveryFeeEnabled => _isDeliveryFeeEnabled && !isSelfPickup;
   double get selectedTip => isSelfPickup ? 0.0 : _selectedTip;
+
+  bool get isCodEnabled => _isCodEnabled;
+  double get maxCodAmount => _maxCodAmount;
+  bool get firstOrderFreeDelivery => _firstOrderFreeDelivery;
+  bool get isCodAllowedForCurrentTotal => _isCodEnabled && totalAmount <= _maxCodAmount;
 
   void setSelectedTip(double tip) {
     _selectedTip = isSelfPickup ? 0.0 : tip;
@@ -413,6 +421,22 @@ class CartProvider with ChangeNotifier {
           final tx = settings['taxConfig'];
           _isTaxEnabled = tx['enabled'] != false;
           _gstPercent = _isTaxEnabled ? ((tx['gstPercent'] as num?)?.toDouble() ?? 5.0) : 0.0;
+        }
+        if (settings['isCodEnabled'] != null) {
+          _isCodEnabled = settings['isCodEnabled'] == true;
+        }
+        if (settings['codConfig'] != null && settings['codConfig'] is Map) {
+          final c = settings['codConfig'] as Map;
+          if (c['enabled'] != null) _isCodEnabled = c['enabled'] == true;
+          if (c['maxAmount'] != null) _maxCodAmount = (c['maxAmount'] as num).toDouble();
+        } else if (settings['maxCodAmount'] != null) {
+          _maxCodAmount = (settings['maxCodAmount'] as num).toDouble();
+        }
+        if (settings['deliveryFeeConfig'] != null && settings['deliveryFeeConfig'] is Map) {
+          final d = settings['deliveryFeeConfig'] as Map;
+          if (d['firstOrderFreeDelivery'] != null) {
+            _firstOrderFreeDelivery = d['firstOrderFreeDelivery'] == true;
+          }
         }
       }
     } catch (e) {

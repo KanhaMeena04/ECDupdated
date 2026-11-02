@@ -441,8 +441,15 @@ exports.placeOrder = async (req, res) => {
         const AdminSetting = require("../models/AdminSetting");
         sysSettings = await AdminSetting.getSettings();
       } catch (_) {}
+      let isFirstOrderFallback = false;
+      if (sysSettings?.deliveryFeeConfig?.firstOrderFreeDelivery !== false && req.user?._id) {
+        try {
+          const orderCount = await Order.countDocuments({ user: req.user._id, status: { $nin: ['cancelled', 'failed'] } });
+          if (orderCount === 0) isFirstOrderFallback = true;
+        } catch (_) {}
+      }
       const subtotal = req.body.subtotal || cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const deliveryFee = isSelfPickup ? 0 : (req.body.deliveryFee !== undefined ? Number(req.body.deliveryFee) : (sysSettings?.deliveryFeeConfig?.baseFee || 0));
+      const deliveryFee = (isSelfPickup || isFirstOrderFallback) ? 0 : (req.body.deliveryFee !== undefined ? Number(req.body.deliveryFee) : (sysSettings?.deliveryFeeConfig?.baseFee || 0));
       const gstPercent = sysSettings?.taxConfig?.enabled !== false ? (sysSettings?.taxConfig?.gstPercent ?? 5) : 0;
       const tax = Math.round(((subtotal * gstPercent) / 100) * 100) / 100;
       const packaging = sysSettings?.packagingFeeConfig?.enabled !== false ? (sysSettings?.packagingFeeConfig?.globalPackagingFee || 0) : 0;
@@ -535,6 +542,20 @@ exports.placeOrder = async (req, res) => {
     } else if (paymentMethod === "cod" || normalizedMethod === "cod") {
       if (user.isCodBlocked === true || user.codActive === false) {
         return sendError(res, 400, "Cash on Delivery is disabled for your account. Please pay online or use your wallet.");
+      }
+      try {
+        const AdminSetting = require("../models/AdminSetting");
+        const adminSetting = await AdminSetting.getSettings();
+        const isCodGloballyEnabled = adminSetting.isCodEnabled !== false && adminSetting.codConfig?.enabled !== false;
+        if (!isCodGloballyEnabled) {
+          return sendError(res, 400, "Cash on Delivery is currently disabled by Admin. Please pay online or use your wallet.");
+        }
+        const maxCodAmount = Number(adminSetting.codConfig?.maxAmount || adminSetting.maxCodAmount || 1000);
+        if (totalPayment > maxCodAmount) {
+          return sendError(res, 400, `Cash on Delivery is only available for orders up to ₹${maxCodAmount}. Your order total is ₹${totalPayment.toFixed(2)}. Please choose Online Payment or Wallet.`);
+        }
+      } catch (codErr) {
+        logger.error("COD validation error", { error: codErr.message });
       }
       paymentStatus = "pending";
       logPayment(null, user._id, "cod", totalPayment, "pending");

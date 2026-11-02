@@ -118,9 +118,10 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
     await _updateDeliveryFee();
 
     if (mounted) {
+      final grandTotal = cart.totalAmount;
       setState(() {
-        _isCodEnabled = isEnabled;
-        if (cart.isSelfPickup && _selectedPaymentMethod == 'Cash on Delivery') {
+        _isCodEnabled = isEnabled && cart.isCodEnabled;
+        if ((cart.isSelfPickup || grandTotal > cart.maxCodAmount || !_isCodEnabled) && _selectedPaymentMethod == 'Cash on Delivery') {
           _selectedPaymentMethod = 'UPI / GPay / PhonePe';
         }
         _isLoadingSettings = false;
@@ -298,6 +299,17 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
             const SnackBar(
               content: Text(
                   'Cash on Delivery is blocked for your account by Admin. Please select Online Payment or Wallet.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        final cart = context.read<CartProvider>();
+        if (grandTotal > cart.maxCodAmount) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Cash on Delivery is available only up to ₹${cart.maxCodAmount.toInt()}. Your order total is ₹${grandTotal.toStringAsFixed(2)}. Please pay online via UPI or Card.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -1194,16 +1206,26 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
 
                             final userProvider = context.watch<UserProvider>();
                             final isCodBlocked = userProvider.isCodBlocked;
+                            final isCodLimitExceeded = grandTotal > cart.maxCodAmount;
+                            final bool isOptionDisabled = isCodBlocked || isCodLimitExceeded;
+
+                            String? subtitleText;
+                            if (isCodBlocked) {
+                              subtitleText = 'Disabled for your account by Admin';
+                            } else if (isCodLimitExceeded) {
+                              subtitleText = 'Available only for orders up to ₹${cart.maxCodAmount.toInt()} (Current: ₹${grandTotal.toStringAsFixed(0)})';
+                            }
+
                             return Container(
                               decoration: BoxDecoration(
                                 border: Border.all(
-                                  color: isCodBlocked
-                                      ? Colors.red.withOpacity(0.3)
+                                  color: isOptionDisabled
+                                      ? Colors.grey.withOpacity(0.3)
                                       : const Color(0xFFF3F4F6),
                                 ),
                                 borderRadius: BorderRadius.circular(16),
-                                color: isCodBlocked
-                                    ? Colors.red.withOpacity(0.04)
+                                color: isOptionDisabled
+                                    ? Colors.grey.withOpacity(0.04)
                                     : Colors.transparent,
                               ),
                               child: RadioListTile<String>(
@@ -1218,7 +1240,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
                                         color:
-                                            isCodBlocked ? Colors.grey : null,
+                                            isOptionDisabled ? Colors.grey : null,
                                       ),
                                     ),
                                     if (isCodBlocked) ...[
@@ -1239,16 +1261,36 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
                                               fontWeight: FontWeight.bold),
                                         ),
                                       ),
+                                    ] else if (isCodLimitExceeded) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.withOpacity(0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          'Max ₹${cart.maxCodAmount.toInt()}',
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.orange[800],
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
                                     ],
                                   ],
                                 ),
-                                subtitle: isCodBlocked
-                                    ? const Text(
-                                        'Disabled for your account by Admin',
+                                subtitle: subtitleText != null
+                                    ? Text(
+                                        subtitleText,
                                         style: TextStyle(
-                                            fontSize: 11, color: Colors.red))
+                                            fontSize: 11,
+                                            color: isCodBlocked ? Colors.red : Colors.orange[800]),
+                                      )
                                     : null,
-                                onChanged: isCodBlocked
+                                onChanged: isOptionDisabled
                                     ? null
                                     : (v) =>
                                         setModalState(() => tempSelected = v!),

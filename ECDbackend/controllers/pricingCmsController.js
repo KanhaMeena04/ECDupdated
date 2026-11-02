@@ -17,6 +17,10 @@ exports.getPricingConfig = async (req, res) => {
       .select('_id name')
       .lean();
 
+    const isCod = settings.isCodEnabled !== false && settings.codConfig?.enabled !== false;
+    const maxCod = Number(settings.codConfig?.maxAmount || settings.maxCodAmount || 1000);
+    const minCod = Number(settings.codConfig?.minAmount || 0);
+
     res.status(200).json({
       success: true,
       config: {
@@ -27,6 +31,14 @@ exports.getPricingConfig = async (req, res) => {
         packagingFeeConfig: settings.packagingFeeConfig,
         tipConfig: settings.tipConfig,
         taxConfig: settings.taxConfig,
+        isCodEnabled: isCod,
+        maxCodAmount: maxCod,
+        codConfig: {
+          enabled: isCod,
+          maxAmount: maxCod,
+          minAmount: minCod,
+          customMessage: settings.codConfig?.customMessage || ''
+        },
       },
       restaurants: restaurants.map(r => ({
         _id: r._id,
@@ -70,6 +82,7 @@ exports.updateDeliveryFeeConfig = async (req, res) => {
     if (maxDeliveryRadiusKm !== undefined) settings.deliveryFeeConfig.maxDeliveryRadiusKm = Number(maxDeliveryRadiusKm);
     if (isFreeDeliveryEnabled !== undefined) settings.deliveryFeeConfig.isFreeDeliveryEnabled = Boolean(isFreeDeliveryEnabled);
     if (freeDeliveryThreshold !== undefined) settings.deliveryFeeConfig.freeDeliveryThreshold = Number(freeDeliveryThreshold);
+    if (req.body.firstOrderFreeDelivery !== undefined) settings.deliveryFeeConfig.firstOrderFreeDelivery = Boolean(req.body.firstOrderFreeDelivery);
     if (Array.isArray(slabs)) settings.deliveryFeeConfig.slabs = slabs;
 
     await settings.save();
@@ -92,6 +105,67 @@ exports.updateDeliveryFeeConfig = async (req, res) => {
       success: true,
       message: 'Delivery fee configuration updated successfully',
       deliveryFeeConfig: settings.deliveryFeeConfig,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// -------------------------------------------------------------
+// UPDATE CASH ON DELIVERY (COD) MAXIMUM AMOUNT & CONFIGURATION
+// -------------------------------------------------------------
+exports.updateCodConfig = async (req, res) => {
+  try {
+    const { enabled, isCodEnabled, maxAmount, maxCodAmount, minAmount, minCodAmount, customMessage, reason } = req.body;
+    const settings = await AdminSetting.getSettings();
+    const oldConfig = { ...settings.codConfig };
+
+    if (!settings.codConfig) settings.codConfig = {};
+
+    const codEnabledVal = enabled !== undefined ? enabled : isCodEnabled;
+    if (codEnabledVal !== undefined) {
+      settings.codConfig.enabled = Boolean(codEnabledVal);
+      settings.isCodEnabled = Boolean(codEnabledVal);
+    }
+
+    const codMaxVal = maxAmount !== undefined ? maxAmount : maxCodAmount;
+    if (codMaxVal !== undefined) {
+      const parsedMax = Math.max(0, Number(codMaxVal));
+      settings.codConfig.maxAmount = parsedMax;
+      settings.maxCodAmount = parsedMax;
+    }
+
+    const codMinVal = minAmount !== undefined ? minAmount : minCodAmount;
+    if (codMinVal !== undefined) {
+      settings.codConfig.minAmount = Math.max(0, Number(codMinVal));
+    }
+
+    if (customMessage !== undefined) {
+      settings.codConfig.customMessage = String(customMessage);
+    }
+
+    await settings.save();
+
+    await AuditLog.log({
+      entity: 'HomeScreenSection',
+      entityId: settings._id,
+      action: 'admin_override',
+      userId: req.user?._id,
+      userRole: 'admin',
+      changes: {
+        field: 'codConfig',
+        oldValue: oldConfig,
+        newValue: settings.codConfig,
+      },
+      reason: reason || 'Admin updated COD maximum amount & configuration',
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Cash on Delivery configuration updated successfully',
+      codConfig: settings.codConfig,
+      isCodEnabled: settings.isCodEnabled,
+      maxCodAmount: settings.maxCodAmount,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

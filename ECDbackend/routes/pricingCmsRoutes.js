@@ -7,6 +7,7 @@ const {
   updateSurgeConfig,
   updateCommissionConfig,
   updateFeeConfig,
+  updateCodConfig,
   previewPricingCalculation,
 } = require("../controllers/pricingCmsController");
 
@@ -17,6 +18,7 @@ router.put("/delivery-config", protect, admin, updateDeliveryFeeConfig);
 router.put("/surge-config", protect, admin, updateSurgeConfig);
 router.put("/commission-config", protect, admin, updateCommissionConfig);
 router.put("/fee-config", protect, admin, updateFeeConfig);
+router.put("/cod-config", protect, admin, updateCodConfig);
 router.post("/preview", protect, admin, previewPricingCalculation);
 
 module.exports = router;

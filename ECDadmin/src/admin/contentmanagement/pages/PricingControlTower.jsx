@@ -45,6 +45,7 @@ import {
   CheckCircle,
   HelpOutline,
   Layers,
+  Payments,
 } from "@mui/icons-material";
 import api from "../../../utils/api";
 
@@ -64,7 +65,15 @@ export default function PricingControlTower() {
     maxDeliveryRadiusKm: 12,
     isFreeDeliveryEnabled: true,
     freeDeliveryThreshold: 500,
+    firstOrderFreeDelivery: true,
     slabs: [],
+  });
+
+  const [codConfig, setCodConfig] = useState({
+    enabled: true,
+    maxAmount: 1000,
+    minAmount: 0,
+    customMessage: "",
   });
 
   const [surgeConfig, setSurgeConfig] = useState({
@@ -127,6 +136,16 @@ export default function PricingControlTower() {
         }
       }
       if (c.taxConfig) setTaxConfig(c.taxConfig);
+      if (c.codConfig) {
+        setCodConfig(c.codConfig);
+      } else if (c.isCodEnabled !== undefined || c.maxCodAmount !== undefined) {
+        setCodConfig({
+          enabled: c.isCodEnabled !== false,
+          maxAmount: c.maxCodAmount || 1000,
+          minAmount: 0,
+          customMessage: "",
+        });
+      }
 
       setRestaurants(res.data.restaurants || []);
       setCategories(res.data.categories || []);
@@ -154,6 +173,23 @@ export default function PricingControlTower() {
       fetchPricingConfig();
     } catch (err) {
       showAlert(err.response?.data?.message || "Failed to save delivery config", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Save COD Config
+  const handleSaveCodConfig = async () => {
+    try {
+      setLoading(true);
+      await api.put("/api/pricing/cod-config", {
+        ...codConfig,
+        reason: "Admin updated COD maximum order limit & configuration",
+      });
+      showAlert("Cash on Delivery (COD) configuration saved successfully!");
+      fetchPricingConfig();
+    } catch (err) {
+      showAlert(err.response?.data?.message || "Failed to save COD config", "error");
     } finally {
       setLoading(false);
     }
@@ -323,6 +359,7 @@ export default function PricingControlTower() {
           <Tab icon={<TrendingUp />} iconPosition="start" label="Surge & Extra Charges" />
           <Tab icon={<Percent />} iconPosition="start" label="Commission Control" />
           <Tab icon={<ReceiptLong />} iconPosition="start" label="Platform & Packaging Fees" />
+          <Tab icon={<Payments />} iconPosition="start" label="COD & Payment Limits" />
           <Tab icon={<Calculate />} iconPosition="start" label="Live Pricing Simulator" />
         </Tabs>
       </Card>
@@ -386,6 +423,18 @@ export default function PricingControlTower() {
                   />
                 </Box>
               )}
+
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, p: 1.5, bgcolor: "#F0FDF4", borderRadius: 2, border: "1px solid #BBF7D0" }}>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: PRIMARY_COLOR }}>First User Free Delivery</Typography>
+                  <Typography variant="caption" sx={{ color: "#4B5563" }}>Zero delivery charge on 1st order for newly registered customers</Typography>
+                </Box>
+                <Switch
+                  checked={deliveryConfig.firstOrderFreeDelivery !== false}
+                  onChange={(e) => setDeliveryConfig({ ...deliveryConfig, firstOrderFreeDelivery: e.target.checked })}
+                  color="success"
+                />
+              </Box>
 
               <Button
                 variant="contained"
@@ -762,9 +811,107 @@ export default function PricingControlTower() {
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* TAB 4: LIVE PRICING SIMULATOR */}
+      {/* TAB 4: CASH ON DELIVERY (COD) & ORDER LIMITS */}
       {/* ------------------------------------------------------------- */}
       {activeTab === 4 && (
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Card sx={{ borderRadius: 3, p: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                Cash on Delivery (COD) Control & Limits
+              </Typography>
+              <Typography variant="body2" sx={{ color: "#6B7280", mb: 3 }}>
+                Configure platform-wide COD availability and maximum order amount limits for all customer orders.
+              </Typography>
+
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2.5, p: 2, bgcolor: "#F9FAFB", borderRadius: 2, border: "1px solid #E5E7EB" }}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Enable Cash on Delivery (COD)</Typography>
+                  <Typography variant="caption" sx={{ color: "#6B7280" }}>
+                    When disabled, customers must pay via UPI/Online across the entire app.
+                  </Typography>
+                </Box>
+                <Switch
+                  checked={codConfig.enabled}
+                  onChange={(e) => setCodConfig({ ...codConfig, enabled: e.target.checked })}
+                  color="success"
+                />
+              </Box>
+
+              <Box sx={{ mb: 2.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Maximum Allowed COD Order Limit (₹)
+                </Typography>
+                <TextField
+                  fullWidth size="small" type="number"
+                  value={codConfig.maxAmount}
+                  helperText="Orders exceeding this total amount cannot be placed via COD and require Online/UPI payment."
+                  onChange={(e) => setCodConfig({ ...codConfig, maxAmount: Number(e.target.value) })}
+                />
+              </Box>
+
+              <Box sx={{ mb: 2.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Minimum Allowed COD Order Limit (₹, Optional)
+                </Typography>
+                <TextField
+                  fullWidth size="small" type="number"
+                  value={codConfig.minAmount}
+                  helperText="Default: ₹0 (No minimum restriction)"
+                  onChange={(e) => setCodConfig({ ...codConfig, minAmount: Number(e.target.value) })}
+                />
+              </Box>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Custom Alert Message for Limit Exceeded (Optional)
+                </Typography>
+                <TextField
+                  fullWidth size="small" multiline rows={2}
+                  value={codConfig.customMessage}
+                  placeholder={`Cash on Delivery is available only up to ₹${codConfig.maxAmount}. Please pay online.`}
+                  onChange={(e) => setCodConfig({ ...codConfig, customMessage: e.target.value })}
+                />
+              </Box>
+
+              <Button
+                variant="contained"
+                fullWidth
+                sx={{ bgcolor: PRIMARY_COLOR, fontWeight: 700, py: 1.2 }}
+                onClick={handleSaveCodConfig}
+                disabled={loading}
+              >
+                Save COD Settings
+              </Button>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Card sx={{ borderRadius: 3, p: 3, height: "100%", bgcolor: "#F8FAFC", border: "1px dashed #CBD5E1" }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+                <CheckCircle color="success" /> How Dynamic COD Control Works
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1.5, color: "#475569" }}>
+                1. <strong>Instant User App Reflection:</strong> When you change the limit (e.g. from ₹2000 to ₹1000), every customer's app reflects this limit dynamically.
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1.5, color: "#475569" }}>
+                2. <strong>Cart & Checkout Protection:</strong> In the user app, if an order total exceeds ₹{codConfig.maxAmount}, the COD option is automatically disabled with a warning: <em>"Available only for orders up to ₹{codConfig.maxAmount}"</em>.
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1.5, color: "#475569" }}>
+                3. <strong>Backend Enforcement:</strong> Even if someone attempts to place an order via API tampering, the backend order validation endpoint automatically rejects any COD order over ₹{codConfig.maxAmount} with HTTP 400.
+              </Typography>
+              <Typography variant="body2" sx={{ color: "#475569" }}>
+                4. <strong>Delivery Partner Safety:</strong> Low COD limits reduce the risk of cash collection issues and protect delivery riders from carrying excessive cash in hand.
+              </Typography>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* TAB 5: LIVE PRICING SIMULATOR */}
+      {/* ------------------------------------------------------------- */}
+      {activeTab === 5 && (
         <Grid container spacing={3}>
           <Grid item xs={12} md={5}>
             <Card sx={{ borderRadius: 3, p: 3 }}>

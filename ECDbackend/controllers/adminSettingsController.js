@@ -6,43 +6,62 @@ const ensureSettings = async () => {
   return AdminSetting.create({});
 };
 
-const toPublicPayload = (settings) => ({
-  appName: settings.appName || 'ECDKART Food Delivery',
-  logoUrl: settings.logoUrl || '',
-  contactEmail: settings.contactEmail || '',
-  contactPhone: settings.contactPhone || '',
-  termsUrl: settings.termsUrl || '',
-  privacyUrl: settings.privacyUrl || '',
-  deliveryFeeConfig: settings.deliveryFeeConfig,
-  platformFeeConfig: settings.platformFeeConfig,
-  packagingFeeConfig: settings.packagingFeeConfig,
-  surgeConfig: settings.surgeConfig,
-  tipConfig: settings.tipConfig || { enabled: true, options: [5, 10, 20] },
-  taxConfig: settings.taxConfig || { enabled: true, gstPercent: 5 },
-  selfPickupConfig: settings.selfPickupConfig || { enabled: true, pickupCapacityPerHour: 20, preparationBufferMins: 10, gracePeriodMins: 15 },
-  riderEarningConfig: settings.riderEarningConfig || { baseEarning: 20, baseDistanceKm: 2, perKmEarning: 8 },
-  orderTimingConfig: settings.orderTimingConfig || {
-    cancellationWindowMins: settings.selfPickupConfig?.cancellationWindowMins || 5,
-    riderPickupGracePeriodMins: settings.selfPickupConfig?.gracePeriodMins || 15,
-    selfPickupGracePeriodMins: settings.selfPickupConfig?.gracePeriodMins || 15,
-    preparationBufferMins: 10
-  }
-});
+const toPublicPayload = (settings) => {
+  const isCod = settings.isCodEnabled !== false && settings.codConfig?.enabled !== false;
+  const maxCod = Number(settings.codConfig?.maxAmount || settings.maxCodAmount || 1000);
+  const minCod = Number(settings.codConfig?.minAmount || 0);
+
+  return {
+    appName: settings.appName || 'ECDKART Food Delivery',
+    logoUrl: settings.logoUrl || '',
+    contactEmail: settings.contactEmail || '',
+    contactPhone: settings.contactPhone || '',
+    termsUrl: settings.termsUrl || '',
+    privacyUrl: settings.privacyUrl || '',
+    isCodEnabled: isCod,
+    maxCodAmount: maxCod,
+    minCodAmount: minCod,
+    codConfig: {
+      enabled: isCod,
+      maxAmount: maxCod,
+      minAmount: minCod,
+      customMessage: settings.codConfig?.customMessage || ''
+    },
+    deliveryFeeConfig: settings.deliveryFeeConfig,
+    platformFeeConfig: settings.platformFeeConfig,
+    packagingFeeConfig: settings.packagingFeeConfig,
+    surgeConfig: settings.surgeConfig,
+    tipConfig: settings.tipConfig || { enabled: true, options: [5, 10, 20] },
+    taxConfig: settings.taxConfig || { enabled: true, gstPercent: 5 },
+    selfPickupConfig: settings.selfPickupConfig || { enabled: true, pickupCapacityPerHour: 20, preparationBufferMins: 10, gracePeriodMins: 15 },
+    riderEarningConfig: settings.riderEarningConfig || { baseEarning: 20, baseDistanceKm: 2, perKmEarning: 8 },
+    orderTimingConfig: settings.orderTimingConfig || {
+      cancellationWindowMins: settings.selfPickupConfig?.cancellationWindowMins || 5,
+      riderPickupGracePeriodMins: settings.selfPickupConfig?.gracePeriodMins || 15,
+      selfPickupGracePeriodMins: settings.selfPickupConfig?.gracePeriodMins || 15,
+      preparationBufferMins: 10
+    }
+  };
+};
 
 exports.getPublicSettings = async (req, res) => {
   try {
     const settings = await ensureSettings();
     const publicData = toPublicPayload(settings);
-    const isCodEnabled = settings.isCodEnabled !== false;
+    const isCodEnabled = publicData.isCodEnabled;
+    const maxCodAmount = publicData.maxCodAmount;
     res.status(200).json({
       success: true,
       isCodEnabled,
+      maxCodAmount,
       settings: {
         isCodEnabled,
+        maxCodAmount,
         ...publicData
       },
       data: {
         isCodEnabled,
+        maxCodAmount,
         ...publicData
       },
       ...publicData
@@ -64,6 +83,21 @@ exports.getAdminSettings = async (req, res) => {
 exports.updateAdminSettings = async (req, res) => {
   try {
     const settings = await ensureSettings();
+    if (req.body.codEnable !== undefined) {
+      settings.isCodEnabled = req.body.codEnable === 'ENABLE' || req.body.codEnable === true || req.body.codEnable === 'true';
+      if (!settings.codConfig) settings.codConfig = {};
+      settings.codConfig.enabled = settings.isCodEnabled;
+    }
+    if (req.body.maxCodAmount !== undefined) {
+      settings.maxCodAmount = Number(req.body.maxCodAmount);
+      if (!settings.codConfig) settings.codConfig = {};
+      settings.codConfig.maxAmount = Number(req.body.maxCodAmount);
+    }
+    if (req.body.codConfig) {
+      settings.codConfig = { ...settings.codConfig, ...req.body.codConfig };
+      if (req.body.codConfig.enabled !== undefined) settings.isCodEnabled = Boolean(req.body.codConfig.enabled);
+      if (req.body.codConfig.maxAmount !== undefined) settings.maxCodAmount = Number(req.body.codConfig.maxAmount);
+    }
     settings.set(req.body);
     await settings.save();
     res.status(200).json(settings);

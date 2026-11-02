@@ -25,6 +25,7 @@ const AdminSettingSchema = new mongoose.Schema(
       maxDeliveryRadiusKm: { type: Number, default: 12 },
       isFreeDeliveryEnabled: { type: Boolean, default: true },
       freeDeliveryThreshold: { type: Number, default: 500 },
+      firstOrderFreeDelivery: { type: Boolean, default: true }, // Free delivery for first order of new users
       slabs: {
         type: [deliverySlabSchema],
         default: [
@@ -34,6 +35,16 @@ const AdminSettingSchema = new mongoose.Schema(
           { minDistanceKm: 8, maxDistanceKm: 12, fee: 80, perKmFee: 0, isActive: true }
         ]
       }
+    },
+
+    // Cash on Delivery (COD) Configuration
+    isCodEnabled: { type: Boolean, default: true },
+    maxCodAmount: { type: Number, default: 1000 },
+    codConfig: {
+      enabled: { type: Boolean, default: true },
+      maxAmount: { type: Number, default: 1000 },
+      minAmount: { type: Number, default: 0 },
+      customMessage: { type: String, default: '' }
     },
 
     // Surge Charges Configuration

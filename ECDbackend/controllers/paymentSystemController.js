@@ -445,6 +445,25 @@ exports.calculateDeliveryFee = async (req, res) => {
       finalFee = charges.totalDeliveryFee || 40;
     }
 
+    // First User / First Order Free Delivery check
+    const reqUserId = req.user?._id || req.body?.userId;
+    if (finalFee > 0 && reqUserId && mongoose.Types.ObjectId.isValid(reqUserId)) {
+      try {
+        const AdminSetting = require('../models/AdminSetting');
+        const adminSetting = await AdminSetting.getSettings();
+        if (adminSetting?.deliveryFeeConfig?.firstOrderFreeDelivery !== false) {
+          const Order = require('../models/Order');
+          const orderCount = await Order.countDocuments({
+            user: reqUserId,
+            status: { $nin: ['cancelled', 'failed'] }
+          });
+          if (orderCount === 0) {
+            finalFee = 0;
+          }
+        }
+      } catch (_) {}
+    }
+
     return res.status(200).json({
       success: true,
       deliveryCharge: finalFee,

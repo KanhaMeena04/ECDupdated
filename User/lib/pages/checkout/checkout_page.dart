@@ -194,6 +194,18 @@ class _CheckoutFlowState extends State<CheckoutFlow> {
       return;
     }
 
+    final isCod = _selectedPayment == 0;
+    if (isCod) {
+      if (widget.total > cart.maxCodAmount) {
+        _showError('Cash on Delivery is available only up to ₹${cart.maxCodAmount.toInt()}. Please pay online via UPI or Card.');
+        return;
+      }
+      if (!cart.isCodEnabled) {
+        _showError('Cash on Delivery is currently disabled by Admin. Please pay online via UPI or Card.');
+        return;
+      }
+    }
+
     setState(() => _isPlacingOrder = true);
 
     final orderData = {
@@ -937,13 +949,27 @@ class _PaymentStep extends StatelessWidget {
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF2C2C2C))),
         const SizedBox(height: 12),
-        _PayOption(
-            index: 0,
-            selected: selected,
-            icon: Icons.money,
-            label: 'Cash on Delivery',
-            subtitle: 'Pay when your order arrives',
-            onSelect: onSelect),
+        Builder(
+          builder: (context) {
+            final cart = context.watch<CartProvider>();
+            final isCodExceeded = total > cart.maxCodAmount;
+            final isCodDisabled = !cart.isCodEnabled || isCodExceeded;
+            final codSubtitle = isCodExceeded
+                ? 'Available only for orders up to ₹${cart.maxCodAmount.toInt()}'
+                : (!cart.isCodEnabled ? 'Disabled by Admin' : 'Pay when your order arrives');
+
+            return _PayOption(
+                index: 0,
+                selected: selected,
+                icon: Icons.money,
+                label: isCodExceeded
+                    ? 'Cash on Delivery (Max ₹${cart.maxCodAmount.toInt()})'
+                    : 'Cash on Delivery',
+                subtitle: codSubtitle,
+                disabled: isCodDisabled,
+                onSelect: onSelect);
+          },
+        ),
         const SizedBox(height: 10),
         _PayOption(
             index: 1,
@@ -1036,6 +1062,7 @@ class _PayOption extends StatelessWidget {
   final IconData icon;
   final String label, subtitle;
   final ValueChanged<int> onSelect;
+  final bool disabled;
 
   const _PayOption(
       {required this.index,
@@ -1043,26 +1070,31 @@ class _PayOption extends StatelessWidget {
       required this.icon,
       required this.label,
       required this.subtitle,
-      required this.onSelect});
+      required this.onSelect,
+      this.disabled = false});
 
   @override
   Widget build(BuildContext context) {
-    final isSelected = index == selected;
+    final isSelected = !disabled && index == selected;
     return GestureDetector(
-      onTap: () => onSelect(index),
+      onTap: disabled ? null : () => onSelect(index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: disabled ? const Color(0xFFF9FAFB) : Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-              color: isSelected ? AppColors.primary : const Color(0xFFE5E7EB),
+              color: isSelected
+                  ? AppColors.primary
+                  : (disabled ? const Color(0xFFF3F4F6) : const Color(0xFFE5E7EB)),
               width: isSelected ? 2 : 1),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)
-          ],
+          boxShadow: disabled
+              ? []
+              : [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)
+                ],
         ),
         child: Row(children: [
           Container(
@@ -1071,11 +1103,12 @@ class _PayOption extends StatelessWidget {
               decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.primary.withValues(alpha: 0.1)
-                      : const Color(0xFFF3F4F6),
+                      : (disabled ? const Color(0xFFE5E7EB) : const Color(0xFFF3F4F6)),
                   borderRadius: BorderRadius.circular(10)),
               child: Icon(icon,
-                  color:
-                      isSelected ? AppColors.primary : const Color(0xFF6B7280),
+                  color: isSelected
+                      ? AppColors.primary
+                      : (disabled ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
                   size: 22)),
           const SizedBox(width: 12),
           Expanded(
@@ -1086,12 +1119,13 @@ class _PayOption extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: isSelected
-                            ? AppColors.primary
-                            : const Color(0xFF2C2C2C))),
+                        color: disabled
+                            ? const Color(0xFF9CA3AF)
+                            : (isSelected ? AppColors.primary : const Color(0xFF2C2C2C)))),
                 Text(subtitle,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF9CA3AF))),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: disabled ? Colors.orange[800] : const Color(0xFF9CA3AF))),
               ])),
           if (isSelected)
             const Icon(Icons.check_circle, color: AppColors.primary, size: 22),

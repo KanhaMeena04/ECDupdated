@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:ecdkart_app/widgets/safe_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -1887,6 +1887,22 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
           builder: (modalStateCtx, setSheetState) {
             final isCodBlocked = userProvider.isCodBlocked;
             final isPickup = cart.isSelfPickup;
+            final isCodLimitExceeded = cart.totalAmount > cart.maxCodAmount;
+            final isCodGloballyDisabled = !cart.isCodEnabled;
+            final bool isCodDisabled = isPickup || isCodBlocked || isCodGloballyDisabled || isCodLimitExceeded;
+
+            String codSubtitle;
+            if (isPickup) {
+              codSubtitle = 'Not available for self-pickup orders';
+            } else if (isCodBlocked) {
+              codSubtitle = 'Disabled for your account by Admin';
+            } else if (isCodGloballyDisabled) {
+              codSubtitle = 'COD currently disabled by Admin';
+            } else if (isCodLimitExceeded) {
+              codSubtitle = 'Available only for orders up to ₹${cart.maxCodAmount.toInt()}';
+            } else {
+              codSubtitle = 'Pay via Cash or UPI at doorstep';
+            }
 
             return Container(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -1932,14 +1948,14 @@ class _OrderPlacementBottomSheetState extends State<_OrderPlacementBottomSheet>
 
                   // Option 1: Cash on Delivery (UPI / Cash)
                   _buildPaymentOptionTile(
-                    title: 'Cash on Delivery (UPI / Cash)',
-                    subtitle: isPickup
-                        ? 'Not available for self-pickup orders'
-                        : (isCodBlocked ? 'Disabled by Admin' : 'Pay via Cash or UPI at doorstep'),
+                    title: isCodLimitExceeded
+                        ? 'Cash on Delivery (Max ₹${cart.maxCodAmount.toInt()})'
+                        : 'Cash on Delivery (UPI / Cash)',
+                    subtitle: codSubtitle,
                     icon: Icons.money_rounded,
                     value: 'Cash on Delivery',
                     selectedValue: currentMethod,
-                    disabled: isPickup || isCodBlocked,
+                    disabled: isCodDisabled,
                     isDark: isDark,
                     onSelect: (val) {
                       setSheetState(() => currentMethod = val);

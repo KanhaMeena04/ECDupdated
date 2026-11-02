@@ -38,6 +38,7 @@ const SiteSetting = () => {
     emailEnable: 'Yes',
     smsEnable: 'No',
     codEnable: 'Yes',
+    maxCodAmount: 1000,
     onlinePaymentEnable: 'Yes',
     freeDeliveryEnable: 'Yes',
     isTaxInclusive: 'Yes'
@@ -133,6 +134,8 @@ const SiteSetting = () => {
 
           <InputField label="Facebook Page" name="facebook" value={settings.facebook} onChange={handleChange} />
           <InputField label="Instagram Page" name="instagram" value={settings.instagram} onChange={handleChange} />
+
+          <InputField label="Max COD Order Limit (₹)" name="maxCodAmount" value={settings.maxCodAmount ?? 1000} onChange={handleChange} type="number" />
 
           {/* Switches (Radio Groups) */}
           <div className="grid grid-cols-2 gap-8 col-span-2 mt-4">
