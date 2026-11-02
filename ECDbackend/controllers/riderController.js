@@ -784,21 +784,23 @@ exports.getCompletedOrdersForRider = async (req, res) => {
       return sendError(res, 404, "Rider profile not found");
     }
     const { page, limit, skip } = getPaginationParams(req, 20);
-    const riderIds = [
+    const objectIdRiderIds = [
       riderProfile._id,
-      req.user._id,
+      ...(isValidObjectId(req.user._id) ? [req.user._id] : [])
+    ];
+    const stringRiderIds = [
       riderProfile._id.toString(),
       req.user._id.toString(),
-      ...(riderProfile.riderId ? [riderProfile.riderId] : [])
+      ...(riderProfile.riderId ? [String(riderProfile.riderId)] : [])
     ];
     const query = {
       $and: [
         {
           $or: [
-            { rider: { $in: riderIds } },
-            { 'assignedRider.riderId': { $in: riderIds } },
-            { driver: { $in: riderIds } },
-            { riderId: { $in: riderIds } }
+            { rider: { $in: objectIdRiderIds } },
+            { riderId: { $in: stringRiderIds } },
+            { driver: { $in: objectIdRiderIds } },
+            { 'assignedRider.riderId': { $in: stringRiderIds } }
           ]
         },
         {
@@ -832,6 +834,7 @@ exports.getCompletedOrdersForRider = async (req, res) => {
     return res.status(200).json({
       success: true,
       orders: formattedOrders,
+      data: formattedOrders,
       pagination: {
         total,
         page,
@@ -1293,7 +1296,13 @@ exports.getEarningsSummary = async (req, res) => {
     if (!riderProfile) {
       return sendError(res, 404, "Rider profile not found");
     }
-    const match = { rider: riderProfile._id, status: 'delivered' };
+    const match = {
+      $or: [
+        { rider: riderProfile._id },
+        { rider: req.user._id }
+      ],
+      status: { $in: ['delivered', 'completed'] }
+    };
     let groupId = null;
     if (period === 'week') groupId = { $isoWeek: '$deliveredAt' };
     else if (period === 'month') groupId = { $dateToString: { format: '%Y-%m', date: '$deliveredAt' } };
@@ -1310,6 +1319,11 @@ exports.getEarningsSummary = async (req, res) => {
       (acc, cur) => ({ earnings: acc.earnings + (cur.earnings || 0), orders: acc.orders + (cur.orders || 0) }),
       { earnings: 0, orders: 0 }
     );
+    const cashInHand = Number((wallet?.cashInHand || 0).toFixed(2));
+    const availableBalance = Number((wallet?.availableBalance || totals.earnings || 0).toFixed(2));
+    const totalEarnings = Number((wallet?.totalEarnings || totals.earnings || 0).toFixed(2));
+    const amountToPay = Math.max(0, Number((cashInHand - availableBalance).toFixed(2)));
+
     res.status(200).json({
       success: true,
       period,
@@ -1318,20 +1332,31 @@ exports.getEarningsSummary = async (req, res) => {
       data: {
         todayEarnings: totals.earnings || 0,
         completedOrders: totals.orders || 0,
-        activeHours: 0.0,
-        rating: 5.0,
+        orders_completed: totals.orders || 0,
+        today_orders: totals.orders || 0,
         totalDeliveries: totals.orders || 0,
-        earnings: totals.earnings || 0
+        earnings: totals.earnings || 0,
+        activeHours: 0.0,
+        billable_hours: "0.0",
+        ride_time_seconds: 0,
+        rating: 5.0,
+        recent_requests: [],
+        codBalance: cashInHand,
+        codEarnings: availableBalance,
+        amountToPay: amountToPay,
       },
       wallet: wallet ? {
-        availableBalance: Number((wallet.availableBalance || 0).toFixed(2)),
-        totalEarnings: Number((wallet.totalEarnings || 0).toFixed(2)),
-        cashInHand: Number((wallet.cashInHand || 0).toFixed(2)),
+        availableBalance,
+        totalEarnings,
+        cashInHand,
         cashLimit: wallet.cashLimit || 2000,
         isFrozen: wallet.isFrozen || false,
         frozenReason: wallet.frozenReason || null,
         lastPayoutAt: wallet.lastPayoutAt || null,
         lastPayoutAmount: wallet.lastPayoutAmount || 0,
+        codBalance: cashInHand,
+        codEarnings: availableBalance,
+        amountToPay,
       } : null,
     });
   } catch (error) {

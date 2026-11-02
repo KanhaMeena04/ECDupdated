@@ -152,10 +152,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (result['success'] == true && mounted) {
         final rawBal = (result['data']?['balance'] ?? result['data']?['wallet']?['availableBalance'] ?? result['wallet']?['availableBalance']) as num?;
         final bal = rawBal?.toDouble() ?? 0.0;
+        final rawOrders = (result['data']?['today_orders'] ?? result['data']?['orders_completed'] ?? result['data']?['completedOrders'] ?? result['data']?['totalDeliveries']) as num?;
         setState(() {
           _walletBalance = bal;
           _workHours = result['data']?['billable_hours']?.toString() ?? "0.0";
-          _todayOrders = (result['data']?['today_orders'] as num?)?.toInt() ?? 0;
+          _todayOrders = rawOrders?.toInt() ?? 0;
           _recentRequests = result['data']?['recent_requests'] as List? ?? [];
         });
       }
@@ -168,10 +169,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final result = await ApiService.getCodBalance();
       if (result['success'] == true && mounted) {
+        final data = result['data'] is Map ? result['data'] : result;
+        final wallet = (data['wallet'] is Map ? data['wallet'] : null) ?? (result['wallet'] is Map ? result['wallet'] : null) ?? {};
+        final codBal = (data['codBalance'] ?? wallet['cashInHand'] ?? data['cashInHand']) as num?;
+        final codEarn = (data['codEarnings'] ?? wallet['availableBalance'] ?? data['availableBalance']) as num?;
+        final amountPay = (data['amountToPay'] ?? wallet['amountToPay']) as num?;
+
+        final double cBal = codBal?.toDouble() ?? 0.0;
+        final double cEarn = codEarn?.toDouble() ?? 0.0;
+        final double toPay = amountPay != null ? amountPay.toDouble() : (cBal - cEarn > 0 ? cBal - cEarn : 0.0);
+
         setState(() {
-          _codBalance = (result['data']['codBalance'] as num?)?.toDouble() ?? 0.0;
-          _codEarnings = (result['data']['codEarnings'] as num?)?.toDouble() ?? 0.0;
-          _amountToPayAdmin = (result['data']['amountToPay'] as num?)?.toDouble() ?? 0.0;
+          _codBalance = cBal;
+          _codEarnings = cEarn;
+          _amountToPayAdmin = toPay;
         });
       }
     } catch (e) {

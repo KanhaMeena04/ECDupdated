@@ -1674,8 +1674,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     return BlocBuilder<DriverBloc, DriverState>(
       builder: (context, state) {
         final summary = state.summaryData;
-        final earningsVal = summary?['earnings'] ?? 0;
-        final ordersVal = summary?['orders_completed'] ?? 0;
+        final earningsVal = summary?['earnings'] ?? summary?['todayEarnings'] ?? 0;
+        final ordersVal = summary?['orders_completed'] ??
+            summary?['completedOrders'] ??
+            summary?['today_orders'] ??
+            summary?['totalDeliveries'] ??
+            (state.completedOrders.isNotEmpty ? state.completedOrders.length : 0);
         final secondsVal = summary?['ride_time_seconds'] ?? 0;
 
         final String earnings = '₹${(earningsVal as num).toDouble().toStringAsFixed(2)}';
@@ -1940,54 +1944,40 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 );
               }
 
-              // Show orders if we have them in state (regardless of specific status)
-              if (state.orders.isNotEmpty || state.completedOrders.isNotEmpty || state.cancelledOrders.isNotEmpty) {
-                final displayActiveOrders = state.orders.where((o) {
-                  final status = (o['status'] ?? o['deliveryStatus'] ?? '').toString().toLowerCase();
-                  final dStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
-                  return status != 'delivered' && status != 'completed' && status != 'cancelled' &&
-                         dStatus != 'delivered' && dStatus != 'completed' && dStatus != 'cancelled' &&
-                         dStatus != 'driver_notified';
-                }).toList();
+              final displayActiveOrders = state.orders.where((o) {
+                final status = (o['status'] ?? o['deliveryStatus'] ?? '').toString().toLowerCase();
+                final dStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
+                return status != 'delivered' && status != 'completed' && status != 'cancelled' &&
+                       dStatus != 'delivered' && dStatus != 'completed' && dStatus != 'cancelled' &&
+                       dStatus != 'driver_notified';
+              }).toList();
 
-                final Map<String, dynamic> completedMap = {};
-                for (var o in state.completedOrders) {
+              final Map<String, dynamic> completedMap = {};
+              for (var o in state.completedOrders) {
+                final id = (o['_id'] ?? o['orderId'] ?? '').toString();
+                if (id.isNotEmpty) completedMap[id] = o;
+              }
+              for (var o in state.orders) {
+                final status = (o['status'] ?? o['deliveryStatus'] ?? '').toString().toLowerCase();
+                final dStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
+                if (status == 'delivered' || status == 'completed' || dStatus == 'delivered' || dStatus == 'completed') {
                   final id = (o['_id'] ?? o['orderId'] ?? '').toString();
-                  if (id.isNotEmpty) completedMap[id] = o;
-                }
-                for (var o in state.orders) {
-                  final status = (o['status'] ?? o['deliveryStatus'] ?? '').toString().toLowerCase();
-                  final dStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
-                  if (status == 'delivered' || status == 'completed' || dStatus == 'delivered' || dStatus == 'completed') {
-                    final id = (o['_id'] ?? o['orderId'] ?? '').toString();
-                    if (id.isNotEmpty && !completedMap.containsKey(id)) {
-                      completedMap[id] = o;
-                    }
+                  if (id.isNotEmpty && !completedMap.containsKey(id)) {
+                    completedMap[id] = o;
                   }
                 }
-                final displayCompletedOrders = completedMap.values.toList();
-
-                return SizedBox(
-                  height: 400, // Fixed height for TabBarView
-                  child: TabBarView(
-                    children: [
-                      _buildOrderList(displayActiveOrders, title: 'No active orders'),
-                      _buildOrderList(displayCompletedOrders, isHistorical: true, title: 'No completed orders yet'),
-                      _buildOrderList(state.cancelledOrders, isHistorical: true, title: 'No cancelled orders yet'),
-                    ],
-                  ),
-                );
               }
+              final displayCompletedOrders = completedMap.values.toList();
 
-              // Show error if any
-              if (state is DriverError) {
-                return _buildErrorWidget(state.message);
-              }
-
-              // Default: No orders
-              return Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: _buildNoOrdersWidget(),
+              return SizedBox(
+                height: 400, // Fixed height for TabBarView
+                child: TabBarView(
+                  children: [
+                    _buildOrderList(displayActiveOrders, title: 'No active orders right now'),
+                    _buildOrderList(displayCompletedOrders, isHistorical: true, title: 'No completed orders yet'),
+                    _buildOrderList(state.cancelledOrders, isHistorical: true, title: 'No cancelled orders yet'),
+                  ],
+                ),
               );
             },
           ),

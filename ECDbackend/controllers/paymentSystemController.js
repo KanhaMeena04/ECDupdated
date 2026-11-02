@@ -58,19 +58,54 @@ exports.getRiderWallet = async (req, res) => {
     const recentTransactions = await PaymentTransaction.find({ rider: rider._id })
       .sort({ createdAt: -1 })
       .limit(20);
+    const cashInHand = Number((wallet.cashInHand || 0).toFixed(2));
+    const availableBalance = Number((wallet.availableBalance || 0).toFixed(2));
+    const totalEarnings = Number((wallet.totalEarnings || 0).toFixed(2));
+    const amountToPay = Math.max(0, Number((cashInHand - availableBalance).toFixed(2)));
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const todayOrdersCount = await Order.countDocuments({
+      $or: [{ rider: rider._id }, { rider: req.user._id }],
+      status: { $in: ['delivered', 'completed'] },
+      $or: [
+        { deliveredAt: { $gte: startOfDay } },
+        { updatedAt: { $gte: startOfDay } },
+        { createdAt: { $gte: startOfDay } }
+      ]
+    });
+    const totalOrdersCount = await Order.countDocuments({
+      $or: [{ rider: rider._id }, { rider: req.user._id }],
+      status: { $in: ['delivered', 'completed'] }
+    });
+    const finalOrdersCount = todayOrdersCount > 0 ? todayOrdersCount : totalOrdersCount;
+
     return res.status(200).json({
       success: true,
       data: {
+        balance: availableBalance,
+        billable_hours: "0.0",
+        today_orders: finalOrdersCount,
+        orders_completed: finalOrdersCount,
+        completedOrders: finalOrdersCount,
+        totalDeliveries: totalOrdersCount,
+        recent_requests: [],
+        codBalance: cashInHand,
+        codEarnings: availableBalance,
+        amountToPay: amountToPay,
         wallet: {
-          cashInHand: wallet.cashInHand,
+          cashInHand,
           cashLimit: wallet.cashLimit,
-          availableBalance: Number(wallet.availableBalance || 0),
-          totalEarnings: Number(wallet.totalEarnings || 0),
+          availableBalance,
+          totalEarnings,
           isFrozen: wallet.isFrozen,
           frozenReason: wallet.frozenReason,
           frozenAt: wallet.frozenAt,
           lastPayoutAt: wallet.lastPayoutAt,
           lastDepositAt: wallet.lastDepositAt,
+          codBalance: cashInHand,
+          codEarnings: availableBalance,
+          amountToPay: amountToPay,
         },
         warning: wallet.isFrozen
           ? `🚫 Account frozen! You have ₹${wallet.cashInHand} cash. Please deposit to admin to re-activate.`
