@@ -1675,15 +1675,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       builder: (context, state) {
         final summary = state.summaryData;
         final earningsVal = summary?['earnings'] ?? summary?['todayEarnings'] ?? 0;
-        final ordersVal = summary?['orders_completed'] ??
+        final rawOrders = summary?['orders_completed'] ??
             summary?['completedOrders'] ??
             summary?['today_orders'] ??
-            summary?['totalDeliveries'] ??
-            (state.completedOrders.isNotEmpty ? state.completedOrders.length : 0);
+            summary?['totalDeliveries'];
+        final int parsedOrders = (rawOrders is num)
+            ? rawOrders.toInt()
+            : (int.tryParse(rawOrders?.toString() ?? '') ?? 0);
+        final int effectiveOrders = parsedOrders > 0 ? parsedOrders : state.completedOrders.length;
         final secondsVal = summary?['ride_time_seconds'] ?? 0;
 
         final String earnings = '₹${(earningsVal as num).toDouble().toStringAsFixed(2)}';
-        final String orders = ordersVal.toString();
+        final String orders = effectiveOrders.toString();
         final double hoursVal = (secondsVal as num) / 3600.0;
         final String hours = '${hoursVal.toStringAsFixed(1)}h';
 
@@ -1954,14 +1957,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
 
               final Map<String, dynamic> completedMap = {};
               for (var o in state.completedOrders) {
-                final id = (o['_id'] ?? o['orderId'] ?? '').toString();
+                final id = (o['_id'] ?? o['orderId'] ?? o['orderNumber'] ?? '').toString();
                 if (id.isNotEmpty) completedMap[id] = o;
               }
               for (var o in state.orders) {
                 final status = (o['status'] ?? o['deliveryStatus'] ?? '').toString().toLowerCase();
                 final dStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
                 if (status == 'delivered' || status == 'completed' || dStatus == 'delivered' || dStatus == 'completed') {
-                  final id = (o['_id'] ?? o['orderId'] ?? '').toString();
+                  final id = (o['_id'] ?? o['orderId'] ?? o['orderNumber'] ?? '').toString();
                   if (id.isNotEmpty && !completedMap.containsKey(id)) {
                     completedMap[id] = o;
                   }

@@ -219,7 +219,12 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
           // Normalize status and active flags
           final status = (o['status'] ?? o['deliveryStatus'] ?? 'delivered').toString().toLowerCase();
           normalized['deliveryStatus'] = status;
-          normalized['_id'] = o['orderId'] ?? o['_id'] ?? '';
+          normalized['status'] = status;
+          final String rawId = (o['_id'] ?? '').toString();
+          final String rawOrdNum = (o['orderNumber'] ?? o['orderId'] ?? '').toString();
+          normalized['_id'] = rawId.isNotEmpty ? rawId : (rawOrdNum.isNotEmpty ? rawOrdNum : '');
+          normalized['orderId'] = rawOrdNum.isNotEmpty ? rawOrdNum : (rawId.isNotEmpty ? rawId : '');
+          normalized['orderNumber'] = rawOrdNum.isNotEmpty ? rawOrdNum : (rawId.isNotEmpty ? rawId : '');
           
           // Normalize amounts
           final amount = (o['customer'] is Map ? o['customer']['payableAmount'] : null) ?? o['payableAmount'] ?? o['totalAmount'] ?? 0.0;
@@ -234,8 +239,14 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
           normalizedOrders.add(normalized);
         }
         
-        newCompletedOrders = normalizedOrders.where((o) => o['deliveryStatus'] == 'delivered' || o['deliveryStatus'] == 'completed').toList();
-        newCancelledOrders = normalizedOrders.where((o) => o['deliveryStatus'] == 'cancelled' || o['deliveryStatus'] == 'failed').toList();
+        newCompletedOrders = normalizedOrders.where((o) {
+          final s = (o['deliveryStatus'] ?? o['status'] ?? '').toString().toLowerCase();
+          return s == 'delivered' || s == 'completed';
+        }).toList();
+        newCancelledOrders = normalizedOrders.where((o) {
+          final s = (o['deliveryStatus'] ?? o['status'] ?? '').toString().toLowerCase();
+          return s == 'cancelled' || s == 'failed';
+        }).toList();
       }
 
       if (summaryResponse['success'] == true && summaryResponse['data'] != null) {

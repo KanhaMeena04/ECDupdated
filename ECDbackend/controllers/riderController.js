@@ -779,42 +779,68 @@ exports.getCompletedOrdersForRider = async (req, res) => {
     if (!req.user || !isValidObjectId(req.user._id)) {
       return sendError(res, 401, "Unauthorized rider");
     }
-    const riderProfile = await Rider.findOne({ user: req.user._id });
+    let riderProfile = await Rider.findOne({
+      $or: [
+        { user: req.user._id },
+        ...(req.user.mobile ? [{ mobile: req.user.mobile }, { phone: req.user.mobile }] : []),
+        ...(req.user.phone ? [{ mobile: req.user.phone }, { phone: req.user.phone }] : [])
+      ]
+    });
     if (!riderProfile) {
       return sendError(res, 404, "Rider profile not found");
     }
-    const { page, limit, skip } = getPaginationParams(req, 20);
-    const objectIdRiderIds = [
-      riderProfile._id,
-      ...(isValidObjectId(req.user._id) ? [req.user._id] : [])
-    ];
-    const stringRiderIds = [
-      riderProfile._id.toString(),
-      req.user._id.toString(),
-      ...(riderProfile.riderId ? [String(riderProfile.riderId)] : [])
-    ];
+    if (!riderProfile.user || riderProfile.user.toString() !== req.user._id.toString()) {
+      riderProfile.user = req.user._id;
+      await riderProfile.save().catch(() => {});
+    }
+
+    const { page, limit, skip } = getPaginationParams(req, 50);
+
+    const allRiderObjectIds = [riderProfile._id];
+    const allRiderStringIds = [riderProfile._id.toString()];
+    if (isValidObjectId(req.user._id)) {
+      allRiderObjectIds.push(req.user._id);
+      allRiderStringIds.push(req.user._id.toString());
+    }
+    if (riderProfile.riderId) {
+      allRiderStringIds.push(String(riderProfile.riderId));
+    }
+    const riderPhones = [
+      riderProfile.phone,
+      riderProfile.mobile,
+      req.user.phone,
+      req.user.mobile
+    ].filter(Boolean);
+
+    const deliveredStatuses = ['delivered', 'completed', 'Delivered', 'Completed', 'DELIVERED', 'COMPLETED'];
     const query = {
       $and: [
         {
           $or: [
-            { rider: { $in: objectIdRiderIds } },
-            { riderId: { $in: stringRiderIds } },
-            { driver: { $in: objectIdRiderIds } },
-            { 'assignedRider.riderId': { $in: stringRiderIds } }
+            { rider: { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            { riderId: { $in: allRiderStringIds } },
+            { driver: { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            { driverId: { $in: allRiderStringIds } },
+            { 'assignedRider.riderId': { $in: allRiderStringIds } },
+            { 'assignedRider.rider': { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            { 'assignedRider.id': { $in: allRiderStringIds } },
+            { 'riderNotificationStatus.acceptedBy': { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            { cashCollectedBy: { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            ...(riderPhones.length > 0 ? [{ riderPhone: { $in: riderPhones } }] : [])
           ]
         },
         {
           $or: [
-            { status: { $in: ["delivered", "completed"] } },
-            { deliveryStatus: { $in: ["delivered", "completed"] } }
+            { status: { $in: deliveredStatuses } },
+            { deliveryStatus: { $in: deliveredStatuses } }
           ]
         }
       ]
     };
     const [orders, total] = await Promise.all([
       Order.find(query)
-        .populate("restaurant", "name image bannerImage address restaurantId")
-        .populate("customer", "name mobile customerId")
+        .populate("restaurant", "name image bannerImage address restaurantId phone contactNumber")
+        .populate("customer", "name mobile phone customerId")
         .sort({ deliveredAt: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -823,12 +849,19 @@ exports.getCompletedOrdersForRider = async (req, res) => {
     const riderIdCode = await ensureRiderId(riderProfile);
     const formattedOrders = orders.map(order => {
       const orderObj = order.toObject();
-      const ordNumber = orderObj.orderNumber || (orderObj._id ? `ORD${orderObj._id.toString().slice(-4).toUpperCase()}` : "ORD001");
+      const rawId = orderObj._id ? orderObj._id.toString() : "";
+      const ordNumber = orderObj.orderNumber || (rawId ? `ORD${rawId.slice(-4).toUpperCase()}` : "ORD001");
+      orderObj._id = rawId || ordNumber;
       orderObj.orderNumber = ordNumber;
       orderObj.orderId = ordNumber;
       orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
       orderObj.restaurantId = orderObj.restaurantId || orderObj.restaurant?.restaurantId || "RNT001";
       orderObj.riderId = orderObj.riderId || riderIdCode || "RDR001";
+      orderObj.status = 'delivered';
+      orderObj.deliveryStatus = 'delivered';
+      const earn = orderObj.driverEarnings ?? orderObj.riderEarning ?? orderObj.riderCommission ?? 0;
+      orderObj.driverEarnings = earn;
+      orderObj.riderEarning = earn;
       return orderObj;
     });
     return res.status(200).json({
@@ -1292,50 +1325,127 @@ exports.getEarningsSummary = async (req, res) => {
   try {
     const period = req.query.period || 'day';
     const RiderWallet = require('../models/RiderWallet');
-    const riderProfile = await Rider.findOne({ user: req.user._id });
+    let riderProfile = await Rider.findOne({
+      $or: [
+        { user: req.user._id },
+        ...(req.user.mobile ? [{ mobile: req.user.mobile }, { phone: req.user.mobile }] : []),
+        ...(req.user.phone ? [{ mobile: req.user.phone }, { phone: req.user.phone }] : [])
+      ]
+    });
     if (!riderProfile) {
       return sendError(res, 404, "Rider profile not found");
     }
+    if (!riderProfile.user || riderProfile.user.toString() !== req.user._id.toString()) {
+      riderProfile.user = req.user._id;
+      await riderProfile.save().catch(() => {});
+    }
+
+    const allRiderObjectIds = [riderProfile._id];
+    const allRiderStringIds = [riderProfile._id.toString()];
+    if (isValidObjectId(req.user._id)) {
+      allRiderObjectIds.push(req.user._id);
+      allRiderStringIds.push(req.user._id.toString());
+    }
+    if (riderProfile.riderId) {
+      allRiderStringIds.push(String(riderProfile.riderId));
+    }
+    const riderPhones = [
+      riderProfile.phone,
+      riderProfile.mobile,
+      req.user.phone,
+      req.user.mobile
+    ].filter(Boolean);
+
+    const deliveredStatuses = ['delivered', 'completed', 'Delivered', 'Completed', 'DELIVERED', 'COMPLETED'];
     const match = {
-      $or: [
-        { rider: riderProfile._id },
-        { rider: req.user._id }
-      ],
-      status: { $in: ['delivered', 'completed'] }
+      $and: [
+        {
+          $or: [
+            { rider: { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            { riderId: { $in: allRiderStringIds } },
+            { driver: { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            { driverId: { $in: allRiderStringIds } },
+            { 'assignedRider.riderId': { $in: allRiderStringIds } },
+            { 'assignedRider.rider': { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            { 'assignedRider.id': { $in: allRiderStringIds } },
+            { 'riderNotificationStatus.acceptedBy': { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            { cashCollectedBy: { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            ...(riderPhones.length > 0 ? [{ riderPhone: { $in: riderPhones } }] : [])
+          ]
+        },
+        {
+          $or: [
+            { status: { $in: deliveredStatuses } },
+            { deliveryStatus: { $in: deliveredStatuses } }
+          ]
+        }
+      ]
     };
+
+    const safeDateExpr = { $ifNull: ['$deliveredAt', { $ifNull: ['$updatedAt', '$createdAt'] }] };
     let groupId = null;
-    if (period === 'week') groupId = { $isoWeek: '$deliveredAt' };
-    else if (period === 'month') groupId = { $dateToString: { format: '%Y-%m', date: '$deliveredAt' } };
-    else groupId = { $dateToString: { format: '%Y-%m-%d', date: '$deliveredAt' } };
-    const [agg, wallet] = await Promise.all([
+    if (period === 'week') groupId = { $isoWeek: safeDateExpr };
+    else if (period === 'month') groupId = { $dateToString: { format: '%Y-%m', date: safeDateExpr } };
+    else groupId = { $dateToString: { format: '%Y-%m-%d', date: safeDateExpr } };
+
+    const startToday = new Date();
+    startToday.setHours(0, 0, 0, 0);
+    const todayMatch = {
+      $and: [
+        match,
+        {
+          $or: [
+            { deliveredAt: { $gte: startToday } },
+            { updatedAt: { $gte: startToday } },
+            { createdAt: { $gte: startToday } }
+          ]
+        }
+      ]
+    };
+
+    const [agg, wallet, todayCount, totalDeliveredCount] = await Promise.all([
       Order.aggregate([
         { $match: match },
-        { $group: { _id: groupId, earnings: { $sum: '$riderEarning' }, orders: { $sum: 1 } } },
+        {
+          $group: {
+            _id: groupId,
+            earnings: { $sum: { $ifNull: ['$driverEarnings', { $ifNull: ['$riderEarning', '$riderCommission'] }] } },
+            orders: { $sum: 1 }
+          }
+        },
         { $sort: { _id: -1 } }
-      ]),
+      ]).catch(() => []),
       RiderWallet.findOne({ rider: riderProfile._id }),
+      Order.countDocuments(todayMatch).catch(() => 0),
+      Order.countDocuments(match).catch(() => 0),
     ]);
+
     const totals = agg.reduce(
       (acc, cur) => ({ earnings: acc.earnings + (cur.earnings || 0), orders: acc.orders + (cur.orders || 0) }),
       { earnings: 0, orders: 0 }
     );
+    const effectiveOrders = todayCount > 0 ? todayCount : (totals.orders > 0 ? totals.orders : totalDeliveredCount);
     const cashInHand = Number((wallet?.cashInHand || 0).toFixed(2));
-    const availableBalance = Number((wallet?.availableBalance || totals.earnings || 0).toFixed(2));
-    const totalEarnings = Number((wallet?.totalEarnings || totals.earnings || 0).toFixed(2));
+    const effectiveEarnings = Math.max(totals.earnings || 0, Number(wallet?.availableBalance || wallet?.totalEarnings || 0));
+    const availableBalance = Number((wallet?.availableBalance || effectiveEarnings).toFixed(2));
+    const totalEarnings = Number((wallet?.totalEarnings || effectiveEarnings).toFixed(2));
     const amountToPay = Math.max(0, Number((cashInHand - availableBalance).toFixed(2)));
 
     res.status(200).json({
       success: true,
       period,
       aggregation: agg,
-      totals,
+      totals: {
+        earnings: effectiveEarnings,
+        orders: effectiveOrders
+      },
       data: {
-        todayEarnings: totals.earnings || 0,
-        completedOrders: totals.orders || 0,
-        orders_completed: totals.orders || 0,
-        today_orders: totals.orders || 0,
-        totalDeliveries: totals.orders || 0,
-        earnings: totals.earnings || 0,
+        todayEarnings: effectiveEarnings,
+        completedOrders: effectiveOrders,
+        orders_completed: effectiveOrders,
+        today_orders: effectiveOrders,
+        totalDeliveries: totalDeliveredCount,
+        earnings: effectiveEarnings,
         activeHours: 0.0,
         billable_hours: "0.0",
         ride_time_seconds: 0,
@@ -3562,8 +3672,19 @@ exports.verifyDelivery = async (req, res) => {
     const socketService = require('../services/socketService');
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: "Order not found" });
-    const riderProfile = await Rider.findOne({ user: req.user._id });
+    let riderProfile = await Rider.findOne({
+      $or: [
+        { user: req.user._id },
+        ...(req.user.mobile ? [{ mobile: req.user.mobile }, { phone: req.user.mobile }] : []),
+        ...(req.user.phone ? [{ mobile: req.user.phone }, { phone: req.user.phone }] : [])
+      ]
+    });
     if (!riderProfile) return res.status(404).json({ message: "Rider profile not found" });
+    if (!riderProfile.user || riderProfile.user.toString() !== req.user._id.toString()) {
+      riderProfile.user = req.user._id;
+      await riderProfile.save().catch(() => {});
+    }
+
     if (order.status === 'delivered' || order.deliveryStatus === 'delivered') {
       return res.status(200).json({ success: true, message: "Order Delivered Successfully!", order });
     }
@@ -3583,7 +3704,10 @@ exports.verifyDelivery = async (req, res) => {
     order.deliveryStatus = 'delivered';
     order.deliveryOtpVerifiedAt = new Date();
     order.deliveredAt = new Date();
-    if (!order.rider) order.rider = riderProfile._id;
+    order.rider = riderProfile._id;
+    if (!order.riderId || order.riderId === 'RDR001') {
+      order.riderId = await ensureRiderId(riderProfile);
+    }
     order.timeline.push({
       status: 'delivered',
       timestamp: new Date(),
@@ -3591,9 +3715,15 @@ exports.verifyDelivery = async (req, res) => {
       by: "system",
       description: "Order has been delivered"
     });
-    if (order.paymentMethod === 'cod') {
+
+    const isCod = (order.paymentMethod || '').toString().toLowerCase() === 'cod' ||
+                  (order.paymentMethod || '').toString().toLowerCase() === 'cash' ||
+                  (order.paymentMethod || '').toString().toLowerCase().includes('cash');
+
+    if (isCod) {
+      order.paymentMethod = 'cod';
       order.paymentStatus = 'paid';
-      order.cashCollected = order.totalAmount;
+      order.cashCollected = Number(order.totalAmount || 0);
       order.cashCollectedAt = new Date();
       order.cashCollectedBy = req.user._id;
     }
@@ -3601,7 +3731,7 @@ exports.verifyDelivery = async (req, res) => {
     try {
       const { processCODDelivery, processOnlineDelivery } = require('../services/paymentService');
       const Restaurant = require('../models/Restaurant');
-      if (order.paymentMethod === 'cod') {
+      if (isCod) {
         processCODDelivery(order._id).catch(err =>
           console.error('COD delivery payment processing failed:', err.message)
         );

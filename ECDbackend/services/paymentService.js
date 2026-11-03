@@ -69,7 +69,7 @@
 //   await PaymentTransaction.create({
 //     order: order._id,
 //     rider: order.rider._id,
-//     restaurant: restaurant._id,
+//     restaurant: restaurant?._id,
 //     user: order.customer,
 //     type: 'cod_collected',
 //     amount: orderAmount,
@@ -327,8 +327,12 @@ async function processCODDelivery(orderId) {
     .populate('restaurant')
     .populate('rider');
   if (!order) throw new Error('Order not found');
-  if (order.paymentMethod !== 'cod') throw new Error('Not a COD order');
-  if (order.status !== 'delivered') throw new Error('Order not yet delivered');
+  const isCod = (order.paymentMethod || '').toString().toLowerCase() === 'cod' ||
+                (order.paymentMethod || '').toString().toLowerCase().includes('cash');
+  if (!isCod) throw new Error('Not a COD order');
+  const isDelivered = ['delivered', 'completed'].includes((order.status || '').toLowerCase()) ||
+                      ['delivered', 'completed'].includes((order.deliveryStatus || '').toLowerCase());
+  if (!isDelivered) throw new Error('Order not yet delivered');
   const restaurant = order.restaurant;
   const isPickup = order.orderType === 'self_pickup' || order.orderType === 'pickup' || order.isSelfPickup === true;
 
@@ -352,8 +356,24 @@ async function processCODDelivery(orderId) {
   let riderWallet = null;
 
   // 1. Process Rider Wallet if delivery order and rider assigned
-  if (!isPickup && order.rider) {
-    const riderId = order.rider._id || order.rider;
+  if (!isPickup) {
+    let riderId = order.rider?._id || order.rider;
+    if (!riderId) {
+      const Rider = require('../models/Rider');
+      const rProfile = await Rider.findOne({
+        $or: [
+          ...(order.riderId ? [{ riderId: order.riderId }] : []),
+          ...(order.cashCollectedBy ? [{ user: order.cashCollectedBy }, { _id: order.cashCollectedBy }] : []),
+          ...(order.assignedRider?.riderId ? [{ riderId: order.assignedRider.riderId }] : [])
+        ]
+      });
+      if (rProfile) {
+        riderId = rProfile._id;
+        order.rider = rProfile._id;
+        await order.save().catch(() => {});
+      }
+    }
+    if (riderId) {
     riderWallet = await RiderWallet.findOne({ rider: riderId });
     if (!riderWallet) {
       riderWallet = await RiderWallet.create({ rider: riderId });
@@ -385,6 +405,7 @@ async function processCODDelivery(orderId) {
       note: `COD collected for order #${order.orderNumber || order._id.toString().slice(-6)}`,
       status: 'completed'
     });
+    }
   }
 
   // 2. Process Restaurant Wallet

@@ -51,34 +51,102 @@ exports.confirmCODCollection = async (req, res) => {
 };
 exports.getRiderWallet = async (req, res) => {
   try {
-    const rider = await Rider.findOne({ user: req.user._id });
+    let rider = await Rider.findOne({
+      $or: [
+        { user: req.user._id },
+        ...(req.user.mobile ? [{ mobile: req.user.mobile }, { phone: req.user.mobile }] : []),
+        ...(req.user.phone ? [{ mobile: req.user.phone }, { phone: req.user.phone }] : [])
+      ]
+    });
     if (!rider) return res.status(404).json({ success: false, message: 'Rider not found' });
+    if (!rider.user || rider.user.toString() !== req.user._id.toString()) {
+      rider.user = req.user._id;
+      await rider.save().catch(() => {});
+    }
+
     let wallet = await RiderWallet.findOne({ rider: rider._id });
     if (!wallet) wallet = await RiderWallet.create({ rider: rider._id });
     const recentTransactions = await PaymentTransaction.find({ rider: rider._id })
       .sort({ createdAt: -1 })
       .limit(20);
-    const cashInHand = Number((wallet.cashInHand || 0).toFixed(2));
-    const availableBalance = Number((wallet.availableBalance || 0).toFixed(2));
-    const totalEarnings = Number((wallet.totalEarnings || 0).toFixed(2));
-    const amountToPay = Math.max(0, Number((cashInHand - availableBalance).toFixed(2)));
+
+    const riderObjectIds = [rider._id];
+    if (req.user._id) riderObjectIds.push(req.user._id);
+    const riderStringIds = [rider._id.toString(), req.user._id.toString(), ...(rider.riderId ? [String(rider.riderId)] : [])];
+    const riderPhones = [rider.phone, rider.mobile, req.user.phone, req.user.mobile].filter(Boolean);
+
+    const riderMatchFilter = {
+      $or: [
+        { rider: { $in: [...riderObjectIds, ...riderStringIds] } },
+        { riderId: { $in: riderStringIds } },
+        { driver: { $in: [...riderObjectIds, ...riderStringIds] } },
+        { driverId: { $in: riderStringIds } },
+        { 'assignedRider.riderId': { $in: riderStringIds } },
+        { 'assignedRider.rider': { $in: [...riderObjectIds, ...riderStringIds] } },
+        { 'assignedRider.id': { $in: riderStringIds } },
+        { 'riderNotificationStatus.acceptedBy': { $in: [...riderObjectIds, ...riderStringIds] } },
+        { cashCollectedBy: { $in: [...riderObjectIds, ...riderStringIds] } },
+        ...(riderPhones.length > 0 ? [{ riderPhone: { $in: riderPhones } }] : [])
+      ]
+    };
+
+    const statusMatchFilter = {
+      $or: [
+        { status: { $in: ['delivered', 'completed', 'Delivered', 'Completed', 'DELIVERED', 'COMPLETED'] } },
+        { deliveryStatus: { $in: ['delivered', 'completed', 'Delivered', 'Completed', 'DELIVERED', 'COMPLETED'] } }
+      ]
+    };
+
+    // Auto-sync if cashInHand is 0 but rider delivered COD orders
+    if ((wallet.cashInHand || 0) === 0) {
+      const codOrders = await Order.find({
+        $and: [
+          riderMatchFilter,
+          statusMatchFilter,
+          {
+            $or: [
+              { paymentMethod: { $in: ['cod', 'COD', 'cash', 'Cash', 'Cash on Delivery', 'cash on delivery'] } },
+              { cashCollected: { $gt: 0 } }
+            ]
+          }
+        ]
+      });
+      if (codOrders.length > 0) {
+        let totalCodAmount = 0;
+        for (const o of codOrders) {
+          totalCodAmount += Number(o.cashCollected || o.totalAmount || 0);
+        }
+        if (totalCodAmount > 0) {
+          wallet.cashInHand = totalCodAmount;
+          await wallet.save().catch(() => {});
+        }
+      }
+    }
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    const todayOrdersCount = await Order.countDocuments({
-      $or: [{ rider: rider._id }, { rider: req.user._id }],
-      status: { $in: ['delivered', 'completed'] },
+    const dateMatchFilter = {
       $or: [
         { deliveredAt: { $gte: startOfDay } },
         { updatedAt: { $gte: startOfDay } },
         { createdAt: { $gte: startOfDay } }
       ]
-    });
-    const totalOrdersCount = await Order.countDocuments({
-      $or: [{ rider: rider._id }, { rider: req.user._id }],
-      status: { $in: ['delivered', 'completed'] }
-    });
+    };
+
+    const [todayOrdersCount, totalOrdersCount] = await Promise.all([
+      Order.countDocuments({
+        $and: [riderMatchFilter, statusMatchFilter, dateMatchFilter]
+      }).catch(() => 0),
+      Order.countDocuments({
+        $and: [riderMatchFilter, statusMatchFilter]
+      }).catch(() => 0)
+    ]);
     const finalOrdersCount = todayOrdersCount > 0 ? todayOrdersCount : totalOrdersCount;
+
+    const cashInHand = Number((wallet.cashInHand || 0).toFixed(2));
+    const availableBalance = Number((wallet.availableBalance || 0).toFixed(2));
+    const totalEarnings = Number((wallet.totalEarnings || 0).toFixed(2));
+    const amountToPay = Math.max(0, Number((cashInHand - availableBalance).toFixed(2)));
 
     return res.status(200).json({
       success: true,
@@ -93,9 +161,11 @@ exports.getRiderWallet = async (req, res) => {
         codBalance: cashInHand,
         codEarnings: availableBalance,
         amountToPay: amountToPay,
+        cashInHand: cashInHand,
+        availableBalance: availableBalance,
         wallet: {
           cashInHand,
-          cashLimit: wallet.cashLimit,
+          cashLimit: wallet.cashLimit || 2000,
           availableBalance,
           totalEarnings,
           isFrozen: wallet.isFrozen,
@@ -109,10 +179,20 @@ exports.getRiderWallet = async (req, res) => {
         },
         warning: wallet.isFrozen
           ? `🚫 Account frozen! You have ₹${wallet.cashInHand} cash. Please deposit to admin to re-activate.`
-          : wallet.cashInHand >= wallet.cashLimit * 0.8
-          ? `⚠️ You have ₹${wallet.cashInHand}/${wallet.cashLimit} cash. Near limit!`
+          : wallet.cashInHand >= (wallet.cashLimit || 2000) * 0.8
+          ? `⚠️ You have ₹${wallet.cashInHand}/${wallet.cashLimit || 2000} cash. Near limit!`
           : null,
         recentTransactions
+      },
+      wallet: {
+        availableBalance,
+        cashInHand,
+        cashLimit: wallet.cashLimit || 2000,
+        isFrozen: wallet.isFrozen,
+        totalEarnings,
+        codBalance: cashInHand,
+        codEarnings: availableBalance,
+        amountToPay: amountToPay,
       }
     });
   } catch (err) {

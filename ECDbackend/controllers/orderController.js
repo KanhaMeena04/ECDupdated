@@ -2336,7 +2336,14 @@ exports.updateOrderStatus = async (req, res) => {
       );
       try {
         const { processCODDelivery, processOnlineDelivery } = require('../services/paymentService');
-        if (order.paymentMethod === 'cod') {
+        const isCodOrder = (order.paymentMethod || '').toString().toLowerCase() === 'cod' ||
+                           (order.paymentMethod || '').toString().toLowerCase().includes('cash');
+        if (isCodOrder) {
+          order.paymentMethod = 'cod';
+          order.paymentStatus = 'paid';
+          order.cashCollected = Number(order.totalAmount || 0);
+          order.cashCollectedAt = new Date();
+          await order.save().catch(() => {});
           processCODDelivery(order._id).catch(err =>
             logger.error("COD delivery payment processing failed", { orderId: order._id, error: err.message })
           );

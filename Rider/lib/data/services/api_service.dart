@@ -431,7 +431,22 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {'success': true, 'data': data['data'] ?? data};
+        final resData = (data['data'] is Map ? data['data'] : null) ?? (data is Map ? data : {});
+        final walletData = (resData['wallet'] is Map ? resData['wallet'] : null) ?? (data['wallet'] is Map ? data['wallet'] : null) ?? {};
+        final codBal = resData['codBalance'] ?? walletData['cashInHand'] ?? resData['cashInHand'] ?? 0.0;
+        final codEarn = resData['codEarnings'] ?? walletData['availableBalance'] ?? resData['availableBalance'] ?? 0.0;
+        final amtPay = resData['amountToPay'] ?? walletData['amountToPay'] ?? 0.0;
+        return {
+          'success': true,
+          'data': {
+            ...resData,
+            'codBalance': (codBal is num) ? codBal.toDouble() : (double.tryParse(codBal.toString()) ?? 0.0),
+            'codEarnings': (codEarn is num) ? codEarn.toDouble() : (double.tryParse(codEarn.toString()) ?? 0.0),
+            'amountToPay': (amtPay is num) ? amtPay.toDouble() : (double.tryParse(amtPay.toString()) ?? 0.0),
+            'cashInHand': (codBal is num) ? codBal.toDouble() : (double.tryParse(codBal.toString()) ?? 0.0),
+            'wallet': walletData,
+          }
+        };
       }
     } catch (e) {
       log("Error fetching driver summary: $e");
@@ -571,7 +586,10 @@ class ApiService {
           'data': {
             'balance': bal,
             'billable_hours': data['data']?['billable_hours'] ?? "0.0",
-            'today_orders': data['data']?['today_orders'] ?? 0,
+            'today_orders': data['data']?['today_orders'] ?? data['data']?['orders_completed'] ?? data['data']?['completedOrders'] ?? data['data']?['totalDeliveries'] ?? 0,
+            'orders_completed': data['data']?['orders_completed'] ?? data['data']?['today_orders'] ?? 0,
+            'completedOrders': data['data']?['completedOrders'] ?? data['data']?['today_orders'] ?? 0,
+            'totalDeliveries': data['data']?['totalDeliveries'] ?? data['data']?['today_orders'] ?? 0,
             'recent_requests': data['data']?['recent_requests'] ?? []
           },
           'wallet': {
@@ -615,7 +633,22 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {'success': true, 'data': data['data'] ?? data};
+        final resData = (data['data'] is Map ? data['data'] : null) ?? (data is Map ? data : {});
+        final walletData = (resData['wallet'] is Map ? resData['wallet'] : null) ?? (data['wallet'] is Map ? data['wallet'] : null) ?? {};
+        final codBal = resData['codBalance'] ?? walletData['cashInHand'] ?? resData['cashInHand'] ?? 0.0;
+        final codEarn = resData['codEarnings'] ?? walletData['availableBalance'] ?? resData['availableBalance'] ?? 0.0;
+        final amtPay = resData['amountToPay'] ?? walletData['amountToPay'] ?? 0.0;
+        return {
+          'success': true,
+          'data': {
+            ...resData,
+            'codBalance': (codBal is num) ? codBal.toDouble() : (double.tryParse(codBal.toString()) ?? 0.0),
+            'codEarnings': (codEarn is num) ? codEarn.toDouble() : (double.tryParse(codEarn.toString()) ?? 0.0),
+            'amountToPay': (amtPay is num) ? amtPay.toDouble() : (double.tryParse(amtPay.toString()) ?? 0.0),
+            'cashInHand': (codBal is num) ? codBal.toDouble() : (double.tryParse(codBal.toString()) ?? 0.0),
+            'wallet': walletData,
+          }
+        };
       }
     } catch (e) {
       log("Error fetching COD balance: $e");
