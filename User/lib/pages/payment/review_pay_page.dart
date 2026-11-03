@@ -1206,6 +1206,7 @@ class _ReviewPayPageState extends State<ReviewPayPage> {
 
                             final userProvider = context.watch<UserProvider>();
                             final isCodBlocked = userProvider.isCodBlocked;
+                            final grandTotal = CartProvider.safeNum(cart.finalAmount > 0 ? cart.finalAmount : cart.totalAmount);
                             final isCodLimitExceeded = grandTotal > cart.maxCodAmount;
                             final bool isOptionDisabled = isCodBlocked || isCodLimitExceeded;
 
