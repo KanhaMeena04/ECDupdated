@@ -13,6 +13,8 @@ const mongoose = require('mongoose');
 async function calculateOrderPrice({
   items,
   restaurantId,
+  restaurant: inputRestaurant = null,
+  adminSetting: inputAdminSetting = null,
   userId = null,
   couponCode = null,
   deliveryDistance = 0,
@@ -22,15 +24,15 @@ async function calculateOrderPrice({
   orderType = 'delivery'
 }) {
   try {
-    const restaurant = await Restaurant.findById(restaurantId);
+    const restaurant = (inputRestaurant && typeof inputRestaurant === 'object') ? inputRestaurant : await Restaurant.findById(restaurantId);
     if (!restaurant) {
       throw new Error('Restaurant not found');
     }
+    const adminSetting = inputAdminSetting || await AdminSetting.getSettings();
 
-    const adminSetting = await AdminSetting.getSettings();
-
-    // 1. Calculate Item Total
+    // 1. Calculate Item Total & B2B Total
     let itemTotal = 0;
+    let b2bTotal = 0;
     let categoriesInCart = new Set();
 
     for (const item of items) {
@@ -54,7 +56,21 @@ async function calculateOrderPrice({
         const addOnsTotal = item.addOns.reduce((sum, addon) => sum + (Number(addon.price) || 0), 0);
         itemPrice += addOnsTotal;
       }
-      itemTotal += itemPrice * (item.quantity || 1);
+      const qty = item.quantity || 1;
+      itemTotal += itemPrice * qty;
+
+      // Resolve B2B unit price for item
+      let unitB2b = item.b2bPrice;
+      if (unitB2b === undefined || unitB2b === null || isNaN(unitB2b) || unitB2b < 0) {
+        if (item.product && typeof item.product === 'object') {
+          unitB2b = item.product.b2bPrice ?? item.product.pricing?.b2b?.sellingPrice;
+        }
+      }
+      if (unitB2b === undefined || unitB2b === null || isNaN(unitB2b) || unitB2b <= 0) {
+        const fallbackRate = Number(restaurant.adminCommission || adminSetting?.commissionConfig?.globalCommissionPercent || 20);
+        unitB2b = Math.max(0, itemPrice * (1 - fallbackRate / 100));
+      }
+      b2bTotal += Number(unitB2b) * qty;
 
       if (item.category) {
         categoriesInCart.add(item.category.toString());
@@ -197,19 +213,44 @@ async function calculateOrderPrice({
       amountToPay = totalAmount - walletDeduction;
     }
 
-    // 6. Commission Precedence Calculation
-    const commissionResult = await calculateCommissionPrecedence({
-      restaurant,
-      categoriesInCart: Array.from(categoriesInCart),
-      adminSetting,
-      itemTotal
-    });
+    // 6. Dual Model: B2B Rate Model (Default) vs Commission % Model
+    const isCommissionModel = Boolean(restaurant.pricingModel === 'commission' || restaurant.useCommissionModel === true);
+
+    let appliedCommissionRate = 0;
+    let adminCommissionAmount = 0;
+    let restaurantNetPayable = 0;
+    let commissionRule = '';
+
+    if (isCommissionModel) {
+      // Option: Commission % Module enabled for this restaurant
+      const commissionResult = await calculateCommissionPrecedence({
+        restaurant,
+        categoriesInCart: Array.from(categoriesInCart),
+        adminSetting,
+        itemTotal
+      });
+      appliedCommissionRate = commissionResult.rate;
+      adminCommissionAmount = round(commissionResult.amount);
+      // PACKAGING FEE BELONGS 100% TO ADMIN - ZERO PACKAGING FOR RESTAURANT
+      restaurantNetPayable = round(Math.max(0, itemTotal - adminCommissionAmount));
+      commissionRule = commissionResult.rule;
+    } else {
+      // Default: B2B Rate Model
+      // Restaurant gets exact B2B Total
+      // Admin gets Selling Price - B2B Price
+      restaurantNetPayable = round(b2bTotal);
+      adminCommissionAmount = round(Math.max(0, itemTotal - b2bTotal));
+      appliedCommissionRate = itemTotal > 0 ? Math.round((adminCommissionAmount / itemTotal) * 100) : 0;
+      commissionRule = `B2B Rate Model (Selling ₹${round(itemTotal)} - B2B ₹${round(b2bTotal)} = Admin Margin ₹${adminCommissionAmount})`;
+    }
 
     return {
       success: true,
       isRadiusExceeded,
       breakdown: {
         itemTotal: round(itemTotal),
+        b2bTotal: round(b2bTotal),
+        pricingModel: isCommissionModel ? 'commission' : 'b2b',
         tax: round(tax),
         taxRate: taxRate,
         packaging: round(packaging),
@@ -222,14 +263,14 @@ async function calculateOrderPrice({
         totalAmount: round(totalAmount),
         walletDeduction: round(walletDeduction),
         amountToPay: round(amountToPay),
-        // Commission Breakdown
-        appliedCommissionRate: commissionResult.rate,
-        adminCommissionAmount: round(commissionResult.amount),
-        restaurantNetPayable: round((itemTotal + packaging) - commissionResult.amount),
+        // Commission & Settlement Breakdown (Packaging fee 100% to Admin)
+        appliedCommissionRate,
+        adminCommissionAmount,
+        restaurantNetPayable,
       },
       sources: {
         deliveryRule: deliveryRuleApplied,
-        commissionRule: commissionResult.rule,
+        commissionRule: commissionRule || commissionResult?.rule || 'Standard',
         freeDeliveryApplied,
         surgeApplied,
         restaurantOverrideUsed: restaurant.adminOverride?.isOverridden || false,
@@ -358,8 +399,16 @@ function calculateSurgeFee(surgeConfig) {
  * 3. Global Default Commission (default 20%)
  */
 async function calculateCommissionPrecedence({ restaurant, categoriesInCart, adminSetting, itemTotal }) {
-  // 1. Restaurant Specific Commission Override
-  if (restaurant.adminCommission !== undefined && restaurant.adminCommission !== null && !isNaN(restaurant.adminCommission) && (restaurant.adminOverride?.isOverridden || restaurant.adminCommission >= 0)) {
+  const globalRate = (adminSetting?.commissionConfig?.globalCommissionPercent !== undefined && adminSetting?.commissionConfig?.globalCommissionPercent !== null)
+    ? Number(adminSetting.commissionConfig.globalCommissionPercent)
+    : 20;
+
+  // 1. Restaurant Specific Commission Override (Only if explicitly overridden by Admin)
+  const isExplicitOverride = Boolean(
+    restaurant?.adminOverride?.isOverridden === true ||
+    (restaurant?.adminCommission !== undefined && restaurant?.adminCommission !== null && !isNaN(restaurant?.adminCommission) && restaurant.adminCommission !== 10 && restaurant.adminCommission !== globalRate)
+  );
+  if (isExplicitOverride && restaurant?.adminCommission !== undefined && restaurant?.adminCommission !== null && !isNaN(restaurant?.adminCommission)) {
     const rate = Number(restaurant.adminCommission);
     return { rate, amount: (itemTotal * rate) / 100, rule: `Restaurant Override (${rate}%)` };
   }
@@ -377,9 +426,6 @@ async function calculateCommissionPrecedence({ restaurant, categoriesInCart, adm
   }
 
   // 3. Global Default Commission
-  const globalRate = adminSetting.commissionConfig?.globalCommissionPercent !== undefined
-    ? Number(adminSetting.commissionConfig.globalCommissionPercent)
-    : 20;
   return { rate: globalRate, amount: (itemTotal * globalRate) / 100, rule: `Global Default (${globalRate}%)` };
 }
 

@@ -9,8 +9,21 @@
 // const BASE_DELIVERY_DISTANCE_KM = 2;   // Free up to 2km
 // const EXTRA_FEE_PER_KM = 10;           // ₹10/km beyond 2km
 // const RIDER_DISTANCE_BONUS_PER_KM = 5; // ₹5/km extra for rider beyond 2km
-// const DEFAULT_COMMISSION_PERCENT = 10; // 10% platform commission on restaurant
+// const DEFAULT_COMMISSION_PERCENT = 20; // 10% platform commission on restaurant
 // const DEFAULT_RIDER_EARNING = 25;      // ₹25 flat per delivery
+async function getRiderPayoutSettings() {
+  try {
+    const AdminSetting = require('../models/AdminSetting');
+    const settings = await AdminSetting.getSettings();
+    return {
+      basePay: Number(settings?.riderPayoutConfig?.basePay ?? settings?.deliveryFeeConfig?.riderBasePay ?? 25),
+      baseDistanceKm: Number(settings?.riderPayoutConfig?.baseDistanceKm ?? 2),
+      extraPerKmFee: Number(settings?.riderPayoutConfig?.extraPerKmFee ?? settings?.deliveryFeeConfig?.riderBonusPerKm ?? 5),
+    };
+  } catch (_) {
+    return { basePay: 25, baseDistanceKm: 2, extraPerKmFee: 5 };
+  }
+}
 // function calculateDeliveryCharges(distanceKm) {
 //   const distance = parseFloat(distanceKm) || 0;
 //   let surcharge = 0;
@@ -301,7 +314,7 @@ const BASE_DELIVERY_FEE = 30;          // ₹30 base delivery fee
 const BASE_DELIVERY_DISTANCE_KM = 2;   // Free up to 2km
 const EXTRA_FEE_PER_KM = 10;           // ₹10/km beyond 2km
 const RIDER_DISTANCE_BONUS_PER_KM = 5; // ₹5/km extra for rider beyond 2km
-const DEFAULT_COMMISSION_PERCENT = 10; // 10% platform commission on restaurant
+const DEFAULT_COMMISSION_PERCENT = 20; // 10% platform commission on restaurant
 const DEFAULT_RIDER_EARNING = 25;      // ₹25 flat per delivery
 function calculateDeliveryCharges(distanceKm) {
   const distance = parseFloat(distanceKm) || 0;
@@ -344,7 +357,12 @@ async function processCODDelivery(orderId) {
   const orderAmount = Number(order.totalAmount || 0);
 
   // Admin commission & Restaurant net payable
-  const commissionPercent = restaurant?.adminCommission || DEFAULT_COMMISSION_PERCENT;
+  const commissionPercent = Number(
+    order.appliedCommissionRate ||
+    (restaurant?.adminOverride?.isOverridden && restaurant?.adminCommission != null ? restaurant.adminCommission : null) ||
+    restaurant?.adminCommission ||
+    DEFAULT_COMMISSION_PERCENT
+  );
   const adminCommission = Number(order.adminCommission ?? Math.round(((itemTotal * commissionPercent) / 100) * 100) / 100);
   const restaurantNet = Number(order.restaurantCommission ?? Math.max(0, Math.round((itemTotal + packagingFee - adminCommission) * 100) / 100));
 
@@ -506,7 +524,12 @@ async function processOnlineDelivery(orderId) {
   const orderAmount = Number(order.totalAmount || 0);
 
   // Admin commission & Restaurant net payable
-  const commissionPercent = restaurant?.adminCommission || DEFAULT_COMMISSION_PERCENT;
+  const commissionPercent = Number(
+    order.appliedCommissionRate ||
+    (restaurant?.adminOverride?.isOverridden && restaurant?.adminCommission != null ? restaurant.adminCommission : null) ||
+    restaurant?.adminCommission ||
+    DEFAULT_COMMISSION_PERCENT
+  );
   const adminCommission = Number(order.adminCommission ?? Math.round(((itemTotal * commissionPercent) / 100) * 100) / 100);
   const restaurantNet = Number(order.restaurantCommission ?? Math.max(0, Math.round((itemTotal + packagingFee - adminCommission) * 100) / 100));
 

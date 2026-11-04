@@ -17,6 +17,21 @@ const AdminSettingSchema = new mongoose.Schema(
     termsUrl: { type: String, trim: true, default: '' },
     privacyUrl: { type: String, trim: true, default: '' },
 
+    // Rider Payout Configuration (Dynamically managed by Admin)
+    riderPayoutConfig: {
+      basePay: { type: Number, default: 25 },
+      baseDistanceKm: { type: Number, default: 2 },
+      extraPerKmFee: { type: Number, default: 5 },
+    },
+
+    // Branded Footer Watermark Configuration (Dynamic Admin Controlled)
+    brandFooterConfig: {
+      enabled: { type: Boolean, default: true },
+      title: { type: String, default: "ECD here for You" },
+      subtitle: { type: String, default: "Delivering fast food, groceries & happiness to your doorstep." },
+      badgeText: { type: String, default: "Fast Delivery & 100% Quality Guaranteed" },
+    },
+
     // Delivery Fee Configuration
     deliveryFeeConfig: {
       enabled: { type: Boolean, default: true },

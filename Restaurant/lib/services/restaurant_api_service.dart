@@ -302,8 +302,14 @@ class RestaurantApiService {
         body: jsonEncode({'reason': reason ?? 'Cancelled by restaurant'}),
       ).timeout(const Duration(seconds: 15));
 
-      final data = jsonDecode(response.body);
-      return {'success': response.statusCode == 200, 'data': data, 'message': data['message']};
+      final dynamic decoded = jsonDecode(response.body);
+      final Map<String, dynamic> data = decoded is Map<String, dynamic> ? decoded : {'data': decoded};
+      final bool isSuccess = response.statusCode == 200 || response.statusCode == 201;
+      return {
+        'success': isSuccess && (data['success'] != false),
+        'data': data,
+        'message': data['message'] ?? (isSuccess ? 'Order cancelled successfully' : 'Failed with status ${response.statusCode}'),
+      };
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }

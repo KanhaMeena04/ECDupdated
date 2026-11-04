@@ -2160,8 +2160,9 @@ exports.financeSummary = async (req, res) => {
       }),
       { revenue: 0, platformFees: 0, orders: 0 },
     );
-    const commission =
-      (totals.revenue * (restaurant.adminCommission || 0)) / 100;
+    const commission = (agg && agg.totalCommission !== undefined && agg.totalCommission > 0)
+      ? agg.totalCommission
+      : (totals.revenue * (restaurant.adminOverride?.isOverridden && restaurant.adminCommission ? restaurant.adminCommission : 20)) / 100;
     const payout = totals.revenue - commission - totals.platformFees;
     res
       .status(200)
@@ -2312,9 +2313,10 @@ exports.settlementReport = async (req, res) => {
         },
       },
     ]);
-    const totals = agg[0] || { revenue: 0, platformFees: 0, orders: 0 };
-    const commission =
-      (totals.revenue * (restaurant.adminCommission || 0)) / 100;
+    const totals = agg[0] || { revenue: 0, platformFees: 0, totalCommission: 0, orders: 0 };
+    const commission = (totals.totalCommission !== undefined && totals.totalCommission > 0)
+      ? totals.totalCommission
+      : (totals.revenue * (restaurant.adminOverride?.isOverridden && restaurant.adminCommission ? restaurant.adminCommission : 20)) / 100;
     const payout = totals.revenue - commission - totals.platformFees;
     if (format === "csv") {
       const csv = `revenue,platformFees,commission,payout,orders\n${totals.revenue},${totals.platformFees},${commission},${payout},${totals.orders}`;
@@ -4222,3 +4224,221 @@ exports.getRestaurantStatusCheck = async (req, res) => {
 
 
 
+
+
+// -----------------------------------------------------------------------------
+// GET CATEGORY ITEMS & NEARBY RESTAURANTS (Dynamic Category Search by GPS)
+// -----------------------------------------------------------------------------
+exports.getCategoryItemsAndRestaurants = async (req, res) => {
+  try {
+    const { category, categoryId, lat, lng, city, address } = req.query;
+    const Category = require('../models/Category');
+    const Product = require('../models/Product');
+    const Restaurant = require('../models/Restaurant');
+    const mongoose = require('mongoose');
+
+    const userLat = parseFloat(lat);
+    const userLng = parseFloat(lng);
+    const hasCoords = Number.isFinite(userLat) && Number.isFinite(userLng) && (userLat !== 0 || userLng !== 0);
+
+    // 1. Resolve Category document & synonyms
+    let targetCategory = null;
+    let matchingCatIds = [];
+    const catQuery = (category || '').trim();
+
+    if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
+      targetCategory = await Category.findById(categoryId).lean();
+      if (targetCategory) matchingCatIds.push(targetCategory._id);
+    }
+
+    if (!targetCategory && catQuery) {
+      const catRegex = new RegExp(catQuery, 'i');
+      const foundCats = await Category.find({
+        $or: [
+          { 'name.en': catRegex },
+          { name: catRegex },
+          { title: catRegex },
+          { slug: catRegex }
+        ]
+      }).lean();
+
+      if (foundCats.length > 0) {
+        targetCategory = foundCats[0];
+        matchingCatIds = foundCats.map(c => c._id);
+      }
+    }
+
+    // 2. Find Candidate Restaurants nearby within GPS range
+    let restaurantQuery = {
+      isActive: true,
+      restaurantApproved: { $ne: false },
+      isTemporarilyClosed: { $ne: true }
+    };
+
+    let allRests = await Restaurant.find(restaurantQuery)
+      .select('name image address location rating deliveryTime geofenceRadius deliveryRadius serviceRadius isOnline isVeg cuisine slug')
+      .lean();
+
+    let candidateRestaurants = [];
+    if (hasCoords) {
+      allRests.forEach(r => {
+        let rLong = null, rLat = null;
+        if (r.location?.coordinates?.length === 2) {
+          [rLong, rLat] = r.location.coordinates;
+        } else if (r.latitude != null && r.longitude != null) {
+          rLat = Number(r.latitude);
+          rLong = Number(r.longitude);
+        }
+        if (Number.isFinite(rLat) && Number.isFinite(rLong)) {
+          r.distanceKm = Math.round(calculateDistanceKm(userLat, userLng, rLat, rLong) * 10) / 10;
+        } else {
+          r.distanceKm = 1.5;
+        }
+      });
+
+      // Filter within service radius
+      candidateRestaurants = allRests.filter(r => {
+        const maxRadius = Number(r.geofenceRadius || r.deliveryRadius || r.serviceRadius || 15);
+        return (r.distanceKm || 0) <= maxRadius;
+      });
+
+      // If user GPS is outside test restaurant radius, fallback to all active restaurants sorted by distance
+      // so user/client always gets matching category items rather than 0 items or unrelated dishes
+      if (candidateRestaurants.length === 0 && allRests.length > 0) {
+        allRests.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
+        candidateRestaurants = allRests.slice(0, 30);
+      } else {
+        candidateRestaurants.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
+      }
+    } else {
+      candidateRestaurants = allRests.slice(0, 50);
+    }
+
+    const categoryInfo = targetCategory ? {
+      id: targetCategory._id.toString(),
+      name: typeof targetCategory.name === 'object' ? (targetCategory.name.en || targetCategory.title) : (targetCategory.name || targetCategory.title || catQuery),
+      image: targetCategory.image || targetCategory.bannerImage || ''
+    } : {
+      id: '',
+      name: catQuery || 'Dishes',
+      image: ''
+    };
+
+    if (candidateRestaurants.length === 0) {
+      return res.status(200).json({
+        success: true,
+        category: categoryInfo,
+        items: [],
+        restaurants: [],
+        count: 0
+      });
+    }
+
+    const candidateRestIds = candidateRestaurants.map(r => r._id);
+    const restMap = {};
+    candidateRestaurants.forEach(r => {
+      restMap[r._id.toString()] = r;
+    });
+
+    // 3. Find Products matching Category in these candidate restaurants
+    const searchTerms = [catQuery];
+    if (targetCategory) {
+      const tName = typeof targetCategory.name === 'object' ? targetCategory.name.en : targetCategory.name;
+      if (tName && !searchTerms.includes(tName)) searchTerms.push(tName);
+    }
+    const cleanTerms = searchTerms.filter(Boolean);
+    const combinedRegex = cleanTerms.length > 0 ? new RegExp(cleanTerms.join('|'), 'i') : null;
+
+    const orConditions = [];
+    if (matchingCatIds.length > 0) {
+      orConditions.push({ category: { $in: matchingCatIds } });
+      orConditions.push({ categoryId: { $in: matchingCatIds } });
+    }
+    if (combinedRegex) {
+      orConditions.push({ subcategory: combinedRegex });
+      orConditions.push({ 'name.en': combinedRegex });
+      orConditions.push({ name: combinedRegex });
+      orConditions.push({ description: combinedRegex });
+    }
+
+    const productMatch = {
+      restaurant: { $in: candidateRestIds },
+      available: { $ne: false },
+      outOfStock: { $ne: true },
+      isApproved: { $ne: false }
+    };
+    if (orConditions.length > 0) {
+      productMatch.$or = orConditions;
+    }
+
+    const products = await Product.find(productMatch)
+      .populate('category', 'name title image')
+      .sort({ isFeatured: -1, rating: -1 })
+      .lean();
+
+    // 4. Format Products for Flutter App
+    const formattedItems = products.map(p => {
+      const r = restMap[p.restaurant?.toString()] || {};
+      const pPrice = Number(p.sellingPrice || p.price || p.basePrice || 0);
+      const pMrp = Number(p.mrp || (pPrice > 0 ? Math.round(pPrice * 1.3) : 0));
+      const pName = typeof p.name === 'object' ? (p.name.en || p.name.hi || 'Food Item') : (p.name || 'Food Item');
+      let rName = 'Restaurant';
+      if (r.name) {
+        if (typeof r.name === 'object') {
+          rName = r.name.en || r.name.hi || Object.values(r.name)[0] || 'Restaurant';
+        } else {
+          rName = r.name.toString();
+        }
+      }
+      if (typeof rName === 'string') {
+        if (rName.includes('en:') || rName.includes('"en":')) {
+          const m = rName.match(/["']?en["']?\s*:\s*([^,}]+)/);
+          if (m && m[1]) rName = m[1].replace(/["'}]/g, '').trim();
+        }
+        rName = rName.replace(/[\{\}]/g, '').trim();
+      }
+
+      return {
+        id: p._id.toString(),
+        _id: p._id.toString(),
+        name: pName,
+        price: pPrice,
+        mrp: pMrp,
+        b2bPrice: Number(p.b2bPrice || p.pricing?.b2b?.sellingPrice || pPrice),
+        image: p.image || p.imageUrl || '',
+        imageUrl: p.image || p.imageUrl || '',
+        foodType: p.foodType || (p.isVeg ? 'veg' : 'non-veg'),
+        isVeg: p.foodType === 'veg' || p.isVeg === true,
+        description: typeof p.description === 'object' ? (p.description.en || '') : (p.description || ''),
+        rating: Number(p.rating || 4.5),
+        category: p.category?.title || (typeof p.category?.name === 'object' ? p.category.name.en : p.category?.name) || catQuery,
+        restaurantId: r._id ? r._id.toString() : '',
+        restaurantName: rName,
+        restaurantImage: r.image || '',
+        restaurantAddress: r.address || '',
+        distanceKm: r.distanceKm || 0,
+        deliveryTime: r.deliveryTime || 25,
+        isOnline: r.isOnline !== false,
+        portions: p.portions || {},
+        portionType: p.portionType || 'none',
+        variations: p.variations || [],
+        addOns: p.addOns || []
+      };
+    });
+
+    // Extract unique restaurants serving this category
+    const servingRestIds = new Set(products.map(p => p.restaurant?.toString()).filter(Boolean));
+    const servingRestaurants = candidateRestaurants.filter(r => servingRestIds.has(r._id.toString()));
+
+    return res.status(200).json({
+      success: true,
+      category: categoryInfo,
+      items: formattedItems,
+      restaurants: servingRestaurants,
+      count: formattedItems.length
+    });
+  } catch (error) {
+    console.error("getCategoryItemsAndRestaurants error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

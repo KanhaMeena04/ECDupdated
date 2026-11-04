@@ -150,7 +150,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Future<void> _advanceOrderState() async {
-    final orderId = widget.order.id;
+    final orderId = widget.order.backendId.isNotEmpty ? widget.order.backendId : widget.order.id;
     if (widget.order.isSelfPickup) {
       if (_currentStatus == 'Pending' || _currentStatus == 'Placed') {
         _showAcceptPrepTimeModal();
@@ -863,27 +863,51 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
                             final String customText = otherReasonController.text.trim();
+                            if (selectedReason.isEmpty) return;
+                            if (selectedReason == 'Other reason' && customText.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please enter specific reason details (Required)'),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                              return;
+                            }
                             final String finalReason = (selectedReason == 'Other reason' && customText.isNotEmpty)
                                 ? 'Other: $customText'
                                 : selectedReason;
 
                             Navigator.pop(context);
                             final targetId = widget.order.backendId.isNotEmpty ? widget.order.backendId : widget.order.id;
-                            RestaurantApiService.cancelOrder(targetId, finalReason);
-                            setState(() {
-                              _currentStatus = 'Cancelled';
-                              widget.order.status = 'Cancelled';
-                              widget.order.cancelledAt = DateTime.now();
-                              widget.order.cancellationReason = finalReason;
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Order Cancelled! Reason: $finalReason (Full Refund Initiated)'),
-                                backgroundColor: Colors.redAccent,
-                              ),
-                            );
+                            final res = await RestaurantApiService.cancelOrder(targetId, finalReason);
+                            if (res['success'] == true) {
+                              if (mounted) {
+                                setState(() {
+                                  _currentStatus = 'Cancelled';
+                                  widget.order.status = 'Cancelled';
+                                  widget.order.cancelledAt = DateTime.now();
+                                  widget.order.cancellationReason = finalReason;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Order Cancelled! Reason: $finalReason'),
+                                    backgroundColor: Colors.redAccent,
+                                    duration: const Duration(seconds: 3),
+                                  ),
+                                );
+                              }
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to cancel order: ${res['message'] ?? 'Error'}'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.redAccent,
@@ -968,26 +992,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                 child: const Icon(Icons.arrow_back, color: Colors.black87, size: 20),
                               ),
                             ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  onPressed: _deleteOrderFromDetails,
-                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 24),
-                                  tooltip: 'Delete Order',
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: widget.order.isSelfPickup ? Colors.orange : AppColors.primaryGreen,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    widget.order.isSelfPickup ? 'SELF PICKUP' : 'DELIVERY',
-                                    style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
-                                  ),
-                                ),
-                              ],
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: widget.order.isSelfPickup ? Colors.orange : AppColors.primaryGreen,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                widget.order.isSelfPickup ? 'SELF PICKUP' : 'DELIVERY',
+                                style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
                             ),
                           ],
                         ),
@@ -1663,6 +1677,54 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           ],
           const Divider(height: 20),
           _buildBillRow('Grand Total', '₹${grandTotal.toStringAsFixed(2)}', isBold: true),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primaryGreen.withOpacity(0.35)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Restaurant Settlement', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(color: AppColors.primaryGreen, borderRadius: BorderRadius.circular(6)),
+                      child: Text('Credited to Wallet', style: GoogleFonts.poppins(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildBillRow('Food Item Total', '₹${itemTotalVal.toStringAsFixed(2)}'),
+                if (packaging > 0) ...[
+                  const SizedBox(height: 4),
+                  _buildBillRow('Packaging Charge', '+₹${packaging.toStringAsFixed(2)}'),
+                ],
+                const SizedBox(height: 4),
+                _buildBillRow(
+                  'Platform Commission (${widget.order.appliedCommissionRate != null ? widget.order.appliedCommissionRate!.round() : (widget.order.restaurantEarning != null && itemTotalVal > 0 ? ((1 - (widget.order.restaurantEarning! - packaging) / itemTotalVal) * 100).round() : 20)}%)',
+                  '-₹${(widget.order.adminCommission ?? (widget.order.restaurantEarning != null ? (itemTotalVal + packaging - widget.order.restaurantEarning!).clamp(0, itemTotalVal) : (itemTotalVal * 0.20))).toStringAsFixed(2)}',
+                  isAccent: true,
+                ),
+                const Divider(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Net Restaurant Payout', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF166534))),
+                    Text(
+                      '₹${(widget.order.restaurantEarning ?? ((itemTotalVal + packaging) - (widget.order.adminCommission ?? (itemTotalVal * 0.20)))).toStringAsFixed(2)}',
+                      style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF166534)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1831,7 +1893,23 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             Expanded(
               child: Text(text, style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87)),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
+            if (_currentStatus == 'Placed' || _currentStatus == 'Pending') ...[
+              OutlinedButton(
+                onPressed: _showCancellationModal,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.redAccent,
+                  side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  'Reject',
+                  style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
             ElevatedButton(
               onPressed: isDelivered ? null : _advanceOrderState,
               style: ElevatedButton.styleFrom(

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math' as math;
+import '../../services/settings_api_service.dart';
 import 'package:ecdkart_app/widgets/safe_image.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:ecdkart_app/core/models/restaurant_models.dart';
@@ -121,11 +123,108 @@ class _HomePageState extends State<HomePage> {
           ][_selectedIndex],
         ),
       ),
-      bottomNavigationBar: CurvedBottomNavBar(
-        selectedIndex: _selectedIndex,
-        isDark: isDark,
-        onItemTapped: (index) => setState(() => _selectedIndex = index),
-        onPlusTapped: () => QuickOrderSheet.show(context),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Consumer<CartProvider>(
+            builder: (context, cart, _) {
+              if (cart.itemCount == 0) return const SizedBox.shrink();
+              return Container(
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF248C70), Color(0xFF1B6B55)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF248C70).withOpacity(0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.shopping_bag_outlined, color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${cart.itemCount} ${cart.itemCount == 1 ? 'ITEM' : 'ITEMS'} ADDED',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white70,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            Text(
+                              '₹${cart.totalAmount.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CartPage()),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE89D1E),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'View Cart',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_rounded, size: 16),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          CurvedBottomNavBar(
+            selectedIndex: _selectedIndex,
+            isDark: isDark,
+            onItemTapped: (index) => setState(() => _selectedIndex = index),
+            onPlusTapped: () => QuickOrderSheet.show(context),
+          ),
+        ],
       ),
     );
   }
@@ -631,6 +730,7 @@ class _HomeTabState extends State<_HomeTab> {
   Map<String, String>? _appliedFiltersMap;
   String _selectedSort = 'Popular';
   int _selectedCategoryIndex = 0;
+  int _sessionSeed = DateTime.now().millisecondsSinceEpoch;
   bool _lowerPricesFilterActive = false;
   String _dietaryFilter = 'All';
 
@@ -665,6 +765,10 @@ class _HomeTabState extends State<_HomeTab> {
         final validList = (reqLat != null && reqLng != null)
             ? restaurants.where((r) => r.isActive && r.isOnline && r.isServiceable && (r.geofenceRadius == null || r.distanceKm <= r.geofenceRadius!)).toList()
             : restaurants.where((r) => r.isActive && r.isOnline).toList();
+        
+        // Live Shuffle on every app session & pull-to-refresh
+        validList.shuffle(math.Random(_sessionSeed));
+
         setState(() {
           _restaurants = validList;
           _isLoadingRestaurants = false;
@@ -1401,10 +1505,24 @@ class _HomeTabState extends State<_HomeTab> {
                                   return GestureDetector(
                                     behavior: HitTestBehavior.opaque,
                                     onTap: () {
-                                      setState(() {
-                                        _selectedCategoryIndex = index;
-                                      });
-                                      _animateCategoryScroll();
+                                      if (isAll) {
+                                        setState(() {
+                                          _selectedCategoryIndex = index;
+                                        });
+                                        _animateCategoryScroll();
+                                      } else {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => DishRestaurantsPage(
+                                              category: category,
+                                              categoryId: category.id,
+                                              categoryTitle: category.title,
+                                              dishName: category.title,
+                                            ),
+                                          ),
+                                        );
+                                      }
                                     },
                                     child: isSelected
                                         ? CustomPaint(
@@ -1441,7 +1559,7 @@ class _HomeTabState extends State<_HomeTab> {
                   ],
 
                   const SizedBox(height: 16),
-                  const RotatingThaliWidget(),
+                  const DynamicBrandFooterWidget(),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -4248,78 +4366,186 @@ class _RecentOrdersSectionState extends State<_RecentOrdersSection> {
   }
 }
 
-class RotatingThaliWidget extends StatefulWidget {
-  const RotatingThaliWidget({super.key});
+class DynamicBrandFooterWidget extends StatefulWidget {
+  const DynamicBrandFooterWidget({super.key});
 
   @override
-  State<RotatingThaliWidget> createState() => _RotatingThaliWidgetState();
+  State<DynamicBrandFooterWidget> createState() => _DynamicBrandFooterWidgetState();
 }
 
-class _RotatingThaliWidgetState extends State<RotatingThaliWidget>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+class _DynamicBrandFooterWidgetState extends State<DynamicBrandFooterWidget> {
+  bool _enabled = true;
+  String _title = 'ECD here for You';
+  String _subtitle = 'Delivering fast food, groceries & happiness to your doorstep.';
+  String _badgeText = 'Fast Delivery & 100% Quality Guaranteed';
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 18),
-    )..repeat();
+    _loadConfig();
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  Future<void> _loadConfig() async {
+    try {
+      final config = await SettingsApiService.fetchBrandFooterConfig();
+      if (mounted) {
+        setState(() {
+          _enabled = config['enabled'] != false;
+          if (config['title'] != null && config['title'].toString().trim().isNotEmpty) {
+            _title = config['title'].toString().trim();
+          }
+          if (config['subtitle'] != null && config['subtitle'].toString().trim().isNotEmpty) {
+            _subtitle = config['subtitle'].toString().trim();
+          }
+          if (config['badgeText'] != null && config['badgeText'].toString().trim().isNotEmpty) {
+            _badgeText = config['badgeText'].toString().trim();
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
-    const double thaliSize = 250.0;
+    if (!_enabled) return const SizedBox(height: 24);
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24.0),
-        child: Container(
-          width: thaliSize,
-          height: thaliSize,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white,
-            border: Border.all(
-              color: const Color(0xFFE89D1E),
-              width: 5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFE89D1E).withValues(alpha: 0.3),
-                blurRadius: 16,
-                spreadRadius: 2,
-                offset: const Offset(0, 4),
-              ),
-            ],
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 26),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+            width: 1,
           ),
-          child: RotationTransition(
-            turns: Tween<double>(begin: 1.0, end: 0.0).animate(_controller),
-            child: ClipOval(
-              child: Transform.scale(
-                scale: 1.38,
-                child: Image.asset(
-                  'assets/thali.jpg',
-                  width: thaliSize,
-                  height: thaliSize,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.restaurant,
-                    size: 100,
-                    color: Color(0xFF248C70),
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.black26 : const Color(0xFF248C70).withOpacity(0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Badge tag
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE89D1E), Color(0xFFF59E0B)],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFE89D1E).withOpacity(0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.bolt_rounded, size: 14, color: Colors.white),
+                  const SizedBox(width: 4),
+                  Text(
+                    _badgeText.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Large Typography Brand Title
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFF248C70), Color(0xFF155E49), Color(0xFFE89D1E)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ).createShader(bounds),
+              child: Text(
+                _title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                  height: 1.2,
                 ),
               ),
             ),
-          ),
+            const SizedBox(height: 8),
+
+            // Subtitle
+            Text(
+              _subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Responsive Trust Pills (Wrap prevents any 33-pixel overflow on all screens)
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildTrustPill(Icons.verified_outlined, '100% Hygienic', isDark),
+                _buildTrustPill(Icons.speed_rounded, 'Live Tracking', isDark),
+                _buildTrustPill(Icons.support_agent_rounded, '24/7 Support', isDark),
+              ],
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTrustPill(IconData icon, String text, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          width: 0.8,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: const Color(0xFF248C70)),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.grey.shade300 : const Color(0xFF475569),
+            ),
+          ),
+        ],
       ),
     );
   }

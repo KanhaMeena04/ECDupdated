@@ -14,6 +14,8 @@ class Order {
   final double tax;
   final double discount;
   final double? restaurantEarning;
+  final double? adminCommission;
+  final double? appliedCommissionRate;
   final String? customerId;
   String? riderName;
   String? riderId;
@@ -57,6 +59,8 @@ class Order {
     this.tax = 0.0,
     this.discount = 0.0,
     this.restaurantEarning,
+    this.adminCommission,
+    this.appliedCommissionRate,
     this.customerId,
     this.riderName,
     this.riderId,
@@ -236,8 +240,14 @@ class Order {
     }
 
     double? parsedEarnings;
-    if (json['restaurantEarnings'] != null) {
+    if (json['restaurantCommission'] != null) {
+      parsedEarnings = double.tryParse(json['restaurantCommission'].toString());
+    } else if (json['restaurantEarnings'] != null) {
       parsedEarnings = double.tryParse(json['restaurantEarnings'].toString());
+    } else if (json['restaurantNetPayable'] != null) {
+      parsedEarnings = double.tryParse(json['restaurantNetPayable'].toString());
+    } else if (json['earnings'] != null) {
+      parsedEarnings = double.tryParse(json['earnings'].toString());
     }
 
     final rawOrderType = json['orderType']?.toString().toLowerCase() ?? '';
@@ -300,6 +310,8 @@ class Order {
       tax: parsedTax,
       discount: parsedDiscount,
       restaurantEarning: parsedEarnings,
+      adminCommission: json['adminCommission'] != null ? double.tryParse(json['adminCommission'].toString()) : null,
+      appliedCommissionRate: json['appliedCommissionRate'] != null ? double.tryParse(json['appliedCommissionRate'].toString()) : null,
       pickupOtp: json['pickupOtp']?.toString() ?? json['pickupOTP']?.toString() ?? json['selfPickupCode']?.toString(),
       riderName: parsedRiderName,
       riderId: parsedRiderId,

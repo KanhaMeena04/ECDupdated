@@ -939,7 +939,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
       return 'Delivery partner has picked up order from restaurant & starting delivery soon!';
     }
     if (status == 'ready' || status == 'ready_for_pickup') {
-      return _isSelfPickup ? 'Food is ready at counter! Show OTP or QR to pickup' : 'Delivery partner is picking up your order';
+      return _isSelfPickup ? 'Food is ready at counter! Show OTP or QR to pickup' : 'Food is prepared & packed! Rider is arriving to collect it.';
     }
     if (status == 'confirmed' || status == 'accepted' || status == 'preparing' || status == 'in_kitchen') {
       return 'Kitchen is preparing your fresh meal';
@@ -2836,21 +2836,49 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
           const SizedBox(height: 12),
           const Divider(height: 1, color: Color(0xFFF3F4F6)),
           const SizedBox(height: 10),
-          Row(
-            children: const [
-              Icon(Icons.info_outline, size: 16, color: AppColors.primary),
-              SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'Rider has picked up your order and is on the way!',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF4B5563),
-                    fontWeight: FontWeight.w500,
+          Builder(
+            builder: (context) {
+              final s = _effectiveStatus;
+              String riderStatusText;
+              IconData riderStatusIcon;
+
+              if (s == 'delivered' || s == 'completed') {
+                riderStatusText = 'Order has been delivered safely!';
+                riderStatusIcon = Icons.check_circle_outline;
+              } else if (s == 'out_for_delivery' || s == 'on_the_way' || s == 'reached_customer_location' || s == 'delivery_arrived') {
+                riderStatusText = 'Rider is on the way to your delivery address!';
+                riderStatusIcon = Icons.delivery_dining;
+              } else if (s == 'picked_up' || s == 'partner_picked') {
+                riderStatusText = 'Rider has collected food from restaurant & started delivery!';
+                riderStatusIcon = Icons.two_wheeler;
+              } else if (s == 'ready' || s == 'ready_for_pickup') {
+                riderStatusText = 'Food is prepared & packed. Rider is arriving to collect it.';
+                riderStatusIcon = Icons.shopping_bag_outlined;
+              } else if (s == 'preparing' || s == 'in_kitchen') {
+                riderStatusText = 'Kitchen is preparing food. Rider will collect once ready.';
+                riderStatusIcon = Icons.soup_kitchen_outlined;
+              } else {
+                riderStatusText = 'Delivery partner assigned to your order.';
+                riderStatusIcon = Icons.info_outline;
+              }
+
+              return Row(
+                children: [
+                  Icon(riderStatusIcon, size: 16, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      riderStatusText,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF4B5563),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ],
       ),

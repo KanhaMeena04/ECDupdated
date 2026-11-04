@@ -18,6 +18,7 @@ import '../auth/rider_relogin_screen.dart';
 import '../auth/profile_screen.dart';
 import '../onboarding_screen.dart';
 import '../order/order_tracking_screen.dart';
+import '../order/order_details_screen.dart';
 import '../wallet/rider_wallet_screen.dart';
 import 'widgets/notifications_sheet.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1888,92 +1889,92 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   }
 
   Widget _buildOrdersSection() {
-    return DefaultTabController(
-      length: 3,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Orders',
-              style: GoogleFonts.poppins(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+    return BlocBuilder<DriverBloc, DriverState>(
+      builder: (context, state) {
+        if (state is DriverLoading && state.orders.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(color: primaryGreen),
             ),
-          ),
-          const SizedBox(height: 12),
-          
-          // Tab Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F3F5),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              padding: const EdgeInsets.all(3),
-              child: TabBar(
-                isScrollable: false,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey[700],
-                indicator: BoxDecoration(
-                  color: primaryGreen,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12),
-                unselectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 12),
-                tabs: const [
-                  Tab(text: 'Active'),
-                  Tab(text: 'Complete'),
-                  Tab(text: 'Cancel'),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
+          );
+        }
 
-          BlocBuilder<DriverBloc, DriverState>(
-            builder: (context, state) {
-              if (state is DriverLoading && state.orders.isEmpty) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(40),
-                    child: CircularProgressIndicator(color: primaryGreen),
+        final displayActiveOrders = state.orders.where((o) {
+          final status = (o['status'] ?? o['deliveryStatus'] ?? '').toString().toLowerCase();
+          final dStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
+          return status != 'delivered' && status != 'completed' && status != 'cancelled' &&
+                 dStatus != 'delivered' && dStatus != 'completed' && dStatus != 'cancelled' &&
+                 dStatus != 'driver_notified';
+        }).toList();
+
+        final Map<String, dynamic> completedMap = {};
+        for (var o in state.completedOrders) {
+          final id = (o['_id'] ?? o['orderId'] ?? o['orderNumber'] ?? '').toString();
+          if (id.isNotEmpty) completedMap[id] = o;
+        }
+        for (var o in state.orders) {
+          final status = (o['status'] ?? o['deliveryStatus'] ?? '').toString().toLowerCase();
+          final dStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
+          if (status == 'delivered' || status == 'completed' || dStatus == 'delivered' || dStatus == 'completed') {
+            final id = (o['_id'] ?? o['orderId'] ?? o['orderNumber'] ?? '').toString();
+            if (id.isNotEmpty && !completedMap.containsKey(id)) {
+              completedMap[id] = o;
+            }
+          }
+        }
+        final displayCompletedOrders = completedMap.values.toList();
+
+        return DefaultTabController(
+          length: 3,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Orders',
+                  style: GoogleFonts.poppins(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
-                );
-              }
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              // Tab Bar with Live Order Counts
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F3F5),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.all(3),
+                  child: TabBar(
+                    isScrollable: false,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.grey[700],
+                    indicator: BoxDecoration(
+                      color: primaryGreen,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 12),
+                    unselectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 12),
+                    tabs: [
+                      Tab(text: displayActiveOrders.isNotEmpty ? 'Active (${displayActiveOrders.length})' : 'Active'),
+                      Tab(text: displayCompletedOrders.isNotEmpty ? 'Complete (${displayCompletedOrders.length})' : 'Complete'),
+                      Tab(text: state.cancelledOrders.isNotEmpty ? 'Cancel (${state.cancelledOrders.length})' : 'Cancel'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
 
-              final displayActiveOrders = state.orders.where((o) {
-                final status = (o['status'] ?? o['deliveryStatus'] ?? '').toString().toLowerCase();
-                final dStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
-                return status != 'delivered' && status != 'completed' && status != 'cancelled' &&
-                       dStatus != 'delivered' && dStatus != 'completed' && dStatus != 'cancelled' &&
-                       dStatus != 'driver_notified';
-              }).toList();
-
-              final Map<String, dynamic> completedMap = {};
-              for (var o in state.completedOrders) {
-                final id = (o['_id'] ?? o['orderId'] ?? o['orderNumber'] ?? '').toString();
-                if (id.isNotEmpty) completedMap[id] = o;
-              }
-              for (var o in state.orders) {
-                final status = (o['status'] ?? o['deliveryStatus'] ?? '').toString().toLowerCase();
-                final dStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
-                if (status == 'delivered' || status == 'completed' || dStatus == 'delivered' || dStatus == 'completed') {
-                  final id = (o['_id'] ?? o['orderId'] ?? o['orderNumber'] ?? '').toString();
-                  if (id.isNotEmpty && !completedMap.containsKey(id)) {
-                    completedMap[id] = o;
-                  }
-                }
-              }
-              final displayCompletedOrders = completedMap.values.toList();
-
-              return SizedBox(
-                height: 400, // Fixed height for TabBarView
+              SizedBox(
+                height: 480, // Comfortable height for TabBarView
                 child: TabBarView(
                   children: [
                     _buildOrderList(displayActiveOrders, title: 'No active orders right now'),
@@ -1981,11 +1982,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     _buildOrderList(state.cancelledOrders, isHistorical: true, title: 'No cancelled orders yet'),
                   ],
                 ),
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -2085,22 +2086,31 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     final rawTotal = order['payableAmount'] ?? order['totalAmount'] ?? '0.00';
     final String totalStr = (rawTotal is num) ? rawTotal.toStringAsFixed(2) : rawTotal.toString();
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => OrderDetailsScreen(order: order),
           ),
-        ],
-      ),
-      child: Column(
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[200]!, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header: Order ID and Status
@@ -2229,6 +2239,29 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                 ),
+              ] else ...[
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => OrderDetailsScreen(order: order),
+                      ),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: primaryGreen, width: 1.2),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                    minimumSize: const Size(0, 30),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(
+                    "View",
+                    style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.bold, color: primaryGreen),
+                  ),
+                ),
               ],
             ],
           ),
@@ -2276,6 +2309,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -2447,6 +2481,11 @@ class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
 
   @override
   Widget build(BuildContext context) {
+    final pMethod = (widget.order['paymentMethod'] ?? widget.order['paymentMode'] ?? '').toString().toLowerCase();
+    final pTxProvider = (widget.order['paymentTransaction']?['provider'] ?? '').toString().toLowerCase();
+    final isCodOrder = pMethod == 'cash on delivery' || pMethod == 'cod' || pMethod == 'cash' || pTxProvider == 'cod' || pTxProvider == 'cash on delivery';
+    final totalAmt = widget.order['totalAmount'] ?? widget.order['finalAmount'] ?? widget.order['amount'] ?? 0;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -2457,6 +2496,50 @@ class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isCodOrder ? const Color(0xFFFEF3C7) : const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isCodOrder ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                width: 1.2,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isCodOrder ? Icons.money : Icons.check_circle_outline,
+                  color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isCodOrder ? 'CASH ORDER: ₹$totalAmt' : 'PAID ONLINE (₹$totalAmt)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12.5,
+                          color: isCodOrder ? const Color(0xFF92400E) : const Color(0xFF065F46),
+                        ),
+                      ),
+                      Text(
+                        isCodOrder ? 'Collect cash from customer before entering OTP.' : 'Customer paid online. Do NOT ask for cash.',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

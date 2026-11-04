@@ -261,7 +261,7 @@ export default function CatalogMasterControl() {
           </Typography>
         </Box>
         <Chip
-          label="LOCAL DEV ONLY — SAFE MODE"
+          label="CENTRAL LIVE ENGINE"
           color="success"
           size="small"
           sx={{ fontWeight: 700 }}

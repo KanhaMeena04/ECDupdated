@@ -12,6 +12,8 @@ const adminCommissionWalletSchema = new mongoose.Schema({
   // Breakdown
   commissionFromRestaurants: { type: Number, default: 0 },
   commissionFromDelivery: { type: Number, default: 0 },
+  packagingFeesCollected: { type: Number, default: 0 },
+  platformFeesCollected: { type: Number, default: 0 },
   
   // Metadata
   lastUpdated: { type: Date, default: Date.now },

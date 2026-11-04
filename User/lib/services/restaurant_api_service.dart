@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../core/models/restaurant_models.dart';
 import '../core/models/category.dart';
 import '../core/models/banner.dart';
+import '../core/models/product.dart';
 import 'popular_dish_data.dart';
 import 'auth_service.dart';
 
@@ -567,7 +568,28 @@ class RestaurantApiService {
           String rName = '';
           if (rest is Map) {
             rId = rest['_id']?.toString() ?? rest['id']?.toString() ?? '';
-            rName = rest['name']?.toString() ?? '';
+            final dynamic rawRName = rest['name'];
+            if (rawRName is Map) {
+              rName = rawRName['en']?.toString() ?? rawRName.values.first?.toString() ?? 'Restaurant';
+            } else {
+              rName = rawRName?.toString() ?? 'Restaurant';
+            }
+            if (rName.contains('en:')) {
+              final parts = rName.split('en:');
+              if (parts.length > 1) {
+                rName = parts[1].split(',')[0].split('}')[0];
+              }
+            } else if (rName.contains('"en":')) {
+              final parts = rName.split('"en":');
+              if (parts.length > 1) {
+                rName = parts[1].split(',')[0].split('}')[0];
+              }
+            }
+            rName = rName.replaceAll('{', '')
+                         .replaceAll('}', '')
+                         .replaceAll('"', '')
+                         .replaceAll("'", '')
+                         .trim();
           } else if (rest != null) {
             rId = rest.toString();
           }
@@ -649,6 +671,73 @@ class RestaurantApiService {
       debugPrint('Error fetching restaurants by category: $e');
       return [];
     }
+  }
+
+  static Future<Map<String, dynamic>> getCategoryItemsAndRestaurants({
+    required String category,
+    String? categoryId,
+    double? lat,
+    double? lng,
+  }) async {
+    if (kFrontendPreviewMode) {
+      return {'success': true, 'items': <Product>[], 'restaurants': <Restaurant>[], 'count': 0};
+    }
+    try {
+      final queryParams = <String, String>{
+        'category': category,
+        if (categoryId != null && categoryId.isNotEmpty) 'categoryId': categoryId,
+        if (lat != null && lat != 0) 'lat': lat.toString(),
+        if (lng != null && lng != 0) 'lng': lng.toString(),
+      };
+      final uri = Uri.parse('$restaurantsUrl/category-items').replace(queryParameters: queryParams);
+      final response = await http.get(uri, headers: await _getHeaders()).timeout(const Duration(seconds: 15));
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic> && decoded['success'] == true) {
+          final rawItems = (decoded['items'] as List<dynamic>?) ?? [];
+          final rawRests = (decoded['restaurants'] as List<dynamic>?) ?? [];
+
+          final items = rawItems.map((item) {
+            final m = item is Map<String, dynamic> ? item : Map<String, dynamic>.from(item as Map);
+            return Product(
+              id: m['id']?.toString() ?? m['_id']?.toString() ?? '',
+              name: m['name']?.toString() ?? 'Food Item',
+              description: m['description']?.toString() ?? '',
+              price: _parseDouble(m['price'], 0.0),
+              image: m['image']?.toString() ?? m['imageUrl']?.toString() ?? '',
+              category: m['category']?.toString() ?? category,
+              rating: _parseDouble(m['rating'], 4.5),
+              isVeg: m['isVeg'] == true || m['foodType'] == 'veg',
+              restaurantId: m['restaurantId']?.toString(),
+              restaurantName: m['restaurantName']?.toString(),
+              restaurantImageUrl: m['restaurantImage']?.toString(),
+            );
+          }).toList();
+
+          final restaurants = rawRests.map((r) {
+            final m = r is Map<String, dynamic> ? r : Map<String, dynamic>.from(r as Map);
+            return _fromJsonToRestaurant(m);
+          }).toList();
+
+          return {
+            'success': true,
+            'category': decoded['category'] ?? {},
+            'items': items,
+            'restaurants': restaurants,
+            'count': items.length,
+          };
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in getCategoryItemsAndRestaurants: $e');
+    }
+    return {
+      'success': false,
+      'category': {'name': category},
+      'items': <Product>[],
+      'restaurants': <Restaurant>[],
+      'count': 0,
+    };
   }
 
   static Restaurant _fromJsonToRestaurant(Map<String, dynamic> json) {

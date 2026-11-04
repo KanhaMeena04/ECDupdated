@@ -9,6 +9,7 @@ const {
   updateFeeConfig,
   updateCodConfig,
   previewPricingCalculation,
+  updateBrandFooterConfig,
 } = require("../controllers/pricingCmsController");
 
 router.get("/config", protect, admin, getPricingConfig);
@@ -18,6 +19,7 @@ router.put("/delivery-config", protect, admin, updateDeliveryFeeConfig);
 router.put("/surge-config", protect, admin, updateSurgeConfig);
 router.put("/commission-config", protect, admin, updateCommissionConfig);
 router.put("/fee-config", protect, admin, updateFeeConfig);
+router.put("/brand-footer-config", protect, admin, updateBrandFooterConfig);
 router.put("/cod-config", protect, admin, updateCodConfig);
 router.post("/preview", protect, admin, previewPricingCalculation);
 

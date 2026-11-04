@@ -5,6 +5,7 @@ const { upload } = require('../utils/upload');
 const { getMenu } = require('../controllers/menuController');
 const {
   getAllRestaurants,
+  getCategoryItemsAndRestaurants,
   getRestaurantById,
   applyForRestaurant,
   adminCreateRestaurant,
@@ -61,6 +62,7 @@ const {
 router.get('/', getAllRestaurants);
 router.get('/list', getAllRestaurants);
 router.get('/search', optionalAuth, getAllRestaurants);
+router.get('/category-items', optionalAuth, getCategoryItemsAndRestaurants);
 router.get('/suggestions', require('../controllers/searchController').getSuggestions);
 router.get('/menu/:restaurantId', optionalAuth, getMenu);
 router.get('/status/check', getRestaurantStatusCheck);

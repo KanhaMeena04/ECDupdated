@@ -226,15 +226,27 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
           normalized['orderId'] = rawOrdNum.isNotEmpty ? rawOrdNum : (rawId.isNotEmpty ? rawId : '');
           normalized['orderNumber'] = rawOrdNum.isNotEmpty ? rawOrdNum : (rawId.isNotEmpty ? rawId : '');
           
-          // Normalize amounts
+          // Normalize amounts and earnings
           final amount = (o['customer'] is Map ? o['customer']['payableAmount'] : null) ?? o['payableAmount'] ?? o['totalAmount'] ?? 0.0;
           normalized['totalAmount'] = amount;
           normalized['payableAmount'] = amount;
+          final earn = o['driverEarnings'] ?? o['riderEarning'] ?? o['riderCommission'] ?? o['deliveryFee'] ?? o['earning'] ?? 0.0;
+          normalized['driverEarnings'] = earn;
+          normalized['riderEarning'] = earn;
           
           // Normalize address object
+          dynamic rawAddr = o['deliveryAddress'] ?? (o['customer'] is Map ? o['customer']['address'] : null) ?? '';
+          String addrLine = '';
+          String cityStr = 'Indore';
+          if (rawAddr is Map) {
+            addrLine = (rawAddr['addressLine'] ?? rawAddr['street'] ?? rawAddr['fullAddress'] ?? rawAddr['address'] ?? '').toString();
+            cityStr = (rawAddr['city'] ?? rawAddr['cityName'] ?? 'Indore').toString();
+          } else if (rawAddr != null) {
+            addrLine = rawAddr.toString();
+          }
           normalized['deliveryAddress'] = {
-            'addressLine': (o['customer'] is Map ? o['customer']['address'] : null) ?? o['deliveryAddress'] ?? '',
-            'city': (o['customer'] is Map ? o['customer']['city'] : null) ?? 'Indore',
+            'addressLine': addrLine,
+            'city': cityStr,
           };
           normalizedOrders.add(normalized);
         }

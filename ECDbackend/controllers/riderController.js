@@ -796,20 +796,24 @@ exports.getCompletedOrdersForRider = async (req, res) => {
 
     const { page, limit, skip } = getPaginationParams(req, 50);
 
-    const allRiderObjectIds = [riderProfile._id];
-    const allRiderStringIds = [riderProfile._id.toString()];
-    if (isValidObjectId(req.user._id)) {
-      allRiderObjectIds.push(req.user._id);
-      allRiderStringIds.push(req.user._id.toString());
+    const allRiderObjectIds = [];
+    if (riderProfile._id && mongoose.Types.ObjectId.isValid(riderProfile._id)) {
+      allRiderObjectIds.push(new mongoose.Types.ObjectId(riderProfile._id));
     }
-    if (riderProfile.riderId) {
-      allRiderStringIds.push(String(riderProfile.riderId));
+    if (req.user && req.user._id && mongoose.Types.ObjectId.isValid(req.user._id)) {
+      allRiderObjectIds.push(new mongoose.Types.ObjectId(req.user._id));
     }
+
+    const allRiderStringIds = [];
+    if (riderProfile._id) allRiderStringIds.push(riderProfile._id.toString());
+    if (req.user && req.user._id) allRiderStringIds.push(req.user._id.toString());
+    if (riderProfile.riderId) allRiderStringIds.push(String(riderProfile.riderId).trim());
+
     const riderPhones = [
       riderProfile.phone,
       riderProfile.mobile,
-      req.user.phone,
-      req.user.mobile
+      req.user?.phone,
+      req.user?.mobile
     ].filter(Boolean);
 
     const deliveredStatuses = ['delivered', 'completed', 'Delivered', 'Completed', 'DELIVERED', 'COMPLETED'];
@@ -817,15 +821,15 @@ exports.getCompletedOrdersForRider = async (req, res) => {
       $and: [
         {
           $or: [
-            { rider: { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            { rider: { $in: allRiderObjectIds } },
             { riderId: { $in: allRiderStringIds } },
-            { driver: { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            { driver: { $in: allRiderObjectIds } },
             { driverId: { $in: allRiderStringIds } },
+            { 'assignedRider.rider': { $in: allRiderObjectIds } },
             { 'assignedRider.riderId': { $in: allRiderStringIds } },
-            { 'assignedRider.rider': { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
             { 'assignedRider.id': { $in: allRiderStringIds } },
-            { 'riderNotificationStatus.acceptedBy': { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
-            { cashCollectedBy: { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            { 'riderNotificationStatus.acceptedBy': { $in: allRiderObjectIds } },
+            { cashCollectedBy: { $in: allRiderObjectIds } },
             ...(riderPhones.length > 0 ? [{ riderPhone: { $in: riderPhones } }] : [])
           ]
         },
@@ -4509,11 +4513,9 @@ exports.rejectOrder = async (req, res) => {
   try {
     const orderId = req.params.id;
     const riderUserId = req.user._id;
-    const { reason } = req.body;
-    if (!reason || reason.trim().length === 0) {
-      return res.status(400).json({
-        message: "Please provide a reason for rejecting this order"
-      });
+    let { reason } = req.body || {};
+    if (!reason || String(reason).trim().length === 0) {
+      reason = "Rider declined the order";
     }
     const riderProfile = await Rider.findOne({ user: riderUserId });
     if (!riderProfile) {
@@ -4532,8 +4534,8 @@ exports.rejectOrder = async (req, res) => {
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
-    const rejectableStatuses = ['accepted', 'preparing', 'ready'];
-    if (!rejectableStatuses.includes(order.status)) {
+    const rejectableStatuses = ['placed', 'pending', 'accepted', 'preparing', 'ready', 'ready_for_pickup', 'confirmed'];
+    if (!rejectableStatuses.includes((order.status || '').toLowerCase())) {
       return res.status(400).json({
         message: "Order cannot be rejected at this stage",
         currentStatus: order.status

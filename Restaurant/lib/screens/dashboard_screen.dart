@@ -858,9 +858,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Total Bill:', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500)),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Net Payout:', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryGreen)),
+                          Text('Customer Bill: ₹${newOrder.totalAmount.toStringAsFixed(2)}', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600])),
+                        ],
+                      ),
                       Text(
-                        '₹${newOrder.totalAmount.toStringAsFixed(2)}',
+                        '₹${(newOrder.restaurantEarning != null && newOrder.restaurantEarning! > 0 ? newOrder.restaurantEarning! : newOrder.totalAmount).toStringAsFixed(2)}',
                         style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
                       ),
                     ],
@@ -878,7 +884,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           _knownOrderIds.add(newOrder.id);
                           if (newOrder.backendId.isNotEmpty) _knownOrderIds.add(newOrder.backendId);
                           Navigator.pop(alertContext);
-                          _rejectOrder(newOrder);
+                          _showRejectReasonDialog(newOrder);
                         },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.redAccent,
@@ -1022,60 +1028,255 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _rejectOrder(Order order) async {
-    setState(() {
-      _orders.removeWhere((o) => o.id == order.id || o.backendId == order.backendId);
-    });
-    final targetId = order.backendId.isNotEmpty ? order.backendId : order.id;
-    await RestaurantApiService.cancelOrder(targetId, 'Rejected by restaurant');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Order rejected.'),
-          backgroundColor: Colors.redAccent,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
+  Future<void> _showRejectReasonDialog(Order order) async {
+    String selectedReason = 'Item(s) Out of Stock';
+    final TextEditingController otherReasonController = TextEditingController();
+    bool isSubmitting = false;
+    String? validationError;
 
-  void _deleteOrder(Order order) async {
-    final confirm = await showDialog<bool>(
+    final List<String> presetReasons = [
+      'Item(s) Out of Stock',
+      'Kitchen Overloaded / Too Much Rush',
+      'Restaurant Closing Soon',
+      'Unable to Fulfill Special Instructions',
+      'Operational / Staff Shortage',
+      'Other Reason',
+    ];
+
+    await showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Delete Order', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to delete order #${order.id}? It will be permanently removed.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            child: Text('Delete', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalContext, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.cancel_outlined, color: Colors.redAccent, size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Reject Order #${order.id}',
+                                  style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                                ),
+                                Text(
+                                  'Reason is mandatory to cancel/reject this order',
+                                  style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Select Reason for Rejection:',
+                        style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                      ),
+                      const SizedBox(height: 8),
+                      ...presetReasons.map((reason) {
+                        final isSelected = selectedReason == reason;
+                        return InkWell(
+                          onTap: isSubmitting
+                              ? null
+                              : () {
+                                  setModalState(() {
+                                    selectedReason = reason;
+                                    validationError = null;
+                                  });
+                                },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                                  color: isSelected ? Colors.redAccent : Colors.grey[400],
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    reason,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                      color: isSelected ? Colors.redAccent : Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                      if (selectedReason == 'Other Reason') ...[
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: otherReasonController,
+                          enabled: !isSubmitting,
+                          maxLines: 2,
+                          onChanged: (_) {
+                            if (validationError != null) {
+                              setModalState(() => validationError = null);
+                            }
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Enter specific reason (Required)...',
+                            hintStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[400]),
+                            contentPadding: const EdgeInsets.all(12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent),
+                            ),
+                          ),
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                      ],
+                      if (validationError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          validationError!,
+                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.redAccent, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: isSubmitting ? null : () => Navigator.pop(modalContext),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              child: Text(
+                                'Dismiss',
+                                style: GoogleFonts.poppins(color: Colors.black87, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              onPressed: isSubmitting
+                                  ? null
+                                  : () async {
+                                      final customText = otherReasonController.text.trim();
+                                      if (selectedReason.isEmpty) {
+                                        setModalState(() => validationError = 'Please select a reason.');
+                                        return;
+                                      }
+                                      if (selectedReason == 'Other Reason' && customText.isEmpty) {
+                                        setModalState(() => validationError = 'Please enter specific reason details.');
+                                        return;
+                                      }
 
-    if (confirm == true) {
-      setState(() {
-        _orders.removeWhere((o) => o.id == order.id || o.backendId == order.backendId);
-      });
-      final targetId = order.backendId.isNotEmpty ? order.backendId : order.id;
-      await RestaurantApiService.deleteOrder(targetId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Order permanently deleted.'),
-            backgroundColor: Colors.redAccent,
-            duration: Duration(seconds: 2),
-          ),
+                                      final finalReason = (selectedReason == 'Other Reason' && customText.isNotEmpty)
+                                          ? 'Other: $customText'
+                                          : selectedReason;
+
+                                      setModalState(() {
+                                        isSubmitting = true;
+                                        validationError = null;
+                                      });
+
+                                      final targetId = order.backendId.isNotEmpty ? order.backendId : order.id;
+                                      final result = await RestaurantApiService.cancelOrder(targetId, finalReason);
+
+                                      if (result['success'] == true) {
+                                        if (mounted) {
+                                          setState(() {
+                                            _orders.removeWhere((o) => o.id == order.id || o.backendId == order.backendId);
+                                          });
+                                          Navigator.pop(modalContext);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Order #${order.id} rejected: $finalReason'),
+                                              backgroundColor: Colors.redAccent,
+                                              duration: const Duration(seconds: 3),
+                                            ),
+                                          );
+                                        }
+                                      } else {
+                                        setModalState(() {
+                                          isSubmitting = false;
+                                          validationError = result['message'] ?? 'Failed to reject order on server.';
+                                        });
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.redAccent,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              child: isSubmitting
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : Text(
+                                      'Confirm Reject',
+                                      style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
-      }
-    }
+      },
+    );
   }
 
   void _markSearchingRider(Order order) {
@@ -1850,22 +2051,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
-                      tooltip: 'Delete Order',
-                      onPressed: () => _deleteOrder(order),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right, color: Colors.black87),
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order)),
-                      ).then((_) => _fetchLiveOrders(isSilent: true)),
-                    ),
-                  ],
+                IconButton(
+                  icon: const Icon(Icons.chevron_right, color: Colors.black87),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => OrderDetailsScreen(order: order)),
+                  ).then((_) => _fetchLiveOrders(isSilent: true)),
                 ),
               ],
             ),
@@ -2003,13 +2194,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ],
                 ),
-                Text(
-                  '₹${order.totalAmount.toStringAsFixed(2)}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (order.restaurantEarning != null && order.restaurantEarning! > 0) ...[
+                      Text(
+                        '₹${order.restaurantEarning!.toStringAsFixed(2)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryGreen,
+                        ),
+                      ),
+                      Text(
+                        'Bill: ₹${order.totalAmount.toStringAsFixed(2)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ] else ...[
+                      Text(
+                        '₹${order.totalAmount.toStringAsFixed(2)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -2035,9 +2250,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Expanded(
             child: OutlinedButton(
-              onPressed: () => _rejectOrder(order),
+              onPressed: () => _showRejectReasonDialog(order),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.primaryGreen, width: 1.5),
+                foregroundColor: Colors.redAccent,
+                side: const BorderSide(color: Colors.redAccent, width: 1.5),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
@@ -2079,7 +2295,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ElevatedButton(
             onPressed: () async {
               setState(() => order.status = 'Ready');
-              await RestaurantApiService.markOrderReady(order.id);
+              final targetId = order.backendId.isNotEmpty ? order.backendId : order.id;
+              await RestaurantApiService.markOrderReady(targetId);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

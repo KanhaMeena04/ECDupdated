@@ -97,13 +97,16 @@ exports.getDashboard = async (req, res) => {
       {
         $project: {
           totalAmount: { $ifNull: ["$totalAmount", 0] },
-          adminCommission: { $ifNull: ["$restaurant.adminCommission", 0] },
-        },
-      },
-      {
-        $project: {
           commission: {
-            $multiply: ["$totalAmount", { $divide: ["$adminCommission", 100] }],
+            $ifNull: [
+              "$adminCommission",
+              {
+                $multiply: [
+                  { $ifNull: ["$itemTotal", "$totalAmount"] },
+                  { $divide: [{ $ifNull: ["$restaurant.adminCommission", 20] }, 100] }
+                ]
+              }
+            ]
           },
         },
       },
@@ -1642,16 +1645,17 @@ exports.getCommissionReport = async (req, res) => {
       {
         $project: {
           amount: { $ifNull: ["$totalAmount", 0] },
-          commissionRate: { $ifNull: ["$restaurant.adminCommission", 0] },
-          createdAt: 1,
-        },
-      },
-      {
-        $project: {
           commission: {
-            $multiply: ["$amount", { $divide: ["$commissionRate", 100] }],
+            $ifNull: [
+              "$adminCommission",
+              {
+                $multiply: [
+                  { $ifNull: ["$itemTotal", "$totalAmount"] },
+                  { $divide: [{ $ifNull: ["$restaurant.adminCommission", 20] }, 100] }
+                ]
+              }
+            ]
           },
-          amount: 1,
           createdAt: 1,
         },
       },

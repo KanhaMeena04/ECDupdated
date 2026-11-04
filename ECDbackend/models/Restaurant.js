@@ -69,7 +69,13 @@ const restaurantSchema = new mongoose.Schema(
       default: 'Both'
     },
     packagingCharge: { type: Number, default: 0 }, 
-    adminCommission: { type: Number, default: 10 },  // ✅ FIXED: 10% default commission instead of 0
+    adminCommission: { type: Number, default: 20 },
+    pricingModel: {
+      type: String,
+      enum: ['b2b', 'commission'],
+      default: 'b2b'
+    },
+    useCommissionModel: { type: Boolean, default: false },  // ✅ FIXED: 10% default commission instead of 0
     isFreeDelivery: { type: Boolean, default: false }, 
     freeDeliveryContribution: { type: Number, default: 0 }, 
     totalFreeDeliverySpend: { type: Number, default: 0 },
@@ -155,6 +161,7 @@ const restaurantSchema = new mongoose.Schema(
     }],
     adminOverride: {
       isOverridden: { type: Boolean, default: false },
+      commissionPercent: { type: Number },
       isFeatured: { type: Boolean },
       isOnline: { type: Boolean },
       isActive: { type: Boolean },

@@ -43,6 +43,21 @@ class SettingsApiService {
     return null;
   }
 
+  static Future<Map<String, dynamic>> fetchBrandFooterConfig() async {
+    try {
+      final settings = await fetchSettings();
+      if (settings != null && settings['brandFooterConfig'] is Map) {
+        return Map<String, dynamic>.from(settings['brandFooterConfig']);
+      }
+    } catch (_) {}
+    return {
+      'enabled': true,
+      'title': 'ECD here for You',
+      'subtitle': 'Delivering fast food, groceries & happiness to your doorstep.',
+      'badgeText': 'Fast Delivery & 100% Quality Guaranteed',
+    };
+  }
+
   static Future<Map<String, dynamic>?> fetchCmsPolicy(String slug) async {
     if (kFrontendPreviewMode) return null;
     try {

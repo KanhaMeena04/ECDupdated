@@ -659,6 +659,42 @@ const ViewOrder = () => {
                 </div>
               </div>
 
+              {/* Order Economics Split Card */}
+              <div className="bg-emerald-50/70 p-5 rounded-2xl border border-emerald-200/90 space-y-3 mb-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                    Order Economics & Profit Split
+                  </h4>
+                  <span className="text-[10px] font-extrabold uppercase bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded">
+                    Admin Audit
+                  </span>
+                </div>
+                <div className="text-xs space-y-2 pt-1 text-gray-700">
+                  <div className="flex justify-between items-center">
+                    <span>Customer Paid Total (GMV):</span>
+                    <span className="font-bold text-gray-900">₹ {Number(order?.totalAmount || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-blue-800">
+                    <span>Restaurant Net Payout ({order?.pricingModel === 'commission' ? 'Commission Mode' : 'B2B Food Cost'}):</span>
+                    <span className="font-bold">₹ {Number(order?.restaurantCommission ?? (Number(order?.itemTotal || 0) - Number(order?.adminCommission || 0))).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-purple-800">
+                    <span>Rider Delivery Pay:</span>
+                    <span className="font-bold">₹ {Number(order?.driverEarnings || order?.riderEarning || ((Number(order?.deliveryFee || 0) * 0.7) + Number(order?.tip || 0))).toFixed(2)}</span>
+                  </div>
+                  <hr className="my-2 border-emerald-200" />
+                  <div className="flex justify-between items-center text-emerald-950 font-black text-sm">
+                    <span>Platform Gross Profit:</span>
+                    <span className="text-emerald-700 text-base">
+                      ₹ {Number((Number(order?.adminCommission || 0)) + (Number(order?.platformFee || 0)) + (Number(order?.packagingFee || 0)) + (Number(order?.deliveryFee || 0) * 0.3)).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-emerald-800/80 pt-0.5 leading-relaxed">
+                    Margin (₹{Number(order?.adminCommission || 0).toFixed(2)}) + Platform Fee (₹{Number(order?.platformFee || 0).toFixed(2)}) + Packaging (₹{Number(order?.packagingFee || 0).toFixed(2)}) + Delivery Margin (₹{(Number(order?.deliveryFee || 0) * 0.3).toFixed(2)})
+                  </div>
+                </div>
+              </div>
+
               {/* Right: Amount Calculation Card */}
               <Paper elevation={0} sx={{ bgcolor: BRAND_BG_LIGHT, p: 4, borderRadius: 3, border: "1px solid #fee2e2" }}>
                 <div className="space-y-2.5 text-sm">

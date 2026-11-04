@@ -560,7 +560,17 @@ class _PickupOrdersScreenState extends State<PickupOrdersScreen> {
                     Text(order.status, style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: _getStatusColor(order.status))),
                   ],
                 ),
-                Text('₹${order.totalAmount.toStringAsFixed(2)}', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (order.restaurantEarning != null && order.restaurantEarning! > 0) ...[
+                      Text('₹${order.restaurantEarning!.toStringAsFixed(2)}', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                      Text('Bill: ₹${order.totalAmount.toStringAsFixed(2)}', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                    ] else ...[
+                      Text('₹${order.totalAmount.toStringAsFixed(2)}', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
+                    ],
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 14),

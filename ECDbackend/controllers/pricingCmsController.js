@@ -11,7 +11,7 @@ exports.getPricingConfig = async (req, res) => {
   try {
     const settings = await AdminSetting.getSettings();
     const restaurants = await Restaurant.find({})
-      .select('_id name adminCommission deliveryFeeOverride adminOverride')
+      .select('_id name adminCommission deliveryFeeOverride adminOverride pricingModel useCommissionModel')
       .lean();
     const categories = await Category.find({})
       .select('_id name')
@@ -27,6 +27,7 @@ exports.getPricingConfig = async (req, res) => {
         deliveryFeeConfig: settings.deliveryFeeConfig,
         surgeConfig: settings.surgeConfig,
         commissionConfig: settings.commissionConfig,
+        brandFooterConfig: settings.brandFooterConfig || { enabled: true, title: "ECD here for You", subtitle: "Delivering fast food, groceries & happiness to your doorstep.", badgeText: "Fast Delivery & 100% Quality Guaranteed" },
         platformFeeConfig: settings.platformFeeConfig,
         packagingFeeConfig: settings.packagingFeeConfig,
         tipConfig: settings.tipConfig,
@@ -40,10 +41,20 @@ exports.getPricingConfig = async (req, res) => {
           customMessage: settings.codConfig?.customMessage || ''
         },
       },
+      riderPayoutConfig: {
+        basePay: Number(settings.riderPayoutConfig?.basePay ?? settings.deliveryFeeConfig?.riderBasePay ?? 25),
+        baseDistanceKm: Number(settings.riderPayoutConfig?.baseDistanceKm ?? 2),
+        extraPerKmFee: Number(settings.riderPayoutConfig?.extraPerKmFee ?? settings.deliveryFeeConfig?.riderBonusPerKm ?? 5),
+      },
       restaurants: restaurants.map(r => ({
         _id: r._id,
         name: typeof r.name === 'object' ? r.name.en : r.name,
-        adminCommission: r.adminCommission || 20,
+        pricingModel: r.pricingModel || (r.useCommissionModel ? 'commission' : 'b2b'),
+        useCommissionModel: Boolean(r.useCommissionModel || r.pricingModel === 'commission'),
+        adminCommission: (r.adminOverride?.isOverridden && r.adminCommission != null)
+          ? Number(r.adminCommission)
+          : Number(settings.commissionConfig?.globalCommissionPercent ?? (r.adminCommission || 20)),
+        isOverridden: Boolean(r.adminOverride?.isOverridden),
       })),
       categories: categories.map(c => ({
         _id: c._id,
@@ -77,6 +88,21 @@ exports.updateDeliveryFeeConfig = async (req, res) => {
     const settings = await AdminSetting.getSettings();
     const oldConfig = { ...settings.deliveryFeeConfig };
 
+    if (req.body.riderBasePay !== undefined) {
+      if (!settings.riderPayoutConfig) settings.riderPayoutConfig = {};
+      settings.riderPayoutConfig.basePay = Number(req.body.riderBasePay);
+    }
+    if (req.body.riderBonusPerKm !== undefined) {
+      if (!settings.riderPayoutConfig) settings.riderPayoutConfig = {};
+      settings.riderPayoutConfig.extraPerKmFee = Number(req.body.riderBonusPerKm);
+    }
+    if (req.body.riderPayoutConfig) {
+      settings.riderPayoutConfig = {
+        basePay: Number(req.body.riderPayoutConfig.basePay ?? 25),
+        baseDistanceKm: Number(req.body.riderPayoutConfig.baseDistanceKm ?? 2),
+        extraPerKmFee: Number(req.body.riderPayoutConfig.extraPerKmFee ?? 5),
+      };
+    }
     if (baseFee !== undefined) settings.deliveryFeeConfig.baseFee = Number(baseFee);
     if (baseDistanceKm !== undefined) settings.deliveryFeeConfig.baseDistanceKm = Number(baseDistanceKm);
     if (maxDeliveryRadiusKm !== undefined) settings.deliveryFeeConfig.maxDeliveryRadiusKm = Number(maxDeliveryRadiusKm);
@@ -226,6 +252,11 @@ exports.updateCommissionConfig = async (req, res) => {
 
     if (globalCommissionPercent !== undefined) {
       settings.commissionConfig.globalCommissionPercent = Number(globalCommissionPercent);
+      // Synchronize all non-overridden restaurants with the new global default commission
+      await Restaurant.updateMany(
+        { "adminOverride.isOverridden": { $ne: true } },
+        { $set: { adminCommission: Number(globalCommissionPercent) } }
+      );
     }
     if (Array.isArray(categoryCommissions)) {
       settings.commissionConfig.categoryCommissions = categoryCommissions;
@@ -236,26 +267,51 @@ exports.updateCommissionConfig = async (req, res) => {
     // Process restaurant-wise overrides if provided
     if (Array.isArray(restaurantOverrides)) {
       for (const override of restaurantOverrides) {
-        if (override.restaurantId && override.commissionPercent !== undefined) {
+        if (override.restaurantId) {
           const rest = await Restaurant.findById(override.restaurantId);
           if (rest) {
             const oldRestComm = rest.adminCommission;
-            rest.adminCommission = Number(override.commissionPercent);
+            if (override.pricingModel !== undefined) {
+              rest.pricingModel = override.pricingModel;
+              rest.useCommissionModel = override.pricingModel === 'commission';
+            } else if (override.useCommissionModel !== undefined) {
+              rest.useCommissionModel = Boolean(override.useCommissionModel);
+              rest.pricingModel = rest.useCommissionModel ? 'commission' : 'b2b';
+            }
+            if (override.commissionPercent !== undefined && !isNaN(Number(override.commissionPercent))) {
+              rest.adminCommission = Number(override.commissionPercent);
+              rest.adminOverride = {
+                ...(rest.adminOverride || {}),
+                isOverridden: true,
+                commissionPercent: Number(override.commissionPercent),
+                updatedAt: new Date(),
+              };
+            }
+            if (rest.pricingModel === 'b2b') {
+              rest.useCommissionModel = false;
+            } else if (rest.pricingModel === 'commission') {
+              rest.useCommissionModel = true;
+            }
+            rest.markModified('pricingModel');
+            rest.markModified('useCommissionModel');
+            rest.markModified('adminOverride');
             await rest.save();
 
-            await AuditLog.log({
-              entity: 'Restaurant',
-              entityId: rest._id,
-              action: 'admin_override',
-              userId: req.user?._id,
-              userRole: 'admin',
-              changes: {
-                field: 'adminCommission',
-                oldValue: oldRestComm,
-                newValue: rest.adminCommission,
-              },
-              reason: reason || `Admin set restaurant commission to ${override.commissionPercent}%`,
-            });
+            try {
+              await AuditLog.log({
+                entity: 'Restaurant',
+                entityId: rest._id,
+                action: 'admin_override',
+                userId: req.user?._id,
+                userRole: 'admin',
+                changes: {
+                  field: 'pricingModel_and_commission',
+                  oldValue: oldRestComm,
+                  newValue: { pricingModel: rest.pricingModel, adminCommission: rest.adminCommission },
+                },
+                reason: reason || `Admin set restaurant model to ${rest.pricingModel}`,
+              });
+            } catch (_) {}
           }
         }
       }
@@ -380,6 +436,35 @@ exports.previewPricingCalculation = async (req, res) => {
       sources: result.sources,
       coupon: result.coupon,
       isRadiusExceeded: result.isRadiusExceeded,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+// -------------------------------------------------------------
+// UPDATE CUSTOMER APP BRAND FOOTER WATERMARK CONFIGURATION
+// -------------------------------------------------------------
+exports.updateBrandFooterConfig = async (req, res) => {
+  try {
+    const { enabled, title, subtitle, badgeText } = req.body;
+    const settings = await AdminSetting.getSettings();
+    if (!settings.brandFooterConfig) {
+      settings.brandFooterConfig = {};
+    }
+    if (enabled !== undefined) settings.brandFooterConfig.enabled = Boolean(enabled);
+    if (title !== undefined) settings.brandFooterConfig.title = title.trim();
+    if (subtitle !== undefined) settings.brandFooterConfig.subtitle = subtitle.trim();
+    if (badgeText !== undefined) settings.brandFooterConfig.badgeText = badgeText.trim();
+
+    settings.markModified('brandFooterConfig');
+    await settings.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Brand footer watermark updated successfully',
+      brandFooterConfig: settings.brandFooterConfig,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

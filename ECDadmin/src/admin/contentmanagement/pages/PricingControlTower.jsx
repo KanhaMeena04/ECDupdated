@@ -58,6 +58,7 @@ export default function PricingControlTower() {
   const [alertInfo, setAlertInfo] = useState({ show: false, message: "", severity: "success" });
 
   // Config State
+  const [riderPayoutConfig, setRiderPayoutConfig] = useState({ basePay: 25, extraPerKmFee: 5 });
   const [deliveryConfig, setDeliveryConfig] = useState({
     enabled: true,
     baseFee: 30,
@@ -93,6 +94,12 @@ export default function PricingControlTower() {
   const [tipConfig, setTipConfig] = useState({ enabled: true, options: [5, 10, 20] });
   const [tipInputText, setTipInputText] = useState("5, 10, 20");
   const [taxConfig, setTaxConfig] = useState({ enabled: true, gstPercent: 5 });
+  const [brandFooterConfig, setBrandFooterConfig] = useState({
+    enabled: true,
+    title: "ECD here for You",
+    subtitle: "Delivering fast food, groceries & happiness to your doorstep.",
+    badgeText: "Fast Delivery & 100% Quality Guaranteed",
+  });
 
   const [restaurants, setRestaurants] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -125,6 +132,7 @@ export default function PricingControlTower() {
       const res = await api.get("/api/pricing/config");
       const c = res.data.config;
       if (c.deliveryFeeConfig) setDeliveryConfig(c.deliveryFeeConfig);
+      if (res.data.riderPayoutConfig) setRiderPayoutConfig(res.data.riderPayoutConfig);
       if (c.surgeConfig) setSurgeConfig(c.surgeConfig);
       if (c.commissionConfig) setCommissionConfig(c.commissionConfig);
       if (c.platformFeeConfig) setPlatformFeeConfig(c.platformFeeConfig);
@@ -136,6 +144,7 @@ export default function PricingControlTower() {
         }
       }
       if (c.taxConfig) setTaxConfig(c.taxConfig);
+      if (c.brandFooterConfig) setBrandFooterConfig(c.brandFooterConfig);
       if (c.codConfig) {
         setCodConfig(c.codConfig);
       } else if (c.isCodEnabled !== undefined || c.maxCodAmount !== undefined) {
@@ -167,7 +176,10 @@ export default function PricingControlTower() {
       setLoading(true);
       await api.put("/api/pricing/delivery-config", {
         ...deliveryConfig,
-        reason: "Admin updated delivery fees & slabs",
+        riderBasePay: Number(riderPayoutConfig.basePay || 25),
+        riderBonusPerKm: Number(riderPayoutConfig.extraPerKmFee || 5),
+        riderPayoutConfig,
+        reason: "Admin updated delivery fees, distance slabs & dynamic rider pay",
       });
       showAlert("Delivery configuration saved successfully!");
       fetchPricingConfig();
@@ -331,6 +343,19 @@ export default function PricingControlTower() {
     }
   };
 
+  const handleSaveBrandFooter = async () => {
+    try {
+      setLoading(true);
+      await api.put("/api/pricing/brand-footer-config", brandFooterConfig);
+      showAlert("Brand footer watermark updated successfully!");
+      fetchPricingConfig();
+    } catch (err) {
+      showAlert("Failed to update brand footer watermark", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Run Preview Simulation
   const handleRunPreview = async () => {
     try {
@@ -357,7 +382,7 @@ export default function PricingControlTower() {
             Centralized Backend Pricing Engine for Delivery Charges, Distance Slabs, Surge Fees, Commissions & Live Simulator
           </Typography>
         </Box>
-        <Chip label="LOCAL DEV ONLY — SAFE MODE" color="success" size="small" sx={{ fontWeight: 700 }} />
+        <Chip label="CENTRAL LIVE ENGINE" color="success" size="small" sx={{ fontWeight: 700 }} />
       </Box>
 
       {alertInfo.show && (
@@ -398,6 +423,32 @@ export default function PricingControlTower() {
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
                 Global Delivery Base Settings
               </Typography>
+
+              <Box sx={{ p: 2, mb: 2.5, bgcolor: '#F0FDF4', borderRadius: 2, border: '1px solid #BBF7D0' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#166534', mb: 1.5 }}>
+                  🏍️ Rider Payout per Delivery (Admin Managed)
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" sx={{ fontWeight: 600 }}>Rider Base Pay (₹)</Typography>
+                    <TextField
+                      fullWidth size="small" type="number"
+                      value={riderPayoutConfig.basePay}
+                      onChange={(e) => setRiderPayoutConfig({ ...riderPayoutConfig, basePay: e.target.value })}
+                      sx={{ bgcolor: '#fff' }}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" sx={{ fontWeight: 600 }}>Distance Bonus / KM (₹)</Typography>
+                    <TextField
+                      fullWidth size="small" type="number"
+                      value={riderPayoutConfig.extraPerKmFee}
+                      onChange={(e) => setRiderPayoutConfig({ ...riderPayoutConfig, extraPerKmFee: e.target.value })}
+                      sx={{ bgcolor: '#fff' }}
+                    />
+                  </Grid>
+                </Grid>
+              </Box>
 
               <Box sx={{ mb: 2 }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>Base Delivery Fee (₹)</Typography>
@@ -693,7 +744,16 @@ export default function PricingControlTower() {
                       <TableRow key={r._id}>
                         <TableCell sx={{ fontWeight: 600 }}>{r.name}</TableCell>
                         <TableCell>
-                          <Chip label={`${r.adminCommission}%`} color="primary" size="small" />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Chip
+                              label={r.useCommissionModel ? `Commission (${r.adminCommission}%)` : "B2B Rate Mode (Default)"}
+                              color={r.useCommissionModel ? "secondary" : "success"}
+                              size="small"
+                            />
+                            {r.useCommissionModel && (
+                              <span style={{ fontSize: 10, color: '#6B7280' }}>{r.isOverridden ? "Override" : "Global"}</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Button
@@ -701,10 +761,14 @@ export default function PricingControlTower() {
                             variant="outlined"
                             onClick={() => {
                               setRestaurantCommValue(r.adminCommission);
-                              setRestaurantCommModal({ open: true, restaurant: r });
+                              setRestaurantCommModal({
+                                open: true,
+                                restaurant: r,
+                                pricingModel: r.pricingModel || (r.useCommissionModel ? 'commission' : 'b2b'),
+                              });
                             }}
                           >
-                            Edit Commission
+                            Configure Model
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -829,6 +893,70 @@ export default function PricingControlTower() {
               <Button variant="contained" fullWidth sx={{ bgcolor: PRIMARY_COLOR, fontWeight: 700 }} onClick={handleSaveFeeConfig}>
                 Save GST Tax Config
               </Button>
+            </Card>
+          </Grid>
+
+          {/* Dynamic Brand Footer Watermark ("ECD here for You") */}
+          <Grid item xs={12}>
+            <Card sx={{ borderRadius: 3, p: 3, border: "1px solid #E2E8F0" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    Customer App Brand Footer Watermark ("ECD here for You")
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Dynamically manage or toggle the large typography brand footer shown at the bottom of the Customer App home screen.
+                  </Typography>
+                </Box>
+                <Switch
+                  checked={brandFooterConfig.enabled !== false}
+                  onChange={(e) => setBrandFooterConfig({ ...brandFooterConfig, enabled: e.target.checked })}
+                  color="success"
+                />
+              </Box>
+
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Pill Badge Text"
+                    value={brandFooterConfig.badgeText || ""}
+                    onChange={(e) => setBrandFooterConfig({ ...brandFooterConfig, badgeText: e.target.value })}
+                    helperText="e.g. Fast Delivery & 100% Quality Guaranteed"
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Main Brand Headline"
+                    value={brandFooterConfig.title || ""}
+                    onChange={(e) => setBrandFooterConfig({ ...brandFooterConfig, title: e.target.value })}
+                    helperText="e.g. ECD here for You"
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Subtitle Description"
+                    value={brandFooterConfig.subtitle || ""}
+                    onChange={(e) => setBrandFooterConfig({ ...brandFooterConfig, subtitle: e.target.value })}
+                    helperText="e.g. Delivering fast food, groceries & happiness"
+                  />
+                </Grid>
+              </Grid>
+
+              <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+                <Button
+                  variant="contained"
+                  sx={{ bgcolor: PRIMARY_COLOR, fontWeight: 700 }}
+                  onClick={handleSaveBrandFooter}
+                >
+                  Save Brand Footer Watermark
+                </Button>
+              </Box>
             </Card>
           </Grid>
         </Grid>
@@ -1092,21 +1220,70 @@ export default function PricingControlTower() {
       {/* DIALOG: RESTAURANT COMMISSION */}
       {/* ------------------------------------------------------------- */}
       <Dialog open={restaurantCommModal.open} onClose={() => setRestaurantCommModal({ open: false, restaurant: null })} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>Edit Restaurant Commission</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>Restaurant Pricing Model & Commission</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2, mt: 1 }}>
-            Set custom commission percentage for {restaurantCommModal.restaurant?.name}. Overrides global commission.
+            Choose pricing and earnings model for <strong>{restaurantCommModal.restaurant?.name}</strong>:
           </Typography>
-          <TextField
-            fullWidth size="small" label="Commission (%)" type="number"
-            value={restaurantCommValue}
-            onChange={(e) => setRestaurantCommValue(e.target.value)}
-          />
+
+          <Box sx={{ mb: 2.5, p: 1.5, bgcolor: '#F8FAFC', borderRadius: 2, border: '1px solid #E2E8F0' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 10 }}>
+              <input
+                type="radio"
+                name="pricingModel"
+                checked={restaurantCommModal.pricingModel !== 'commission'}
+                onChange={() => setRestaurantCommModal({ ...restaurantCommModal, pricingModel: 'b2b' })}
+              />
+              <div>
+                <strong style={{ fontSize: 13, color: '#166534' }}>B2B Rate Model (Default)</strong>
+                <p style={{ margin: 0, fontSize: 11, color: '#64748B' }}>Restaurant receives their exact B2B Price. Admin keeps Selling - B2B markup.</p>
+              </div>
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="pricingModel"
+                checked={restaurantCommModal.pricingModel === 'commission'}
+                onChange={() => setRestaurantCommModal({ ...restaurantCommModal, pricingModel: 'commission' })}
+              />
+              <div>
+                <strong style={{ fontSize: 13, color: '#1E40AF' }}>Commission % Model</strong>
+                <p style={{ margin: 0, fontSize: 11, color: '#64748B' }}>Platform deducts a set commission percentage from customer item total.</p>
+              </div>
+            </label>
+          </Box>
+
+          {restaurantCommModal.pricingModel === 'commission' && (
+            <TextField
+              fullWidth size="small" label="Commission (%)" type="number"
+              value={restaurantCommValue}
+              onChange={(e) => setRestaurantCommValue(e.target.value)}
+              helperText="Overrides global default commission for this restaurant"
+            />
+          )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setRestaurantCommModal({ open: false, restaurant: null })}>Cancel</Button>
-          <Button variant="contained" sx={{ bgcolor: PRIMARY_COLOR }} onClick={handleSaveRestaurantCommission}>
-            Save Commission
+          <Button variant="contained" sx={{ bgcolor: PRIMARY_COLOR }} onClick={async () => {
+            try {
+              await api.put("/api/pricing/commission-config", {
+                restaurantOverrides: [{
+                  restaurantId: restaurantCommModal.restaurant._id,
+                  pricingModel: restaurantCommModal.pricingModel || 'b2b',
+                  useCommissionModel: restaurantCommModal.pricingModel === 'commission',
+                  commissionPercent: Number(restaurantCommValue),
+                }],
+                reason: `Admin updated ${restaurantCommModal.restaurant.name} model to ${restaurantCommModal.pricingModel}`,
+              });
+              showAlert("Restaurant pricing model updated successfully!");
+              setRestaurantCommModal({ open: false, restaurant: null });
+              fetchPricingConfig();
+            } catch (err) {
+              showAlert("Failed to update restaurant pricing model", "error");
+            }
+          }}>
+            Save Settings
           </Button>
         </DialogActions>
       </Dialog>

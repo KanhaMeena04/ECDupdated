@@ -1195,18 +1195,22 @@ class _OrderTracker extends StatelessWidget {
     final isPickup = orderType == 'pickup' || orderType == 'self_pickup';
     final steps = isPickup 
         ? ['Placed', 'Preparing', 'Ready', 'Collected']
-        : ['Placed', 'Preparing', 'Picked Up', 'Delivered'];
+        : ['Placed', 'Preparing', 'Ready', 'Picked Up', 'Delivered'];
         
     final s = status.toLowerCase();
     final ds = deliveryStatus.toLowerCase();
     
     int activeStep = 0; // Placed
-    if (s == 'preparing' || ds == 'preparing' || s == 'accepted' || ds == 'accepted' || ds == 'reached_store' || s == 'reached_store' || s == 'reached_restaurant' || ds == 'reached_restaurant') activeStep = 1; // Preparing
-    if (s == 'ready' || ds == 'ready' || s == 'picked_up' || s == 'picked up' || ds == 'picked_up' || ds == 'partner_picked' || s == 'partner_picked' || ds == 'out_for_delivery' || s == 'out_for_delivery' || s == 'on the way' || s == 'on_the_way' || ds == 'on_the_way') activeStep = 2; // Picked Up / On The Way
-    if (s == 'delivered' || ds == 'delivered' || s == 'completed' || ds == 'completed') activeStep = 3; // Delivered
-    
-    if (isPickup && (s == 'ready' || ds == 'ready')) activeStep = 2;
-    if (isPickup && (s == 'delivered' || ds == 'delivered' || s == 'completed' || ds == 'completed')) activeStep = 3;
+    if (isPickup) {
+      if (s == 'preparing' || ds == 'preparing' || s == 'accepted' || ds == 'accepted') activeStep = 1;
+      if (s == 'ready' || ds == 'ready' || s == 'ready_for_pickup' || ds == 'ready_for_pickup') activeStep = 2;
+      if (s == 'delivered' || ds == 'delivered' || s == 'completed' || ds == 'completed' || s == 'handed_over' || s == 'handovered') activeStep = 3;
+    } else {
+      if (s == 'preparing' || ds == 'preparing' || s == 'accepted' || ds == 'accepted' || ds == 'reached_store' || s == 'reached_store' || s == 'reached_restaurant' || ds == 'reached_restaurant') activeStep = 1; // Preparing
+      if (s == 'ready' || ds == 'ready' || s == 'ready_for_pickup' || ds == 'ready_for_pickup') activeStep = 2; // Ready
+      if (s == 'picked_up' || s == 'picked up' || ds == 'picked_up' || ds == 'partner_picked' || s == 'partner_picked' || ds == 'out_for_delivery' || s == 'out_for_delivery' || s == 'on the way' || s == 'on_the_way' || ds == 'on_the_way') activeStep = 3; // Picked Up / On The Way
+      if (s == 'delivered' || ds == 'delivered' || s == 'completed' || ds == 'completed') activeStep = 4; // Delivered
+    }
 
     return Container(
       padding: const EdgeInsets.all(12),

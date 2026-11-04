@@ -456,9 +456,11 @@ exports.placeOrder = async (req, res) => {
       const platformFee = sysSettings?.platformFeeConfig?.enabled !== false ? (sysSettings?.platformFeeConfig?.fee || 0) : 0;
       const discount = Number(req.body.discount || 0);
       const tip = isSelfPickup ? 0 : Number(req.body.tip || 0);
-      const commRate = Number(restaurant.adminCommission !== undefined && restaurant.adminCommission !== null && !isNaN(restaurant.adminCommission) ? restaurant.adminCommission : (sysSettings?.commissionConfig?.globalCommissionPercent ?? 20));
+      const globalComm = Number(sysSettings?.commissionConfig?.globalCommissionPercent ?? 20);
+      const commRate = Number(restaurant.adminOverride?.isOverridden && restaurant.adminCommission != null ? restaurant.adminCommission : globalComm);
       const adminCommissionAmount = Math.round(((subtotal * commRate) / 100) * 100) / 100;
-      const restaurantNetPayable = Math.max(0, Math.round((subtotal + packaging - adminCommissionAmount) * 100) / 100);
+      // Packaging fee is kept 100% by Admin platform
+      const restaurantNetPayable = Math.max(0, Math.round((subtotal - adminCommissionAmount) * 100) / 100);
       const toPay = req.body.totalAmount || Math.max(0, Math.round((subtotal + tax + packaging + deliveryFee + platformFee - discount + tip) * 100) / 100);
       bill = {
         itemTotal: subtotal,
@@ -570,9 +572,11 @@ exports.placeOrder = async (req, res) => {
       ? "Waiting for payment to be completed via Stripe."
       : "Your order has been placed";
     
-    const commRate = Number(restaurant.adminCommission || bill.appliedCommissionRate || 20);
+    const globalComm = Number(sysSettings?.commissionConfig?.globalCommissionPercent ?? 20);
+    const commRate = Number(bill.appliedCommissionRate || (restaurant.adminOverride?.isOverridden && restaurant.adminCommission != null ? restaurant.adminCommission : globalComm));
     const adminCommission = bill.adminCommissionAmount !== undefined ? bill.adminCommissionAmount : Math.round(((bill.itemTotal * commRate) / 100) * 100) / 100;
-    const restaurantCommission = bill.restaurantNetPayable !== undefined ? bill.restaurantNetPayable : Math.max(0, Math.round((bill.itemTotal + (bill.packaging || 0) - adminCommission) * 100) / 100);
+    // Packaging fee is 100% Admin revenue
+    const restaurantCommission = bill.restaurantNetPayable !== undefined ? bill.restaurantNetPayable : Math.max(0, Math.round((bill.itemTotal - adminCommission) * 100) / 100);
     const riderCommission = isSelfPickup ? 0 : Math.round((bill.deliveryFee * 0.7) * 100) / 100;
     const riderEarning = isSelfPickup ? 0 : Math.round((riderCommission + tipAmount) * 100) / 100;
     const pickupOtp = Math.floor(1000 + Math.random() * 9000).toString();
@@ -675,6 +679,8 @@ exports.placeOrder = async (req, res) => {
       riderCommission,
       riderEarning,
       appliedCommissionRate: bill.appliedCommissionRate || 20,
+      pricingModel: bill.pricingModel || (restaurant.useCommissionModel ? 'commission' : 'b2b'),
+      b2bTotal: bill.b2bTotal || (bill.itemTotal - adminCommission),
       appliedPricingSource: bill.sources || {},
       deliveryDistanceKm: bill.deliveryDistance || 0,
       deliveryAddress: {
@@ -4061,19 +4067,48 @@ exports.ownerCancelOrder = async (req, res) => {
         rejectedBy: "restaurant",
         timestamp: new Date(),
       };
+      // Emit to order room (where User app tracking page is listening)
+      socketService.emitToOrder(order._id.toString(), "orderStatusUpdated", {
+        orderId: order._id.toString(),
+        status: "cancelled",
+        cancellationReason: reason,
+        message: `Restaurant cancelled your order: ${reason}`,
+      });
+      socketService.emitToOrder(order._id.toString(), "order:status", {
+        orderId: order._id.toString(),
+        status: "cancelled",
+        cancellationReason: reason,
+      });
+
+      // Emit to user private channel
+      socketService.emitToUser(order.customer.toString(), "orderStatusUpdated", {
+        ...cancelData,
+        cancellationReason: reason,
+        message: `Restaurant cancelled your order: ${reason}`,
+      });
       socketService.emitToUser(order.customer.toString(), "order:cancelled", {
         ...cancelData,
         cancellationReason: reason,
         message: `Restaurant cancelled your order: ${reason}`,
       });
+
+      // Emit to Admin
       socketService.emitToAdmin("order:cancelled", {
         ...cancelData,
-        restaurantName: restaurant.name,
-        restaurantId: restaurant._id,
+        restaurantName: restaurant?.name || "Restaurant",
+        restaurantId: restaurant?._id,
         cancellationReason: reason,
       });
+      socketService.emitToAdmin("order_status_update", {
+        orderId: order._id.toString(),
+        status: "cancelled",
+        cancellationReason: reason,
+      });
+
+      // Emit to Rider if assigned
       if (order.rider) {
         socketService.emitToRider(order.rider.toString(), "order:cancelled", cancelData);
+        socketService.emitToRider(order.rider.toString(), "orderStatusUpdated", cancelData);
       }
     } catch (socketError) {
       console.error("Socket emission error:", socketError);

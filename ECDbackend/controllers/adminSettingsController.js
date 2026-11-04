@@ -30,6 +30,12 @@ const toPublicPayload = (settings) => {
     deliveryFeeConfig: settings.deliveryFeeConfig,
     platformFeeConfig: settings.platformFeeConfig,
     packagingFeeConfig: settings.packagingFeeConfig,
+    brandFooterConfig: settings.brandFooterConfig || {
+      enabled: true,
+      title: "ECD here for You",
+      subtitle: "Delivering fast food, groceries & happiness to your doorstep.",
+      badgeText: "Fast Delivery & 100% Quality Guaranteed"
+    },
     surgeConfig: settings.surgeConfig,
     tipConfig: settings.tipConfig || { enabled: true, options: [5, 10, 20] },
     taxConfig: settings.taxConfig || { enabled: true, gstPercent: 5 },
