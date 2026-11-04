@@ -78,6 +78,18 @@ export default function RestaurantPayoutList() {
   const [selectedRestaurantForCycle, setSelectedRestaurantForCycle] = useState(null);
   const [newCycleValue, setNewCycleValue] = useState("T+2");
 
+  // Commission & B2B rates states
+  const [commissionRestaurants, setCommissionRestaurants] = useState([]);
+  const [globalCommissionPercent, setGlobalCommissionPercent] = useState(20);
+  const [savingCommConfig, setSavingCommConfig] = useState(false);
+  const [restaurantSearchQuery, setRestaurantSearchQuery] = useState("");
+  const [restaurantCommModal, setRestaurantCommModal] = useState({
+    open: false,
+    restaurant: null,
+    pricingModel: "b2b"
+  });
+  const [restaurantCommValue, setRestaurantCommValue] = useState(20);
+
   // Fetch Restaurant Payout Requests
   const fetchPayoutRequests = async () => {
     try {
@@ -138,13 +150,98 @@ export default function RestaurantPayoutList() {
     }
   };
 
+  // Fetch Commission & Pricing configuration
+  const fetchCommissionData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(`${API_BASE_URL}/api/pricing/config`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        withCredentials: true
+      });
+      if (res.data) {
+        if (Array.isArray(res.data.restaurants)) {
+          setCommissionRestaurants(res.data.restaurants);
+        }
+        if (res.data.config?.commissionConfig?.globalCommissionPercent != null) {
+          setGlobalCommissionPercent(res.data.config.commissionConfig.globalCommissionPercent);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching commission data:", err);
+    }
+  };
+
+  // Save Global Commission
+  const handleSaveGlobalCommission = async () => {
+    try {
+      setSavingCommConfig(true);
+      const token = localStorage.getItem("token");
+      const res = await axios.put(
+        `${API_BASE_URL}/api/pricing/commission-config`,
+        { globalCommissionPercent: Number(globalCommissionPercent) },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {}, withCredentials: true }
+      );
+      if (res.data?.success) {
+        toast.success("Global commission updated successfully!");
+        setActionSuccess("Global default commission updated successfully!");
+        setTimeout(() => setActionSuccess(""), 3000);
+        fetchCommissionData();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update global commission");
+    } finally {
+      setSavingCommConfig(false);
+    }
+  };
+
+  // Save Restaurant Pricing Model & Commission
+  const handleSaveRestaurantModel = async () => {
+    if (!restaurantCommModal.restaurant) return;
+    try {
+      setSavingCommConfig(true);
+      const token = localStorage.getItem("token");
+      const isCommission = restaurantCommModal.pricingModel === "commission";
+      const payload = {
+        restaurantOverrides: [
+          {
+            restaurantId: restaurantCommModal.restaurant._id,
+            pricingModel: isCommission ? "commission" : "b2b",
+            useCommissionModel: isCommission,
+            commissionPercent: isCommission ? Number(restaurantCommValue) : undefined
+          }
+        ]
+      };
+      const res = await axios.put(
+        `${API_BASE_URL}/api/pricing/commission-config`,
+        payload,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {}, withCredentials: true }
+      );
+      if (res.data?.success) {
+        toast.success("Pricing model updated successfully!");
+        setRestaurantCommModal({ open: false, restaurant: null, pricingModel: "b2b" });
+        fetchCommissionData();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to save restaurant pricing model");
+    } finally {
+      setSavingCommConfig(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "requests") {
       fetchPayoutRequests();
-    } else {
+    } else if (activeTab === "ledger") {
       fetchSettlements();
+    } else if (activeTab === "commission") {
+      fetchCommissionData();
     }
   }, [activeTab, requestStatusFilter, ledgerStatusFilter, cycleFilter]);
+
+  // Load initial commission data to display tab badge count accurately
+  useEffect(() => {
+    fetchCommissionData();
+  }, []);
 
   const handleCopy = (text, id) => {
     if (!text) return;
@@ -465,7 +562,7 @@ export default function RestaurantPayoutList() {
           <FileText size={18} />
           Settlement Ledger Engine
           <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'ledger' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'}`}>
-            {ledgers.length}
+            {(safeLedgers || []).length}
           </span>
         </button>
         <button
@@ -479,7 +576,7 @@ export default function RestaurantPayoutList() {
           <Percent size={18} />
           Commission & B2B Rates
           <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'commission' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'}`}>
-            {commissionRestaurants.length}
+            {(commissionRestaurants || []).length}
           </span>
         </button>
       </div>
@@ -880,7 +977,7 @@ export default function RestaurantPayoutList() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
             <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
               <span className="text-[11px] font-bold uppercase text-gray-400">Total Ledgers</span>
-              <h4 className="text-xl font-bold text-gray-800 mt-1">{ledgerSummary.count || ledgers.length}</h4>
+              <h4 className="text-xl font-bold text-gray-800 mt-1">{ledgerSummary?.count ?? safeLedgers.length}</h4>
             </div>
 
             <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
@@ -962,7 +1059,7 @@ export default function RestaurantPayoutList() {
                 </div>
               ) : errorLedgers ? (
                 <div className="py-16 text-center text-rose-600 font-semibold">{errorLedgers}</div>
-              ) : ledgers.length === 0 ? (
+              ) : safeLedgers.length === 0 ? (
                 <div className="py-16 text-center text-gray-500">
                   <FileText size={32} className="mx-auto text-gray-400 mb-2" />
                   <p className="font-semibold">No settlement ledger lines found for the selected filter.</p>
@@ -990,7 +1087,7 @@ export default function RestaurantPayoutList() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {ledgers.map((row) => (
+                    {safeLedgers.map((row) => (
                       <tr key={row._id} className="hover:bg-gray-50 transition">
                         <td className="py-3.5 px-4 font-mono font-semibold text-xs text-gray-900">
                           {row.settlementId || (row._id ? String(row._id).slice(-8).toUpperCase() : "N/A")}
@@ -1656,7 +1753,7 @@ export default function RestaurantPayoutList() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="font-bold text-gray-800 text-base">
-                    Restaurant Commission & Rate Directory ({commissionRestaurants.length})
+                    Restaurant Commission & Rate Directory ({(commissionRestaurants || []).length})
                   </h3>
                   <p className="text-xs text-gray-500">Manage individual restaurant B2B vs Commission pricing models</p>
                 </div>
@@ -1683,15 +1780,21 @@ export default function RestaurantPayoutList() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {commissionRestaurants
-                      .filter(r => !restaurantSearchQuery || (r.name || "").toLowerCase().includes(restaurantSearchQuery.toLowerCase()))
+                    {(Array.isArray(commissionRestaurants) ? commissionRestaurants : [])
+                      .filter(r => {
+                        if (!r) return false;
+                        if (!restaurantSearchQuery) return true;
+                        const restName = resolveString(r.name);
+                        return restName.toLowerCase().includes(restaurantSearchQuery.toLowerCase());
+                      })
                       .map((r) => {
                         const isB2B = r.pricingModel === 'b2b' || (!r.useCommissionModel && r.pricingModel !== 'commission');
+                        const restName = resolveString(r.name) || "Restaurant Partner";
                         return (
-                          <tr key={r._id} className="hover:bg-gray-50/80 transition">
+                          <tr key={r._id || Math.random()} className="hover:bg-gray-50/80 transition">
                             <td className="px-4 py-3 font-semibold text-gray-800 flex items-center gap-2">
                               <Store size={15} className="text-gray-400" />
-                              {r.name}
+                              {restName}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
@@ -1742,7 +1845,7 @@ export default function RestaurantPayoutList() {
             <div className="flex items-center justify-between border-b pb-3">
               <div>
                 <h3 className="text-base font-bold text-gray-800">Configure Pricing Model & Commission</h3>
-                <p className="text-xs text-gray-500 mt-0.5">{restaurantCommModal.restaurant.name}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{resolveString(restaurantCommModal.restaurant?.name) || "Restaurant"}</p>
               </div>
               <button
                 onClick={() => setRestaurantCommModal({ open: false, restaurant: null, pricingModel: 'b2b' })}
@@ -1753,7 +1856,7 @@ export default function RestaurantPayoutList() {
             </div>
 
             <p className="text-xs text-gray-600">
-              Select how ECDKART settles orders with <strong>{restaurantCommModal.restaurant.name}</strong>:
+              Select how ECDKART settles orders with <strong>{resolveString(restaurantCommModal.restaurant?.name) || "Restaurant"}</strong>:
             </p>
 
             <div className="space-y-3">
