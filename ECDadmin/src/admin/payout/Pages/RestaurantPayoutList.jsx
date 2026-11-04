@@ -18,7 +18,8 @@ import {
   TrendingUp,
   FileText,
   Calendar,
-  Layers
+  Layers,
+  Percent
 } from "lucide-react";
 import PageHeader from "../../components/PageHeader";
 import { API_BASE_URL } from "../../../utils/utils";
@@ -414,7 +415,7 @@ export default function RestaurantPayoutList() {
         />
         <div className="flex items-center gap-2">
           <button
-            onClick={activeTab === "requests" ? fetchPayoutRequests : fetchSettlements}
+            onClick={activeTab === "requests" ? fetchPayoutRequests : activeTab === "ledger" ? fetchSettlements : fetchCommissionData}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 transition shadow-sm cursor-pointer"
           >
             <RefreshCw
@@ -465,6 +466,20 @@ export default function RestaurantPayoutList() {
           Settlement Ledger Engine
           <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'ledger' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'}`}>
             {ledgers.length}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab("commission")}
+          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition cursor-pointer ${
+            activeTab === "commission"
+              ? "border-emerald-600 text-emerald-700"
+              : "border-transparent text-gray-500 hover:text-gray-800"
+          }`}
+        >
+          <Percent size={18} />
+          Commission & B2B Rates
+          <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'commission' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'}`}>
+            {commissionRestaurants.length}
           </span>
         </button>
       </div>
@@ -1584,6 +1599,245 @@ export default function RestaurantPayoutList() {
           </div>
         </div>
       )}
+
+      {/* TAB 3: COMMISSION & B2B RATE CONTROL */}
+      {activeTab === "commission" && (
+        <div className="space-y-6 animate-fadeIn">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+            {/* Global Commission Setting Card */}
+            <div className="md:col-span-4 space-y-4">
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                    %
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-800 text-sm">Global Default Commission</h3>
+                    <p className="text-xs text-gray-500">Default rate applied if no restaurant override exists.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-gray-600">Global Commission (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={globalCommissionPercent}
+                    onChange={(e) => setGlobalCommissionPercent(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <button
+                  onClick={handleSaveGlobalCommission}
+                  disabled={savingCommConfig}
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {savingCommConfig ? "Saving..." : "Save Global Commission"}
+                </button>
+              </div>
+
+              {/* Precedence Rules Card */}
+              <div className="bg-amber-50 p-5 rounded-2xl border border-amber-200 text-amber-900 space-y-2">
+                <h4 className="font-bold text-xs uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                  <Sliders size={14} /> Settlement & Rate Precedence
+                </h4>
+                <ul className="text-xs space-y-2 list-disc list-inside text-amber-950 font-medium leading-relaxed">
+                  <li><strong>B2B Rate Mode (Default):</strong> Restaurant earns exact negotiated B2B item price. Platform retains Customer Price - B2B Price markup.</li>
+                  <li><strong>Commission % Override:</strong> If enabled for a restaurant, platform deducts custom commission % from customer food total.</li>
+                  <li><strong>Global Fallback:</strong> Applies default ({globalCommissionPercent}%) when commission model is active without custom override.</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Restaurant Commission Directory Table */}
+            <div className="md:col-span-8 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-gray-800 text-base">
+                    Restaurant Commission & Rate Directory ({commissionRestaurants.length})
+                  </h3>
+                  <p className="text-xs text-gray-500">Manage individual restaurant B2B vs Commission pricing models</p>
+                </div>
+
+                <div className="relative max-w-xs w-full">
+                  <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Search restaurant..."
+                    value={restaurantSearchQuery}
+                    onChange={(e) => setRestaurantSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 bg-gray-50 border border-gray-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="w-full text-left text-xs text-gray-600">
+                  <thead className="bg-gray-50 text-gray-700 uppercase font-bold text-[11px] border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3">Restaurant</th>
+                      <th className="px-4 py-3">Applied Model / Rate</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {commissionRestaurants
+                      .filter(r => !restaurantSearchQuery || (r.name || "").toLowerCase().includes(restaurantSearchQuery.toLowerCase()))
+                      .map((r) => {
+                        const isB2B = r.pricingModel === 'b2b' || (!r.useCommissionModel && r.pricingModel !== 'commission');
+                        return (
+                          <tr key={r._id} className="hover:bg-gray-50/80 transition">
+                            <td className="px-4 py-3 font-semibold text-gray-800 flex items-center gap-2">
+                              <Store size={15} className="text-gray-400" />
+                              {r.name}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                                  isB2B
+                                    ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                                    : "bg-blue-50 text-blue-800 border-blue-300"
+                                }`}>
+                                  {isB2B ? "B2B Rate Mode (Default)" : `Commission (${r.adminCommission || globalCommissionPercent}%)`}
+                                </span>
+                                {!isB2B && (
+                                  <span className="text-[10px] text-gray-400">
+                                    {r.isOverridden ? "Custom Override" : "Global"}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => {
+                                  setRestaurantCommValue(r.adminCommission || globalCommissionPercent || 20);
+                                  setRestaurantCommModal({
+                                    open: true,
+                                    restaurant: r,
+                                    pricingModel: isB2B ? 'b2b' : 'commission'
+                                  });
+                                }}
+                                className="px-3 py-1.5 bg-white border border-gray-300 hover:border-emerald-500 hover:text-emerald-700 text-gray-700 font-semibold rounded-lg text-xs shadow-2xs transition cursor-pointer"
+                              >
+                                Configure Model
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Configure Restaurant Pricing Model & Commission */}
+      {restaurantCommModal.open && restaurantCommModal.restaurant && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-scaleUp space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="text-base font-bold text-gray-800">Configure Pricing Model & Commission</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{restaurantCommModal.restaurant.name}</p>
+              </div>
+              <button
+                onClick={() => setRestaurantCommModal({ open: false, restaurant: null, pricingModel: 'b2b' })}
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-600">
+              Select how ECDKART settles orders with <strong>{restaurantCommModal.restaurant.name}</strong>:
+            </p>
+
+            <div className="space-y-3">
+              {/* Radio 1: B2B Rate Model */}
+              <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition ${
+                restaurantCommModal.pricingModel !== 'commission'
+                  ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500'
+                  : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+              }`}>
+                <input
+                  type="radio"
+                  name="pricingModelRadio"
+                  checked={restaurantCommModal.pricingModel !== 'commission'}
+                  onChange={() => setRestaurantCommModal({ ...restaurantCommModal, pricingModel: 'b2b' })}
+                  className="mt-1 text-emerald-600"
+                />
+                <div>
+                  <strong className="text-xs font-bold text-emerald-950 block">B2B Rate Mode (Default)</strong>
+                  <span className="text-[11px] text-gray-500 leading-normal block mt-0.5">
+                    Restaurant receives their exact negotiated B2B Price for every item. Platform retains (Selling Price - B2B Price) markup.
+                  </span>
+                </div>
+              </label>
+
+              {/* Radio 2: Commission % Model */}
+              <label className={`p-3.5 rounded-xl border flex items-start gap-3 cursor-pointer transition ${
+                restaurantCommModal.pricingModel === 'commission'
+                  ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500'
+                  : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+              }`}>
+                <input
+                  type="radio"
+                  name="pricingModelRadio"
+                  checked={restaurantCommModal.pricingModel === 'commission'}
+                  onChange={() => setRestaurantCommModal({ ...restaurantCommModal, pricingModel: 'commission' })}
+                  className="mt-1 text-blue-600"
+                />
+                <div>
+                  <strong className="text-xs font-bold text-blue-950 block">Commission % Model</strong>
+                  <span className="text-[11px] text-gray-500 leading-normal block mt-0.5">
+                    Platform charges a set percentage commission on customer food item total.
+                  </span>
+                </div>
+              </label>
+
+              {/* Commission Percentage Input (if Commission model selected) */}
+              {restaurantCommModal.pricingModel === 'commission' && (
+                <div className="pt-2 pl-2 space-y-1">
+                  <label className="text-xs font-bold text-gray-700">Custom Commission Percentage (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={restaurantCommValue}
+                    onChange={(e) => setRestaurantCommValue(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 15"
+                  />
+                  <span className="text-[10px] text-gray-400 block">
+                    Overrides global default ({globalCommissionPercent}%) for this restaurant.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-4 border-t">
+              <button
+                onClick={() => setRestaurantCommModal({ open: false, restaurant: null, pricingModel: 'b2b' })}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveRestaurantModel}
+                disabled={savingCommConfig}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer disabled:opacity-50"
+              >
+                {savingCommConfig ? "Saving..." : "Save Rate Model"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
