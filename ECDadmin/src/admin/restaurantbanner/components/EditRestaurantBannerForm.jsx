@@ -190,6 +190,11 @@ const EditRestaurantBannerForm = () => {
                     {city.name} {city.isServiceAvailable ? '📍 (Services Available)' : ''}
                   </MenuItem>
                 ))}
+                {Boolean(formData.city && formData.city !== 'all' && !cities.some(c => c._id === formData.city)) && (
+                  <MenuItem value={formData.city}>
+                    📍 {formData.cityName || formData.city}
+                  </MenuItem>
+                )}
               </Select>
             </div>
 

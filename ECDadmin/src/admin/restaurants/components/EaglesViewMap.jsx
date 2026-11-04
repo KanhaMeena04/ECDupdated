@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { MapPin, Navigation, X, Store, Building } from "lucide-react";
 
-export default function EaglesViewMap({ restaurants = [], riders = [] }) {
+export default function EaglesViewMap({ restaurants = [], riders = [], orders = [] }) {
   const mapRef = useRef(null);
   const searchInputRef = useRef(null);
   const googleMapObj = useRef(null);
@@ -168,10 +168,46 @@ export default function EaglesViewMap({ restaurants = [], riders = [] }) {
       hasPoints = true;
     });
 
-    if (hasPoints && (restaurants.length > 1 || riders.length > 1)) {
+    orders.forEach((ord) => {
+      const coords = ord.deliveryAddress?.coordinates || ord.deliveryLocation?.coordinates || ord.restaurant?.location?.coordinates;
+      if (!coords || !Array.isArray(coords) || coords.length < 2) return;
+      const lat = coords[1];
+      const lng = coords[0];
+      if (!lat || !lng) return;
+      const pos = { lat: Number(lat), lng: Number(lng) };
+
+      const marker = new googleMaps.Marker({
+        position: pos,
+        map,
+        title: `Order #${ord.orderId || ord._id}`,
+        icon: {
+          url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+        },
+      });
+
+      const infoWindow = new googleMaps.InfoWindow({
+        content: `
+          <div style="padding:6px; font-family:sans-serif;">
+            <strong style="font-size:14px; color:#1D4ED8;">📦 Order #${ord.orderId || ord._id}</strong>
+            <p style="margin:3px 0 0 0; font-size:12px; color:#374151;">Status: <strong>${ord.status || 'Active'}</strong></p>
+            <p style="margin:2px 0 0 0; font-size:12px; color:#4B5563;">Amount: ₹${ord.totalAmount || ord.total || 0}</p>
+          </div>
+        `,
+      });
+
+      marker.addListener("click", () => {
+        infoWindow.open(map, marker);
+      });
+
+      markersRef.current.push(marker);
+      bounds.extend(pos);
+      hasPoints = true;
+    });
+
+    if (hasPoints && (restaurants.length > 1 || riders.length > 1 || orders.length > 0)) {
       map.fitBounds(bounds);
     }
-  }, [restaurants, riders]);
+  }, [restaurants, riders, orders]);
 
   // Fetch Nearby Predictions
   const handleInputChange = (text) => {

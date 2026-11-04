@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants/app_constants.dart';
 import '../core/config/app_mode.dart';
 import 'dart:convert';
@@ -37,6 +38,15 @@ class NotificationApiService {
     }
   }
 
+  /// Initialize cached unread count immediately upon app launch / resume from Recent Apps
+  static Future<void> initCachedCount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getInt('cached_unread_notif_count') ?? 0;
+      unreadCountNotifier.value = cached;
+    } catch (_) {}
+  }
+
   /// Refreshes the unread count from the backend
   static Future<int> refreshUnreadCount() async {
     if (kFrontendPreviewMode) {
@@ -63,6 +73,13 @@ class NotificationApiService {
           unread = list.where((item) => item['isRead'] != true).length;
         }
         unreadCountNotifier.value = unread;
+
+        // Persist to local cache so notification bell is always instant after swipe/resume
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('cached_unread_notif_count', unread);
+        } catch (_) {}
+
         return unread;
       } else {
         unreadCountNotifier.value = 0;

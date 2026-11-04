@@ -155,10 +155,19 @@ export default function RecentOrders({
   onStatusChange,
   loading = false,
   onRefresh,
+  date: propDate,
+  onDateChange,
 }) {
   const navigate = useNavigate();
   const [internalStatusFilter, setInternalStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [internalDate, setInternalDate] = useState("");
+
+  const effectiveDate = propDate !== undefined ? propDate : internalDate;
+  const handleDateSelect = (val) => {
+    setInternalDate(val);
+    if (onDateChange) onDateChange(val);
+  };
 
   const activeFilter = propStatusFilter !== undefined ? propStatusFilter : internalStatusFilter;
   const rawOrders = propRecentOrders || [];
@@ -171,17 +180,24 @@ export default function RecentOrders({
     }
   };
 
-  // Filter strictly to orders created in the last 24 hours, sorted newest first
+  // Full 24-hour day filter (Midnight 12:00 AM to Midnight 12:00 AM) if date selected, otherwise newest orders
   const valid24hOrders = useMemo(() => {
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     return (Array.isArray(rawOrders) ? rawOrders : [])
       .filter((ord) => {
         if (!ord.createdAt) return true;
-        const t = new Date(ord.createdAt).getTime();
-        return !isNaN(t) ? t >= cutoff : true;
+        if (effectiveDate) {
+          const ordDate = new Date(ord.createdAt);
+          const start = new Date(effectiveDate);
+          start.setHours(0, 0, 0, 0);
+          const end = new Date(effectiveDate);
+          end.setHours(23, 59, 59, 999);
+          const t = ordDate.getTime();
+          return t >= start.getTime() && t <= end.getTime();
+        }
+        return true;
       })
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-  }, [rawOrders]);
+  }, [rawOrders, effectiveDate]);
 
   // Tab counts strictly derived from 24h orders
   const tabCounts = useMemo(() => {
@@ -281,24 +297,46 @@ export default function RecentOrders({
           })}
         </div>
 
-        {/* Quick Search Within Active Filter */}
-        <div className="mt-2.5 relative">
-          <input
-            type="text"
-            placeholder="Search by Order ID, Restaurant, Customer, Rider..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-gray-200 text-xs bg-white placeholder-gray-400 text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
-          />
-          <Search className="absolute left-2.5 top-2 text-gray-400" sx={{ fontSize: 16 }} />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1.5 text-xs text-gray-400 hover:text-gray-600 font-bold"
-            >
-              ✕
-            </button>
-          )}
+        {/* Quick Search & Date Filter Bar */}
+        <div className="mt-2.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Search by Order ID, Restaurant, Customer, Rider..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-gray-200 text-xs bg-white placeholder-gray-400 text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+            />
+            <Search className="absolute left-2.5 top-2 text-gray-400" sx={{ fontSize: 16 }} />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1.5 text-xs text-gray-400 hover:text-gray-600 font-bold"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs shrink-0 shadow-2xs">
+            <CalendarToday className="text-gray-400" sx={{ fontSize: 14 }} />
+            <span className="text-gray-400 font-medium text-[11px]">Date:</span>
+            <input
+              type="date"
+              value={effectiveDate}
+              onChange={(e) => handleDateSelect(e.target.value)}
+              className="bg-transparent text-xs text-gray-700 outline-none cursor-pointer font-medium"
+            />
+            {effectiveDate && (
+              <button
+                onClick={() => handleDateSelect("")}
+                className="text-[10px] text-emerald-600 font-bold hover:underline ml-1"
+                title="Show all recent orders"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

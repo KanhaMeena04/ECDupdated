@@ -180,14 +180,21 @@ exports.getDashboard = async (req, res) => {
 };
 exports.getOrdersDashboard = async (req, res) => {
   try {
-    const { period = "today", startDate, endDate, status: filterStatus, onlyAnalytics: rawOnlyAnalytics } = req.query;
+    const { period = "today", date, startDate, endDate, status: filterStatus, onlyAnalytics: rawOnlyAnalytics } = req.query;
     const limit = parseInt(req.query.limit) || 100;
     const onlyAnalytics = rawOnlyAnalytics === "true" || rawOnlyAnalytics === true;
 
     let matchQuery = {};
     const now = new Date();
 
-    if (period === "today" || period === "daily") {
+    if (date) {
+      const d = new Date(date);
+      const start = new Date(d);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(d);
+      end.setHours(23, 59, 59, 999);
+      matchQuery.createdAt = { $gte: start, $lte: end };
+    } else if (period === "today" || period === "daily") {
       const start = new Date();
       start.setHours(0, 0, 0, 0);
       const end = new Date();
@@ -446,15 +453,32 @@ exports.getOrdersDashboard = async (req, res) => {
       ]
     };
 
-    // Recent orders: strictly retrieve orders from the last 24 hours, sorted newest first
-    let recentQuery = {
-      createdAt: { $gte: twentyFourHoursAgo }
-    };
+    // Recent orders: full 24h window (midnight 12:00 AM to midnight 12:00 AM) if date specified, else last 24h
+    let recentQuery = {};
+    if (date) {
+      const d = new Date(date);
+      const start = new Date(d);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(d);
+      end.setHours(23, 59, 59, 999);
+      recentQuery.createdAt = { $gte: start, $lte: end };
+    } else if (period === "today") {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      recentQuery.createdAt = { $gte: start, $lte: end };
+    } else if (period === "all") {
+      recentQuery = {};
+    } else {
+      recentQuery.createdAt = { $gte: twentyFourHoursAgo };
+    }
+
     if (filterStatus && filterStatus !== 'all' && statusMap[filterStatus]) {
       recentQuery.status = { $in: statusMap[filterStatus] };
     }
 
-    const recentOrders = onlyAnalytics
+    let recentOrders = onlyAnalytics
       ? []
       : await Order.find(recentQuery)
           .populate('customer', 'name firstName lastName mobile phone email customerId address')
@@ -466,6 +490,24 @@ exports.getOrdersDashboard = async (req, res) => {
           .sort({ createdAt: -1 })
           .limit(limit)
           .lean();
+
+    // ADM-01 Fallback: If no orders in requested 24h window and no specific date filter set, return latest orders
+    if (!onlyAnalytics && recentOrders.length === 0 && !date) {
+      const fallbackQuery = {};
+      if (filterStatus && filterStatus !== 'all' && statusMap[filterStatus]) {
+        fallbackQuery.status = { $in: statusMap[filterStatus] };
+      }
+      recentOrders = await Order.find(fallbackQuery)
+        .populate('customer', 'name firstName lastName mobile phone email customerId address')
+        .populate('user', 'name firstName lastName mobile phone email customerId address')
+        .populate('restaurant', 'name phone contactNumber address city restaurantId')
+        .populate('store', 'name phone contactNumber address city restaurantId')
+        .populate('rider', 'name mobile phone riderId vehicle')
+        .populate({ path: 'rider', populate: { path: 'user', select: 'name mobile' } })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean();
+    }
 
     const formattedRecentOrders = recentOrders.map(order => {
       const rawStatus = (order.status || '').toLowerCase();
@@ -2179,15 +2221,42 @@ exports.sendCustomPush = async (req, res) => {
 
     let userQuery = {};
     if (targetGroup === 'customers' || targetGroup === 'users') {
-      userQuery = { role: { $in: ['customer', 'user'] } };
+      userQuery = { 
+        $or: [
+          { role: { $in: ['customer', 'user'] } },
+          { role: { $exists: false } },
+          { role: null },
+          { role: '' }
+        ] 
+      };
     } else if (targetGroup === 'riders' || targetGroup === 'driver') {
-      userQuery = { role: { $in: ['rider', 'driver'] } };
+      let riderUserIds = [];
+      try {
+        const Rider = require('../models/Rider');
+        riderUserIds = await Rider.distinct('user');
+      } catch (_) {}
+      userQuery = {
+        $or: [
+          { role: { $in: ['rider', 'driver'] } },
+          ...(riderUserIds.length ? [{ _id: { $in: riderUserIds.filter(Boolean) } }] : [])
+        ]
+      };
     } else if (targetGroup === 'restaurants' || targetGroup === 'vendor') {
-      userQuery = { role: { $in: ['restaurant_owner', 'vendor'] } };
+      let ownerIds = [];
+      try {
+        const Restaurant = require('../models/Restaurant');
+        ownerIds = await Restaurant.distinct('owner');
+      } catch (_) {}
+      userQuery = {
+        $or: [
+          { role: { $in: ['restaurant_owner', 'vendor', 'restaurant'] } },
+          ...(ownerIds.length ? [{ _id: { $in: ownerIds.filter(Boolean) } }] : [])
+        ]
+      };
     } else if (targetGroup === 'android') {
       userQuery = { $or: [{ platform: 'android' }, { deviceType: 'android' }, { role: { $in: ['customer', 'user'] } }] };
     } else if (targetGroup === 'ios') {
-      userQuery = { $or: [{ platform: 'ios' }, { deviceType: 'ios' }, { role: { $in: ['customer', 'user'] } }] };
+      userQuery = { $or: [{ platform: 'ios' }, { deviceType: 'ios' }] };
     } else {
       userQuery = {};
     }

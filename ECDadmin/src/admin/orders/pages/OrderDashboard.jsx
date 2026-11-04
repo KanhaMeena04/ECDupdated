@@ -5,10 +5,15 @@ import { useNavigate } from "react-router-dom";
 import {
   BarChartRounded,
   Refresh,
+  CalendarToday,
 } from "@mui/icons-material";
 
 export default function OrderDashboard() {
   const navigate = useNavigate();
+
+  // Selected date for full 24-hour day period (default: today)
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [selectedDate, setSelectedDate] = useState(todayStr);
 
   // Recent Orders Live Status Filter (client-side reactive)
   const [recentStatusFilter, setRecentStatusFilter] = useState("all");
@@ -21,17 +26,14 @@ export default function OrderDashboard() {
     refetch,
   } = useOrderDashboard({
     period: "today",
+    date: selectedDate,
   });
 
-  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-  const live24hOrders = Array.isArray(recentOrders)
-    ? recentOrders.filter((o) => !o.createdAt || new Date(o.createdAt).getTime() >= cutoff)
-    : [];
-  const liveOrdersCount = live24hOrders.length;
+  const liveOrdersCount = Array.isArray(recentOrders) ? recentOrders.length : 0;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 bg-gradient-to-t from-gray-100 to-gray-50 min-h-screen">
-      {/* Top Header: Pure Live Orders Page Header */}
+      {/* Top Header: Pure Live Orders Page Header with Date Filter */}
       <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-gray-200/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
@@ -43,20 +45,41 @@ export default function OrderDashboard() {
               Live Feed
             </span>
             <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
-              {liveOrdersCount} Active (24h)
+              {liveOrdersCount} Orders ({selectedDate === todayStr ? "Today 24h" : selectedDate})
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Real-time feed of live and recent incoming orders from the last 24 hours
+            Real-time feed of live and recent incoming orders (Full 24-hour period: 12:00 AM to 12:00 AM)
           </p>
         </div>
 
-        {/* Action Link to Orders Analytics & Refresh */}
-        <div className="flex items-center gap-2">
+        {/* Date Filter & Actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 24-hour Calendar Date Picker */}
+          <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl shadow-2xs">
+            <CalendarToday className="text-emerald-700" sx={{ fontSize: 16 }} />
+            <span className="text-xs font-semibold text-gray-600">Day:</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent text-xs font-bold text-gray-800 outline-none cursor-pointer"
+            />
+            {selectedDate !== todayStr && (
+              <button
+                onClick={() => setSelectedDate(todayStr)}
+                className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 ml-1 underline"
+                title="Reset to Today"
+              >
+                Today
+              </button>
+            )}
+          </div>
+
           <button
             onClick={() => refetch()}
             disabled={loading}
-            className="p-2 rounded-xl bg-gray-100 text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 border border-gray-200 transition-all flex items-center gap-1.5 text-xs font-semibold"
+            className="p-2 rounded-xl bg-gray-100 text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 border border-gray-200 transition-all flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
             title="Refresh Live Orders"
           >
             <Refresh fontSize="small" className={loading ? "animate-spin" : ""} />
@@ -65,7 +88,7 @@ export default function OrderDashboard() {
 
           <button
             onClick={() => navigate("/orders-analytics")}
-            className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+            className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer"
             title="Go to Orders Analytics & Reports"
           >
             <BarChartRounded fontSize="small" />
@@ -83,6 +106,8 @@ export default function OrderDashboard() {
           onStatusChange={setRecentStatusFilter}
           loading={loading}
           onRefresh={refetch}
+          date={selectedDate}
+          onDateChange={setSelectedDate}
         />
       </div>
     </div>

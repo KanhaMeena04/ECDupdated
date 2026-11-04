@@ -27,14 +27,30 @@ class CustomAppBar extends StatefulWidget {
   State<CustomAppBar> createState() => _CustomAppBarState();
 }
 
-class _CustomAppBarState extends State<CustomAppBar> {
+class _CustomAppBarState extends State<CustomAppBar> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationApiService.initCachedCount();
       NotificationApiService.refreshUnreadCount();
       NotificationApiService.listenToRealtimeNotifications();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      NotificationApiService.refreshUnreadCount();
+      NotificationApiService.listenToRealtimeNotifications();
+    }
   }
 
   @override

@@ -406,7 +406,6 @@ export default function PricingControlTower() {
         >
           <Tab icon={<LocalShipping />} iconPosition="start" label="Delivery Charges & Distance Slabs" />
           <Tab icon={<TrendingUp />} iconPosition="start" label="Surge & Extra Charges" />
-          <Tab icon={<Percent />} iconPosition="start" label="Commission Control" />
           <Tab icon={<ReceiptLong />} iconPosition="start" label="Platform & Packaging Fees" />
           <Tab icon={<Payments />} iconPosition="start" label="COD & Payment Limits" />
           <Tab icon={<Calculate />} iconPosition="start" label="Live Pricing Simulator" />
@@ -693,98 +692,9 @@ export default function PricingControlTower() {
         </Grid>
       )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* TAB 2: COMMISSION CONTROL */}
+      {/* TAB 2: PLATFORM & PACKAGING FEES
       {/* ------------------------------------------------------------- */}
       {activeTab === 2 && (
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={5}>
-            <Card sx={{ borderRadius: 3, p: 3, mb: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>Global Default Commission</Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                Default platform commission applied if no restaurant or category override exists.
-              </Typography>
-              <TextField
-                fullWidth size="small" label="Global Commission (%)" type="number"
-                value={commissionConfig.globalCommissionPercent}
-                onChange={(e) => setCommissionConfig({ ...commissionConfig, globalCommissionPercent: e.target.value })}
-                sx={{ mb: 2 }}
-              />
-              <Button variant="contained" fullWidth sx={{ bgcolor: PRIMARY_COLOR, fontWeight: 700 }} onClick={handleSaveCommissionConfig}>
-                Save Global Commission
-              </Button>
-            </Card>
-
-            <Card sx={{ borderRadius: 3, p: 3, bgcolor: "#FFFBEB", border: `1px solid ${ACCENT_COLOR}` }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: ACCENT_COLOR, mb: 1 }}>
-                Commission Precedence Rules
-              </Typography>
-              <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
-                1. <strong>Restaurant Specific Override</strong> (If restaurant has custom commission set).<br />
-                2. <strong>Category Specific Override</strong> (If items belong to custom category commission).<br />
-                3. <strong>Global Default Commission</strong> (Fall back default 20%).
-              </Typography>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} md={7}>
-            <Card sx={{ borderRadius: 3, p: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Restaurant Commission Directory ({restaurants.length})</Typography>
-              <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: "none", border: "1px solid #E5E7EB" }}>
-                <Table size="small">
-                  <TableHead sx={{ bgcolor: "#F9FAFB" }}>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 700 }}>Restaurant</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Applied Commission</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {restaurants.map((r) => (
-                      <TableRow key={r._id}>
-                        <TableCell sx={{ fontWeight: 600 }}>{r.name}</TableCell>
-                        <TableCell>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Chip
-                              label={r.useCommissionModel ? `Commission (${r.adminCommission}%)` : "B2B Rate Mode (Default)"}
-                              color={r.useCommissionModel ? "secondary" : "success"}
-                              size="small"
-                            />
-                            {r.useCommissionModel && (
-                              <span style={{ fontSize: 10, color: '#6B7280' }}>{r.isOverridden ? "Override" : "Global"}</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => {
-                              setRestaurantCommValue(r.adminCommission);
-                              setRestaurantCommModal({
-                                open: true,
-                                restaurant: r,
-                                pricingModel: r.pricingModel || (r.useCommissionModel ? 'commission' : 'b2b'),
-                              });
-                            }}
-                          >
-                            Configure Model
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Card>
-          </Grid>
-        </Grid>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* TAB 3: PLATFORM & PACKAGING FEES */}
-      {/* ------------------------------------------------------------- */}
-      {activeTab === 3 && (
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <Card sx={{ borderRadius: 3, p: 3 }}>
@@ -1061,9 +971,9 @@ export default function PricingControlTower() {
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* TAB 5: LIVE PRICING SIMULATOR */}
+      {/* TAB 4: LIVE PRICING SIMULATOR
       {/* ------------------------------------------------------------- */}
-      {activeTab === 5 && (
+      {activeTab === 4 && (
         <Grid container spacing={3}>
           <Grid item xs={12} md={5}>
             <Card sx={{ borderRadius: 3, p: 3 }}>

@@ -563,6 +563,30 @@ exports.getBanners = async (req, res) => {
           ...(mongoose.Types.ObjectId.isValid(userCity) ? [{ _id: userCity }] : [])
         ]
       }).lean();
+
+      if (!userCityDoc && userCity.includes(',')) {
+        const parts = userCity.split(',').map(p => p.trim()).filter(Boolean);
+        for (const part of parts) {
+          const match = await City.findOne({ name: { $regex: new RegExp(`^${part}$`, 'i') } }).lean();
+          if (match) {
+            userCityDoc = match;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!userCityDoc && hasCoordinates) {
+      try {
+        userCityDoc = await City.findOne({
+          isActive: { $ne: false },
+          'zones.polygon': {
+            $geoIntersects: {
+              $geometry: { type: 'Point', coordinates: [userLng, userLat] }
+            }
+          }
+        }).lean();
+      } catch (_) {}
     }
 
     // Collect linked restaurants
@@ -614,25 +638,28 @@ exports.getBanners = async (req, res) => {
         }
       }
 
-      // 2. City Filtering for Banner
+      // 2. City Filtering for Banner (Supports City ID, City Name, GPS Geofence & Substring Location)
       if (!isUniversalCity) {
-        if (userCity) {
-          const userCityNameClean = (userCityDoc?.name || userCity).toLowerCase().trim();
-          const userCityId = userCityDoc?._id?.toString();
+        const resolvedUserCityName = (userCityDoc?.name || userCity || '').toLowerCase().trim();
+        const userCityId = userCityDoc?._id?.toString();
 
-          const matchesId = userCityId && bannerCityId === userCityId;
-          const matchesName = bannerCityName && (bannerCityName === userCityNameClean || bannerCityName.includes(userCityNameClean) || userCityNameClean.includes(bannerCityName));
-          const matchesRawCity = bannerCityId && (bannerCityId.toLowerCase() === userCityNameClean || userCityNameClean.includes(bannerCityId.toLowerCase()));
+        const matchesId = Boolean(userCityId && bannerCityId === userCityId);
+        const matchesName = Boolean(
+          bannerCityName && resolvedUserCityName && (
+            bannerCityName === resolvedUserCityName ||
+            bannerCityName.includes(resolvedUserCityName) ||
+            resolvedUserCityName.includes(bannerCityName)
+          )
+        );
+        const matchesRawCity = Boolean(
+          bannerCityId && resolvedUserCityName && (
+            bannerCityId.toLowerCase() === resolvedUserCityName ||
+            resolvedUserCityName.includes(bannerCityId.toLowerCase())
+          )
+        );
 
-          if (!matchesId && !matchesName && !matchesRawCity) {
-            return false; // Does not match user's city
-          }
-        } else if (hasCoordinates && userCityDoc) {
-          const userCityId = userCityDoc._id.toString();
-          const userCityNameClean = userCityDoc.name.toLowerCase();
-          if (bannerCityId !== userCityId && bannerCityName !== userCityNameClean) {
-            return false;
-          }
+        if (!matchesId && !matchesName && !matchesRawCity) {
+          return false; // Does not match user's city/location
         }
       }
 

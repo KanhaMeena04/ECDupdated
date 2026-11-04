@@ -130,7 +130,7 @@ export const INITIAL_STATUS_COUNTS = {
   delivered: 0,
 };
 
-const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', status = 'all', onlyAnalytics = false } = {}) => {
+const useOrderDashboard = ({ period = 'today', date = '', startDate = '', endDate = '', status = 'all', onlyAnalytics = false } = {}) => {
   const [stats, setStats] = useState(INITIAL_STATS);
   const [todayOrders, setTodayOrders] = useState(INITIAL_TODAY_ORDERS);
   const [recentOrders, setRecentOrders] = useState([]);
@@ -152,7 +152,10 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', sta
     setError(false);
     try {
       const res = await axios.get(`${API_BASE_URL}/api/admin/order-dashboard`, {
-        params: { period, startDate, endDate, status, limit: 100, onlyAnalytics },
+        params: { period, date, startDate, endDate, status, limit: 100, onlyAnalytics },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token') || localStorage.getItem('adminToken') || ''}`
+        },
         withCredentials: true,
       });
       const data = res.data || {};
@@ -183,7 +186,7 @@ const useOrderDashboard = ({ period = 'today', startDate = '', endDate = '', sta
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [period, startDate, endDate, status, onlyAnalytics]);
+  }, [period, date, startDate, endDate, status, onlyAnalytics]);
 
   useEffect(() => {
     fetchDashboard(false);

@@ -184,10 +184,37 @@ const optionalAuth = async (req, res, next) => {
   next();
 };
 
-module.exports = { 
-  protect, 
+const checkPermission = (requiredPermission) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: "Authentication required" });
+    }
+    const perms = Array.isArray(req.user.permissions) ? req.user.permissions : [];
+    const isSuper = perms.includes("all") ||
+      req.user.roleName === "Super Admin" ||
+      req.user.name === "Super Admin" ||
+      req.user.email === "admin@gmail.com" ||
+      req.user.email === "admin@ecdkart.com";
+
+    if (isSuper) {
+      return next();
+    }
+    if (requiredPermission && (perms.includes(requiredPermission) || perms.includes("all"))) {
+      return next();
+    }
+    return res.status(403).json({
+      success: false,
+      message: `Access Denied: You lack required permission (${requiredPermission})`,
+      requiredPermission
+    });
+  };
+};
+
+module.exports = {
+  protect,
   optionalAuth,
-  admin, 
+  admin,
+  checkPermission, 
   restaurantOwner, 
   rider, 
   customer,

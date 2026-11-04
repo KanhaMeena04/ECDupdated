@@ -186,6 +186,7 @@ const AdminRoutes = () => {
 				 <Route path="/cancelled-order" element={<CancelledOrders />} />
 				 <Route path="/failed-order" element={<FailedOrders />} />
 				 <Route path="/abandon-cart" element={<AbandonCart />} />
+				 <Route path="/abandon-orders" element={<AbandonCart />} />
 				 <Route path="/order-refund" element={<RefundOrders />} />
 				 <Route path="/order-dashboard" element={<OrderDashBoard />} />
 				 <Route path="/orders-analytics" element={<OrdersAnalytics />} />

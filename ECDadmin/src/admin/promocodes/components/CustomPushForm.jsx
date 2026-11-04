@@ -8,8 +8,9 @@ import {
   CircularProgress,
   Alert
 } from '@mui/material';
-import axios from 'axios';
-import { API_BASE_URL } from '../../../utils/utils';
+import SendRoundedIcon from '@mui/icons-material/SendRounded';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import api from '../../../utils/api';
 import toast from 'react-hot-toast';
 
 const CustomPushForm = () => {
@@ -30,7 +31,7 @@ const CustomPushForm = () => {
     if (feedback) setFeedback(null);
   };
 
-  const handleSave = async (e) => {
+  const handleSend = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
     if (!formData.title || !formData.title.trim()) {
@@ -48,12 +49,6 @@ const CustomPushForm = () => {
     setLoading(true);
     setFeedback(null);
 
-    const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    };
-
     const payload = {
       sendTo: formData.sendTo || 'all',
       title: formData.title.trim(),
@@ -63,22 +58,19 @@ const CustomPushForm = () => {
     try {
       let res;
       try {
-        res = await axios.post(`${API_BASE_URL}/api/notifications/custom-push`, payload, {
-          headers,
-          withCredentials: true
-        });
+        res = await api.post('/api/notifications/custom-push', payload);
       } catch (firstErr) {
         // Fallback to /api/admin/custom-push
-        res = await axios.post(`${API_BASE_URL}/api/admin/custom-push`, payload, {
-          headers,
-          withCredentials: true
-        });
+        res = await api.post('/api/admin/custom-push', payload);
       }
 
-      if (res.data && res.data.success) {
+      if (res.data && (res.data.success || res.status === 200)) {
         const successMsg = res.data.message || 'Custom push notification sent successfully!';
         toast.success(successMsg);
-        setFeedback({ type: 'success', text: successMsg });
+        setFeedback({ 
+          type: 'success', 
+          text: successMsg + (res.data.count !== undefined ? ` (Dispatched to ${res.data.count} accounts)` : '') 
+        });
         setFormData((prev) => ({
           ...prev,
           title: '',
@@ -107,11 +99,12 @@ const CustomPushForm = () => {
         {/* Header Section */}
         <div className="flex justify-between items-center p-4 border-b border-gray-100">
           <Typography variant="h6" className="text-gray-700 font-medium">
-            Custom Push
+            Push Custom Notification
           </Typography>
-          <div className="text-gray-400 cursor-pointer">
-            {/* Code Icon Placeholder */}
-            <span className="text-sm font-mono">&lt; &gt;</span>
+          <div className="text-gray-400">
+            <span className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full border border-emerald-200">
+              Live Dispatch Engine
+            </span>
           </div>
         </div>
 
@@ -121,6 +114,7 @@ const CustomPushForm = () => {
             <Alert 
               severity={feedback.type} 
               onClose={() => setFeedback(null)}
+              icon={feedback.type === 'success' ? <CheckCircleRoundedIcon fontSize="inherit" /> : undefined}
               className="mb-4"
             >
               {feedback.text}
@@ -129,7 +123,7 @@ const CustomPushForm = () => {
 
           {/* Send To - Select Dropdown */}
           <Box>
-            <label className="block text-sm text-gray-500 mb-1">Send To*</label>
+            <label className="block text-sm text-gray-500 mb-1 font-medium">Send Target Audience*</label>
             <TextField
               select
               fullWidth
@@ -140,18 +134,18 @@ const CustomPushForm = () => {
               size="small"
               placeholder="Send To"
             >
-              <MenuItem value="all">All Users & Partners</MenuItem>
-              <MenuItem value="customers">All Customers</MenuItem>
-              <MenuItem value="riders">All Delivery Riders</MenuItem>
-              <MenuItem value="restaurants">All Restaurants</MenuItem>
-              <MenuItem value="android">Android Users</MenuItem>
-              <MenuItem value="ios">iOS Users</MenuItem>
+              <MenuItem value="all">🌐 All Users & Partners (Broadcast)</MenuItem>
+              <MenuItem value="customers">👤 All Customers (User App)</MenuItem>
+              <MenuItem value="riders">🛵 All Delivery Riders (Rider App)</MenuItem>
+              <MenuItem value="restaurants">🍳 All Restaurants (Partner App)</MenuItem>
+              <MenuItem value="android">📱 Android Users</MenuItem>
+              <MenuItem value="ios">🍏 iOS Users</MenuItem>
             </TextField>
           </Box>
 
           {/* Title - Input */}
           <Box>
-            <label className="block text-sm text-gray-500 mb-1">Title*</label>
+            <label className="block text-sm text-gray-500 mb-1 font-medium">Notification Title*</label>
             <TextField
               fullWidth
               name="title"
@@ -159,13 +153,13 @@ const CustomPushForm = () => {
               onChange={handleChange}
               variant="outlined"
               size="small"
-              placeholder="Enter notification title"
+              placeholder="e.g. Special Weekend Offer 50% Off!"
             />
           </Box>
 
           {/* Message - Textarea */}
           <Box>
-            <label className="block text-sm text-gray-500 mb-1">Message*</label>
+            <label className="block text-sm text-gray-500 mb-1 font-medium">Message Body*</label>
             <TextField
               fullWidth
               name="message"
@@ -174,7 +168,7 @@ const CustomPushForm = () => {
               variant="outlined"
               multiline
               rows={4}
-              placeholder="Enter notification message"
+              placeholder="Enter your push notification message that users will see on their lock screen & bell drawer..."
               className="resize-y"
             />
           </Box>
@@ -183,18 +177,26 @@ const CustomPushForm = () => {
           <div className="pt-2 flex items-center gap-4">
             <Button 
               variant="contained" 
-              onClick={handleSave}
+              onClick={handleSend}
               disabled={loading}
-              className="bg-[#00a689] hover:bg-[#1c6d57] capitalize px-6 py-2"
-              sx={{ backgroundColor: '#00a689', '&:hover': { backgroundColor: '#1c6d57' } }}
+              className="bg-[#248C70] hover:bg-[#1b6b55] font-semibold tracking-wide capitalize px-6 py-2.5 text-white shadow-sm flex items-center gap-2"
+              sx={{ 
+                backgroundColor: '#248C70', 
+                '&:hover': { backgroundColor: '#1b6b55' },
+                borderRadius: '8px',
+                fontWeight: 600
+              }}
             >
               {loading ? (
                 <div className="flex items-center gap-2">
                   <CircularProgress size={18} color="inherit" />
-                  <span>SENDING...</span>
+                  <span>DISPATCHING NOTIFICATION...</span>
                 </div>
               ) : (
-                'SAVE'
+                <div className="flex items-center gap-2">
+                  <SendRoundedIcon fontSize="small" />
+                  <span>SEND NOTIFICATION</span>
+                </div>
               )}
             </Button>
           </div>

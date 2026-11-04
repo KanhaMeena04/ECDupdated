@@ -3113,6 +3113,13 @@ exports.getAllOrdersAdmin = async (req, res) => {
         query.status = { $in: ["placed", "pending", "accepted", "preparing", "ready_for_pickup", "out_for_delivery"] };
       } else if (rawStatus === "pickup" || rawStatus === "self_pickup" || rawStatus === "self pickup") {
         query.$or = [{ orderType: { $in: ["pickup", "self_pickup"] } }, { status: { $in: ["pickup", "self_pickup"] } }];
+      } else if (rawStatus === "abandon" || rawStatus === "abandoned" || rawStatus === "abandon_orders") {
+        query.$or = [
+          { status: { $in: ["abandoned", "abandon", "payment_failed", "draft"] } },
+          { isAbandoned: true },
+          { paymentStatus: "failed" },
+          { "paymentTransaction.status": "failed" }
+        ];
       } else {
         const statusList = String(status).split(',').map(s => s.trim()).filter(Boolean);
         if (statusList.length > 1) {

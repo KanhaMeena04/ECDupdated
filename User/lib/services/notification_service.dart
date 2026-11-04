@@ -69,12 +69,25 @@ class NotificationService {
         debugPrint('Notification received in foreground!');
         debugPrint('Title: ${message.notification?.title}');
         debugPrint('Body: ${message.notification?.body}');
+        NotificationApiService.refreshUnreadCount();
       });
 
-      // App opened from notification listener
+      // App opened from background notification listener
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        debugPrint('User opened app from notification: ${message.data}');
+        debugPrint('User opened app from background notification: ${message.data}');
+        NotificationApiService.refreshUnreadCount();
       });
+
+      // App opened from terminated/killed state (Recent Apps swiped away)
+      try {
+        final initialMessage = await messaging.getInitialMessage();
+        if (initialMessage != null) {
+          debugPrint('User opened app from terminated state via notification: ${initialMessage.data}');
+          NotificationApiService.refreshUnreadCount();
+        }
+      } catch (e) {
+        debugPrint('Error getting initial FCM message: $e');
+      }
 
       _initialized = true;
     } catch (e) {

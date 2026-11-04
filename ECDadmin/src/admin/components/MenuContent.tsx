@@ -70,8 +70,6 @@ export const menuItems: MenuItemType[] = [
       { text: 'All Restaurants', path: '/restaurants' },
       { text: 'Pending Approval', path: '/pending-restaurants' },
       { text: 'Approved Restaurants', path: '/approve-restaurant' },
-      { text: 'Restaurant Promocodes', path: '/promocodes', permission: 'Promocode' },
-      { text: 'Add Promocode', path: '/add-promocodes', permission: 'Promocode' },
     ]
   },
 
@@ -101,7 +99,7 @@ export const menuItems: MenuItemType[] = [
       { text: 'Cancelled Orders', path: '/cancelled-order' },
       { text: 'Failed Orders', path: '/failed-order' },
       { text: 'Refund Orders', path: '/order-refund', permission: 'Reports' },
-      { text: 'Abandoned Carts', path: '/abandon-cart' },
+      { text: 'Abandoned Orders', path: '/abandon-cart' },
     ]
   },
 
@@ -125,7 +123,6 @@ export const menuItems: MenuItemType[] = [
     permission: 'SiteSettings',
     children: [
       { text: 'Delivery Charges', path: '/pricing-control' },
-      { text: 'Commission', path: '/financial-overview', permission: 'Reports' },
       { text: 'Packaging', path: '/pricing-control' },
       { text: 'Platform Fees', path: '/pricing-control' },
     ]
@@ -180,7 +177,6 @@ export const menuItems: MenuItemType[] = [
   { text: 'Audit Logs', icon: <ReceiptLong />, path: '/audit-logs', permission: 'SiteSettings' },
   { text: 'Chat Support', icon: <SupportAgent sx={{ color: '#248C70' }} />, path: '/support-chat', badge: 'LIVE' },
   { text: 'Emergency Controls', icon: <Warning />, path: '/emergency-controls', permission: 'RuleEngine' },
-  { text: 'System Health', icon: <HealthAndSafety />, path: '/dashboard', permission: 'Dashboard' },
 ];
 
 export default function MenuContent() {
@@ -190,27 +186,26 @@ export default function MenuContent() {
   const { user } = useAuth();
 
   const userPerms: string[] | undefined = (user as any)?.permissions;
-  const isSuperAdmin = !userPerms ||
-    userPerms.length === 0 ||
-    userPerms.includes('all') ||
-    user?.role === 'admin' ||
-    (user as any)?.role === 'admin' ||
+  const isSuperAdmin = Boolean(
+    (Array.isArray(userPerms) && userPerms.includes('all')) ||
     user?.email === 'admin@gmail.com' ||
     user?.email === 'admin@ecdkart.com' ||
     (user as any)?.roleName === 'Super Admin' ||
-    (user as any)?.name === 'Super Admin';
+    (user as any)?.name === 'Super Admin'
+  );
 
   const visibleMenuItems = React.useMemo(() => {
-    if (isSuperAdmin || !Array.isArray(userPerms)) {
+    if (isSuperAdmin) {
       return menuItems;
     }
+    const perms = Array.isArray(userPerms) ? userPerms : [];
     return menuItems.filter(item => {
       if (!item.permission) return true;
-      if (userPerms.includes(item.permission)) return true;
+      if (perms.includes(item.permission)) return true;
       if (item.children && item.children.length > 0) {
         return item.children.some(child => {
           const perm = child.permission || item.permission;
-          return !perm || userPerms.includes(perm);
+          return !perm || perms.includes(perm);
         });
       }
       return false;
@@ -218,7 +213,7 @@ export default function MenuContent() {
       if (!item.children) return item;
       const filteredChildren = item.children.filter(child => {
         const perm = child.permission || item.permission;
-        return !perm || userPerms.includes(perm);
+        return !perm || perms.includes(perm);
       });
       return { ...item, children: filteredChildren };
     });
