@@ -817,20 +817,23 @@ exports.getCompletedOrdersForRider = async (req, res) => {
     ].filter(Boolean);
 
     const deliveredStatuses = ['delivered', 'completed', 'Delivered', 'Completed', 'DELIVERED', 'COMPLETED'];
+    const allRiderMatches = [...allRiderObjectIds, ...allRiderStringIds];
     const query = {
       $and: [
         {
           $or: [
-            { rider: { $in: allRiderObjectIds } },
+            { rider: { $in: allRiderMatches } },
             { riderId: { $in: allRiderStringIds } },
-            { driver: { $in: allRiderObjectIds } },
+            { driver: { $in: allRiderMatches } },
             { driverId: { $in: allRiderStringIds } },
-            { 'assignedRider.rider': { $in: allRiderObjectIds } },
+            { 'assignedRider.rider': { $in: allRiderMatches } },
             { 'assignedRider.riderId': { $in: allRiderStringIds } },
             { 'assignedRider.id': { $in: allRiderStringIds } },
-            { 'riderNotificationStatus.acceptedBy': { $in: allRiderObjectIds } },
-            { cashCollectedBy: { $in: allRiderObjectIds } },
-            ...(riderPhones.length > 0 ? [{ riderPhone: { $in: riderPhones } }] : [])
+            { 'riderNotificationStatus.acceptedBy': { $in: allRiderMatches } },
+            { cashCollectedBy: { $in: allRiderMatches } },
+            ...(riderPhones.length > 0 ? [{ riderPhone: { $in: riderPhones } }, { 'assignedRider.phone': { $in: riderPhones } }] : []),
+            ...(riderProfile.name ? [{ riderName: { $regex: new RegExp(riderProfile.name.trim(), 'i') } }] : []),
+            ...(req.user.name ? [{ riderName: { $regex: new RegExp(req.user.name.trim(), 'i') } }] : [])
           ]
         },
         {
@@ -863,9 +866,17 @@ exports.getCompletedOrdersForRider = async (req, res) => {
       orderObj.riderId = orderObj.riderId || riderIdCode || "RDR001";
       orderObj.status = 'delivered';
       orderObj.deliveryStatus = 'delivered';
-      const earn = orderObj.driverEarnings ?? orderObj.riderEarning ?? orderObj.riderCommission ?? 0;
+      const earn = orderObj.driverEarnings ?? orderObj.riderEarning ?? orderObj.riderCommission ?? orderObj.deliveryFee ?? 0;
       orderObj.driverEarnings = earn;
       orderObj.riderEarning = earn;
+      if (orderObj.restaurant) {
+        orderObj.store = {
+          _id: orderObj.restaurant._id,
+          name: typeof orderObj.restaurant.name === 'object' ? (orderObj.restaurant.name.en || Object.values(orderObj.restaurant.name)[0]) : orderObj.restaurant.name,
+          address: typeof orderObj.restaurant.address === 'object' ? (orderObj.restaurant.address.addressLine || JSON.stringify(orderObj.restaurant.address)) : orderObj.restaurant.address,
+          phone: orderObj.restaurant.contactNumber || orderObj.restaurant.phone || ''
+        };
+      }
       return orderObj;
     });
     return res.status(200).json({
@@ -4882,7 +4893,7 @@ exports.getMyActiveOrder = async (req, res) => {
     // 2. If no assigned active order, check for incoming pending RideRequests or unassigned delivery orders
     const RideRequest = require('../models/RideRequest');
     const pendingRequests = await RideRequest.find({
-      rider: riderProfile._id,
+      rider: { $in: [riderProfile._id, req.user._id].filter(Boolean) },
       status: 'pending'
     }).populate({
       path: 'order',
@@ -4896,7 +4907,7 @@ exports.getMyActiveOrder = async (req, res) => {
     if (pendingRequests.length > 0) {
       unassignedOrders = pendingRequests
         .map(r => r.order)
-        .filter(o => o && !o.rider && o.status === 'ready');
+        .filter(o => o && !o.rider && ['ready', 'preparing', 'accepted', 'in_kitchen', 'placed'].includes(o.status));
     }
 
     if (unassignedOrders.length === 0) {
@@ -4910,7 +4921,7 @@ exports.getMyActiveOrder = async (req, res) => {
         _id: { $nin: rejectedOrderIds },
         orderType: { $ne: 'self_pickup' },
         rider: null,
-        status: 'ready',
+        status: { $in: ['ready', 'preparing', 'accepted', 'in_kitchen', 'placed'] },
         createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
       })
         .populate('customer', 'name phone mobile')

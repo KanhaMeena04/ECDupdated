@@ -73,6 +73,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         _showApprovalCelebrationDialog(title, body);
       } else {
         if (type == 'dispatch_request' || type == 'order_available' || title.toLowerCase().contains('delivery request') || title.toLowerCase().contains('order')) {
+          _processedOrders.clear();
           context.read<DriverBloc>().add(const LoadActiveOrders());
         }
         ScaffoldMessenger.of(context).showSnackBar(
@@ -546,15 +547,21 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               );
             } else if (state is ActiveOrdersLoaded) {
               if (state.orders.isNotEmpty) {
-                final incomingIndex = state.orders.indexWhere((o) => o['deliveryStatus'] == 'driver_notified');
-                final activeOrder = incomingIndex != -1 ? state.orders[incomingIndex] : state.orders.first;
-                final processKey = '${activeOrder['_id']}_${activeOrder['updatedAt'] ?? ''}';
-                if (activeOrder['deliveryStatus'] == 'driver_notified' && !_showIncomingOrder && !_processedOrders.contains(processKey)) {
-                  setState(() => _showIncomingOrder = true);
-                  _playOrderRingtone();
-                  _timerController.reset();
-                  _timerController.forward();
-                } else if (incomingIndex == -1 || _processedOrders.contains(processKey)) {
+                final incomingIndex = state.orders.indexWhere((o) {
+                  final ds = (o['deliveryStatus'] ?? '').toString().toLowerCase();
+                  final st = (o['status'] ?? '').toString().toLowerCase();
+                  return ds == 'driver_notified' || st == 'driver_notified';
+                });
+                if (incomingIndex != -1) {
+                  final activeOrder = state.orders[incomingIndex];
+                  final processKey = '${activeOrder['_id']}_${activeOrder['updatedAt'] ?? ''}';
+                  if (!_showIncomingOrder && !_processedOrders.contains(processKey)) {
+                    setState(() => _showIncomingOrder = true);
+                    _playOrderRingtone();
+                    _timerController.reset();
+                    _timerController.forward();
+                  }
+                } else {
                   if (_showIncomingOrder || _isRingtonePlaying) {
                     _stopOrderRingtone();
                     setState(() => _showIncomingOrder = false);
@@ -1675,7 +1682,19 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     return BlocBuilder<DriverBloc, DriverState>(
       builder: (context, state) {
         final summary = state.summaryData;
-        final earningsVal = summary?['earnings'] ?? summary?['todayEarnings'] ?? 0;
+        final rawEarnings = summary?['earnings'] ?? summary?['todayEarnings'] ?? 0;
+        double parsedEarnings = (rawEarnings is num)
+            ? rawEarnings.toDouble()
+            : (double.tryParse(rawEarnings?.toString() ?? '') ?? 0.0);
+
+        // Fallback: sum from completed orders if summary earnings is zero
+        if (parsedEarnings <= 0 && state.completedOrders.isNotEmpty) {
+          for (var o in state.completedOrders) {
+            final e = o['driverEarnings'] ?? o['riderEarning'] ?? o['earning'] ?? o['deliveryFee'] ?? 0.0;
+            parsedEarnings += (e is num) ? e.toDouble() : (double.tryParse(e.toString()) ?? 0.0);
+          }
+        }
+
         final rawOrders = summary?['orders_completed'] ??
             summary?['completedOrders'] ??
             summary?['today_orders'] ??
@@ -1684,11 +1703,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             ? rawOrders.toInt()
             : (int.tryParse(rawOrders?.toString() ?? '') ?? 0);
         final int effectiveOrders = parsedOrders > 0 ? parsedOrders : state.completedOrders.length;
-        final secondsVal = summary?['ride_time_seconds'] ?? 0;
 
-        final String earnings = '₹${(earningsVal as num).toDouble().toStringAsFixed(2)}';
+        final rawSeconds = summary?['ride_time_seconds'] ?? 0;
+        final double parsedSeconds = (rawSeconds is num)
+            ? rawSeconds.toDouble()
+            : (double.tryParse(rawSeconds?.toString() ?? '') ?? 0.0);
+
+        final String earnings = '₹${parsedEarnings.toStringAsFixed(2)}';
         final String orders = effectiveOrders.toString();
-        final double hoursVal = (secondsVal as num) / 3600.0;
+        final double hoursVal = parsedSeconds / 3600.0;
         final String hours = '${hoursVal.toStringAsFixed(1)}h';
 
         return Container(

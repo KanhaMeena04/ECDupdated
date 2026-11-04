@@ -262,7 +262,10 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
       }
 
       if (summaryResponse['success'] == true && summaryResponse['data'] != null) {
-        _summaryData = summaryResponse['data'];
+        final rawSummary = summaryResponse['data'];
+        if (rawSummary is Map) {
+          _summaryData = Map<String, dynamic>.from(rawSummary);
+        }
       }
 
       _activeOrders = newActiveOrders;

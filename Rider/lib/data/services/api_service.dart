@@ -248,7 +248,13 @@ class ApiService {
         final data = jsonDecode(response.body);
         final list = data['orders'] ?? data['data'] ?? (data is List ? data : []);
         if (list is List) {
-          return {'success': true, 'data': list};
+          final List<Map<String, dynamic>> safeList = [];
+          for (var item in list) {
+            if (item is Map) {
+              safeList.add(Map<String, dynamic>.from(item));
+            }
+          }
+          return {'success': true, 'data': safeList};
         }
       }
     } catch (e) {
@@ -256,7 +262,7 @@ class ApiService {
     }
     return {
       "success": true,
-      "data": [],
+      "data": <Map<String, dynamic>>[],
     };
   }
 
@@ -271,7 +277,13 @@ class ApiService {
         final data = jsonDecode(response.body);
         final list = data['orders'] ?? data['data'] ?? (data is List ? data : []);
         if (list is List) {
-          return {'success': true, 'data': list};
+          final List<Map<String, dynamic>> safeList = [];
+          for (var item in list) {
+            if (item is Map) {
+              safeList.add(Map<String, dynamic>.from(item));
+            }
+          }
+          return {'success': true, 'data': safeList};
         }
       }
     } catch (e) {
@@ -279,7 +291,7 @@ class ApiService {
     }
     return {
       "success": true,
-      "data": [],
+      "data": <Map<String, dynamic>>[],
     };
   }
 
@@ -430,15 +442,18 @@ class ApiService {
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final resData = (data['data'] is Map ? data['data'] : null) ?? (data is Map ? data : {});
-        final walletData = (resData['wallet'] is Map ? resData['wallet'] : null) ?? (data['wallet'] is Map ? data['wallet'] : null) ?? {};
+        final decoded = jsonDecode(response.body);
+        final Map<String, dynamic> data = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+        final Map<String, dynamic> resData = (data['data'] is Map ? Map<String, dynamic>.from(data['data']) : null) ?? data;
+        final Map<String, dynamic> walletData = (resData['wallet'] is Map ? Map<String, dynamic>.from(resData['wallet']) : null) ??
+            (data['wallet'] is Map ? Map<String, dynamic>.from(data['wallet']) : null) ??
+            <String, dynamic>{};
         final codBal = resData['codBalance'] ?? walletData['cashInHand'] ?? resData['cashInHand'] ?? 0.0;
         final codEarn = resData['codEarnings'] ?? walletData['availableBalance'] ?? resData['availableBalance'] ?? 0.0;
         final amtPay = resData['amountToPay'] ?? walletData['amountToPay'] ?? 0.0;
-        return {
+        return <String, dynamic>{
           'success': true,
-          'data': {
+          'data': <String, dynamic>{
             ...resData,
             'codBalance': (codBal is num) ? codBal.toDouble() : (double.tryParse(codBal.toString()) ?? 0.0),
             'codEarnings': (codEarn is num) ? codEarn.toDouble() : (double.tryParse(codEarn.toString()) ?? 0.0),
@@ -451,9 +466,9 @@ class ApiService {
     } catch (e) {
       log("Error fetching driver summary: $e");
     }
-    return {
+    return <String, dynamic>{
       "success": true,
-      "data": {
+      "data": <String, dynamic>{
         "todayEarnings": 0.0,
         "completedOrders": 0,
         "activeHours": 0.0,
@@ -577,22 +592,26 @@ class ApiService {
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final walletData = data['data']?['wallet'] ?? data['wallet'] ?? data['data'] ?? data;
-        final bal = (walletData['availableBalance'] as num?)?.toDouble() ?? (data['data']?['balance'] as num?)?.toDouble() ?? 0.0;
+        final decoded = jsonDecode(response.body);
+        final Map<String, dynamic> data = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+        final Map<String, dynamic> dataObj = data['data'] is Map ? Map<String, dynamic>.from(data['data']) : data;
+        final Map<String, dynamic> walletData = (dataObj['wallet'] is Map ? Map<String, dynamic>.from(dataObj['wallet']) : null) ??
+            (data['wallet'] is Map ? Map<String, dynamic>.from(data['wallet']) : null) ??
+            dataObj;
+        final bal = (walletData['availableBalance'] as num?)?.toDouble() ?? (dataObj['balance'] as num?)?.toDouble() ?? 0.0;
         final totalEarn = (walletData['totalEarnings'] as num?)?.toDouble() ?? 0.0;
-        return {
+        return <String, dynamic>{
           'success': true,
-          'data': {
+          'data': <String, dynamic>{
             'balance': bal,
-            'billable_hours': data['data']?['billable_hours'] ?? "0.0",
-            'today_orders': data['data']?['today_orders'] ?? data['data']?['orders_completed'] ?? data['data']?['completedOrders'] ?? data['data']?['totalDeliveries'] ?? 0,
-            'orders_completed': data['data']?['orders_completed'] ?? data['data']?['today_orders'] ?? 0,
-            'completedOrders': data['data']?['completedOrders'] ?? data['data']?['today_orders'] ?? 0,
-            'totalDeliveries': data['data']?['totalDeliveries'] ?? data['data']?['today_orders'] ?? 0,
-            'recent_requests': data['data']?['recent_requests'] ?? []
+            'billable_hours': dataObj['billable_hours'] ?? "0.0",
+            'today_orders': dataObj['today_orders'] ?? dataObj['orders_completed'] ?? dataObj['completedOrders'] ?? dataObj['totalDeliveries'] ?? 0,
+            'orders_completed': dataObj['orders_completed'] ?? dataObj['today_orders'] ?? 0,
+            'completedOrders': dataObj['completedOrders'] ?? dataObj['today_orders'] ?? 0,
+            'totalDeliveries': dataObj['totalDeliveries'] ?? dataObj['today_orders'] ?? 0,
+            'recent_requests': dataObj['recent_requests'] ?? []
           },
-          'wallet': {
+          'wallet': <String, dynamic>{
             'availableBalance': bal,
             'cashInHand': (walletData['cashInHand'] as num?)?.toDouble() ?? 0.0,
             'cashLimit': (walletData['cashLimit'] as num?)?.toDouble() ?? 2000.0,
@@ -605,15 +624,15 @@ class ApiService {
     } catch (e) {
       log("Error fetching wallet summary: $e");
     }
-    return {
+    return <String, dynamic>{
       "success": true,
-      "data": {
+      "data": <String, dynamic>{
         "balance": 0.0,
         "billable_hours": "0.0",
         "today_orders": 0,
         "recent_requests": []
       },
-      "wallet": {
+      "wallet": <String, dynamic>{
         "availableBalance": 0.0,
         "cashInHand": 0.0,
         "cashLimit": 2000.0,
@@ -632,15 +651,18 @@ class ApiService {
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final resData = (data['data'] is Map ? data['data'] : null) ?? (data is Map ? data : {});
-        final walletData = (resData['wallet'] is Map ? resData['wallet'] : null) ?? (data['wallet'] is Map ? data['wallet'] : null) ?? {};
+        final decoded = jsonDecode(response.body);
+        final Map<String, dynamic> data = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+        final Map<String, dynamic> resData = (data['data'] is Map ? Map<String, dynamic>.from(data['data']) : null) ?? data;
+        final Map<String, dynamic> walletData = (resData['wallet'] is Map ? Map<String, dynamic>.from(resData['wallet']) : null) ??
+            (data['wallet'] is Map ? Map<String, dynamic>.from(data['wallet']) : null) ??
+            <String, dynamic>{};
         final codBal = resData['codBalance'] ?? walletData['cashInHand'] ?? resData['cashInHand'] ?? 0.0;
         final codEarn = resData['codEarnings'] ?? walletData['availableBalance'] ?? resData['availableBalance'] ?? 0.0;
         final amtPay = resData['amountToPay'] ?? walletData['amountToPay'] ?? 0.0;
-        return {
+        return <String, dynamic>{
           'success': true,
-          'data': {
+          'data': <String, dynamic>{
             ...resData,
             'codBalance': (codBal is num) ? codBal.toDouble() : (double.tryParse(codBal.toString()) ?? 0.0),
             'codEarnings': (codEarn is num) ? codEarn.toDouble() : (double.tryParse(codEarn.toString()) ?? 0.0),
@@ -653,9 +675,9 @@ class ApiService {
     } catch (e) {
       log("Error fetching COD balance: $e");
     }
-    return {
+    return <String, dynamic>{
       "success": true,
-      "data": {
+      "data": <String, dynamic>{
         "codBalance": 0.0,
         "codEarnings": 0.0,
         "amountToPay": 0.0,
