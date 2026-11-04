@@ -432,15 +432,16 @@ exports.placeOrder = async (req, res) => {
       return sendError(res, 400, "This restaurant only accepts Cash on Delivery.");
     }
 
+    let sysSettings = null;
+    try {
+      const AdminSetting = require("../models/AdminSetting");
+      sysSettings = await AdminSetting.getSettings();
+    } catch (_) {}
+
     let bill;
     try {
       bill = await calculateBill(cart, req.user._id, deliveryAddress, orderType);
     } catch (billErr) {
-      let sysSettings = null;
-      try {
-        const AdminSetting = require("../models/AdminSetting");
-        sysSettings = await AdminSetting.getSettings();
-      } catch (_) {}
       let isFirstOrderFallback = false;
       if (sysSettings?.deliveryFeeConfig?.firstOrderFreeDelivery !== false && req.user?._id) {
         try {
