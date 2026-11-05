@@ -816,30 +816,27 @@ exports.getCompletedOrdersForRider = async (req, res) => {
       req.user?.mobile
     ].filter(Boolean);
 
-    const deliveredStatuses = ['delivered', 'completed', 'Delivered', 'Completed', 'DELIVERED', 'COMPLETED'];
-    const allRiderMatches = [...allRiderObjectIds, ...allRiderStringIds];
+    const historyStatuses = ['delivered', 'completed', 'cancelled', 'rejected', 'failed', 'Delivered', 'Completed', 'Cancelled', 'DELIVERED', 'COMPLETED', 'CANCELLED'];
     const query = {
       $and: [
         {
           $or: [
-            { rider: { $in: allRiderMatches } },
+            { rider: { $in: allRiderObjectIds } },
+            { driver: { $in: allRiderObjectIds } },
+            { 'assignedRider.rider': { $in: allRiderObjectIds } },
+            { 'riderNotificationStatus.acceptedBy': { $in: allRiderObjectIds } },
+            { cashCollectedBy: { $in: allRiderObjectIds } },
             { riderId: { $in: allRiderStringIds } },
-            { driver: { $in: allRiderMatches } },
             { driverId: { $in: allRiderStringIds } },
-            { 'assignedRider.rider': { $in: allRiderMatches } },
             { 'assignedRider.riderId': { $in: allRiderStringIds } },
             { 'assignedRider.id': { $in: allRiderStringIds } },
-            { 'riderNotificationStatus.acceptedBy': { $in: allRiderMatches } },
-            { cashCollectedBy: { $in: allRiderMatches } },
-            ...(riderPhones.length > 0 ? [{ riderPhone: { $in: riderPhones } }, { 'assignedRider.phone': { $in: riderPhones } }] : []),
-            ...(riderProfile.name ? [{ riderName: { $regex: new RegExp(riderProfile.name.trim(), 'i') } }] : []),
-            ...(req.user.name ? [{ riderName: { $regex: new RegExp(req.user.name.trim(), 'i') } }] : [])
+            ...(riderPhones.length > 0 ? [{ riderPhone: { $in: riderPhones } }, { 'assignedRider.phone': { $in: riderPhones } }] : [])
           ]
         },
         {
           $or: [
-            { status: { $in: deliveredStatuses } },
-            { deliveryStatus: { $in: deliveredStatuses } }
+            { status: { $in: historyStatuses } },
+            { deliveryStatus: { $in: historyStatuses } }
           ]
         }
       ]
@@ -864,8 +861,9 @@ exports.getCompletedOrdersForRider = async (req, res) => {
       orderObj.customerId = orderObj.customerId || orderObj.customer?.customerId || "C001";
       orderObj.restaurantId = orderObj.restaurantId || orderObj.restaurant?.restaurantId || "RNT001";
       orderObj.riderId = orderObj.riderId || riderIdCode || "RDR001";
-      orderObj.status = 'delivered';
-      orderObj.deliveryStatus = 'delivered';
+      const actualStatus = (orderObj.status || orderObj.deliveryStatus || 'delivered').toLowerCase();
+      orderObj.status = actualStatus;
+      orderObj.deliveryStatus = actualStatus;
       const earn = orderObj.driverEarnings ?? orderObj.riderEarning ?? orderObj.riderCommission ?? orderObj.deliveryFee ?? 0;
       orderObj.driverEarnings = earn;
       orderObj.riderEarning = earn;
@@ -1372,20 +1370,20 @@ exports.getEarningsSummary = async (req, res) => {
     ].filter(Boolean);
 
     const deliveredStatuses = ['delivered', 'completed', 'Delivered', 'Completed', 'DELIVERED', 'COMPLETED'];
-    const match = {
+    const queryMatch = {
       $and: [
         {
           $or: [
-            { rider: { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
+            { rider: { $in: allRiderObjectIds } },
+            { driver: { $in: allRiderObjectIds } },
+            { 'assignedRider.rider': { $in: allRiderObjectIds } },
+            { 'riderNotificationStatus.acceptedBy': { $in: allRiderObjectIds } },
+            { cashCollectedBy: { $in: allRiderObjectIds } },
             { riderId: { $in: allRiderStringIds } },
-            { driver: { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
             { driverId: { $in: allRiderStringIds } },
             { 'assignedRider.riderId': { $in: allRiderStringIds } },
-            { 'assignedRider.rider': { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
             { 'assignedRider.id': { $in: allRiderStringIds } },
-            { 'riderNotificationStatus.acceptedBy': { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
-            { cashCollectedBy: { $in: [...allRiderObjectIds, ...allRiderStringIds] } },
-            ...(riderPhones.length > 0 ? [{ riderPhone: { $in: riderPhones } }] : [])
+            ...(riderPhones.length > 0 ? [{ riderPhone: { $in: riderPhones } }, { 'assignedRider.phone': { $in: riderPhones } }] : [])
           ]
         },
         {
@@ -1397,70 +1395,78 @@ exports.getEarningsSummary = async (req, res) => {
       ]
     };
 
-    const safeDateExpr = { $ifNull: ['$deliveredAt', { $ifNull: ['$updatedAt', '$createdAt'] }] };
-    let groupId = null;
-    if (period === 'week') groupId = { $isoWeek: safeDateExpr };
-    else if (period === 'month') groupId = { $dateToString: { format: '%Y-%m', date: safeDateExpr } };
-    else groupId = { $dateToString: { format: '%Y-%m-%d', date: safeDateExpr } };
-
     const startToday = new Date();
     startToday.setHours(0, 0, 0, 0);
+    const endToday = new Date();
+    endToday.setHours(23, 59, 59, 999);
+
     const todayMatch = {
       $and: [
-        match,
+        queryMatch,
         {
           $or: [
-            { deliveredAt: { $gte: startToday } },
-            { updatedAt: { $gte: startToday } },
-            { createdAt: { $gte: startToday } }
+            { deliveredAt: { $gte: startToday, $lte: endToday } },
+            { updatedAt: { $gte: startToday, $lte: endToday } },
+            { createdAt: { $gte: startToday, $lte: endToday } }
           ]
         }
       ]
     };
 
-    const [agg, wallet, todayCount, totalDeliveredCount] = await Promise.all([
+    const [todayAgg, allAgg, todayCount, totalDeliveredCount, wallet] = await Promise.all([
       Order.aggregate([
-        { $match: match },
+        { $match: todayMatch },
         {
           $group: {
-            _id: groupId,
+            _id: null,
             earnings: { $sum: { $ifNull: ['$driverEarnings', { $ifNull: ['$riderEarning', '$riderCommission'] }] } },
             orders: { $sum: 1 }
           }
-        },
-        { $sort: { _id: -1 } }
+        }
       ]).catch(() => []),
-      RiderWallet.findOne({ rider: riderProfile._id }),
+      Order.aggregate([
+        { $match: queryMatch },
+        {
+          $group: {
+            _id: null,
+            earnings: { $sum: { $ifNull: ['$driverEarnings', { $ifNull: ['$riderEarning', '$riderCommission'] }] } },
+            orders: { $sum: 1 }
+          }
+        }
+      ]).catch(() => []),
       Order.countDocuments(todayMatch).catch(() => 0),
-      Order.countDocuments(match).catch(() => 0),
+      Order.countDocuments(queryMatch).catch(() => 0),
+      RiderWallet.findOne({ rider: riderProfile._id }).catch(() => null)
     ]);
 
-    const totals = agg.reduce(
-      (acc, cur) => ({ earnings: acc.earnings + (cur.earnings || 0), orders: acc.orders + (cur.orders || 0) }),
-      { earnings: 0, orders: 0 }
-    );
-    const effectiveOrders = todayCount > 0 ? todayCount : (totals.orders > 0 ? totals.orders : totalDeliveredCount);
+    const todayEarnings = Number((todayAgg[0]?.earnings || 0).toFixed(2));
+    const todayOrders = todayAgg[0]?.orders || todayCount || 0;
+
+    const allEarnings = Number((allAgg[0]?.earnings || wallet?.totalEarnings || wallet?.availableBalance || 0).toFixed(2));
+    const allOrders = allAgg[0]?.orders || totalDeliveredCount || 0;
+
     const cashInHand = Number((wallet?.cashInHand || 0).toFixed(2));
-    const effectiveEarnings = Math.max(totals.earnings || 0, Number(wallet?.availableBalance || wallet?.totalEarnings || 0));
-    const availableBalance = Number((wallet?.availableBalance || effectiveEarnings).toFixed(2));
-    const totalEarnings = Number((wallet?.totalEarnings || effectiveEarnings).toFixed(2));
+    const availableBalance = Number((wallet?.availableBalance || allEarnings).toFixed(2));
     const amountToPay = Math.max(0, Number((cashInHand - availableBalance).toFixed(2)));
 
     res.status(200).json({
       success: true,
       period,
-      aggregation: agg,
+      aggregation: allAgg,
       totals: {
-        earnings: effectiveEarnings,
-        orders: effectiveOrders
+        earnings: allEarnings,
+        orders: allOrders
       },
       data: {
-        todayEarnings: effectiveEarnings,
-        completedOrders: effectiveOrders,
-        orders_completed: effectiveOrders,
-        today_orders: effectiveOrders,
-        totalDeliveries: totalDeliveredCount,
-        earnings: effectiveEarnings,
+        todayEarnings: todayEarnings,
+        today_orders: todayOrders,
+        todayOrders: todayOrders,
+        completedOrders: todayOrders,
+        orders_completed: todayOrders,
+        allTimeEarnings: allEarnings,
+        allTimeOrders: allOrders,
+        totalDeliveries: allOrders,
+        earnings: todayEarnings,
         activeHours: 0.0,
         billable_hours: "0.0",
         ride_time_seconds: 0,
@@ -1470,9 +1476,13 @@ exports.getEarningsSummary = async (req, res) => {
         codEarnings: availableBalance,
         amountToPay: amountToPay,
       },
+      summary: {
+        today: { earnings: todayEarnings, orders: todayOrders },
+        allTime: { earnings: allEarnings, orders: allOrders }
+      },
       wallet: wallet ? {
         availableBalance,
-        totalEarnings,
+        totalEarnings: allEarnings,
         cashInHand,
         cashLimit: wallet.cashLimit || 2000,
         isFrozen: wallet.isFrozen || false,

@@ -38,6 +38,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   bool _showIncomingOrder = false;
   bool _celebrationDialogShown = false;
   final Set<String> _processedOrders = {};
+  String _selectedProgressPeriod = 'Today'; // 'Today' | 'Weekly' | 'Monthly' | 'All Time' | 'Custom'
+  DateTime? _customSelectedDate;
 
   late AnimationController _timerController;
   Timer? _pollingTimer;
@@ -1678,41 +1680,161 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     );
   }
 
+  Widget _buildPeriodChip(String label) {
+    final isSelected = _selectedProgressPeriod == label;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedProgressPeriod = label;
+          if (label != 'Custom') _customSelectedDate = null;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? primaryGreen : Colors.grey[100],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? primaryGreen : Colors.grey[300]!,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 10.5,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? Colors.white : Colors.grey[700],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTodayProgressSection() {
     return BlocBuilder<DriverBloc, DriverState>(
       builder: (context, state) {
         final summary = state.summaryData;
-        final rawEarnings = summary?['earnings'] ?? summary?['todayEarnings'] ?? 0;
-        double parsedEarnings = (rawEarnings is num)
-            ? rawEarnings.toDouble()
-            : (double.tryParse(rawEarnings?.toString() ?? '') ?? 0.0);
+        final completedOrders = state.completedOrders;
 
-        // Fallback: sum from completed orders if summary earnings is zero
-        if (parsedEarnings <= 0 && state.completedOrders.isNotEmpty) {
-          for (var o in state.completedOrders) {
-            final e = o['driverEarnings'] ?? o['riderEarning'] ?? o['earning'] ?? o['deliveryFee'] ?? 0.0;
-            parsedEarnings += (e is num) ? e.toDouble() : (double.tryParse(e.toString()) ?? 0.0);
-          }
+        final rawBackendTodayEarnings = summary?['todayEarnings'] ?? summary?['today_earnings'] ?? 0;
+        final double backendTodayEarnings = (rawBackendTodayEarnings is num)
+            ? rawBackendTodayEarnings.toDouble()
+            : (double.tryParse(rawBackendTodayEarnings?.toString() ?? '') ?? 0.0);
+
+        final rawBackendTodayOrders = summary?['today_orders'] ?? summary?['todayOrders'] ?? 0;
+        final int backendTodayOrders = (rawBackendTodayOrders is num)
+            ? rawBackendTodayOrders.toInt()
+            : (int.tryParse(rawBackendTodayOrders?.toString() ?? '') ?? 0);
+
+        final now = DateTime.now();
+        List<dynamic> periodOrders = [];
+
+        if (_selectedProgressPeriod == 'Today') {
+          periodOrders = completedOrders.where((o) {
+            final dateStr = (o['deliveredAt'] ?? o['createdAt'] ?? '').toString();
+            final d = DateTime.tryParse(dateStr)?.toLocal();
+            if (d == null) return false;
+            return d.year == now.year && d.month == now.month && d.day == now.day;
+          }).toList();
+        } else if (_selectedProgressPeriod == 'Weekly') {
+          final sevenDaysAgo = now.subtract(const Duration(days: 7));
+          periodOrders = completedOrders.where((o) {
+            final dateStr = (o['deliveredAt'] ?? o['createdAt'] ?? '').toString();
+            final d = DateTime.tryParse(dateStr)?.toLocal();
+            if (d == null) return false;
+            return d.isAfter(sevenDaysAgo);
+          }).toList();
+        } else if (_selectedProgressPeriod == 'Monthly') {
+          periodOrders = completedOrders.where((o) {
+            final dateStr = (o['deliveredAt'] ?? o['createdAt'] ?? '').toString();
+            final d = DateTime.tryParse(dateStr)?.toLocal();
+            if (d == null) return false;
+            return d.year == now.year && d.month == now.month;
+          }).toList();
+        } else if (_selectedProgressPeriod == 'Custom' && _customSelectedDate != null) {
+          final sel = _customSelectedDate!;
+          periodOrders = completedOrders.where((o) {
+            final dateStr = (o['deliveredAt'] ?? o['createdAt'] ?? '').toString();
+            final d = DateTime.tryParse(dateStr)?.toLocal();
+            if (d == null) return false;
+            return d.year == sel.year && d.month == sel.month && d.day == sel.day;
+          }).toList();
+        } else {
+          // 'All Time'
+          periodOrders = completedOrders;
         }
 
-        final rawOrders = summary?['orders_completed'] ??
-            summary?['completedOrders'] ??
-            summary?['today_orders'] ??
-            summary?['totalDeliveries'];
-        final int parsedOrders = (rawOrders is num)
-            ? rawOrders.toInt()
-            : (int.tryParse(rawOrders?.toString() ?? '') ?? 0);
-        final int effectiveOrders = parsedOrders > 0 ? parsedOrders : state.completedOrders.length;
+        double displayEarnings = 0.0;
+        int displayOrdersCount = 0;
+
+        if (_selectedProgressPeriod == 'Today') {
+          if (periodOrders.isNotEmpty) {
+            for (var o in periodOrders) {
+              final e = o['driverEarnings'] ?? o['riderEarning'] ?? o['earning'] ?? o['deliveryFee'] ?? 0.0;
+              displayEarnings += (e is num) ? e.toDouble() : (double.tryParse(e.toString()) ?? 0.0);
+            }
+            displayOrdersCount = periodOrders.length;
+          } else {
+            displayEarnings = backendTodayEarnings;
+            displayOrdersCount = backendTodayOrders;
+          }
+        } else if (_selectedProgressPeriod == 'All Time') {
+          final rawAllTimeEarnings = summary?['allTimeEarnings'] ?? summary?['totalEarnings'] ?? 0;
+          final double backendAllEarnings = (rawAllTimeEarnings is num)
+              ? rawAllTimeEarnings.toDouble()
+              : (double.tryParse(rawAllTimeEarnings?.toString() ?? '') ?? 0.0);
+          final rawAllOrders = summary?['allTimeOrders'] ?? summary?['totalDeliveries'] ?? 0;
+          final int backendAllOrders = (rawAllOrders is num)
+              ? rawAllOrders.toInt()
+              : (int.tryParse(rawAllOrders?.toString() ?? '') ?? 0);
+
+          if (periodOrders.isNotEmpty) {
+            for (var o in periodOrders) {
+              final e = o['driverEarnings'] ?? o['riderEarning'] ?? o['earning'] ?? o['deliveryFee'] ?? 0.0;
+              displayEarnings += (e is num) ? e.toDouble() : (double.tryParse(e.toString()) ?? 0.0);
+            }
+            displayOrdersCount = periodOrders.length;
+          } else {
+            displayEarnings = backendAllEarnings;
+            displayOrdersCount = backendAllOrders;
+          }
+        } else {
+          for (var o in periodOrders) {
+            final e = o['driverEarnings'] ?? o['riderEarning'] ?? o['earning'] ?? o['deliveryFee'] ?? 0.0;
+            displayEarnings += (e is num) ? e.toDouble() : (double.tryParse(e.toString()) ?? 0.0);
+          }
+          displayOrdersCount = periodOrders.length;
+        }
 
         final rawSeconds = summary?['ride_time_seconds'] ?? 0;
         final double parsedSeconds = (rawSeconds is num)
             ? rawSeconds.toDouble()
             : (double.tryParse(rawSeconds?.toString() ?? '') ?? 0.0);
 
-        final String earnings = '₹${parsedEarnings.toStringAsFixed(2)}';
-        final String orders = effectiveOrders.toString();
+        final String earningsStr = '₹${displayEarnings.toStringAsFixed(2)}';
+        final String ordersStr = displayOrdersCount.toString();
         final double hoursVal = parsedSeconds / 3600.0;
-        final String hours = '${hoursVal.toStringAsFixed(1)}h';
+        final String hoursStr = '${hoursVal.toStringAsFixed(1)}h';
+
+        String headerTitle = 'Today Progress';
+        if (_selectedProgressPeriod == 'Weekly') {
+          headerTitle = 'Weekly Progress';
+        } else if (_selectedProgressPeriod == 'Monthly') {
+          headerTitle = 'Monthly Progress';
+        } else if (_selectedProgressPeriod == 'All Time') {
+          headerTitle = 'All-Time Progress';
+        } else if (_selectedProgressPeriod == 'Custom' && _customSelectedDate != null) {
+          final sel = _customSelectedDate!;
+          final dayStr = sel.day.toString().padLeft(2, '0');
+          final mNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          headerTitle = 'Progress ($dayStr ${mNames[sel.month - 1]})';
+        }
+
+        final String orderLabel = _selectedProgressPeriod == 'Today'
+            ? 'Today Order'
+            : (_selectedProgressPeriod == 'All Time' ? 'Total Orders' : 'Orders');
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -1736,7 +1858,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Today Progress',
+                    headerTitle,
                     style: GoogleFonts.poppins(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -1775,7 +1897,87 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+
+              // Filter Chips: Today | Weekly | Monthly | All Time | 📅
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: [
+                    _buildPeriodChip('Today'),
+                    const SizedBox(width: 6),
+                    _buildPeriodChip('Weekly'),
+                    const SizedBox(width: 6),
+                    _buildPeriodChip('Monthly'),
+                    const SizedBox(width: 6),
+                    _buildPeriodChip('All Time'),
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _customSelectedDate ?? DateTime.now(),
+                          firstDate: DateTime(2024),
+                          lastDate: DateTime.now(),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.light(
+                                  primary: primaryGreen,
+                                  onPrimary: Colors.white,
+                                  onSurface: Colors.black87,
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _customSelectedDate = picked;
+                            _selectedProgressPeriod = 'Custom';
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: _selectedProgressPeriod == 'Custom' ? primaryGreen : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _selectedProgressPeriod == 'Custom' ? primaryGreen : Colors.grey[300]!,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.calendar_month_rounded,
+                              size: 14,
+                              color: _selectedProgressPeriod == 'Custom' ? Colors.white : Colors.grey[700],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _selectedProgressPeriod == 'Custom' && _customSelectedDate != null
+                                  ? '${_customSelectedDate!.day}/${_customSelectedDate!.month}'
+                                  : 'Date',
+                              style: GoogleFonts.poppins(
+                                fontSize: 10.5,
+                                fontWeight: _selectedProgressPeriod == 'Custom' ? FontWeight.bold : FontWeight.w500,
+                                color: _selectedProgressPeriod == 'Custom' ? Colors.white : Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 16),
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1790,7 +1992,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                       child: _buildProgressItem(
                         icon: Icons.account_balance_wallet_rounded,
                         label: 'Earnings',
-                        value: earnings,
+                        value: earningsStr,
                         color: primaryGreen,
                       ),
                     ),
@@ -1798,8 +2000,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                   Expanded(
                     child: _buildProgressItem(
                       icon: Icons.shopping_bag_rounded,
-                      label: 'Today Order',
-                      value: orders,
+                      label: orderLabel,
+                      value: ordersStr,
                       color: primaryGreen,
                     ),
                   ),
@@ -1807,7 +2009,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     child: _buildProgressItem(
                       icon: Icons.timer_rounded,
                       label: 'Today Hours',
-                      value: hours,
+                      value: hoursStr,
                       color: primaryGreen,
                     ),
                   ),
