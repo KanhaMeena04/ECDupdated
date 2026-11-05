@@ -10,6 +10,7 @@ const { admin, isInitialized } = require("../config/firebaseConfig");
 const socketService = require("../services/socketService");
 const { sendNotification } = require("../utils/notificationService");
 const { getPaginationParams } = require('../utils/pagination');
+const mongoose = require('mongoose');
 const normalizeTranslation = (value) => {
   if (!value) return null;
   if (typeof value === "string") return { en: value };
@@ -1463,8 +1464,12 @@ exports.getAllUsers = async (req, res) => {
 };
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-password");
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const { id } = req.params;
+    if (!id || id === 'undefined' || id === 'null' || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid or missing User ID" });
+    }
+    const user = await User.findById(id).select("-password");
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
     const userObj = user.toObject();
     let fName = (userObj.firstName || "").trim();
     let lName = (userObj.lastName || "").trim();
@@ -1505,9 +1510,13 @@ exports.getUserById = async (req, res) => {
 };
 exports.blockUser = async (req, res) => {
   try {
+    const { id } = req.params;
+    if (!id || id === 'undefined' || id === 'null' || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid or missing User ID" });
+    }
     const { action, reason } = req.body; // action = 'block' | 'unblock'
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
     if (action === "block") {
       user.isBlocked = true;
       user.blockedAt = new Date();
@@ -1529,9 +1538,13 @@ exports.blockUser = async (req, res) => {
 };
 exports.toggleUserCOD = async (req, res) => {
   try {
+    const { id } = req.params;
+    if (!id || id === 'undefined' || id === 'null' || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid or missing User ID' });
+    }
     const { active, isCodBlocked, block } = req.body;
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     let blocked = false;
     if (typeof isCodBlocked !== 'undefined') {

@@ -1,18 +1,28 @@
 import React from 'react';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 
-function SideNav({ userId }) {
+function SideNav({ userId: propUserId }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const params = useParams();
+  const userId = propUserId || params?.id || params?.userId;
 
   const handleProfile = () => {
-    navigate(`/user-profile/${userId}`);
+    if (userId && userId !== 'undefined' && userId !== 'null') {
+      navigate(`/user-profile/${userId}`);
+    } else {
+      navigate('/user-management');
+    }
   };
 
   const handleOrders = () => {
-    navigate(`/user-orders/${userId}`);
+    if (userId && userId !== 'undefined' && userId !== 'null') {
+      navigate(`/user-orders/${userId}`);
+    } else {
+      navigate('/user-management');
+    }
   };
 
   const isProfileActive = location.pathname.includes('/user-profile');

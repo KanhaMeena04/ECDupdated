@@ -1,24 +1,84 @@
 import React from 'react';
-import { Box, Typography, Avatar } from '@mui/material';
+import { Box, Typography, Avatar, Button } from '@mui/material';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
-import { useParams } from 'react-router-dom';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useUserDetails } from '../../api/user';
 import SideNav from './SideNav';
 
 const UserDetail = () => {
-  const { userId } = useParams(); // ✅ source of truth
+  const params = useParams();
+  const navigate = useNavigate();
+  const userId = params?.id || params?.userId;
 
   const { data, loading, error } = useUserDetails(userId);
 
-  if (loading) return <div className="p-4">Loading...</div>;
-  if (error) return <div className="p-4 text-red-500">{error}</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-gray-500 text-sm font-medium">Loading user details...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!userId || userId === 'undefined' || userId === 'null' || (error && !data)) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex flex-col gap-4">
+        {/* Breadcrumbs / Header */}
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+          <Typography variant="h6" className="text-gray-800 font-semibold mr-4">
+            User Detail
+          </Typography>
+          <span>🏠</span>
+          <span>&gt;</span>
+          <span
+            className="hover:underline cursor-pointer text-teal-600 font-medium"
+            onClick={() => navigate('/user-management')}
+          >
+            User Management
+          </span>
+          <span>&gt;</span>
+          <span className="text-gray-400">users</span>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 max-w-lg mx-auto my-12 text-center">
+          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <PersonOutlineIcon sx={{ fontSize: 36 }} />
+          </div>
+          <Typography variant="h6" className="text-gray-800 font-bold mb-2">
+            User Not Found
+          </Typography>
+          <Typography variant="body2" className="text-gray-500 mb-6">
+            {error || 'The requested user could not be found or an invalid user ID was provided.'}
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate('/user-management')}
+            sx={{
+              backgroundColor: '#0d9488',
+              '&:hover': { backgroundColor: '#0f766e' },
+              textTransform: 'none',
+              borderRadius: '8px',
+              fontWeight: 600,
+              px: 3,
+            }}
+          >
+            Back to User Management
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const userData = data || {
-    name: "Latrach Alaeddine",
-    email: "**********",
-    mobile: "**********",
+    name: "User",
+    email: "N/A",
+    mobile: "N/A",
     walletBalance: "0",
-    createdAt: "December 27th 2025, 7:20:21 am",
   };
 
   return (
@@ -30,13 +90,18 @@ const UserDetail = () => {
         </Typography>
         <span>🏠</span>
         <span>&gt;</span>
-        <span className="hover:underline cursor-pointer">User Management</span>
+        <span
+          className="hover:underline cursor-pointer text-teal-600 font-medium"
+          onClick={() => navigate('/user-management')}
+        >
+          User Management
+        </span>
         <span>&gt;</span>
         <span className="text-gray-400">users</span>
       </div>
 
       <div className="flex flex-row gap-6">
-        {/* ✅ userId now actually passed */}
+        {/* SideNav with guaranteed effective userId */}
         <SideNav userId={userId} />
 
         <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-100 p-8 min-h-[300px]">

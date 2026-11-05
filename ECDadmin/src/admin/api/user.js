@@ -41,14 +41,20 @@ const useUsers = (role = 'customer', page = 1, limit = 10, search = '') => {
 };
 
 /* ================== USER DETAILS ================== */
-const useUserDetails = () => {
+const useUserDetails = (overrideId) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { id: userId } = useParams();
+  const params = useParams();
+  const userId = overrideId || params?.id || params?.userId;
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || userId === 'undefined' || userId === 'null') {
+      setLoading(false);
+      setError('Invalid or missing User ID');
+      return;
+    }
+    setError(null);
     let cancelled = false;
 
     const fetchUser = async () => {
@@ -81,7 +87,8 @@ const useUserDetails = () => {
 
 /* ================== ADD MONEY TO WALLET ================== */
 const useAddMoneyToWallet = () => {
-  const { id: routeId } = useParams();
+  const params = useParams();
+  const routeId = params?.id || params?.userId;
 
   const addMoneyToWallet = async (payloadOrAmount, maybeAmount) => {
     let targetUserId = routeId;
@@ -143,7 +150,8 @@ const useAddMoneyToWallet = () => {
 
 /* ================== WALLET DETAILS ================== */
 const useWalletDetails = () => {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id || params?.userId;
   const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

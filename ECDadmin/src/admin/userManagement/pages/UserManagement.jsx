@@ -398,7 +398,10 @@ const UserManagement = () => {
 
                         {/* View User */}
                         <Button
-                          onClick={() => navigate(`/user-profile/${user._id}`)}
+                          onClick={() => {
+                            const uid = user?._id || user?.id;
+                            if (uid) navigate(`/user-profile/${uid}`);
+                          }}
                           variant="outlined"
                           size="small"
                           sx={{
