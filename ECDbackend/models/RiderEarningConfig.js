@@ -18,6 +18,7 @@ const RiderEarningConfigSchema = new mongoose.Schema(
     isRainBonusActive: { type: Boolean, default: false },
     nightBonus: { type: Number, default: 15 },
     isNightBonusActive: { type: Boolean, default: false },
+    riderDeliveryFeePercent: { type: Number, default: 70 },
     incentiveTiers: {
       type: [incentiveTierSchema],
       default: [

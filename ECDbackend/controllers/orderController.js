@@ -590,7 +590,12 @@ exports.placeOrder = async (req, res) => {
     const adminCommission = bill.adminCommissionAmount !== undefined ? bill.adminCommissionAmount : Math.round(((bill.itemTotal * commRate) / 100) * 100) / 100;
     // Packaging fee is 100% Admin revenue
     const restaurantCommission = bill.restaurantNetPayable !== undefined ? bill.restaurantNetPayable : Math.max(0, Math.round((bill.itemTotal - adminCommission) * 100) / 100);
-    const riderCommission = isSelfPickup ? 0 : Math.round((bill.deliveryFee * 0.7) * 100) / 100;
+    const riderShareRate = Number(
+      sysSettings?.riderPayoutConfig?.riderDeliveryFeePercent ??
+      sysSettings?.riderEarningConfig?.riderDeliveryFeePercent ??
+      70
+    ) / 100;
+    const riderCommission = isSelfPickup ? 0 : Math.round((bill.deliveryFee * riderShareRate) * 100) / 100;
     const riderEarning = isSelfPickup ? 0 : Math.round((riderCommission + tipAmount) * 100) / 100;
     const pickupOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const deliveryOtp = Math.floor(1000 + Math.random() * 9000).toString();

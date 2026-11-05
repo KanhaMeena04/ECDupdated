@@ -121,6 +121,7 @@ exports.getRiderEarningConfig = async (req, res) => {
         baseEarning: 20,
         baseDistanceKm: 2,
         perKmEarning: 8,
+        riderDeliveryFeePercent: 70,
         peakBonus: 10,
         isPeakBonusActive: false,
         rainBonus: 15,
@@ -138,7 +139,17 @@ exports.updateRiderEarningConfig = async (req, res) => {
   try {
     const settings = await ensureSettings();
     settings.riderEarningConfig = { ...settings.riderEarningConfig, ...req.body };
+    if (req.body.riderDeliveryFeePercent !== undefined) {
+      settings.riderPayoutConfig = settings.riderPayoutConfig || {};
+      settings.riderPayoutConfig.riderDeliveryFeePercent = Number(req.body.riderDeliveryFeePercent);
+    }
     await settings.save();
+
+    try {
+      const RiderEarningConfig = require('../models/RiderEarningConfig');
+      await RiderEarningConfig.findOneAndUpdate({}, { ...req.body, updatedBy: req.user?._id }, { upsert: true });
+    } catch (_) {}
+
     return res.status(200).json({
       success: true,
       message: 'Rider earning config updated successfully',

@@ -59,7 +59,8 @@ const riderSchema = new mongoose.Schema({
         otpExpires: { type: Date },
         otpAttempts: { type: Number, default: 0 }
     },
-    riderVerified: { type: Boolean, default: false }, 
+    riderVerified: { type: Boolean, default: false },
+    cashLimit: { type: Number, default: 2000 }, 
     isOnline: { type: Boolean, default: false },      
     isAvailable: { type: Boolean, default: false },    
     breakMode: { type: Boolean, default: false },

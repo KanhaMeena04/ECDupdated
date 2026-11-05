@@ -669,6 +669,11 @@ class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
 
   @override
   Widget build(BuildContext context) {
+    final pMethod = (widget.order['paymentMethod'] ?? widget.order['paymentMode'] ?? widget.order['payment']?['method'] ?? '').toString().toLowerCase();
+    final pTxProvider = (widget.order['paymentTransaction']?['provider'] ?? '').toString().toLowerCase();
+    final isCodOrder = pMethod == 'cash on delivery' || pMethod == 'cod' || pMethod == 'cash' || pTxProvider == 'cod' || pTxProvider == 'cash on delivery';
+    final totalAmt = widget.order['payableAmount'] ?? widget.order['totalAmount'] ?? widget.order['finalAmount'] ?? widget.order['amount'] ?? 0;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -679,6 +684,52 @@ class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isCodOrder ? const Color(0xFFFEF3C7) : const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isCodOrder ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                width: 1.2,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isCodOrder ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
+                  color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isCodOrder ? 'CASH ON DELIVERY: ₹$totalAmt' : 'PAID ONLINE (₹$totalAmt)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12.5,
+                          color: isCodOrder ? const Color(0xFF92400E) : const Color(0xFF065F46),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isCodOrder ? 'Customer se ₹$totalAmt cash collect karne ke baad hi OTP daalein!' : 'Customer online pay kar chuka hai. Cash collect NA karein!',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

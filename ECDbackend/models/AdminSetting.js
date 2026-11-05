@@ -22,6 +22,7 @@ const AdminSettingSchema = new mongoose.Schema(
       basePay: { type: Number, default: 25 },
       baseDistanceKm: { type: Number, default: 2 },
       extraPerKmFee: { type: Number, default: 5 },
+      riderDeliveryFeePercent: { type: Number, default: 70 },
     },
 
     // Branded Footer Watermark Configuration (Dynamic Admin Controlled)
@@ -143,7 +144,8 @@ const AdminSettingSchema = new mongoose.Schema(
       rainBonus: { type: Number, default: 15 },
       isRainBonusActive: { type: Boolean, default: false },
       nightBonus: { type: Number, default: 15 },
-      isNightBonusActive: { type: Boolean, default: false }
+      isNightBonusActive: { type: Boolean, default: false },
+      riderDeliveryFeePercent: { type: Number, default: 70 }
     },
 
     // Order Timing & Cancellation Configuration (Platform-wide)

@@ -9,6 +9,7 @@ export default function RiderEarningsControlPage() {
     baseEarning: 20,
     baseDistanceKm: 2,
     perKmEarning: 8,
+    riderDeliveryFeePercent: 70,
     peakBonus: 10,
     isPeakBonusActive: false,
     rainBonus: 15,
@@ -83,6 +84,9 @@ export default function RiderEarningsControlPage() {
           </Grid>
           <Grid item xs={12} sm={4}>
             <TextField label="Per KM Earning Rate (₹/km)" type="number" fullWidth value={config.perKmEarning} onChange={(e) => setConfig({ ...config, perKmEarning: Number(e.target.value) })} />
+          </Grid>
+          <Grid item xs={12} sm={3}>
+            <TextField label="Rider Delivery Share (%)" type="number" fullWidth value={config.riderDeliveryFeePercent ?? 70} onChange={(e) => setConfig({ ...config, riderDeliveryFeePercent: Number(e.target.value) })} helperText="Default 70% share of delivery fee" />
           </Grid>
 
           <Grid item xs={12}><Divider>Surge Bonus Rules</Divider></Grid>

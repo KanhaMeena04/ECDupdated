@@ -1470,7 +1470,7 @@ exports.getEarningsSummary = async (req, res) => {
         activeHours: 0.0,
         billable_hours: "0.0",
         ride_time_seconds: 0,
-        rating: 5.0,
+        rating: Number(riderProfile.rating?.average ?? 5.0),
         recent_requests: [],
         codBalance: cashInHand,
         codEarnings: availableBalance,

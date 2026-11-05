@@ -316,9 +316,9 @@ exports.getRiderSettlements = async (req, res) => {
       const dist = o.deliveryDistanceKm || 3;
       const basePay = config.baseEarning || 20;
       const extraKm = Math.max(0, dist - (config.baseDistanceKm || 2));
-      const distancePay = extraKm * (config.perKmEarning || 8) || 15;
-      const surgeBonus = config.isPeakBonusActive ? (config.peakBonus || 10) : 10;
-      const rainBonus = config.isRainBonusActive ? (config.rainBonus || 10) : 10;
+      const distancePay = Math.round(extraKm * (config.perKmEarning ?? 8) * 100) / 100;
+      const surgeBonus = config.isPeakBonusActive ? (config.peakBonus ?? 10) : 0;
+      const rainBonus = config.isRainBonusActive ? (config.rainBonus ?? 15) : 0;
       const incentiveBonus = o.tip || 0;
 
       const grossEarnings = o.riderEarning || (basePay + distancePay + surgeBonus + rainBonus + incentiveBonus);

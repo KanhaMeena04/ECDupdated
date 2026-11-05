@@ -431,6 +431,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     bool isVerifying = false;
     String? errorText;
 
+    final pMethod = (widget.order['paymentMethod'] ?? widget.order['paymentMode'] ?? widget.order['payment']?['method'] ?? '').toString().toLowerCase();
+    final pTxProvider = (widget.order['paymentTransaction']?['provider'] ?? '').toString().toLowerCase();
+    final isCodOrder = pMethod == 'cash on delivery' || pMethod == 'cod' || pMethod == 'cash' || pTxProvider == 'cod' || pTxProvider == 'cash on delivery';
+    final totalAmt = widget.order['payableAmount'] ?? widget.order['totalAmount'] ?? widget.order['finalAmount'] ?? widget.order['amount'] ?? 0;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -460,6 +465,53 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isCodOrder ? const Color(0xFFFEF3C7) : const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isCodOrder ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                    width: 1.2,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      isCodOrder ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
+                      color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
+                      size: 22,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isCodOrder ? 'CASH ON DELIVERY (₹$totalAmt)' : 'ALREADY PAID ONLINE (₹$totalAmt)',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: isCodOrder ? const Color(0xFF92400E) : const Color(0xFF065F46),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isCodOrder ? 'Customer se ₹$totalAmt cash collect karne ke baad hi OTP daalein!' : 'Customer online pay kar chuka hai. Cash collect NA karein!',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Text(
                 'Please ask the customer for the 4-digit verification code to complete delivery.',
                 style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[700]),
