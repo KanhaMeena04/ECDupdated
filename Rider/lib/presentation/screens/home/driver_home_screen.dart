@@ -2754,13 +2754,13 @@ class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
                       ),
                       Builder(
                         builder: (context) {
-                          final customCod = order['codOtpAlert']?.toString();
-                          final customOnline = order['onlineOtpAlert']?.toString();
+                          final customCod = widget.order['codOtpAlert']?.toString();
+                          final customOnline = widget.order['onlineOtpAlert']?.toString();
                           final codText = (customCod != null && customCod.isNotEmpty)
-                              ? customCod.replaceAll('{amount}', totalAmt)
+                              ? customCod.replaceAll('{amount}', totalAmt.toString())
                               : 'Pehle customer se ₹$totalAmt CASH collect karein, uske baad hi delivery OTP enter karein!';
                           final onlineText = (customOnline != null && customOnline.isNotEmpty)
-                              ? customOnline.replaceAll('{amount}', totalAmt)
+                              ? customOnline.replaceAll('{amount}', totalAmt.toString())
                               : 'Order online already paid hai. Customer se Cash collect NA karein!';
                           return Text(
                             isCodOrder ? codText : onlineText,
