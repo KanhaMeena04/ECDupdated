@@ -25,13 +25,17 @@ class ApiService {
   // ==================== AUTH ENDPOINTS ====================
 
   static Future<Map<String, dynamic>> sendOtp(String phone) async {
-    final cleanPhone = phone.replaceAll(RegExp(r'\D'), '').trim();
+    final digitsOnly = phone.replaceAll(RegExp(r'\D'), '').trim();
+    final cleanPhone = digitsOnly.length >= 10 ? digitsOnly.substring(digitsOnly.length - 10) : digitsOnly;
+    if (cleanPhone.length < 10) {
+      return {'success': false, 'message': 'Please enter a valid 10-digit mobile number'};
+    }
     try {
       final response = await http.post(
         Uri.parse(ApiConstants.sendOtp),
         headers: await _getHeaders(),
         body: jsonEncode({'phone': '+91$cleanPhone', 'mobile': '+91$cleanPhone'}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 35));
 
       final data = jsonDecode(response.body);
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -50,13 +54,14 @@ class ApiService {
     String otp, {
     String? pin,
   }) async {
-    final cleanPhone = phone.replaceAll(RegExp(r'\D'), '').trim();
+    final digitsOnly = phone.replaceAll(RegExp(r'\D'), '').trim();
+    final cleanPhone = digitsOnly.length >= 10 ? digitsOnly.substring(digitsOnly.length - 10) : digitsOnly;
     try {
       final response = await http.post(
         Uri.parse(ApiConstants.verifyOtp),
         headers: await _getHeaders(),
         body: jsonEncode({'phone': '+91$cleanPhone', 'mobile': '+91$cleanPhone', 'otp': otp.trim(), if (pin != null && pin.isNotEmpty) 'pin': pin.trim()}),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 35));
 
       final data = jsonDecode(response.body);
       if (response.statusCode >= 200 && response.statusCode < 300 && data['success'] == true) {

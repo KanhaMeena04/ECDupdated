@@ -37,7 +37,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           emit(OtpSent(phone: event.phone));
         }
       } else {
-        final message = result['data']?['message'] ?? 'Failed to send OTP';
+        final message = result['message'] ?? result['data']?['message'] ?? result['error'] ?? 'Failed to send OTP';
         emit(AuthError(message: message));
       }
     } catch (e) {

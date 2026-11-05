@@ -648,7 +648,8 @@ exports.driverSendOtp = async (req, res) => {
     });
 
     if (user && user.isDeleted) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      user.isDeleted = false;
+      user.status = "active";
     }
 
     if (!user) {
@@ -671,7 +672,6 @@ exports.driverSendOtp = async (req, res) => {
       user.otpExpires = otpExpires;
       if (user.role !== "rider" && user.role !== "driver" && user.role !== "admin") {
         user.role = "rider";
-        await user.save();
       }
       await user.save();
     }
@@ -1162,5 +1162,6 @@ exports.userVerifyOtp = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 

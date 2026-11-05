@@ -72,18 +72,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       final phone = _phoneController.text.trim();
       context.read<AuthBloc>().add(SendOtpRequested(phone: phone));
-      setState(() {
-        _isOtpSent = true;
-      });
-      _startResendTimer();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('OTP sent to +91 $phone'),
-          backgroundColor: primaryGreen,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
     }
   }
 
@@ -133,7 +121,33 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: Colors.white,
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
-          if (state is Authenticated) {
+          if (state is OtpSent) {
+            setState(() {
+              _isOtpSent = true;
+            });
+            _startResendTimer();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('OTP sent to +91 ${_phoneController.text.trim()}'),
+                backgroundColor: primaryGreen,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          } else if (state is UserExistsLoginRequired) {
+            setState(() {
+              _isOtpSent = true;
+            });
+            _startResendTimer();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: primaryGreen,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          } else if (state is Authenticated) {
             if (!state.user.isReturning) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
