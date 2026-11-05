@@ -114,6 +114,7 @@ class UserModel extends Equatable {
   final String? name;
   final String role;
   final bool isVerified;
+  final String? verificationStatus;
   final String? avatar;
   final String? email;
   final bool hasPinSet;
@@ -129,6 +130,7 @@ class UserModel extends Equatable {
     this.name,
     required this.role,
     required this.isVerified,
+    this.verificationStatus,
     this.avatar,
     this.email,
     required this.hasPinSet,
@@ -146,6 +148,7 @@ class UserModel extends Equatable {
         name: 'Rider Partner',
         role: 'driver',
         isVerified: true,
+        verificationStatus: 'approved',
         hasPinSet: false,
         isOnline: false,
         isReturning: false,
@@ -276,6 +279,7 @@ class UserModel extends Equatable {
       name: name,
       role: role,
       isVerified: isVerified,
+      verificationStatus: vStatus,
       avatar: avatar,
       email: email,
       hasPinSet: hasPinSet,
@@ -294,6 +298,7 @@ class UserModel extends Equatable {
       'name': name,
       'role': role,
       'isVerified': isVerified,
+      'verificationStatus': verificationStatus,
       'avatar': avatar,
       'email': email,
       'hasPinSet': hasPinSet,
@@ -311,6 +316,7 @@ class UserModel extends Equatable {
     String? name,
     String? role,
     bool? isVerified,
+    String? verificationStatus,
     String? avatar,
     String? email,
     bool? hasPinSet,
@@ -326,6 +332,7 @@ class UserModel extends Equatable {
       name: name ?? this.name,
       role: role ?? this.role,
       isVerified: isVerified ?? this.isVerified,
+      verificationStatus: verificationStatus ?? this.verificationStatus,
       avatar: avatar ?? this.avatar,
       email: email ?? this.email,
       hasPinSet: hasPinSet ?? this.hasPinSet,
@@ -344,6 +351,7 @@ class UserModel extends Equatable {
         name,
         role,
         isVerified,
+        verificationStatus,
         avatar,
         email,
         hasPinSet,
