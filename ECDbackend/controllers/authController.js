@@ -801,6 +801,9 @@ exports.driverVerifyOtp = async (req, res) => {
       await riderDoc.save();
     }
 
+    const isApproved = (riderDoc.verificationStatus === 'approved' || riderDoc.riderVerified === true || user.isVerified === true) &&
+        riderDoc.verificationStatus !== 'rejected';
+
     const isReturning = !!(
       (user && user.name && !user.name.startsWith("Rider ") && user.name !== "New Customer") ||
       (riderDoc && riderDoc.name && !riderDoc.name.startsWith("Rider ")) ||
