@@ -822,6 +822,8 @@ exports.driverVerifyOtp = async (req, res) => {
         email: user.email,
         mobile: user.mobile,
         role: user.role,
+        isVerified: isApproved || user.isVerified === true,
+        verificationStatus: riderDoc.verificationStatus || (isApproved ? 'approved' : 'pending'),
         riderId: riderDoc._id,
         isReturning,
         isNewUser
@@ -908,6 +910,8 @@ exports.driverLoginWithPin = async (req, res) => {
       await riderDoc.save();
     }
 
+    const isApproved = (riderDoc.verificationStatus === 'approved' || riderDoc.riderVerified === true || user.isVerified === true) &&
+        riderDoc.verificationStatus !== 'rejected';
     const riderIdCode = await ensureRiderId(riderDoc);
     const token = generateToken(res, user);
     return res.status(200).json({
@@ -921,6 +925,8 @@ exports.driverLoginWithPin = async (req, res) => {
         email: user.email,
         mobile: user.mobile,
         role: user.role,
+        isVerified: isApproved || user.isVerified === true,
+        verificationStatus: riderDoc.verificationStatus || (isApproved ? 'approved' : 'pending'),
         riderId: riderIdCode
       },
       rider: riderDoc,

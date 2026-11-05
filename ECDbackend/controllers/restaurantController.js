@@ -2436,7 +2436,10 @@ exports.getAllRestaurants = async (req, res) => {
       Object.assign(restMenuMap, _restaurantsCache.restMenuMap);
     } else {
       try {
-        candidateRestaurants = await Restaurant.find(baseQuery).limit(100).lean();
+        candidateRestaurants = await Restaurant.find(baseQuery)
+          .select('name image logo cuisine rating location lat lng latitude longitude geofenceRadius deliveryRadius serviceRadius deliveryTime estimatedPreparationTime prepTime startingPrice isFeatured isPromoted isAd isActive isOnline restaurantApproved isTemporarilyClosed address area city')
+          .limit(100)
+          .lean();
       } catch (err) {
         console.error("Error finding candidate restaurants:", err.message);
         candidateRestaurants = [];
@@ -2451,14 +2454,15 @@ exports.getAllRestaurants = async (req, res) => {
         }
       });
 
-      // 2. Preload products (dishes) for candidate restaurants only with lean projection
+      // 2. Preload top preview items (max 4 per restaurant) with lean projection
       const candidateIds = candidateRestaurants.map(r => r._id);
       const allProducts = candidateIds.length > 0
         ? await Product.find({
             restaurant: { $in: candidateIds },
             available: { $ne: false },
           })
-            .select('restaurant name price sellingPrice mrp originalPrice image imageUrl category categoryId subcategory isVeg rating description')
+            .select('restaurant name price sellingPrice mrp originalPrice image imageUrl category categoryId subcategory isVeg rating')
+            .limit(candidateIds.length * 4)
             .lean()
         : [];
 
@@ -2466,6 +2470,7 @@ exports.getAllRestaurants = async (req, res) => {
         const rId = p.restaurant?.toString();
         if (!rId) return;
         if (!restMenuMap[rId]) restMenuMap[rId] = [];
+        if (restMenuMap[rId].length >= 4) return;
 
         const catId = p.category?.toString() || '';
         const catName = catMap[catId] || (typeof p.category === 'string' ? p.category : 'General');
@@ -2617,7 +2622,7 @@ exports.getAllRestaurants = async (req, res) => {
 
     const allProducts = [];
     formattedRestaurants.forEach(r => {
-      (r.menu || []).forEach(item => {
+      (r.menu || []).slice(0, 2).forEach(item => {
         allProducts.push({
           ...item,
           restaurantId: r._id,

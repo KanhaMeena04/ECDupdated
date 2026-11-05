@@ -6,6 +6,9 @@ class AuthService {
   static const String _refreshTokenKey = 'refresh_token';
   static const String _userPhoneKey = 'user_phone';
   static const String _hasPinKey = 'has_pin';
+  static const String _userNameKey = 'user_name';
+  static const String _isVerifiedKey = 'is_verified';
+  static const String _verificationStatusKey = 'verification_status';
 
   // Save tokens after login
   static Future<void> saveTokens(
@@ -13,16 +16,53 @@ class AuthService {
     String refreshToken,
     String phone, {
     bool hasPin = false,
+    String? name,
+    bool? isVerified,
+    String? verificationStatus,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
     await prefs.setString(_refreshTokenKey, refreshToken);
     await prefs.setString(_userPhoneKey, phone);
     await prefs.setBool(_hasPinKey, hasPin);
+    if (name != null && name.isNotEmpty) await prefs.setString(_userNameKey, name);
+    if (isVerified != null) await prefs.setBool(_isVerifiedKey, isVerified);
+    if (verificationStatus != null) await prefs.setString(_verificationStatusKey, verificationStatus);
 
     debugPrint("💾 Tokens saved successfully:");
     debugPrint("   Phone: $phone");
     debugPrint("   Has PIN: $hasPin");
+  }
+
+  // Cache verified user profile
+  static Future<void> saveUserProfile({
+    required String name,
+    required bool isVerified,
+    String? verificationStatus,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (name.isNotEmpty && name != 'Rider Partner') {
+      await prefs.setString(_userNameKey, name);
+    }
+    await prefs.setBool(_isVerifiedKey, isVerified);
+    if (verificationStatus != null) {
+      await prefs.setString(_verificationStatusKey, verificationStatus);
+    }
+  }
+
+  static Future<String?> getCachedUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userNameKey);
+  }
+
+  static Future<bool?> getCachedIsVerified() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_isVerifiedKey);
+  }
+
+  static Future<String?> getCachedVerificationStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_verificationStatusKey);
   }
 
   // Get current token
@@ -63,6 +103,9 @@ class AuthService {
     // Save phone and PIN status before clearing
     final savedPhone = prefs.getString(_userPhoneKey);
     final savedHasPin = prefs.getBool(_hasPinKey) ?? false;
+    final savedName = prefs.getString(_userNameKey);
+    final savedVerified = prefs.getBool(_isVerifiedKey);
+    final savedStatus = prefs.getString(_verificationStatusKey);
 
     debugPrint("🚪 Logging out...");
     debugPrint("   Preserving phone: $savedPhone");
@@ -76,6 +119,9 @@ class AuthService {
       await prefs.setString(_userPhoneKey, savedPhone);
     }
     await prefs.setBool(_hasPinKey, savedHasPin);
+    if (savedName != null) await prefs.setString(_userNameKey, savedName);
+    if (savedVerified != null) await prefs.setBool(_isVerifiedKey, savedVerified);
+    if (savedStatus != null) await prefs.setString(_verificationStatusKey, savedStatus);
 
     debugPrint("✅ Logout complete - Phone & PIN status preserved");
   }

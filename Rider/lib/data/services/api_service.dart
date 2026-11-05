@@ -30,23 +30,32 @@ class ApiService {
     if (cleanPhone.length < 10) {
       return {'success': false, 'message': 'Please enter a valid 10-digit mobile number'};
     }
-    try {
-      final response = await http.post(
-        Uri.parse(ApiConstants.sendOtp),
-        headers: await _getHeaders(),
-        body: jsonEncode({'phone': '+91$cleanPhone', 'mobile': '+91$cleanPhone'}),
-      ).timeout(const Duration(seconds: 35));
+    
+    // Attempt with retry on temporary socket/carrier glitch
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      try {
+        final response = await http.post(
+          Uri.parse(ApiConstants.sendOtp),
+          headers: await _getHeaders(),
+          body: jsonEncode({'phone': '+91$cleanPhone', 'mobile': '+91$cleanPhone'}),
+        ).timeout(const Duration(seconds: 35));
 
-      final data = jsonDecode(response.body);
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return {'success': true, 'message': data['message'] ?? 'OTP sent successfully to +91$cleanPhone', 'data': data};
-      } else {
-        return {'success': false, 'message': data['message'] ?? 'Failed to send OTP'};
+        final data = jsonDecode(response.body);
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return {'success': true, 'message': data['message'] ?? 'OTP sent successfully to +91$cleanPhone', 'data': data};
+        } else {
+          return {'success': false, 'message': data['message'] ?? 'Failed to send OTP'};
+        }
+      } catch (e) {
+        log("Attempt $attempt error sending OTP: $e");
+        if (attempt == 1) {
+          await Future.delayed(const Duration(milliseconds: 1500));
+          continue;
+        }
+        return {"success": false, "message": "Network error sending OTP. Please check your internet connection and try again."};
       }
-    } catch (e) {
-      log("Error sending OTP to backend: $e");
-      return {"success": false, "message": "Network error sending OTP: $e"};
     }
+    return {"success": false, "message": "Failed to send OTP"};
   }
 
   static Future<Map<String, dynamic>> verifyOtp(
@@ -111,23 +120,29 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> getProfile() async {
-    try {
-      final response = await http.get(
-        Uri.parse(ApiConstants.riderProfile),
-        headers: await _getHeaders(),
-      ).timeout(const Duration(seconds: 10));
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      try {
+        final response = await http.get(
+          Uri.parse(ApiConstants.riderProfile),
+          headers: await _getHeaders(),
+        ).timeout(const Duration(seconds: 25));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'data': data['data'] ?? data,
-          'user': data['user'] ?? data['data']?['user'],
-          'rider': data['rider'] ?? data['data']?['rider'] ?? data['data'],
-        };
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return {
+            'success': true,
+            'data': data['data'] ?? data,
+            'user': data['user'] ?? data['data']?['user'],
+            'rider': data['rider'] ?? data['data']?['rider'] ?? data['data'],
+          };
+        }
+      } catch (e) {
+        log("Attempt $attempt error fetching profile: $e");
+        if (attempt == 1) {
+          await Future.delayed(const Duration(milliseconds: 1500));
+          continue;
+        }
       }
-    } catch (e) {
-      log("Error fetching profile: $e");
     }
     return {"success": false, "message": "Failed to fetch profile"};
   }

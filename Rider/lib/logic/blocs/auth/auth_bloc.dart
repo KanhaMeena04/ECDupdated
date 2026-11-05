@@ -76,6 +76,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           authResponse.refreshToken.isNotEmpty ? authResponse.refreshToken : "refresh_${DateTime.now().millisecondsSinceEpoch}",
           event.phone,
           hasPin: hasPinSet,
+          name: authResponse.user.name,
+          isVerified: authResponse.user.isVerified,
+          verificationStatus: authResponse.user.verificationStatus,
         );
 
         // Force offline on fresh login
@@ -114,6 +117,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           authResponse.refreshToken,
           event.phone,
           hasPin: true,
+          name: authResponse.user.name,
+          isVerified: authResponse.user.isVerified,
+          verificationStatus: authResponse.user.verificationStatus,
         );
 
         // Force offline on fresh login
@@ -185,6 +191,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
               'user': userMap,
             });
 
+            await AuthService.saveUserProfile(
+              name: (parsedUser.name != null && parsedUser.name!.isNotEmpty) ? parsedUser.name! : 'Rider Partner',
+              isVerified: isVerified,
+              verificationStatus: vStatus,
+            );
+
             emit(Authenticated(user: parsedUser));
             return;
           }
@@ -192,13 +204,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           debugPrint("getProfile warning in CheckAuthStatus: $profileErr");
         }
 
-        // Fallback: If logged in with phone & token, authenticate immediately!
+        // Fallback: If logged in with phone & token, authenticate immediately using cached profile!
+        final cachedVerified = await AuthService.getCachedIsVerified();
+        final cachedName = await AuthService.getCachedUserName();
+        final cachedStatus = await AuthService.getCachedVerificationStatus();
+
         final fallbackUser = UserModel(
           id: 'RIDER_${phone.replaceAll(RegExp(r'\D'), '')}',
           phone: phone,
-          name: 'Rider Partner',
-          role: 'driver',
-          isVerified: false, // Default to false (pending admin review)
+          name: (cachedName != null && cachedName.isNotEmpty && cachedName != 'Rider Partner') ? cachedName : 'Rider Partner',
+          role: 'rider',
+          isVerified: cachedVerified ?? false,
+          verificationStatus: cachedStatus ?? ((cachedVerified == true) ? 'approved' : 'pending'),
           hasPinSet: hasPin,
           isOnline: false,
           isReturning: true,
