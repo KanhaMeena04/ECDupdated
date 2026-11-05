@@ -320,7 +320,7 @@ class Order {
       orderType: isPickup ? 'pickup' : (json['orderType']?.toString() ?? 'delivery'),
       paymentMethod: parsedPaymentMethod,
       pickupTime: json['pickupTime']?.toString() ?? json['scheduledAt']?.toString() ?? json['scheduledTime']?.toString(),
-      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString())?.toLocal() : null,
       cancellationWindowMinutes: int.tryParse(json['cancellationWindowMinutes']?.toString() ?? '') ?? 5,
       cancellationWindowExpiresAt: json['cancellationWindowExpiresAt'] != null ? DateTime.tryParse(json['cancellationWindowExpiresAt'].toString()) : null,
       gracePeriodMinutes: int.tryParse(json['gracePeriodMinutes']?.toString() ?? '') ?? 15,

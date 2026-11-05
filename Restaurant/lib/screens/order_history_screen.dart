@@ -66,7 +66,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
           DateTime orderDate = DateTime.now();
           if (o['createdAt'] != null) {
-            orderDate = DateTime.tryParse(o['createdAt'].toString()) ?? DateTime.now();
+            orderDate = DateTime.tryParse(o['createdAt'].toString())?.toLocal() ?? DateTime.now();
           }
           final key = '${months[orderDate.month - 1]} ${orderDate.year}';
 

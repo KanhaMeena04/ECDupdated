@@ -18,16 +18,26 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
   String _selectedPeriod = 'Today';
   bool _isLoading = false;
 
-  // Dynamic Live Data
+  // Stored raw orders from backend
+  List<dynamic> _rawOrders = [];
+
+  // Today metrics (for Analytics tab and default)
   String _todayEarning = '₹0.00';
   int _todayOrders = 0;
+
+  // Filtered metrics based on _selectedPeriod ('Today', 'Weekly', 'Monthly')
+  String _periodEarning = '₹0.00';
+  int _periodOrders = 0;
   int _completedOrders = 0;
   int _cancelledOrders = 0;
+
   double _totalRevenue = 0.0;
   int _pickupCount = 0;
   int _deliveredCount = 0;
 
   List<Map<String, dynamic>> _earningHistory = [];
+  List<double> _monthlyRevenue = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+  List<String> _monthlyLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
 
   @override
   void initState() {
@@ -40,6 +50,82 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _applyFilter() {
+    final now = DateTime.now();
+    final sevenDaysAgo = now.subtract(const Duration(days: 7));
+
+    double pEarn = 0.0;
+    int pOrdCount = 0;
+    int pCompleted = 0;
+    int pCancelled = 0;
+    List<Map<String, dynamic>> history = [];
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    for (var o in _rawOrders) {
+      final amt = double.tryParse((o['payableAmount'] ?? o['totalAmount'] ?? 0).toString()) ?? 0.0;
+      final status = (o['status'] ?? '').toString().toLowerCase();
+      final deliveryStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
+      final isCancelled = status == 'cancelled' || status == 'failed';
+      final isCompleted = status == 'delivered' || deliveryStatus == 'delivered';
+
+      DateTime orderDate = DateTime.now();
+      if (o['createdAt'] != null) {
+        orderDate = (DateTime.tryParse(o['createdAt'].toString()) ?? DateTime.now()).toLocal();
+      }
+
+      bool matchesPeriod = false;
+      if (_selectedPeriod == 'Today') {
+        matchesPeriod = orderDate.year == now.year && orderDate.month == now.month && orderDate.day == now.day;
+      } else if (_selectedPeriod == 'Weekly') {
+        matchesPeriod = orderDate.isAfter(sevenDaysAgo);
+      } else if (_selectedPeriod == 'Monthly') {
+        matchesPeriod = orderDate.year == now.year && orderDate.month == now.month;
+      } else {
+        matchesPeriod = true;
+      }
+
+      if (matchesPeriod) {
+        if (!isCancelled) {
+          pEarn += amt;
+          pOrdCount++;
+        }
+        if (isCancelled) {
+          pCancelled++;
+        } else if (isCompleted) {
+          pCompleted++;
+        }
+
+        if (isCompleted || !isCancelled) {
+          final period = orderDate.hour >= 12 ? 'PM' : 'AM';
+          final hr = orderDate.hour > 12 ? orderDate.hour - 12 : (orderDate.hour == 0 ? 12 : orderDate.hour);
+          final min = orderDate.minute.toString().padLeft(2, '0');
+
+          final rawOrdNum = o['orderNumber'] ?? o['orderId'];
+          final displayOrdId = rawOrdNum != null && rawOrdNum.toString().isNotEmpty
+              ? rawOrdNum.toString().toUpperCase()
+              : (o['_id'] != null && o['_id'].toString().length > 8
+                  ? 'ORD${o['_id'].toString().substring(o['_id'].toString().length - 4).toUpperCase()}'
+                  : o['_id']?.toString() ?? 'N/A');
+
+          history.add({
+            'amount': '₹${amt.toStringAsFixed(2)}',
+            'paymentMode': o['paymentMethod'] ?? (o['paymentStatus'] == 'paid' ? 'UPI Online' : 'Cash'),
+            'dateTime': '${orderDate.day} ${months[orderDate.month - 1]}, $hr:$min $period',
+            'orderId': 'Order #$displayOrdId',
+            'status': isCompleted ? 'Completed' : (status.isNotEmpty ? status[0].toUpperCase() + status.substring(1) : 'Processing'),
+          });
+        }
+      }
+    }
+
+    _periodEarning = '₹${pEarn.toStringAsFixed(2)}';
+    _periodOrders = pOrdCount;
+    _completedOrders = pCompleted;
+    _cancelledOrders = pCancelled;
+    _earningHistory = history;
   }
 
   Future<void> _loadLiveAnalytics() async {
@@ -74,27 +160,35 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
           rawOrders = data['orders'];
         }
 
+        _rawOrders = rawOrders;
+
         final now = DateTime.now();
         double todayEarn = 0.0;
         int todayOrdCount = 0;
-        int completedCount = 0;
-        int cancelledCount = 0;
         double totalRev = 0.0;
         int pickup = 0;
         int delivered = 0;
-        List<Map<String, dynamic>> history = [];
+
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        // Last 6 months labels
+        List<String> monthLabels = [];
+        List<double> monthTotals = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        for (int i = 5; i >= 0; i--) {
+          final mDate = DateTime(now.year, now.month - i, 1);
+          monthLabels.add(months[mDate.month - 1]);
+        }
 
         for (var o in rawOrders) {
           final amt = double.tryParse((o['payableAmount'] ?? o['totalAmount'] ?? 0).toString()) ?? 0.0;
           final status = (o['status'] ?? '').toString().toLowerCase();
           final deliveryStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
           final isCancelled = status == 'cancelled' || status == 'failed';
-          final isCompleted = status == 'delivered' || deliveryStatus == 'delivered';
           final orderType = (o['orderType'] ?? 'delivery').toString().toLowerCase();
 
           DateTime orderDate = DateTime.now();
           if (o['createdAt'] != null) {
-            orderDate = DateTime.tryParse(o['createdAt'].toString()) ?? DateTime.now();
+            orderDate = (DateTime.tryParse(o['createdAt'].toString()) ?? DateTime.now()).toLocal();
           }
 
           final isSameDay = orderDate.year == now.year && orderDate.month == now.month && orderDate.day == now.day;
@@ -105,12 +199,15 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
               todayEarn += amt;
               todayOrdCount++;
             }
-          }
 
-          if (isCancelled) {
-            cancelledCount++;
-          } else if (isCompleted) {
-            completedCount++;
+            // Bucket into last 6 months
+            for (int i = 5; i >= 0; i--) {
+              final targetDate = DateTime(now.year, now.month - i, 1);
+              if (orderDate.year == targetDate.year && orderDate.month == targetDate.month) {
+                monthTotals[5 - i] += amt;
+                break;
+              }
+            }
           }
 
           if (orderType == 'pickup') {
@@ -118,39 +215,18 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
           } else {
             delivered++;
           }
-
-          if (isCompleted || !isCancelled) {
-            final period = orderDate.hour >= 12 ? 'PM' : 'AM';
-            final hr = orderDate.hour > 12 ? orderDate.hour - 12 : (orderDate.hour == 0 ? 12 : orderDate.hour);
-            final min = orderDate.minute.toString().padLeft(2, '0');
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-              final rawOrdNum = o['orderNumber'] ?? o['orderId'];
-              final displayOrdId = rawOrdNum != null && rawOrdNum.toString().isNotEmpty
-                  ? rawOrdNum.toString().toUpperCase()
-                  : (o['_id'] != null && o['_id'].toString().length > 8
-                      ? 'ORD${o['_id'].toString().substring(o['_id'].toString().length - 4).toUpperCase()}'
-                      : o['_id']?.toString() ?? 'N/A');
-              history.add({
-                'amount': '₹${amt.toStringAsFixed(2)}',
-                'paymentMode': o['paymentMethod'] ?? (o['paymentStatus'] == 'paid' ? 'UPI Online' : 'Cash'),
-                'dateTime': '${orderDate.day} ${months[orderDate.month - 1]}, $hr:$min $period',
-                'orderId': 'Order #$displayOrdId',
-                'status': isCompleted ? 'Completed' : (status.isNotEmpty ? status[0].toUpperCase() + status.substring(1) : 'Processing'),
-              });
-          }
         }
 
         if (mounted) {
           setState(() {
             _todayEarning = '₹${todayEarn.toStringAsFixed(2)}';
             _todayOrders = todayOrdCount;
-            _completedOrders = completedCount;
-            _cancelledOrders = cancelledCount;
             _totalRevenue = totalRev;
             _pickupCount = pickup;
             _deliveredCount = delivered;
-            _earningHistory = history;
+            _monthlyRevenue = monthTotals;
+            _monthlyLabels = monthLabels;
+            _applyFilter();
             _isLoading = false;
           });
         }
@@ -240,7 +316,7 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
               ),
             ),
             Text(
-              'All your restaurant\'s activity for today in one place.',
+              'All your restaurant\'s activity in one place.',
               style: GoogleFonts.poppins(
                 fontSize: 11,
                 color: Colors.grey[600],
@@ -253,7 +329,7 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
           controller: _tabController,
           labelColor: Colors.black,
           unselectedLabelColor: Colors.grey[500],
-          indicatorColor: AppColors.primaryGreen, // Brand Primary Green indicator
+          indicatorColor: AppColors.primaryGreen,
           indicatorWeight: 3,
           labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14),
           unselectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 14),
@@ -263,193 +339,217 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildOverviewTab(),
-          _buildAnalyticsTab(),
-        ],
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildOverviewTab(),
+                _buildAnalyticsTab(),
+              ],
+            ),
     );
   }
 
-  // TAB 1: Overview matching Reference Image 1
+  // TAB 1: Overview with Working Period Filter
   Widget _buildOverviewTab() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Summary Header Row with Period Dropdown
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Summary',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedPeriod,
-                    icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-                    style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedPeriod = val);
-                    },
-                    items: ['Today', 'Weekly', 'Monthly'].map((p) {
-                      return DropdownMenuItem(value: p, child: Text(p));
-                    }).toList(),
+    return RefreshIndicator(
+      onRefresh: _loadLiveAnalytics,
+      color: AppColors.primaryGreen,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Summary Header Row with Period Dropdown
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Summary',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // 2x2 Summary Stat Cards Grid matching Reference Image 1
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.8,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            children: [
-              _buildSummaryCard(_todayEarning, 'Today Earning'),
-              _buildSummaryCard('$_todayOrders', 'Today Orders'),
-              _buildSummaryCard('$_completedOrders', 'Completed Orders'),
-              _buildSummaryCard('$_cancelledOrders', 'Cancelled Orders'),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Earning History Section Title
-          Text(
-            'Earning History',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // List of Earning History Cards matching Reference Image 1
-          if (_earningHistory.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[200]!, width: 1),
-              ),
-              child: Column(
-                children: [
-                  Icon(Icons.receipt_long_outlined, size: 40, color: Colors.grey[400]),
-                  const SizedBox(height: 8),
-                  Text(
-                    'No earnings recorded yet',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _earningHistory.length,
-              itemBuilder: (context, index) {
-                final item = _earningHistory[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey[200]!, width: 1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.grey[300]!),
                   ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    title: Text(
-                      item['amount'],
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedPeriod,
+                      icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+                      style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _selectedPeriod = val;
+                            _applyFilter();
+                          });
+                        }
+                      },
+                      items: ['Today', 'Weekly', 'Monthly'].map((p) {
+                        return DropdownMenuItem(value: p, child: Text(p));
+                      }).toList(),
                     ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 2),
-                        Text(
-                          '${item['paymentMode']} • ${item['dateTime']}',
-                          style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
-                        ),
-                        Text(
-                          item['orderId'],
-                          style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // 2x2 Summary Stat Cards Grid dynamically reflecting _selectedPeriod
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: 1.8,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              children: [
+                _buildSummaryCard(_periodEarning, '$_selectedPeriod Earning'),
+                _buildSummaryCard('$_periodOrders', '$_selectedPeriod Orders'),
+                _buildSummaryCard('$_completedOrders', 'Completed Orders'),
+                _buildSummaryCard('$_cancelledOrders', 'Cancelled Orders'),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Earning History Section Title
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Earning History',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                Text(
+                  _selectedPeriod,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryGreen,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // List of Filtered Earning History Cards
+            if (_earningHistory.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[200]!, width: 1),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.receipt_long_outlined, size: 44, color: Colors.grey[400]),
+                    const SizedBox(height: 10),
+                    Text(
+                      'No earnings recorded for ${_selectedPeriod.toLowerCase()}',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _earningHistory.length,
+                itemBuilder: (context, index) {
+                  final item = _earningHistory[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey[200]!, width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryGreen.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      title: Text(
+                        item['amount'],
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 2),
+                          Text(
+                            '${item['paymentMode']} • ${item['dateTime']}',
+                            style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
                           ),
-                          child: Text(
-                            item['status'],
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryGreen,
+                          Text(
+                            item['orderId'],
+                            style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              item['status'],
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryGreen,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.chevron_right, color: Colors.black54, size: 20),
-                      ],
+                          const SizedBox(width: 8),
+                          const Icon(Icons.chevron_right, color: Colors.black54, size: 20),
+                        ],
+                      ),
+                      onTap: () => _showTransactionReceipt(item),
                     ),
-                    onTap: () => _showTransactionReceipt(item),
-                  ),
-                );
-              },
-            ),
-        ],
+                  );
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  // Summary Metric Card matching Reference Image 1 & Yellow Theme
+  // Summary Metric Card matching Reference Image & Yellow Theme
   Widget _buildSummaryCard(String title, String subtitle) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB), // Elegant soft yellow background
+        color: const Color(0xFFFFFBEB),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFFDE68A), width: 1),
       ),
@@ -479,122 +579,129 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
     );
   }
 
-  // TAB 2: Analytics matching Reference Image 2
+  // TAB 2: Analytics with Real Monthly Data Chart
   Widget _buildAnalyticsTab() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top Summary Row (Today Earning & Today Orders)
-          Row(
-            children: [
-              Expanded(child: _buildSummaryCard(_todayEarning, 'Today Earning')),
-              const SizedBox(width: 12),
-              Expanded(child: _buildSummaryCard('$_todayOrders', 'Today Orders')),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Total Revenue Chart Section Card matching Reference Image 2
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey[200]!, width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return RefreshIndicator(
+      onRefresh: _loadLiveAnalytics,
+      color: AppColors.primaryGreen,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Summary Row (Today Earning & Today Orders)
+            Row(
               children: [
-                Text(
-                  'Total Revenue',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                Text(
-                  '₹${_totalRevenue.toStringAsFixed(2)}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Custom Bar Chart Visualization with Trend Line
-                SizedBox(
-                  height: 180,
-                  width: double.infinity,
-                  child: CustomPaint(
-                    painter: RevenueChartPainter(),
-                  ),
-                ),
+                Expanded(child: _buildSummaryCard(_todayEarning, 'Today Earning')),
+                const SizedBox(width: 12),
+                Expanded(child: _buildSummaryCard('$_todayOrders', 'Today Orders')),
               ],
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-          // Order Types Section Card matching Reference Image 2
-          Builder(
-            builder: (context) {
-              final int totalTypes = _pickupCount + _deliveredCount;
-              final double pRatio = totalTypes > 0 ? (_pickupCount / totalTypes) : 0.0;
-              final double dRatio = totalTypes > 0 ? (_deliveredCount / totalTypes) : 0.0;
-
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[200]!, width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
+            // Total Revenue Chart Section Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey[200]!, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total Revenue',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[700],
                     ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Order Types',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                  ),
+                  Text(
+                    '₹${_totalRevenue.toStringAsFixed(2)}',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Custom Bar Chart Visualization with Trend Line
+                  SizedBox(
+                    height: 180,
+                    width: double.infinity,
+                    child: CustomPaint(
+                      painter: RevenueChartPainter(
+                        monthlyData: _monthlyRevenue,
+                        monthLabels: _monthlyLabels,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
 
-                    // Pickup Metric Row
-                    _buildOrderTypeMetricRow('Pickup (${(pRatio * 100).toStringAsFixed(0)}%)', '$_pickupCount', pRatio),
-                    const SizedBox(height: 16),
+            // Order Types Section Card
+            Builder(
+              builder: (context) {
+                final int totalTypes = _pickupCount + _deliveredCount;
+                final double pRatio = totalTypes > 0 ? (_pickupCount / totalTypes) : 0.0;
+                final double dRatio = totalTypes > 0 ? (_deliveredCount / totalTypes) : 0.0;
 
-                    // Delivered Metric Row
-                    _buildOrderTypeMetricRow('Delivered (${(dRatio * 100).toStringAsFixed(0)}%)', '$_deliveredCount', dRatio),
-                  ],
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-        ],
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey[200]!, width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Order Types',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Pickup Metric Row
+                      _buildOrderTypeMetricRow('Pickup (${(pRatio * 100).toStringAsFixed(0)}%)', '$_pickupCount', pRatio),
+                      const SizedBox(height: 16),
+
+                      // Delivered Metric Row
+                      _buildOrderTypeMetricRow('Delivered (${(dRatio * 100).toStringAsFixed(0)}%)', '$_deliveredCount', dRatio),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
@@ -655,13 +762,30 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
   }
 }
 
-// Custom Painter for Revenue Bar Chart matching Reference Image 2
+// Custom Painter for Revenue Bar Chart reflecting live monthly data
 class RevenueChartPainter extends CustomPainter {
+  final List<double> monthlyData;
+  final List<String> monthLabels;
+
+  RevenueChartPainter({
+    required this.monthlyData,
+    required this.monthLabels,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    final barValues = [0.75, 0.25, 0.40, 0.28, 0.50, 0.85];
-    final lineValues = [0.80, 0.65, 0.78, 0.72, 0.76, 0.90];
+    final months = monthLabels.isNotEmpty ? monthLabels : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+
+    double maxVal = 0.0;
+    for (var v in monthlyData) {
+      if (v > maxVal) maxVal = v;
+    }
+    if (maxVal == 0.0) maxVal = 100.0;
+
+    final barValues = monthlyData.map((v) => (v / maxVal).clamp(0.08, 1.0)).toList();
+    while (barValues.length < months.length) {
+      barValues.add(0.08);
+    }
 
     const double barWidth = 24.0;
     final double spacing = (size.width - (months.length * barWidth)) / (months.length + 1);
@@ -701,7 +825,7 @@ class RevenueChartPainter extends CustomPainter {
       canvas.drawRRect(roundedBar, barPaint);
 
       // Save line point
-      final double lineY = (size.height - 30) * (1.0 - lineValues[i] * 0.8);
+      final double lineY = (size.height - 30) * (1.0 - barValues[i] * 0.85);
       linePoints.add(Offset(x, lineY));
 
       // Draw Month Label below
@@ -735,5 +859,5 @@ class RevenueChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
