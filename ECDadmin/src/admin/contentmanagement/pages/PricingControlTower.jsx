@@ -905,9 +905,9 @@ export default function PricingControlTower() {
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* TAB 4: CASH ON DELIVERY (COD) & ORDER LIMITS */}
+      {/* TAB 3: CASH ON DELIVERY (COD) & ORDER LIMITS */}
       {/* ------------------------------------------------------------- */}
-      {activeTab === 4 && (
+      {activeTab === 3 && (
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <Card sx={{ borderRadius: 3, p: 3 }}>
