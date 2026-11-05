@@ -58,7 +58,7 @@ export default function PricingControlTower() {
   const [alertInfo, setAlertInfo] = useState({ show: false, message: "", severity: "success" });
 
   // Config State
-  const [riderPayoutConfig, setRiderPayoutConfig] = useState({ basePay: 25, extraPerKmFee: 5 });
+  const [riderPayoutConfig, setRiderPayoutConfig] = useState({ payoutModel: "commission", basePay: 25, extraPerKmFee: 5, riderDeliveryFeePercent: 70 });
   const [deliveryConfig, setDeliveryConfig] = useState({
     enabled: true,
     baseFee: 30,
@@ -176,9 +176,17 @@ export default function PricingControlTower() {
       setLoading(true);
       await api.put("/api/pricing/delivery-config", {
         ...deliveryConfig,
+        payoutModel: riderPayoutConfig.payoutModel || "commission",
+        riderDeliveryFeePercent: Number(riderPayoutConfig.riderDeliveryFeePercent || 70),
         riderBasePay: Number(riderPayoutConfig.basePay || 25),
         riderBonusPerKm: Number(riderPayoutConfig.extraPerKmFee || 5),
-        riderPayoutConfig,
+        riderPayoutConfig: {
+          ...riderPayoutConfig,
+          payoutModel: riderPayoutConfig.payoutModel || "commission",
+          riderDeliveryFeePercent: Number(riderPayoutConfig.riderDeliveryFeePercent || 70),
+          basePay: Number(riderPayoutConfig.basePay || 25),
+          extraPerKmFee: Number(riderPayoutConfig.extraPerKmFee || 5),
+        },
         reason: "Admin updated delivery fees, distance slabs & dynamic rider pay",
       });
       showAlert("Delivery configuration saved successfully!");
@@ -424,26 +432,50 @@ export default function PricingControlTower() {
               </Typography>
 
               <Box sx={{ p: 2, mb: 2.5, bgcolor: '#F0FDF4', borderRadius: 2, border: '1px solid #BBF7D0' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#166534', mb: 1.5 }}>
-                  🏍️ Rider Payout per Delivery (Admin Managed)
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#166534' }}>
+                    🏍️ Rider Payout per Delivery (Admin Managed)
+                  </Typography>
+                  <FormControl size="small">
+                    <Select
+                      value={riderPayoutConfig.payoutModel || 'commission'}
+                      onChange={(e) => setRiderPayoutConfig({ ...riderPayoutConfig, payoutModel: e.target.value })}
+                      sx={{ height: 32, fontSize: '0.8rem', bgcolor: '#fff', fontWeight: 700 }}
+                    >
+                      <MenuItem value="commission">Commission Share % Model</MenuItem>
+                      <MenuItem value="fixed">Fixed Base Pay + Distance</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
                 <Grid container spacing={2}>
-                  <Grid item xs={6}>
+                  <Grid item xs={4}>
+                    <Typography variant="caption" sx={{ fontWeight: 600 }}>Rider Share (%)</Typography>
+                    <TextField
+                      fullWidth size="small" type="number"
+                      value={riderPayoutConfig.riderDeliveryFeePercent ?? 70}
+                      onChange={(e) => setRiderPayoutConfig({ ...riderPayoutConfig, riderDeliveryFeePercent: e.target.value })}
+                      sx={{ bgcolor: (riderPayoutConfig.payoutModel || 'commission') === 'commission' ? '#DCFCE7' : '#fff' }}
+                      helperText="Default 70%"
+                    />
+                  </Grid>
+                  <Grid item xs={4}>
                     <Typography variant="caption" sx={{ fontWeight: 600 }}>Rider Base Pay (₹)</Typography>
                     <TextField
                       fullWidth size="small" type="number"
                       value={riderPayoutConfig.basePay}
                       onChange={(e) => setRiderPayoutConfig({ ...riderPayoutConfig, basePay: e.target.value })}
-                      sx={{ bgcolor: '#fff' }}
+                      sx={{ bgcolor: (riderPayoutConfig.payoutModel || 'commission') === 'fixed' ? '#DCFCE7' : '#fff' }}
+                      helperText="Base amount"
                     />
                   </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="caption" sx={{ fontWeight: 600 }}>Distance Bonus / KM (₹)</Typography>
+                  <Grid item xs={4}>
+                    <Typography variant="caption" sx={{ fontWeight: 600 }}>Distance / KM (₹)</Typography>
                     <TextField
                       fullWidth size="small" type="number"
                       value={riderPayoutConfig.extraPerKmFee}
                       onChange={(e) => setRiderPayoutConfig({ ...riderPayoutConfig, extraPerKmFee: e.target.value })}
-                      sx={{ bgcolor: '#fff' }}
+                      sx={{ bgcolor: (riderPayoutConfig.payoutModel || 'commission') === 'fixed' ? '#DCFCE7' : '#fff' }}
+                      helperText="Per extra KM"
                     />
                   </Grid>
                 </Grid>

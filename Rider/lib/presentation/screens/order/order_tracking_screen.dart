@@ -498,13 +498,25 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            isCodOrder ? 'Customer se ₹$totalAmt cash collect karne ke baad hi OTP daalein!' : 'Customer online pay kar chuka hai. Cash collect NA karein!',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
-                            ),
+                          Builder(
+                            builder: (context) {
+                              final customCod = widget.order['codOtpAlert']?.toString();
+                              final customOnline = widget.order['onlineOtpAlert']?.toString();
+                              final codText = (customCod != null && customCod.isNotEmpty)
+                                  ? customCod.replaceAll('{amount}', totalAmt)
+                                  : 'Customer se ₹$totalAmt cash collect karne ke baad hi OTP daalein!';
+                              final onlineText = (customOnline != null && customOnline.isNotEmpty)
+                                  ? customOnline.replaceAll('{amount}', totalAmt)
+                                  : 'Customer online pay kar chuka hai. Cash collect NA karein!';
+                              return Text(
+                                isCodOrder ? codText : onlineText,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),

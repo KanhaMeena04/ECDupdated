@@ -2752,12 +2752,25 @@ class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
                           color: isCodOrder ? const Color(0xFF92400E) : const Color(0xFF065F46),
                         ),
                       ),
-                      Text(
-                        isCodOrder ? 'Collect cash from customer before entering OTP.' : 'Customer paid online. Do NOT ask for cash.',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final customCod = order['codOtpAlert']?.toString();
+                          final customOnline = order['onlineOtpAlert']?.toString();
+                          final codText = (customCod != null && customCod.isNotEmpty)
+                              ? customCod.replaceAll('{amount}', totalAmt)
+                              : 'Pehle customer se ₹$totalAmt CASH collect karein, uske baad hi delivery OTP enter karein!';
+                          final onlineText = (customOnline != null && customOnline.isNotEmpty)
+                              ? customOnline.replaceAll('{amount}', totalAmt)
+                              : 'Order online already paid hai. Customer se Cash collect NA karein!';
+                          return Text(
+                            isCodOrder ? codText : onlineText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

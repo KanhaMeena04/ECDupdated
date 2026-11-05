@@ -19,10 +19,19 @@ const AdminSettingSchema = new mongoose.Schema(
 
     // Rider Payout Configuration (Dynamically managed by Admin)
     riderPayoutConfig: {
+      payoutModel: { type: String, enum: ['commission', 'fixed'], default: 'commission' },
       basePay: { type: Number, default: 25 },
       baseDistanceKm: { type: Number, default: 2 },
       extraPerKmFee: { type: Number, default: 5 },
       riderDeliveryFeePercent: { type: Number, default: 70 },
+      codOtpAlertMessage: {
+        type: String,
+        default: "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!"
+      },
+      onlineOtpAlertMessage: {
+        type: String,
+        default: "Order online already paid hai. Customer se Cash collect NA karein!"
+      },
     },
 
     // Branded Footer Watermark Configuration (Dynamic Admin Controlled)
@@ -136,6 +145,7 @@ const AdminSettingSchema = new mongoose.Schema(
 
     // Rider Earning Configuration (Requirement 13)
     riderEarningConfig: {
+      payoutModel: { type: String, enum: ['commission', 'fixed'], default: 'commission' },
       baseEarning: { type: Number, default: 20 },
       baseDistanceKm: { type: Number, default: 2 },
       perKmEarning: { type: Number, default: 8 },
@@ -145,7 +155,15 @@ const AdminSettingSchema = new mongoose.Schema(
       isRainBonusActive: { type: Boolean, default: false },
       nightBonus: { type: Number, default: 15 },
       isNightBonusActive: { type: Boolean, default: false },
-      riderDeliveryFeePercent: { type: Number, default: 70 }
+      riderDeliveryFeePercent: { type: Number, default: 70 },
+      codOtpAlertMessage: {
+        type: String,
+        default: "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!"
+      },
+      onlineOtpAlertMessage: {
+        type: String,
+        default: "Order online already paid hai. Customer se Cash collect NA karein!"
+      },
     },
 
     // Order Timing & Cancellation Configuration (Platform-wide)

@@ -590,12 +590,34 @@ exports.placeOrder = async (req, res) => {
     const adminCommission = bill.adminCommissionAmount !== undefined ? bill.adminCommissionAmount : Math.round(((bill.itemTotal * commRate) / 100) * 100) / 100;
     // Packaging fee is 100% Admin revenue
     const restaurantCommission = bill.restaurantNetPayable !== undefined ? bill.restaurantNetPayable : Math.max(0, Math.round((bill.itemTotal - adminCommission) * 100) / 100);
-    const riderShareRate = Number(
-      sysSettings?.riderPayoutConfig?.riderDeliveryFeePercent ??
-      sysSettings?.riderEarningConfig?.riderDeliveryFeePercent ??
-      70
-    ) / 100;
-    const riderCommission = isSelfPickup ? 0 : Math.round((bill.deliveryFee * riderShareRate) * 100) / 100;
+    const riderPayoutModel = (
+      sysSettings?.riderPayoutConfig?.payoutModel ||
+      sysSettings?.riderEarningConfig?.payoutModel ||
+      'commission'
+    );
+    let riderCommission = 0;
+    if (!isSelfPickup) {
+      if (riderPayoutModel === 'fixed') {
+        const basePay = Number(sysSettings?.riderPayoutConfig?.basePay ?? sysSettings?.riderEarningConfig?.baseEarning ?? 25);
+        const baseDist = Number(sysSettings?.riderPayoutConfig?.baseDistanceKm ?? sysSettings?.riderEarningConfig?.baseDistanceKm ?? 2);
+        const perKm = Number(sysSettings?.riderPayoutConfig?.extraPerKmFee ?? sysSettings?.riderEarningConfig?.perKmEarning ?? 5);
+        const distKm = Number(deliveryDistance || 1);
+        const extraKm = Math.max(0, distKm - baseDist);
+        const distancePay = Math.round(extraKm * perKm * 100) / 100;
+        const peakBonus = sysSettings?.riderEarningConfig?.isPeakBonusActive ? Number(sysSettings?.riderEarningConfig?.peakBonus || 10) : 0;
+        const rainBonus = sysSettings?.riderEarningConfig?.isRainBonusActive ? Number(sysSettings?.riderEarningConfig?.rainBonus || 15) : 0;
+        const nightBonus = sysSettings?.riderEarningConfig?.isNightBonusActive ? Number(sysSettings?.riderEarningConfig?.nightBonus || 15) : 0;
+        riderCommission = Math.round((basePay + distancePay + peakBonus + rainBonus + nightBonus) * 100) / 100;
+      } else {
+        // Commission % model (Share % of customer delivery fee)
+        const riderShareRate = Number(
+          sysSettings?.riderPayoutConfig?.riderDeliveryFeePercent ??
+          sysSettings?.riderEarningConfig?.riderDeliveryFeePercent ??
+          70
+        ) / 100;
+        riderCommission = Math.round((bill.deliveryFee * riderShareRate) * 100) / 100;
+      }
+    }
     const riderEarning = isSelfPickup ? 0 : Math.round((riderCommission + tipAmount) * 100) / 100;
     const pickupOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const deliveryOtp = Math.floor(1000 + Math.random() * 9000).toString();
@@ -1299,6 +1321,8 @@ exports.getOrderDetailsCustomer = async (req, res) => {
           method: orderObj.paymentMethod,
           status: orderObj.paymentStatus,
         },
+        codOtpAlert,
+        onlineOtpAlert,
         deliveryAddress: orderObj.deliveryAddress,
         ...(orderObj.rider && {
           rider: {
@@ -1362,6 +1386,12 @@ exports.getOrderDetailsRestaurant = async (req, res) => {
     const orderObj = enrichOrderWithUnifiedPricing(order.toObject());
     const callContacts = buildOrderCallContacts(orderObj);
     const unifiedBill = buildUnifiedBill(orderObj);
+    const sysSettings = await AdminSetting.getSettings();
+    const codTemplate = sysSettings?.riderPayoutConfig?.codOtpAlertMessage || sysSettings?.riderEarningConfig?.codOtpAlertMessage || "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!";
+    const onlineTemplate = sysSettings?.riderPayoutConfig?.onlineOtpAlertMessage || sysSettings?.riderEarningConfig?.onlineOtpAlertMessage || "Order online already paid hai. Customer se Cash collect NA karein!";
+    const formattedAmount = (unifiedBill.totalAmount || orderObj.totalAmount || 0).toString();
+    const codOtpAlert = codTemplate.replace(/\{amount\}/g, formattedAmount);
+    const onlineOtpAlert = onlineTemplate.replace(/\{amount\}/g, formattedAmount);
     const response = {
       success: true,
       order: {

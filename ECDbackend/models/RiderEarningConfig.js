@@ -9,6 +9,7 @@ const incentiveTierSchema = new mongoose.Schema({
 
 const RiderEarningConfigSchema = new mongoose.Schema(
   {
+    payoutModel: { type: String, enum: ['commission', 'fixed'], default: 'commission' },
     baseEarning: { type: Number, default: 20 },
     baseDistanceKm: { type: Number, default: 2 },
     perKmEarning: { type: Number, default: 8 },
@@ -19,6 +20,14 @@ const RiderEarningConfigSchema = new mongoose.Schema(
     nightBonus: { type: Number, default: 15 },
     isNightBonusActive: { type: Boolean, default: false },
     riderDeliveryFeePercent: { type: Number, default: 70 },
+    codOtpAlertMessage: {
+      type: String,
+      default: "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!"
+    },
+    onlineOtpAlertMessage: {
+      type: String,
+      default: "Order online already paid hai. Customer se Cash collect NA karein!"
+    },
     incentiveTiers: {
       type: [incentiveTierSchema],
       default: [

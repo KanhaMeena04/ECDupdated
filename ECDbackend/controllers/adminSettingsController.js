@@ -115,19 +115,24 @@ exports.updateAdminSettings = async (req, res) => {
 exports.getRiderEarningConfig = async (req, res) => {
   try {
     const settings = await ensureSettings();
+    const ec = settings.riderEarningConfig || {};
+    const pc = settings.riderPayoutConfig || {};
     return res.status(200).json({
       success: true,
-      config: settings.riderEarningConfig || {
-        baseEarning: 20,
-        baseDistanceKm: 2,
-        perKmEarning: 8,
-        riderDeliveryFeePercent: 70,
-        peakBonus: 10,
-        isPeakBonusActive: false,
-        rainBonus: 15,
-        isRainBonusActive: false,
-        nightBonus: 15,
-        isNightBonusActive: false
+      config: {
+        payoutModel: ec.payoutModel || pc.payoutModel || 'commission',
+        baseEarning: Number(ec.baseEarning ?? pc.basePay ?? 20),
+        baseDistanceKm: Number(ec.baseDistanceKm ?? pc.baseDistanceKm ?? 2),
+        perKmEarning: Number(ec.perKmEarning ?? pc.extraPerKmFee ?? 8),
+        riderDeliveryFeePercent: Number(ec.riderDeliveryFeePercent ?? pc.riderDeliveryFeePercent ?? 70),
+        peakBonus: Number(ec.peakBonus ?? 10),
+        isPeakBonusActive: Boolean(ec.isPeakBonusActive),
+        rainBonus: Number(ec.rainBonus ?? 15),
+        isRainBonusActive: Boolean(ec.isRainBonusActive),
+        nightBonus: Number(ec.nightBonus ?? 15),
+        isNightBonusActive: Boolean(ec.isNightBonusActive),
+        codOtpAlertMessage: ec.codOtpAlertMessage || pc.codOtpAlertMessage || "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!",
+        onlineOtpAlertMessage: ec.onlineOtpAlertMessage || pc.onlineOtpAlertMessage || "Order online already paid hai. Customer se Cash collect NA karein!",
       }
     });
   } catch (error) {
@@ -139,9 +144,28 @@ exports.updateRiderEarningConfig = async (req, res) => {
   try {
     const settings = await ensureSettings();
     settings.riderEarningConfig = { ...settings.riderEarningConfig, ...req.body };
+    settings.riderPayoutConfig = settings.riderPayoutConfig || {};
+
+    if (req.body.payoutModel !== undefined) {
+      settings.riderPayoutConfig.payoutModel = req.body.payoutModel;
+    }
     if (req.body.riderDeliveryFeePercent !== undefined) {
-      settings.riderPayoutConfig = settings.riderPayoutConfig || {};
       settings.riderPayoutConfig.riderDeliveryFeePercent = Number(req.body.riderDeliveryFeePercent);
+    }
+    if (req.body.baseEarning !== undefined) {
+      settings.riderPayoutConfig.basePay = Number(req.body.baseEarning);
+    }
+    if (req.body.baseDistanceKm !== undefined) {
+      settings.riderPayoutConfig.baseDistanceKm = Number(req.body.baseDistanceKm);
+    }
+    if (req.body.perKmEarning !== undefined) {
+      settings.riderPayoutConfig.extraPerKmFee = Number(req.body.perKmEarning);
+    }
+    if (req.body.codOtpAlertMessage !== undefined) {
+      settings.riderPayoutConfig.codOtpAlertMessage = req.body.codOtpAlertMessage;
+    }
+    if (req.body.onlineOtpAlertMessage !== undefined) {
+      settings.riderPayoutConfig.onlineOtpAlertMessage = req.body.onlineOtpAlertMessage;
     }
     await settings.save();
 

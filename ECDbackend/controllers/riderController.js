@@ -4658,6 +4658,12 @@ exports.getMyActiveOrder = async (req, res) => {
       return res.status(404).json({ message: "Rider profile not found" });
     }
 
+    const AdminSetting = require('../models/AdminSetting');
+    const sysSettings = await AdminSetting.getSettings();
+    const dynamicRiderShare = Number(sysSettings?.riderPayoutConfig?.riderDeliveryFeePercent ?? sysSettings?.riderEarningConfig?.riderDeliveryFeePercent ?? 70) / 100;
+    const codTemplate = sysSettings?.riderPayoutConfig?.codOtpAlertMessage || sysSettings?.riderEarningConfig?.codOtpAlertMessage || "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!";
+    const onlineTemplate = sysSettings?.riderPayoutConfig?.onlineOtpAlertMessage || sysSettings?.riderEarningConfig?.onlineOtpAlertMessage || "Order online already paid hai. Customer se Cash collect NA karein!";
+
     const { calculateDistance } = require('../utils/locationUtils');
     const riderCoords = riderProfile.currentLocation?.coordinates || [77.0658, 28.2888];
 
@@ -4674,6 +4680,9 @@ exports.getMyActiveOrder = async (req, res) => {
 
     if (activeOrders && activeOrders.length > 0) {
       const formattedOrders = activeOrders.map(order => {
+        const orderAmt = (order.totalAmount || 0).toString();
+        const codOtpAlert = codTemplate.replace(/\{amount\}/g, orderAmt);
+        const onlineOtpAlert = onlineTemplate.replace(/\{amount\}/g, orderAmt);
         const restaurantCoords = order.restaurant?.location?.coordinates || riderCoords;
         const customerCoords = order.deliveryAddress?.coordinates || riderCoords;
         let distanceInfo = null;
@@ -4847,8 +4856,8 @@ exports.getMyActiveOrder = async (req, res) => {
           platformFee: Number(order.platformFee || 0),
           discount: Number(order.discount || 0),
           tip: Number(order.tip || 0),
-          driverEarnings: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * 0.7) + (order.tip || 0))),
-          riderEarning: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * 0.7) + (order.tip || 0))),
+          driverEarnings: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * dynamicRiderShare) + (order.tip || 0))),
+          riderEarning: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * dynamicRiderShare) + (order.tip || 0))),
           paymentMethod: order.paymentMethod,
           paymentStatus: order.paymentStatus,
           bill: {
@@ -4866,8 +4875,8 @@ exports.getMyActiveOrder = async (req, res) => {
             total: Number(order.totalAmount || 0),
             payableAmount: Number(order.payableAmount || order.totalAmount || 0),
             toPay: Number(order.totalAmount || 0),
-            riderEarning: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * 0.7) + (order.tip || 0))),
-            driverEarnings: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * 0.7) + (order.tip || 0))),
+            riderEarning: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * dynamicRiderShare) + (order.tip || 0))),
+            driverEarnings: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * dynamicRiderShare) + (order.tip || 0))),
             inrAmount: `₹${Number(order.totalAmount || 0).toFixed(2)}`
           },
           items: (order.items || []).map(item => ({
@@ -4876,12 +4885,14 @@ exports.getMyActiveOrder = async (req, res) => {
             price: item.price
           })),
           earnings: {
-            riderEarning: Number(order.riderCommission ?? ((order.deliveryFee || 0) * 0.7)),
+            riderEarning: Number(order.riderCommission ?? ((order.deliveryFee || 0) * dynamicRiderShare)),
             tip: Number(order.tip || 0),
-            total: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * 0.7) + (order.tip || 0)))
+            total: Number(order.driverEarnings ?? order.riderEarning ?? (((order.deliveryFee || 0) * dynamicRiderShare) + (order.tip || 0)))
           },
           distances: distanceInfo,
           nextAction,
+          codOtpAlert,
+          onlineOtpAlert,
           timeline: order.timeline,
           createdAt: order.createdAt,
           updatedAt: order.updatedAt || order.createdAt
@@ -4992,8 +5003,8 @@ exports.getMyActiveOrder = async (req, res) => {
           platformFee: Number(o.platformFee || 0),
           discount: Number(o.discount || 0),
           tip: Number(o.tip || 0),
-          driverEarnings: Number(o.driverEarnings ?? o.riderEarning ?? (((o.deliveryFee || 0) * 0.7) + (o.tip || 0))),
-          riderEarning: Number(o.driverEarnings ?? o.riderEarning ?? (((o.deliveryFee || 0) * 0.7) + (o.tip || 0))),
+          driverEarnings: Number(o.driverEarnings ?? o.riderEarning ?? (((o.deliveryFee || 0) * dynamicRiderShare) + (o.tip || 0))),
+          riderEarning: Number(o.driverEarnings ?? o.riderEarning ?? (((o.deliveryFee || 0) * dynamicRiderShare) + (o.tip || 0))),
           paymentMethod: o.paymentMethod,
           paymentStatus: o.paymentStatus,
           bill: {
@@ -5011,8 +5022,8 @@ exports.getMyActiveOrder = async (req, res) => {
             total: Number(o.totalAmount || 0),
             payableAmount: Number(o.payableAmount || o.totalAmount || 0),
             toPay: Number(o.totalAmount || 0),
-            riderEarning: Number(o.driverEarnings ?? o.riderEarning ?? (((o.deliveryFee || 0) * 0.7) + (o.tip || 0))),
-            driverEarnings: Number(o.driverEarnings ?? o.riderEarning ?? (((o.deliveryFee || 0) * 0.7) + (o.tip || 0))),
+            riderEarning: Number(o.driverEarnings ?? o.riderEarning ?? (((o.deliveryFee || 0) * dynamicRiderShare) + (o.tip || 0))),
+            driverEarnings: Number(o.driverEarnings ?? o.riderEarning ?? (((o.deliveryFee || 0) * dynamicRiderShare) + (o.tip || 0))),
             inrAmount: `₹${Number(o.totalAmount || 0).toFixed(2)}`
           },
           items: (o.items || []).map(item => ({

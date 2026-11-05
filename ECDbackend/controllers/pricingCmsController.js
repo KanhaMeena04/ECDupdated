@@ -42,9 +42,13 @@ exports.getPricingConfig = async (req, res) => {
         },
       },
       riderPayoutConfig: {
-        basePay: Number(settings.riderPayoutConfig?.basePay ?? settings.deliveryFeeConfig?.riderBasePay ?? 25),
-        baseDistanceKm: Number(settings.riderPayoutConfig?.baseDistanceKm ?? 2),
-        extraPerKmFee: Number(settings.riderPayoutConfig?.extraPerKmFee ?? settings.deliveryFeeConfig?.riderBonusPerKm ?? 5),
+        payoutModel: settings.riderPayoutConfig?.payoutModel || settings.riderEarningConfig?.payoutModel || 'commission',
+        basePay: Number(settings.riderPayoutConfig?.basePay ?? settings.riderEarningConfig?.baseEarning ?? settings.deliveryFeeConfig?.riderBasePay ?? 25),
+        baseDistanceKm: Number(settings.riderPayoutConfig?.baseDistanceKm ?? settings.riderEarningConfig?.baseDistanceKm ?? 2),
+        extraPerKmFee: Number(settings.riderPayoutConfig?.extraPerKmFee ?? settings.riderEarningConfig?.perKmEarning ?? settings.deliveryFeeConfig?.riderBonusPerKm ?? 5),
+        riderDeliveryFeePercent: Number(settings.riderPayoutConfig?.riderDeliveryFeePercent ?? settings.riderEarningConfig?.riderDeliveryFeePercent ?? 70),
+        codOtpAlertMessage: settings.riderPayoutConfig?.codOtpAlertMessage || settings.riderEarningConfig?.codOtpAlertMessage || "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!",
+        onlineOtpAlertMessage: settings.riderPayoutConfig?.onlineOtpAlertMessage || settings.riderEarningConfig?.onlineOtpAlertMessage || "Order online already paid hai. Customer se Cash collect NA karein!",
       },
       restaurants: restaurants.map(r => ({
         _id: r._id,
@@ -88,21 +92,45 @@ exports.updateDeliveryFeeConfig = async (req, res) => {
     const settings = await AdminSetting.getSettings();
     const oldConfig = { ...settings.deliveryFeeConfig };
 
-    if (req.body.riderBasePay !== undefined) {
-      if (!settings.riderPayoutConfig) settings.riderPayoutConfig = {};
-      settings.riderPayoutConfig.basePay = Number(req.body.riderBasePay);
-    }
-    if (req.body.riderBonusPerKm !== undefined) {
-      if (!settings.riderPayoutConfig) settings.riderPayoutConfig = {};
-      settings.riderPayoutConfig.extraPerKmFee = Number(req.body.riderBonusPerKm);
-    }
-    if (req.body.riderPayoutConfig) {
-      settings.riderPayoutConfig = {
-        basePay: Number(req.body.riderPayoutConfig.basePay ?? 25),
-        baseDistanceKm: Number(req.body.riderPayoutConfig.baseDistanceKm ?? 2),
-        extraPerKmFee: Number(req.body.riderPayoutConfig.extraPerKmFee ?? 5),
-      };
-    }
+    const payoutModel = req.body.payoutModel || req.body.riderPayoutConfig?.payoutModel || settings.riderPayoutConfig?.payoutModel || 'commission';
+    const riderDeliveryFeePercent = Number(req.body.riderDeliveryFeePercent ?? req.body.riderPayoutConfig?.riderDeliveryFeePercent ?? settings.riderPayoutConfig?.riderDeliveryFeePercent ?? 70);
+    const basePay = Number(req.body.riderBasePay ?? req.body.riderPayoutConfig?.basePay ?? settings.riderPayoutConfig?.basePay ?? 25);
+    const extraPerKmFee = Number(req.body.riderBonusPerKm ?? req.body.riderPayoutConfig?.extraPerKmFee ?? settings.riderPayoutConfig?.extraPerKmFee ?? 5);
+    const baseDistanceKm = Number(req.body.riderPayoutConfig?.baseDistanceKm ?? settings.riderPayoutConfig?.baseDistanceKm ?? 2);
+    const codOtpAlertMessage = req.body.codOtpAlertMessage || req.body.riderPayoutConfig?.codOtpAlertMessage || settings.riderPayoutConfig?.codOtpAlertMessage;
+    const onlineOtpAlertMessage = req.body.onlineOtpAlertMessage || req.body.riderPayoutConfig?.onlineOtpAlertMessage || settings.riderPayoutConfig?.onlineOtpAlertMessage;
+
+    if (!settings.riderPayoutConfig) settings.riderPayoutConfig = {};
+    settings.riderPayoutConfig.payoutModel = payoutModel;
+    settings.riderPayoutConfig.basePay = basePay;
+    settings.riderPayoutConfig.baseDistanceKm = baseDistanceKm;
+    settings.riderPayoutConfig.extraPerKmFee = extraPerKmFee;
+    settings.riderPayoutConfig.riderDeliveryFeePercent = riderDeliveryFeePercent;
+    if (codOtpAlertMessage) settings.riderPayoutConfig.codOtpAlertMessage = codOtpAlertMessage;
+    if (onlineOtpAlertMessage) settings.riderPayoutConfig.onlineOtpAlertMessage = onlineOtpAlertMessage;
+
+    if (!settings.riderEarningConfig) settings.riderEarningConfig = {};
+    settings.riderEarningConfig.payoutModel = payoutModel;
+    settings.riderEarningConfig.baseEarning = basePay;
+    settings.riderEarningConfig.baseDistanceKm = baseDistanceKm;
+    settings.riderEarningConfig.perKmEarning = extraPerKmFee;
+    settings.riderEarningConfig.riderDeliveryFeePercent = riderDeliveryFeePercent;
+    if (codOtpAlertMessage) settings.riderEarningConfig.codOtpAlertMessage = codOtpAlertMessage;
+    if (onlineOtpAlertMessage) settings.riderEarningConfig.onlineOtpAlertMessage = onlineOtpAlertMessage;
+
+    try {
+      const RiderEarningConfig = require('../models/RiderEarningConfig');
+      await RiderEarningConfig.findOneAndUpdate({}, {
+        payoutModel,
+        baseEarning: basePay,
+        baseDistanceKm,
+        perKmEarning: extraPerKmFee,
+        riderDeliveryFeePercent,
+        ...(codOtpAlertMessage && { codOtpAlertMessage }),
+        ...(onlineOtpAlertMessage && { onlineOtpAlertMessage }),
+        updatedBy: req.user?._id
+      }, { upsert: true });
+    } catch (_) {}
     if (baseFee !== undefined) settings.deliveryFeeConfig.baseFee = Number(baseFee);
     if (baseDistanceKm !== undefined) settings.deliveryFeeConfig.baseDistanceKm = Number(baseDistanceKm);
     if (maxDeliveryRadiusKm !== undefined) settings.deliveryFeeConfig.maxDeliveryRadiusKm = Number(maxDeliveryRadiusKm);

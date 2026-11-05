@@ -320,8 +320,13 @@ exports.getRiderSettlements = async (req, res) => {
       const surgeBonus = config.isPeakBonusActive ? (config.peakBonus ?? 10) : 0;
       const rainBonus = config.isRainBonusActive ? (config.rainBonus ?? 15) : 0;
       const incentiveBonus = o.tip || 0;
+      const commissionPay = Math.round(((o.deliveryFee || 30) * ((config.riderDeliveryFeePercent || 70) / 100)) * 100) / 100;
 
-      const grossEarnings = o.riderEarning || (basePay + distancePay + surgeBonus + rainBonus + incentiveBonus);
+      const grossEarnings = o.riderEarning || (
+        config.payoutModel === 'fixed'
+          ? (basePay + distancePay + surgeBonus + rainBonus + incentiveBonus)
+          : (commissionPay + incentiveBonus)
+      );
       const deductions = 0;
       const netEarning = Math.max(0, grossEarnings - deductions);
 
