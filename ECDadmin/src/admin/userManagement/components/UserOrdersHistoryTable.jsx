@@ -26,9 +26,9 @@ import { API_BASE_URL } from '../../../utils/utils';
 import { getName, formatOrderId } from '../../../utils/orderData';
 import SideNav from './SideNav.jsx';
 
-const UserOrderHistoryTable = () => {
-  const { id: paramId, userId: propUserId } = useParams();
-  const userId = paramId || propUserId;
+const UserOrderHistoryTable = ({ userId: directPropUserId } = {}) => {
+  const params = useParams();
+  const userId = directPropUserId || params?.id || params?.userId;
   const navigate = useNavigate();
 
   const [orders, setOrders] = useState([]);
@@ -70,8 +70,24 @@ const UserOrderHistoryTable = () => {
     fetchUserOrders();
   }, [userId, page, perPage]);
 
-  if (!userId) {
-    return <div className="p-6 text-red-500 font-bold">Invalid user ID specified.</div>;
+  if (!userId || userId === 'undefined' || userId === 'null') {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 max-w-md w-full text-center">
+          <div className="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShoppingBag size={28} />
+          </div>
+          <h3 className="text-gray-800 font-bold text-lg mb-2">User Not Specified</h3>
+          <p className="text-gray-500 text-sm mb-6">No valid user ID was provided to load orders.</p>
+          <button
+            onClick={() => navigate('/user-management')}
+            className="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors"
+          >
+            Back to User Management
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const getStatusColor = (status) => {
