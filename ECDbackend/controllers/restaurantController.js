@@ -2454,23 +2454,24 @@ exports.getAllRestaurants = async (req, res) => {
         }
       });
 
-      // 2. Preload top preview items (max 4 per restaurant) with lean projection
+      // 2. Preload up to 10 products per restaurant in parallel so each restaurant gets full dishes
       const candidateIds = candidateRestaurants.map(r => r._id);
-      const allProducts = candidateIds.length > 0
-        ? await Product.find({
-            restaurant: { $in: candidateIds },
-            available: { $ne: false },
-          })
-            .select('restaurant name price sellingPrice mrp originalPrice image imageUrl category categoryId subcategory isVeg rating')
-            .limit(candidateIds.length * 4)
-            .lean()
-        : [];
+      const restProductsPromises = candidateIds.map(rId =>
+        Product.find({
+          restaurant: rId,
+          available: { $ne: false },
+        })
+          .select('restaurant name price sellingPrice mrp originalPrice image imageUrl category categoryId subcategory isVeg rating description')
+          .limit(10)
+          .lean()
+      );
+      const productArrays = await Promise.all(restProductsPromises);
+      const allProducts = productArrays.flat();
 
       allProducts.forEach(p => {
         const rId = p.restaurant?.toString();
         if (!rId) return;
         if (!restMenuMap[rId]) restMenuMap[rId] = [];
-        if (restMenuMap[rId].length >= 4) return;
 
         const catId = p.category?.toString() || '';
         const catName = catMap[catId] || (typeof p.category === 'string' ? p.category : 'General');
@@ -2622,7 +2623,7 @@ exports.getAllRestaurants = async (req, res) => {
 
     const allProducts = [];
     formattedRestaurants.forEach(r => {
-      (r.menu || []).slice(0, 2).forEach(item => {
+      (r.menu || []).forEach(item => {
         allProducts.push({
           ...item,
           restaurantId: r._id,
@@ -4295,7 +4296,7 @@ exports.getCategoryItemsAndRestaurants = async (req, res) => {
           rLong = Number(r.longitude);
         }
         if (Number.isFinite(rLat) && Number.isFinite(rLong)) {
-          r.distanceKm = Math.round(calculateDistanceKm(userLat, userLng, rLat, rLong) * 10) / 10;
+          r.distanceKm = Math.round(calculateDistance([userLng, userLat], [rLong, rLat]) * 10) / 10;
         } else {
           r.distanceKm = 1.5;
         }

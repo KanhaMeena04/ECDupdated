@@ -46,11 +46,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
       _restaurant = widget.restaurant;
       _isLoadingRestaurant = false;
       _menu = widget.restaurant!.menu;
-      if (_menu.isEmpty) {
-        _fetchMenu();
-      } else {
-        _isLoadingMenu = false;
-      }
+      _isLoadingMenu = _menu.isEmpty;
+      _fetchMenu();
     } else {
       _fetchRestaurantAndMenu();
     }
