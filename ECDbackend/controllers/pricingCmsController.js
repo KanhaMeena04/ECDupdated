@@ -96,14 +96,14 @@ exports.updateDeliveryFeeConfig = async (req, res) => {
     const riderDeliveryFeePercent = Number(req.body.riderDeliveryFeePercent ?? req.body.riderPayoutConfig?.riderDeliveryFeePercent ?? settings.riderPayoutConfig?.riderDeliveryFeePercent ?? 70);
     const basePay = Number(req.body.riderBasePay ?? req.body.riderPayoutConfig?.basePay ?? settings.riderPayoutConfig?.basePay ?? 25);
     const extraPerKmFee = Number(req.body.riderBonusPerKm ?? req.body.riderPayoutConfig?.extraPerKmFee ?? settings.riderPayoutConfig?.extraPerKmFee ?? 5);
-    const baseDistanceKm = Number(req.body.riderPayoutConfig?.baseDistanceKm ?? settings.riderPayoutConfig?.baseDistanceKm ?? 2);
+    const riderBaseDistanceKm = Number(req.body.riderPayoutConfig?.baseDistanceKm ?? settings.riderPayoutConfig?.baseDistanceKm ?? 2);
     const codOtpAlertMessage = req.body.codOtpAlertMessage || req.body.riderPayoutConfig?.codOtpAlertMessage || settings.riderPayoutConfig?.codOtpAlertMessage;
     const onlineOtpAlertMessage = req.body.onlineOtpAlertMessage || req.body.riderPayoutConfig?.onlineOtpAlertMessage || settings.riderPayoutConfig?.onlineOtpAlertMessage;
 
     if (!settings.riderPayoutConfig) settings.riderPayoutConfig = {};
     settings.riderPayoutConfig.payoutModel = payoutModel;
     settings.riderPayoutConfig.basePay = basePay;
-    settings.riderPayoutConfig.baseDistanceKm = baseDistanceKm;
+    settings.riderPayoutConfig.baseDistanceKm = riderBaseDistanceKm;
     settings.riderPayoutConfig.extraPerKmFee = extraPerKmFee;
     settings.riderPayoutConfig.riderDeliveryFeePercent = riderDeliveryFeePercent;
     if (codOtpAlertMessage) settings.riderPayoutConfig.codOtpAlertMessage = codOtpAlertMessage;
@@ -112,7 +112,7 @@ exports.updateDeliveryFeeConfig = async (req, res) => {
     if (!settings.riderEarningConfig) settings.riderEarningConfig = {};
     settings.riderEarningConfig.payoutModel = payoutModel;
     settings.riderEarningConfig.baseEarning = basePay;
-    settings.riderEarningConfig.baseDistanceKm = baseDistanceKm;
+    settings.riderEarningConfig.baseDistanceKm = riderBaseDistanceKm;
     settings.riderEarningConfig.perKmEarning = extraPerKmFee;
     settings.riderEarningConfig.riderDeliveryFeePercent = riderDeliveryFeePercent;
     if (codOtpAlertMessage) settings.riderEarningConfig.codOtpAlertMessage = codOtpAlertMessage;
@@ -123,7 +123,7 @@ exports.updateDeliveryFeeConfig = async (req, res) => {
       await RiderEarningConfig.findOneAndUpdate({}, {
         payoutModel,
         baseEarning: basePay,
-        baseDistanceKm,
+        baseDistanceKm: riderBaseDistanceKm,
         perKmEarning: extraPerKmFee,
         riderDeliveryFeePercent,
         ...(codOtpAlertMessage && { codOtpAlertMessage }),
