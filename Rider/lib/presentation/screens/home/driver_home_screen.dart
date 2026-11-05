@@ -2754,22 +2754,36 @@ class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
                       ),
                       Builder(
                         builder: (context) {
-                          final customCod = widget.order['codOtpAlert']?.toString();
-                          final customOnline = widget.order['onlineOtpAlert']?.toString();
-                          final codText = (customCod != null && customCod.isNotEmpty)
-                              ? customCod.replaceAll('{amount}', totalAmt.toString())
-                              : 'Pehle customer se ₹$totalAmt CASH collect karein, uske baad hi delivery OTP enter karein!';
-                          final onlineText = (customOnline != null && customOnline.isNotEmpty)
-                              ? customOnline.replaceAll('{amount}', totalAmt.toString())
-                              : 'Order online already paid hai. Customer se Cash collect NA karein!';
-                          return Text(
-                            isCodOrder ? codText : onlineText,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
-                            ),
-                          );
+                          try {
+                            final customCod = widget.order['codOtpAlert']?.toString();
+                            final customOnline = widget.order['onlineOtpAlert']?.toString();
+                            final amtStr = totalAmt.toString();
+                            final codText = (customCod != null && customCod.isNotEmpty)
+                                ? customCod.replaceAll('{amount}', amtStr)
+                                : 'Pehle customer se ₹$amtStr CASH collect karein, uske baad hi delivery OTP enter karein!';
+                            final onlineText = (customOnline != null && customOnline.isNotEmpty)
+                                ? customOnline.replaceAll('{amount}', amtStr)
+                                : 'Order online already paid hai. Customer se Cash collect NA karein!';
+                            return Text(
+                              isCodOrder ? codText : onlineText,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
+                              ),
+                            );
+                          } catch (_) {
+                            return Text(
+                              isCodOrder
+                                  ? 'Pehle customer se ₹$totalAmt CASH collect karein, uske baad hi delivery OTP enter karein!'
+                                  : 'Order online already paid hai. Customer se Cash collect NA karein!',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: isCodOrder ? const Color(0xFFB45309) : const Color(0xFF047857),
+                              ),
+                            );
+                          }
                         },
                       ),
                     ],
