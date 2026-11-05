@@ -168,6 +168,8 @@ const orderSchema = new mongoose.Schema(
     restaurantCommission: { type: Number, default: 0 },
     riderCommission: { type: Number, default: 0 },
     appliedCommissionRate: { type: Number, default: 0 },
+    pricingModel: { type: String, enum: ['b2b', 'commission'], default: 'b2b' },
+    b2bTotal: { type: Number, default: 0 },
     appliedPricingSource: {
       deliveryRule: { type: String, default: "Global Slabs" },
       commissionRule: { type: String, default: "Global Default" },

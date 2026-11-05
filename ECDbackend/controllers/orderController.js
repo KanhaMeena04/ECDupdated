@@ -314,6 +314,8 @@ const calculateBill = async (
       appliedCommissionRate: breakdown.appliedCommissionRate,
       adminCommissionAmount: breakdown.adminCommissionAmount,
       restaurantNetPayable: breakdown.restaurantNetPayable,
+      pricingModel: breakdown.pricingModel || 'b2b',
+      b2bTotal: breakdown.b2bTotal || 0,
       deliveryDistance,
       sources,
       appliedCoupon: coupon.applied ? coupon.code : null,
@@ -457,14 +459,24 @@ exports.placeOrder = async (req, res) => {
       const platformFee = sysSettings?.platformFeeConfig?.enabled !== false ? (sysSettings?.platformFeeConfig?.fee || 0) : 0;
       const discount = Number(req.body.discount || 0);
       const tip = isSelfPickup ? 0 : Number(req.body.tip || 0);
-      const globalComm = Number(sysSettings?.commissionConfig?.globalCommissionPercent ?? 20);
-      const commRate = Number(restaurant.adminOverride?.isOverridden && restaurant.adminCommission != null ? restaurant.adminCommission : globalComm);
-      const adminCommissionAmount = Math.round(((subtotal * commRate) / 100) * 100) / 100;
-      // Packaging fee is kept 100% by Admin platform
-      const restaurantNetPayable = Math.max(0, Math.round((subtotal - adminCommissionAmount) * 100) / 100);
+      const isComm = Boolean(restaurant.pricingModel === 'commission' || restaurant.useCommissionModel === true);
+      const commRate = Number(restaurant.adminOverride?.isOverridden && restaurant.adminCommission != null ? restaurant.adminCommission : (restaurant.adminCommission || 20));
+      let adminCommissionAmount = 0;
+      let restaurantNetPayable = 0;
+      let effectiveCommRate = commRate;
+      if (isComm) {
+        adminCommissionAmount = Math.round(((subtotal * commRate) / 100) * 100) / 100;
+        restaurantNetPayable = Math.max(0, Math.round((subtotal - adminCommissionAmount) * 100) / 100);
+      } else {
+        // B2B fallback: if B2B mode, calculate margin
+        adminCommissionAmount = Math.round(((subtotal * commRate) / 100) * 100) / 100;
+        restaurantNetPayable = Math.max(0, Math.round((subtotal - adminCommissionAmount) * 100) / 100);
+      }
       const toPay = req.body.totalAmount || Math.max(0, Math.round((subtotal + tax + packaging + deliveryFee + platformFee - discount + tip) * 100) / 100);
       bill = {
         itemTotal: subtotal,
+        b2bTotal: restaurantNetPayable,
+        pricingModel: isComm ? 'commission' : 'b2b',
         tax,
         packaging,
         deliveryFee,
@@ -472,7 +484,7 @@ exports.placeOrder = async (req, res) => {
         discount,
         toPay,
         tip,
-        appliedCommissionRate: commRate,
+        appliedCommissionRate: effectiveCommRate,
         adminCommissionAmount,
         restaurantNetPayable,
         deliveryDistance: 0,
@@ -573,8 +585,8 @@ exports.placeOrder = async (req, res) => {
       ? "Waiting for payment to be completed via Stripe."
       : "Your order has been placed";
     
-    const globalComm = Number(sysSettings?.commissionConfig?.globalCommissionPercent ?? 20);
-    const commRate = Number(bill.appliedCommissionRate || (restaurant.adminOverride?.isOverridden && restaurant.adminCommission != null ? restaurant.adminCommission : globalComm));
+    const isComm = Boolean(restaurant.pricingModel === 'commission' || restaurant.useCommissionModel === true);
+    const commRate = Number(bill.appliedCommissionRate !== undefined ? bill.appliedCommissionRate : (restaurant.adminCommission || 20));
     const adminCommission = bill.adminCommissionAmount !== undefined ? bill.adminCommissionAmount : Math.round(((bill.itemTotal * commRate) / 100) * 100) / 100;
     // Packaging fee is 100% Admin revenue
     const restaurantCommission = bill.restaurantNetPayable !== undefined ? bill.restaurantNetPayable : Math.max(0, Math.round((bill.itemTotal - adminCommission) * 100) / 100);
@@ -679,8 +691,8 @@ exports.placeOrder = async (req, res) => {
       restaurantCommission,
       riderCommission,
       riderEarning,
-      appliedCommissionRate: bill.appliedCommissionRate || 20,
-      pricingModel: bill.pricingModel || (restaurant.useCommissionModel ? 'commission' : 'b2b'),
+      appliedCommissionRate: bill.appliedCommissionRate !== undefined ? bill.appliedCommissionRate : commRate,
+      pricingModel: bill.pricingModel || (isComm ? 'commission' : 'b2b'),
       b2bTotal: bill.b2bTotal || (bill.itemTotal - adminCommission),
       appliedPricingSource: bill.sources || {},
       deliveryDistanceKm: bill.deliveryDistance || 0,

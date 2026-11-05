@@ -270,11 +270,9 @@ exports.syncOrdersToSettlements = async (req, res) => {
       }
       if (!restaurantDoc) continue;
 
-      const existing = await SettlementLedger.findOne({ order: order._id });
-      if (!existing) {
-        await SettlementLedger.createFromOrder(order, restaurantDoc);
-        createdCount++;
-      }
+      await SettlementLedger.createFromOrder(order, restaurantDoc);
+      createdCount++;
+
     }
 
     return res.status(200).json({

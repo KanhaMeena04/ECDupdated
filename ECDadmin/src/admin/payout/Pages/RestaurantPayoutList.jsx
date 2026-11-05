@@ -1125,7 +1125,9 @@ export default function RestaurantPayoutList() {
                         <td className="py-3.5 px-4 font-semibold text-rose-600">
                           -₹{row.platformCommissionAmount}
                           <span className="text-[10px] text-gray-400 block font-normal">
-                            ({row.platformCommissionPercent}%)
+                            {row.pricingModel === 'b2b' || row.platformCommissionPercent === 0
+                              ? '(B2B Markup)'
+                              : `(${row.platformCommissionPercent}%)`}
                           </span>
                         </td>
 
@@ -1701,49 +1703,19 @@ export default function RestaurantPayoutList() {
       {activeTab === "commission" && (
         <div className="space-y-6 animate-fadeIn">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            {/* Global Commission Setting Card */}
+            {/* Pricing Model Info Card (No Global Commission - Individual Restaurant Choice) */}
             <div className="md:col-span-4 space-y-4">
-              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                    %
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-800 text-sm">Global Default Commission</h3>
-                    <p className="text-xs text-gray-500">Default rate applied if no restaurant override exists.</p>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-600">Global Commission (%)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={globalCommissionPercent}
-                    onChange={(e) => setGlobalCommissionPercent(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <button
-                  onClick={handleSaveGlobalCommission}
-                  disabled={savingCommConfig}
-                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer disabled:opacity-50"
-                >
-                  {savingCommConfig ? "Saving..." : "Save Global Commission"}
-                </button>
-              </div>
-
-              {/* Precedence Rules Card */}
-              <div className="bg-amber-50 p-5 rounded-2xl border border-amber-200 text-amber-900 space-y-2">
-                <h4 className="font-bold text-xs uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+              <div className="bg-emerald-50/70 p-5 rounded-2xl border border-emerald-200 text-emerald-950 space-y-3 shadow-xs">
+                <h4 className="font-bold text-xs uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
                   <Sliders size={14} /> Settlement & Rate Precedence
                 </h4>
-                <ul className="text-xs space-y-2 list-disc list-inside text-amber-950 font-medium leading-relaxed">
-                  <li><strong>B2B Rate Mode (Default):</strong> Restaurant earns exact negotiated B2B item price. Platform retains Customer Price - B2B Price markup.</li>
-                  <li><strong>Commission % Override:</strong> If enabled for a restaurant, platform deducts custom commission % from customer food total.</li>
-                  <li><strong>Global Fallback:</strong> Applies default ({globalCommissionPercent}%) when commission model is active without custom override.</li>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Har specific restaurant ka pricing model alag-alag choice ke anusaar configure kiya ja sakta hai:
+                </p>
+                <ul className="text-xs space-y-2.5 list-disc list-inside text-emerald-950 font-medium leading-relaxed">
+                  <li><strong>B2B Rate Mode (Default):</strong> Restaurant ko har item ka exact negotiated B2B Price milta hai. Platform (Customer Selling Price - B2B Price) margin rakhta hai.</li>
+                  <li><strong>Commission % Model:</strong> Agar restaurant commission par chalta hai, to customer food total par custom commission % deduct hota hai.</li>
+                  <li><strong>Individual Restaurant Control:</strong> Kisi global rate ki dependency nahi hai, har restaurant ka model "Configure Model" button se customize karein.</li>
                 </ul>
               </div>
             </div>
@@ -1803,19 +1775,14 @@ export default function RestaurantPayoutList() {
                                     ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                                     : "bg-blue-50 text-blue-800 border-blue-300"
                                 }`}>
-                                  {isB2B ? "B2B Rate Mode (Default)" : `Commission (${r.adminCommission || globalCommissionPercent}%)`}
+                                  {isB2B ? "B2B Rate Mode (Default)" : `Commission (${r.adminCommission != null ? r.adminCommission : 20}%)`}
                                 </span>
-                                {!isB2B && (
-                                  <span className="text-[10px] text-gray-400">
-                                    {r.isOverridden ? "Custom Override" : "Global"}
-                                  </span>
-                                )}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
                               <button
                                 onClick={() => {
-                                  setRestaurantCommValue(r.adminCommission || globalCommissionPercent || 20);
+                                  setRestaurantCommValue(r.adminCommission != null ? r.adminCommission : 20);
                                   setRestaurantCommModal({
                                     open: true,
                                     restaurant: r,
@@ -1916,7 +1883,7 @@ export default function RestaurantPayoutList() {
                     placeholder="e.g. 15"
                   />
                   <span className="text-[10px] text-gray-400 block">
-                    Overrides global default ({globalCommissionPercent}%) for this restaurant.
+                    Sets specific commission percentage for this restaurant.
                   </span>
                 </div>
               )}

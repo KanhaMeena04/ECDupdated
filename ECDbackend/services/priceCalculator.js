@@ -66,8 +66,26 @@ async function calculateOrderPrice({
           unitB2b = item.product.b2bPrice ?? item.product.pricing?.b2b?.sellingPrice;
         }
       }
+      // If still not resolved, query Product model from DB
       if (unitB2b === undefined || unitB2b === null || isNaN(unitB2b) || unitB2b <= 0) {
-        const fallbackRate = Number(restaurant.adminCommission || adminSetting?.commissionConfig?.globalCommissionPercent || 20);
+        const prodId = (item.product && typeof item.product === 'object') ? (item.product._id || item.product.id) : (item.product || item.productId || item._id);
+        if (prodId && (typeof prodId === 'object' || mongoose.Types.ObjectId.isValid(prodId))) {
+          const targetId = typeof prodId === 'object' ? prodId._id : prodId;
+          const dbProd = await Product.findById(targetId).lean();
+          if (dbProd) {
+            unitB2b = dbProd.b2bPrice ?? dbProd.pricing?.b2b?.sellingPrice;
+            if (item.variation && dbProd.variations && Array.isArray(dbProd.variations)) {
+              const matchedVar = dbProd.variations.find(v => v.name === item.variation.name || v._id?.toString() === item.variation._id?.toString());
+              if (matchedVar && matchedVar.b2bPrice !== undefined && matchedVar.b2bPrice !== null) {
+                unitB2b = matchedVar.b2bPrice;
+              }
+            }
+          }
+        }
+      }
+      // If product has no explicit b2bPrice set, fallback to restaurant rate
+      if (unitB2b === undefined || unitB2b === null || isNaN(unitB2b) || unitB2b <= 0) {
+        const fallbackRate = Number(restaurant.adminCommission || 20);
         unitB2b = Math.max(0, itemPrice * (1 - fallbackRate / 100));
       }
       b2bTotal += Number(unitB2b) * qty;
