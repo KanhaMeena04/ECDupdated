@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Rider = require('../models/Rider');
 const protect = async (req, res, next) => {
   try {
     let token = req.cookies?.token;
@@ -9,11 +10,33 @@ const protect = async (req, res, next) => {
     if (token && token !== 'null' && token !== 'undefined' && token !== '') {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = await User.findById(decoded._id || decoded.id).select('-password');
-        if (req.user) {
-          if (req.user.isDeleted) {
+        let user = await User.findById(decoded._id || decoded.id).select('-password');
+        if (!user) {
+          const riderDoc = await Rider.findById(decoded._id || decoded.id);
+          if (riderDoc && riderDoc.user) {
+            user = await User.findById(riderDoc.user).select('-password');
+          }
+        }
+        if (user) {
+          if (user.isDeleted) {
             return res.status(404).json({ success: false, message: "User not found" });
           }
+          if (!['rider', 'driver', 'admin'].includes(user.role)) {
+            const hasRiderDoc = await Rider.exists({
+              $or: [
+                { user: user._id },
+                { phone: user.mobile },
+                { mobile: user.mobile },
+                { phone: user.phone },
+                { mobile: user.phone }
+              ]
+            });
+            if (hasRiderDoc) {
+              user.role = 'rider';
+              await User.findByIdAndUpdate(user._id, { role: 'rider' }).catch(() => {});
+            }
+          }
+          req.user = user;
           return next();
         }
       } catch (err) {
@@ -77,12 +100,27 @@ const restaurantOwner = (req, res, next) => {
     res.status(403).json({ message: 'Access Denied: Restaurant Owners only' });
   }
 };
-const rider = (req, res, next) => {
+const rider = async (req, res, next) => {
   if (req.user && (req.user.role === 'rider' || req.user.role === 'driver' || req.user.role === 'admin')) {
-    next();
-  } else {
-    res.status(403).json({ message: 'Access Denied: Riders only' });
+    return next();
   }
+  if (req.user?._id) {
+    const hasRiderDoc = await Rider.exists({
+      $or: [
+        { user: req.user._id },
+        { phone: req.user.mobile },
+        { mobile: req.user.mobile },
+        { phone: req.user.phone },
+        { mobile: req.user.phone }
+      ]
+    });
+    if (hasRiderDoc) {
+      req.user.role = 'rider';
+      await User.findByIdAndUpdate(req.user._id, { role: 'rider' }).catch(() => {});
+      return next();
+    }
+  }
+  res.status(403).json({ message: 'Access Denied: Riders only' });
 };
 const customer = (req, res, next) => {
     if (req.user && (req.user.role === 'customer' || req.user.role === 'user' || req.user.role === 'admin')) {

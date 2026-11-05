@@ -58,18 +58,10 @@ function PendingRiderTable({ searchQuery = "" }) {
       await verifyRider({ riderId, status: "approved" });
       await fetchPendingRiders();
 
-      const isVehicleVerified =
-        driver.vehicleVerified === true ||
-        driver.vehicle?.vehicleApproval?.status === "approved";
-
-      if (isVehicleVerified) {
-        showAlert(`🎉 ${riderName} is fully verified and approved! Moving to All Riders list...`, "success");
-        setTimeout(() => {
-          navigate("/driver-list");
-        }, 1400);
-      } else {
-        showAlert(`👤 Rider Partner verified successfully for ${riderName}! (Awaiting Vehicle Verification)`, "success");
-      }
+      showAlert(`🎉 ${riderName} is fully verified and approved! Moving to All Riders list...`, "success");
+      setTimeout(() => {
+        navigate("/driver-list");
+      }, 1400);
     } catch (err) {
       console.error("Verify rider failed:", err);
       showAlert(err.message || "Failed to verify rider partner.", "error");

@@ -669,8 +669,9 @@ exports.driverSendOtp = async (req, res) => {
     } else {
       user.otp = generatedOtp;
       user.otpExpires = otpExpires;
-      if (user.role === "user") {
+      if (user.role !== "rider" && user.role !== "driver" && user.role !== "admin") {
         user.role = "rider";
+        await user.save();
       }
       await user.save();
     }
@@ -764,7 +765,7 @@ exports.driverVerifyOtp = async (req, res) => {
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
-    if (user.role === "user") {
+    if (user.role !== "rider" && user.role !== "driver" && user.role !== "admin") {
       user.role = "rider";
     }
     const incomingFcm = req.body.fcmToken || req.body.token || req.body.deviceToken || req.body.pushToken;
@@ -873,6 +874,11 @@ exports.driverLoginWithPin = async (req, res) => {
         role: "rider",
         isVerified: true
       });
+    } else {
+      if (user.role !== "rider" && user.role !== "driver" && user.role !== "admin") {
+        user.role = "rider";
+        await user.save();
+      }
     }
 
     let riderDoc = await Rider.findOne({

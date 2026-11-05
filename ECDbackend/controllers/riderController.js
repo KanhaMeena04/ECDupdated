@@ -604,11 +604,20 @@ exports.getRiderProfile = async (req, res) => {
       if (typeof o.riderEarning === "number") return sum + o.riderEarning;
       return sum + (o.riderCommission || 0) + (o.tip || 0);
     }, 0);
-    const isApproved = (riderProfile.verificationStatus === 'approved' || riderProfile.riderVerified === true) &&
-      riderProfile.verificationStatus !== 'pending' &&
+    const isApproved = (riderProfile.verificationStatus === 'approved' || riderProfile.riderVerified === true || user.isVerified === true) &&
       riderProfile.verificationStatus !== 'rejected';
 
-    if (!isApproved && (riderProfile.isOnline || riderProfile.isAvailable || riderProfile.status === 'active')) {
+    if (isApproved) {
+      if (riderProfile.verificationStatus !== 'approved') {
+        riderProfile.verificationStatus = 'approved';
+        await riderProfile.save();
+      }
+      if (user.isVerified !== true || user.role !== 'rider') {
+        user.isVerified = true;
+        user.role = 'rider';
+        await user.save();
+      }
+    } else if (riderProfile.isOnline || riderProfile.isAvailable || riderProfile.status === 'active') {
       riderProfile.isOnline = false;
       riderProfile.isAvailable = false;
       riderProfile.status = 'inactive';
@@ -2828,19 +2837,32 @@ exports.verifyRider = async (req, res) => {
     const newStatus = status || 'approved';
     if (newStatus === 'approved') {
       rider.riderVerified = true;
-      const isVehicleOk = rider.vehicleVerified === true || rider.vehicle?.vehicleVerified === true || rider.vehicle?.vehicleApproval?.status === 'approved';
-      if (isVehicleOk) {
-        rider.verificationStatus = 'approved';
+      rider.verificationStatus = 'approved';
+      rider.vehicleVerified = true;
+      if (rider.vehicle) {
+        rider.vehicle.vehicleVerified = true;
+        if (!rider.vehicle.vehicleApproval) rider.vehicle.vehicleApproval = {};
+        rider.vehicle.vehicleApproval.status = 'approved';
+        rider.vehicle.vehicleApproval.approvedAt = new Date();
+        rider.vehicle.vehicleApproval.approvedBy = req.user ? req.user._id : undefined;
       } else {
-        rider.verificationStatus = 'pending';
+        rider.vehicle = {
+          type: 'bike',
+          vehicleVerified: true,
+          vehicleApproval: { status: 'approved', approvedAt: new Date() }
+        };
       }
       if (rider.bankDetails) {
         rider.bankDetails.verified = true;
         rider.bankDetails.verificationStatus = 'approved';
       }
+      rider.status = 'active';
+      rider.isAvailable = true;
+      rider.rejectionReason = undefined;
     } else if (newStatus === 'rejected') {
       rider.verificationStatus = 'rejected';
       rider.riderVerified = false;
+      rider.vehicleVerified = false;
       if (rider.vehicle) {
         rider.vehicle.vehicleVerified = false;
         if (rider.vehicle.vehicleApproval) {
@@ -2851,6 +2873,9 @@ exports.verifyRider = async (req, res) => {
         rider.bankDetails.verified = false;
         rider.bankDetails.verificationStatus = 'rejected';
       }
+      rider.status = 'inactive';
+      rider.isOnline = false;
+      rider.isAvailable = false;
       rider.rejectionReason = reason || 'Admin rejected application';
       rider.rejectionDate = new Date();
     } else {
@@ -2859,7 +2884,8 @@ exports.verifyRider = async (req, res) => {
     await rider.save();
     if (rider.user) {
       await User.findByIdAndUpdate(rider.user._id || rider.user, {
-        isVerified: rider.verificationStatus === 'approved'
+        isVerified: newStatus === 'approved',
+        role: newStatus === 'approved' ? 'rider' : undefined
       }).catch(e => console.error('User isVerified sync error:', e));
     }
 
