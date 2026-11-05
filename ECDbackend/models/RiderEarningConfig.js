@@ -22,11 +22,11 @@ const RiderEarningConfigSchema = new mongoose.Schema(
     riderDeliveryFeePercent: { type: Number, default: 70 },
     codOtpAlertMessage: {
       type: String,
-      default: "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!"
+      default: "Collect ₹{amount} CASH before entering OTP!"
     },
     onlineOtpAlertMessage: {
       type: String,
-      default: "Order online already paid hai. Customer se Cash collect NA karein!"
+      default: "Order paid online. Do NOT collect cash!"
     },
     incentiveTiers: {
       type: [incentiveTierSchema],

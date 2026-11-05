@@ -1387,8 +1387,8 @@ exports.getOrderDetailsRestaurant = async (req, res) => {
     const callContacts = buildOrderCallContacts(orderObj);
     const unifiedBill = buildUnifiedBill(orderObj);
     const sysSettings = await AdminSetting.getSettings();
-    const codTemplate = sysSettings?.riderPayoutConfig?.codOtpAlertMessage || sysSettings?.riderEarningConfig?.codOtpAlertMessage || "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!";
-    const onlineTemplate = sysSettings?.riderPayoutConfig?.onlineOtpAlertMessage || sysSettings?.riderEarningConfig?.onlineOtpAlertMessage || "Order online already paid hai. Customer se Cash collect NA karein!";
+    const codTemplate = sysSettings?.riderPayoutConfig?.codOtpAlertMessage || sysSettings?.riderEarningConfig?.codOtpAlertMessage || "Collect ₹{amount} CASH before entering OTP!";
+    const onlineTemplate = sysSettings?.riderPayoutConfig?.onlineOtpAlertMessage || sysSettings?.riderEarningConfig?.onlineOtpAlertMessage || "Order paid online. Do NOT collect cash!";
     const formattedAmount = (unifiedBill.totalAmount || orderObj.totalAmount || 0).toString();
     const codOtpAlert = codTemplate.replace(/\{amount\}/g, formattedAmount);
     const onlineOtpAlert = onlineTemplate.replace(/\{amount\}/g, formattedAmount);

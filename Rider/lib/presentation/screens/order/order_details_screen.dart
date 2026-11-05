@@ -724,10 +724,10 @@ class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
                             final amtStr = totalAmt.toString();
                             final codText = (customCod != null && customCod.isNotEmpty)
                                 ? customCod.replaceAll('{amount}', amtStr)
-                                : 'Customer se ₹$amtStr cash collect karne ke baad hi OTP daalein!';
+                                : 'Collect ₹$amtStr CASH before entering OTP!';
                             final onlineText = (customOnline != null && customOnline.isNotEmpty)
                                 ? customOnline.replaceAll('{amount}', amtStr)
-                                : 'Customer online pay kar chuka hai. Cash collect NA karein!';
+                                : 'Order paid online. Do NOT collect cash!';
                             return Text(
                               isCodOrder ? codText : onlineText,
                               style: TextStyle(
@@ -739,8 +739,8 @@ class _InlineDeliveryOtpFormState extends State<InlineDeliveryOtpForm> {
                           } catch (_) {
                             return Text(
                               isCodOrder
-                                  ? 'Customer se ₹$totalAmt cash collect karne ke baad hi OTP daalein!'
-                                  : 'Customer online pay kar chuka hai. Cash collect NA karein!',
+                                  ? 'Collect ₹$totalAmt CASH before entering OTP!'
+                                  : 'Order paid online. Do NOT collect cash!',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,

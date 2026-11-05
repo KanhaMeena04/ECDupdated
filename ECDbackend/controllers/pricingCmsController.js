@@ -47,8 +47,8 @@ exports.getPricingConfig = async (req, res) => {
         baseDistanceKm: Number(settings.riderPayoutConfig?.baseDistanceKm ?? settings.riderEarningConfig?.baseDistanceKm ?? 2),
         extraPerKmFee: Number(settings.riderPayoutConfig?.extraPerKmFee ?? settings.riderEarningConfig?.perKmEarning ?? settings.deliveryFeeConfig?.riderBonusPerKm ?? 5),
         riderDeliveryFeePercent: Number(settings.riderPayoutConfig?.riderDeliveryFeePercent ?? settings.riderEarningConfig?.riderDeliveryFeePercent ?? 70),
-        codOtpAlertMessage: settings.riderPayoutConfig?.codOtpAlertMessage || settings.riderEarningConfig?.codOtpAlertMessage || "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!",
-        onlineOtpAlertMessage: settings.riderPayoutConfig?.onlineOtpAlertMessage || settings.riderEarningConfig?.onlineOtpAlertMessage || "Order online already paid hai. Customer se Cash collect NA karein!",
+        codOtpAlertMessage: settings.riderPayoutConfig?.codOtpAlertMessage || settings.riderEarningConfig?.codOtpAlertMessage || "Collect ₹{amount} CASH before entering OTP!",
+        onlineOtpAlertMessage: settings.riderPayoutConfig?.onlineOtpAlertMessage || settings.riderEarningConfig?.onlineOtpAlertMessage || "Order paid online. Do NOT collect cash!",
       },
       restaurants: restaurants.map(r => ({
         _id: r._id,

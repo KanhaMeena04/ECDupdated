@@ -34,8 +34,8 @@ export default function RiderEarningsControlPage() {
     isRainBonusActive: false,
     nightBonus: 15,
     isNightBonusActive: false,
-    codOtpAlertMessage: 'Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!',
-    onlineOtpAlertMessage: 'Order online already paid hai. Customer se Cash collect NA karein!'
+    codOtpAlertMessage: 'Collect ₹{amount} CASH before entering OTP!',
+    onlineOtpAlertMessage: 'Order paid online. Do NOT collect cash!'
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,8 +50,8 @@ export default function RiderEarningsControlPage() {
         setConfig((prev) => ({
           ...prev,
           ...res.data.config,
-          codOtpAlertMessage: res.data.config.codOtpAlertMessage || 'Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!',
-          onlineOtpAlertMessage: res.data.config.onlineOtpAlertMessage || 'Order online already paid hai. Customer se Cash collect NA karein!'
+          codOtpAlertMessage: res.data.config.codOtpAlertMessage || 'Collect ₹{amount} CASH before entering OTP!',
+          onlineOtpAlertMessage: res.data.config.onlineOtpAlertMessage || 'Order paid online. Do NOT collect cash!'
         }));
       }
     } catch (err) {
@@ -283,7 +283,7 @@ export default function RiderEarningsControlPage() {
                 label="COD Alert Message"
                 value={config.codOtpAlertMessage || ''}
                 onChange={(e) => setConfig({ ...config, codOtpAlertMessage: e.target.value })}
-                helperText="Example: Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!"
+                helperText="Example: Collect ₹{amount} CASH before entering OTP!"
               />
             </Paper>
           </Grid>
@@ -300,7 +300,7 @@ export default function RiderEarningsControlPage() {
                 label="Online Paid Alert Message"
                 value={config.onlineOtpAlertMessage || ''}
                 onChange={(e) => setConfig({ ...config, onlineOtpAlertMessage: e.target.value })}
-                helperText="Example: Order online already paid hai. Customer se Cash collect NA karein!"
+                helperText="Example: Order paid online. Do NOT collect cash!"
               />
             </Paper>
           </Grid>

@@ -4687,8 +4687,8 @@ exports.getMyActiveOrder = async (req, res) => {
     const AdminSetting = require('../models/AdminSetting');
     const sysSettings = await AdminSetting.getSettings();
     const dynamicRiderShare = Number(sysSettings?.riderPayoutConfig?.riderDeliveryFeePercent ?? sysSettings?.riderEarningConfig?.riderDeliveryFeePercent ?? 70) / 100;
-    const codTemplate = sysSettings?.riderPayoutConfig?.codOtpAlertMessage || sysSettings?.riderEarningConfig?.codOtpAlertMessage || "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!";
-    const onlineTemplate = sysSettings?.riderPayoutConfig?.onlineOtpAlertMessage || sysSettings?.riderEarningConfig?.onlineOtpAlertMessage || "Order online already paid hai. Customer se Cash collect NA karein!";
+    const codTemplate = sysSettings?.riderPayoutConfig?.codOtpAlertMessage || sysSettings?.riderEarningConfig?.codOtpAlertMessage || "Collect ₹{amount} CASH before entering OTP!";
+    const onlineTemplate = sysSettings?.riderPayoutConfig?.onlineOtpAlertMessage || sysSettings?.riderEarningConfig?.onlineOtpAlertMessage || "Order paid online. Do NOT collect cash!";
 
     const { calculateDistance } = require('../utils/locationUtils');
     const riderCoords = riderProfile.currentLocation?.coordinates || [77.0658, 28.2888];

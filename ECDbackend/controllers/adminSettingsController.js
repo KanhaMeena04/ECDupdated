@@ -131,8 +131,8 @@ exports.getRiderEarningConfig = async (req, res) => {
         isRainBonusActive: Boolean(ec.isRainBonusActive),
         nightBonus: Number(ec.nightBonus ?? 15),
         isNightBonusActive: Boolean(ec.isNightBonusActive),
-        codOtpAlertMessage: ec.codOtpAlertMessage || pc.codOtpAlertMessage || "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!",
-        onlineOtpAlertMessage: ec.onlineOtpAlertMessage || pc.onlineOtpAlertMessage || "Order online already paid hai. Customer se Cash collect NA karein!",
+        codOtpAlertMessage: (ec.codOtpAlertMessage === "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!" || pc.codOtpAlertMessage === "Pehle customer se ₹{amount} CASH collect karein, uske baad hi delivery OTP enter karein!") ? "Collect ₹{amount} CASH before entering OTP!" : (ec.codOtpAlertMessage || pc.codOtpAlertMessage || "Collect ₹{amount} CASH before entering OTP!"),
+        onlineOtpAlertMessage: (ec.onlineOtpAlertMessage === "Order online already paid hai. Customer se Cash collect NA karein!" || pc.onlineOtpAlertMessage === "Order online already paid hai. Customer se Cash collect NA karein!") ? "Order paid online. Do NOT collect cash!" : (ec.onlineOtpAlertMessage || pc.onlineOtpAlertMessage || "Order paid online. Do NOT collect cash!"),
       }
     });
   } catch (error) {
