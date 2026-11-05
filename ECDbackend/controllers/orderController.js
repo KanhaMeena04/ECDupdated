@@ -3371,6 +3371,59 @@ exports.getAllOrdersAdmin = async (req, res) => {
       return enrichOrderWithUnifiedPricing(orderObj);
     });
 
+    const rawSt = String(status || '').trim().toLowerCase();
+    if (rawSt === "abandon" || rawSt === "abandoned" || rawSt === "abandon_orders") {
+      try {
+        const Cart = require("../models/Cart");
+        const abandonedCarts = await Cart.find({ "items.0": { $exists: true } })
+          .populate("user", "name firstName lastName email mobile phone address customerId")
+          .populate("restaurant", "name address contactNumber phone email restaurantId logo")
+          .sort({ updatedAt: -1 })
+          .limit(50)
+          .lean();
+
+        const formattedCarts = abandonedCarts.map(cart => {
+          const user = cart.user || {};
+          const rest = cart.restaurant || {};
+          const cartTotal = (cart.items || []).reduce((sum, it) => sum + (Number(it.price || 0) * Number(it.quantity || 1)), 0);
+          const cName = user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || "Customer";
+          const cMobile = user.mobile || user.phone || "—";
+          const cId = user.customerId || `C${user._id ? user._id.toString().slice(-4).toUpperCase() : "001"}`;
+          const rName = (typeof rest.name === "object" ? (rest.name.en || rest.name.name) : rest.name) || "ECD Restaurant";
+          const rId = rest.restaurantId || `RNT${rest._id ? rest._id.toString().slice(-4).toUpperCase() : "001"}`;
+
+          return {
+            _id: cart._id,
+            id: cart._id,
+            orderId: `CART-${cart._id.toString().slice(-6).toUpperCase()}`,
+            orderNumber: `CART-${cart._id.toString().slice(-6).toUpperCase()}`,
+            customer: { ...user, name: cName, customerId: cId, mobile: cMobile },
+            customerName: cName,
+            customerId: cId,
+            customerMobile: cMobile,
+            restaurant: rest,
+            restaurantName: rName,
+            restaurantId: rId,
+            orderType: "Delivery",
+            status: "abandoned",
+            statusLabel: "In Cart (Unplaced)",
+            paymentMode: "Unpaid",
+            paymentMethod: "abandoned",
+            total: cartTotal,
+            totalAmount: cartTotal,
+            createdAt: cart.updatedAt || cart.createdAt,
+            updatedAt: cart.updatedAt || cart.createdAt,
+            address: user.address?.addressLine || "Item in cart (checkout not completed)",
+            itemsCount: (cart.items || []).length,
+          };
+        });
+
+        formattedAdminOrders.push(...formattedCarts);
+      } catch (e) {
+        console.error("Failed to load abandoned carts:", e);
+      }
+    }
+
     res.status(200).json({
       orders: formattedAdminOrders,
       total,

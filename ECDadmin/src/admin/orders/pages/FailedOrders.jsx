@@ -1,53 +1,66 @@
-import { MoreVertical } from "lucide-react";
-import { Visibility, ArrowForward } from "@mui/icons-material";
+import React, { useState, useMemo } from "react";
+import { Visibility } from "@mui/icons-material";
 import OrderTable from "../components/OrderTable";
-import SearchIcon from "@mui/icons-material/Search";
-import PageHeader from "../../components/PageHeader";
+import OrderFilterHeader from "../components/OrderFilterHeader";
 import { useNavigate } from "react-router-dom";
 import { useAdminOrders } from "../../api/order.js";
-import { mapFailedOrders } from "../../../utils/orderData";
+import { mapFailedOrders } from "../../../utils/orderData.js";
 
 export default function FailedOrders() {
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [timeRange, setTimeRange] = useState("all");
 
-  const { orders, loading, error } = useAdminOrders({
+  const { orders, loading, error, refetch } = useAdminOrders({
     status: "failed",
+    date: selectedDate,
+    timeRange,
+    search: searchQuery,
   });
 
-  const failedOrders = mapFailedOrders(orders);
+  const failedOrdersData = useMemo(() => mapFailedOrders(orders), [orders]);
+
+  const filteredOrders = useMemo(() => {
+    let list = failedOrdersData;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (o) =>
+          (o.orderId || "").toLowerCase().includes(q) ||
+          (o.customerName || "").toLowerCase().includes(q) ||
+          (o.customerMobile || "").toLowerCase().includes(q) ||
+          (o.restaurant || "").toLowerCase().includes(q) ||
+          (o.address || "").toLowerCase().includes(q)
+      );
+    }
+    if (selectedDate) {
+      list = list.filter((o) => {
+        if (!o.createdAt && !o.date) return true;
+        const dStr = o.createdAt ? new Date(o.createdAt).toISOString().split("T")[0] : "";
+        return dStr ? dStr === selectedDate : true;
+      });
+    }
+    return list;
+  }, [failedOrdersData, searchQuery, selectedDate]);
 
   const failedOrdersColumns = [
     {
       key: "orderId",
       label: "Order ID",
       render: (row) => (
-        <span className="flex items-center gap-2 font-medium text-gray-700">
+        <span className="flex items-center gap-2 font-bold text-gray-800">
           {row.icon}
           {row.orderId}
         </span>
       ),
     },
     {
-      key: "view",
-      label: "View Order",
-      render: (row) => (
-        <Visibility
-          className="text-gray-500 cursor-pointer"
-          onClick={() => navigate(`/view-order/${row.id}`)}
-        />
-      ),
-    },
-    {
-      key: "action",
-      label: "Action",
-      render: () => <ArrowForward className="text-gray-500 cursor-pointer" />,
-    },
-    {
       key: "customerName",
       label: "Customer Name",
       render: (row) => (
         <div>
-          <p className="font-semibold text-gray-800 text-xs">{row.customerName}</p>
+          <p className="font-bold text-gray-800 text-xs">{row.customerName}</p>
           <p className="text-[11px] text-gray-500 font-mono">
             {row.customerId ? <span className="text-emerald-700 font-semibold mr-1">#{row.customerId}</span> : null}
             {row.customerMobile && row.customerMobile !== "—" ? row.customerMobile : "—"}
@@ -59,13 +72,7 @@ export default function FailedOrders() {
       key: "orderType",
       label: "Order Type",
       render: (row) => (
-        <span
-          className={`px-2.5 py-1 text-xs rounded-full font-semibold ${
-            row.orderType === "Delivery"
-              ? "bg-green-100 text-green-700 border border-green-200"
-              : "bg-purple-100 text-purple-700 border border-purple-200"
-          }`}
-        >
+        <span className="px-2.5 py-1 text-xs rounded-full font-bold bg-gray-100 text-gray-700">
           {row.orderType}
         </span>
       ),
@@ -75,7 +82,7 @@ export default function FailedOrders() {
       label: "Restaurant",
       render: (row) => (
         <div>
-          <span className="font-semibold text-gray-800 text-xs block truncate max-w-[160px]" title={row.restaurant}>
+          <span className="font-bold text-gray-800 text-xs block truncate max-w-[160px]" title={row.restaurant}>
             {row.restaurant}
           </span>
           {row.restaurantId ? (
@@ -84,75 +91,51 @@ export default function FailedOrders() {
         </div>
       ),
     },
-    { key: "date", label: "Date" },
-    {
-      key: "address",
-      label: "Address",
-      render: (row) => (
-        <div className="max-w-[320px] truncate" title={row.address}>
-          {row.address}
-        </div>
-      ),
-    },
+    { key: "date", label: "Failed Time" },
     {
       key: "paymentMode",
-      label: "Payment Mode",
+      label: "Payment",
       render: (row) => (
-        <span
-          className={`px-2 py-1 rounded text-xs font-medium ${
-            row.paymentMode === "COD"
-              ? "bg-green-100 text-green-700"
-              : "bg-orange-100 text-orange-600"
-          }`}
-        >
-          {row.paymentMode === "COD" ? "COD" : "Online Payment"}
+        <span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
+          Failed ({row.paymentMode})
         </span>
       ),
     },
     {
       key: "total",
-      label: "Total",
-      render: (row) => `₹ ${Number(row.total).toFixed(2)}`,
-    },
-    {
-      key: "more",
-      label: "",
-      render: () => (
-        <button className="p-2 hover:bg-gray-100 rounded">
-          <MoreVertical size={16} />
-        </button>
-      ),
+      label: "Total Amount",
+      render: (row) => <span className="font-extrabold text-gray-900">₹{Number(row.total).toFixed(2)}</span>,
     },
   ];
 
   return (
-    <div className="w-full px-6 py-4">
-      <PageHeader
+    <div className="w-full p-4 sm:p-6 lg:p-8 bg-gradient-to-t from-gray-100 to-gray-50 min-h-screen space-y-4">
+      <OrderFilterHeader
         title="Failed Orders"
-        breadcrumbs={[
-          { label: "Order Management" },
-          { label: "Failed Orders", active: true },
-        ]}
+        orders={filteredOrders}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        selectedDate={selectedDate}
+        onDateChange={setSelectedDate}
+        timeRange={timeRange}
+        onTimeRangeChange={setTimeRange}
+        loading={loading}
+        onRefresh={refetch}
       />
 
-      <div className="flex items-center justify-between mb-4">
-        <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search"
-            className="pl-10 pr-4 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-          />
-        </div>
-      </div>
-
-      <div className="p-6">
-        <OrderTable
-          columns={failedOrdersColumns}
-          data={failedOrders}
-          loading={loading}
-        />
-      </div>
+      <OrderTable
+        columns={failedOrdersColumns}
+        data={filteredOrders}
+        loading={loading}
+        onView={(row) => navigate(`/view-order/${row.id}`)}
+        emptyMessage="No failed orders found"
+        onResetFilters={() => {
+          setSearchQuery("");
+          setSelectedDate("");
+          setTimeRange("all");
+        }}
+      />
+      {error && <p className="text-red-500 text-xs mt-2 font-medium">{error}</p>}
     </div>
   );
 }

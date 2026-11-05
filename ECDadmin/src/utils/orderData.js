@@ -143,6 +143,7 @@ const mapOrdersToTableData = (orders = []) => {
       paymentMode: (order.paymentMethod || "COD").toUpperCase(),
       paymentStatus: order.paymentStatus || "pending",
       total: Number(order.totalAmount || order.itemTotal || 0).toFixed(2),
+      createdAt: order.createdAt,
     };
   });
 };
@@ -168,6 +169,7 @@ const mapProcessingOrders = (orders = []) => {
       address: order.deliveryAddress ? getAddress(order.deliveryAddress) : (order.restaurant?.address ? getAddress(order.restaurant.address) : "—"),
       paymentMode: (order.paymentMethod || "COD").toUpperCase(),
       total: Number(order.totalAmount || order.itemTotal || 0).toFixed(2),
+      createdAt: order.createdAt,
       status: order.status || "preparing",
     };
   });
@@ -190,6 +192,7 @@ const mapPickUpOrders = (orders = []) => {
     address: order.restaurant?.address ? getAddress(order.restaurant.address) : "At Restaurant Counter",
     paymentMode: (order.paymentMethod || "COD").toUpperCase(),
     total: Number(order.totalAmount || order.itemTotal || 0).toFixed(2),
+      createdAt: order.createdAt,
     status: order.status || "ready",
   }));
 };
@@ -213,6 +216,7 @@ const mapCancelledOrders = (orders = []) => {
       address: order.deliveryAddress ? getAddress(order.deliveryAddress) : (order.restaurant?.address ? getAddress(order.restaurant.address) : "—"),
       paymentMode: (order.paymentMethod || "COD").toUpperCase(),
       total: Number(order.totalAmount || order.itemTotal || 0).toFixed(2),
+      createdAt: order.createdAt,
       cancellationReason: order.cancellationReason || "Customer cancelled",
     };
   });
@@ -239,6 +243,7 @@ const mapDeliveredOrders = (orders = []) => {
       address: order.deliveryAddress ? getAddress(order.deliveryAddress) : (order.restaurant?.address ? getAddress(order.restaurant.address) : "—"),
       paymentMode: (order.paymentMethod || "COD").toUpperCase(),
       total: Number(order.totalAmount || 0).toFixed(2),
+      createdAt: order.createdAt,
     };
   });
 };
@@ -262,6 +267,7 @@ const mapFailedOrders = (orders = []) => {
       address: order.deliveryAddress ? getAddress(order.deliveryAddress) : "—",
       paymentMode: (order.paymentMethod || "COD").toUpperCase(),
       total: Number(order.totalAmount || 0).toFixed(2),
+      createdAt: order.createdAt,
     };
   });
 };
@@ -284,6 +290,7 @@ const mapRefundOrders = (orders = []) => {
       address: order.deliveryAddress ? getAddress(order.deliveryAddress) : "—",
       paymentMode: (order.paymentMethod || "COD").toUpperCase(),
       total: Number(order.totalAmount || 0).toFixed(2),
+      createdAt: order.createdAt,
     };
   });
 };

@@ -1,86 +1,85 @@
-import { MoreVertical } from "lucide-react";
-import { Visibility, ArrowForward } from "@mui/icons-material";
-import { DirectionsBike, DirectionsWalk } from "@mui/icons-material";
+import React, { useState, useMemo } from "react";
+import { Visibility, ShoppingCart, ShoppingBag, DirectionsBike } from "@mui/icons-material";
 import OrderTable from "../components/OrderTable";
-import SearchIcon from "@mui/icons-material/Search";
-import PageHeader from "../../components/PageHeader";
+import OrderFilterHeader from "../components/OrderFilterHeader";
 import { useNavigate } from "react-router-dom";
-import { useState, useMemo } from "react";
 import { useAdminOrders } from "../../api/order.js";
-import { getName } from '../../../utils/orderData';
 
 export default function AbandonOrders() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [timeRange, setTimeRange] = useState("all");
 
-  const { orders } = useAdminOrders({ status: "abandon" });
+  const { orders, loading, error, refetch } = useAdminOrders({
+    status: "abandon",
+    date: selectedDate,
+    timeRange,
+    search: searchQuery,
+  });
 
-    const handleView = (row) => {
-    navigate(`/admin/orders/${row._id}`);
-  };
+  const abandonOrdersData = useMemo(() => {
+    return (orders || []).map((o) => ({
+      ...o,
+      id: o._id || o.id,
+      orderId: o.orderNumber || o.orderId || `CART-${(o._id || '').slice(-6).toUpperCase()}`,
+      customerName: o.customerName || o.customer?.name || "Customer",
+      customerId: o.customerId || o.customer?.customerId || "—",
+      customerMobile: o.customerMobile || o.customer?.mobile || "—",
+      restaurant: o.restaurantName || o.restaurant?.name || "ECD Partner Restaurant",
+      restaurantId: o.restaurantId || (o.restaurant?._id ? `RNT${o.restaurant._id.slice(-4).toUpperCase()}` : "—"),
+      date: new Date(o.createdAt || o.updatedAt || Date.now()).toLocaleString("en-IN"),
+      orderType: o.orderType || "Delivery",
+      status: o.statusLabel || o.status || "Abandoned",
+      total: Number(o.totalAmount || o.total || 0).toFixed(2),
+      itemsCount: o.itemsCount || (Array.isArray(o.items) ? o.items.length : 0),
+    }));
+  }, [orders]);
 
-  const mappedOrders = useMemo(
-    () =>
-      orders.map((order) => ({
-        ...order,
-        icon: order.orderType === "Takeaway" ? <DirectionsWalk /> : <DirectionsBike />,
-        customerName: getName(order.customer?.name) || "",
-      })),
-    [orders]
-  );
+  const filteredOrders = useMemo(() => {
+    let list = abandonOrdersData;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (o) =>
+          (o.orderId || "").toLowerCase().includes(q) ||
+          (o.customerName || "").toLowerCase().includes(q) ||
+          (o.customerMobile || "").toLowerCase().includes(q) ||
+          (o.restaurant || "").toLowerCase().includes(q)
+      );
+    }
+    if (selectedDate) {
+      list = list.filter((o) => {
+        if (!o.createdAt && !o.date) return true;
+        const dStr = o.createdAt ? new Date(o.createdAt).toISOString().split("T")[0] : "";
+        return dStr ? dStr === selectedDate : true;
+      });
+    }
+    return list;
+  }, [abandonOrdersData, searchQuery, selectedDate]);
 
   const abandonOrdersColumns = [
     {
       key: "orderId",
-      label: "Order ID",
+      label: "Cart / Order ID",
       render: (row) => (
-        <span className="flex items-center gap-2 font-medium text-gray-700">
-          {row.icon}
+        <span className="flex items-center gap-2 font-bold text-gray-800">
+          <ShoppingCart className="text-amber-600" sx={{ fontSize: 18 }} />
           {row.orderId}
         </span>
       ),
     },
     {
-      key: "view",
-      label: "View Order",
-      render: (row) => (
-        <Visibility
-          className="text-gray-500 cursor-pointer"
-          onClick={() => navigate(`/view-order/${row.id}`)}
-        />
-      ),
-    },
-    // {
-    //   key: "action",
-    //   label: "Action",
-    //   render: () => <ArrowForward className="text-gray-500 cursor-pointer" />,
-    // },
-    {
       key: "customerName",
-      label: "Customer Name",
+      label: "Customer Details",
       render: (row) => (
         <div>
-          <p className="font-semibold text-gray-800 text-xs">{row.customerName || "Customer"}</p>
+          <p className="font-bold text-gray-800 text-xs">{row.customerName}</p>
           <p className="text-[11px] text-gray-500 font-mono">
-            {row.customerId ? <span className="text-emerald-700 font-semibold mr-1">#{row.customerId}</span> : null}
-            {row.customerMobile && row.customerMobile !== "—" ? row.customerMobile : (row.customer?.mobile || "—")}
+            {row.customerId && row.customerId !== "—" ? <span className="text-emerald-700 font-semibold mr-1">#{row.customerId}</span> : null}
+            {row.customerMobile && row.customerMobile !== "—" ? row.customerMobile : "—"}
           </p>
         </div>
-      ),
-    },
-    {
-      key: "orderType",
-      label: "Order Type",
-      render: (row) => (
-        <span
-          className={`px-2.5 py-1 text-xs rounded-full font-semibold ${
-            row.orderType === "Delivery"
-              ? "bg-green-100 text-green-700 border border-green-200"
-              : "bg-purple-100 text-purple-700 border border-purple-200"
-          }`}
-        >
-          {row.orderType}
-        </span>
       ),
     },
     {
@@ -88,94 +87,69 @@ export default function AbandonOrders() {
       label: "Restaurant",
       render: (row) => (
         <div>
-          <span className="font-semibold text-gray-800 text-xs block truncate max-w-[160px]" title={row.restaurant}>
-            {row.restaurant || row.restaurantName || "ECD Partner Restaurant"}
+          <span className="font-bold text-gray-800 text-xs block truncate max-w-[160px]" title={row.restaurant}>
+            {row.restaurant}
           </span>
-          {row.restaurantId ? (
+          {row.restaurantId && row.restaurantId !== "—" ? (
             <span className="text-[10px] font-semibold text-blue-700 font-mono">#{row.restaurantId}</span>
           ) : null}
         </div>
       ),
     },
-    { key: "date", label: "Date" },
     {
-      key: "address",
-      label: "Address",
+      key: "itemsCount",
+      label: "Cart Items",
       render: (row) => (
-        <div className="max-w-[320px] truncate" title={row.address}>
-          {row.address}
-        </div>
+        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-700">
+          {row.itemsCount || 1} Item(s)
+        </span>
       ),
     },
+    { key: "date", label: "Last Active Time" },
     {
-      key: "paymentMode",
-      label: "Payment Mode",
+      key: "status",
+      label: "Drop-off State",
       render: (row) => (
-        <span
-          className={`px-2 py-1 rounded text-xs font-medium ${
-            row.paymentMode === "COD"
-              ? "bg-green-100 text-green-700"
-              : "bg-orange-100 text-orange-600"
-          }`}
-        >
-          {row.paymentMode === "COD" ? "COD" : "Online Payment"}
+        <span className="px-2.5 py-1 text-xs rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-200">
+          {row.status || "Abandoned Cart"}
         </span>
       ),
     },
     {
       key: "total",
-      label: "Total",
-      render: (row) => `RM ${row.total.toFixed(2)}`,
-    },
-    {
-      key: "action",
-      label: "Action",
-      render: () => (
-        <button className="p-2 hover:bg-gray-100 rounded">
-          <MoreVertical size={16} />
-        </button>
-      ),
+      label: "Potential Value",
+      render: (row) => <span className="font-extrabold text-gray-900">₹{Number(row.total).toFixed(2)}</span>,
     },
   ];
 
-  // Filter mapped orders by search query
-  const filteredOrders = searchQuery
-    ? mappedOrders.filter((order) =>
-        order.orderId.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : mappedOrders;
-
   return (
-    <div className="w-full px-6 py-4">
-      <PageHeader
-        title="Abandon Orders"
-        breadcrumbs={[
-          { label: "Order Management" },
-          { label: "Abandon Orders", active: true },
-        ]}
+    <div className="w-full p-4 sm:p-6 lg:p-8 bg-gradient-to-t from-gray-100 to-gray-50 min-h-screen space-y-4">
+      <OrderFilterHeader
+        title="Abandoned Orders & Carts"
+        orders={filteredOrders}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        selectedDate={selectedDate}
+        onDateChange={setSelectedDate}
+        timeRange={timeRange}
+        onTimeRangeChange={setTimeRange}
+        loading={loading}
+        onRefresh={refetch}
       />
 
-      <div className="flex items-center justify-between mb-4">
-        <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
-          />
-        </div>
-      </div>
-
-      <div className="p-6">
-        <OrderTable columns={abandonOrdersColumns} data={filteredOrders} 
-         onView={handleView}
-        />
-
-
-      
-      </div>
+      <OrderTable
+        columns={abandonOrdersColumns}
+        data={filteredOrders}
+        loading={loading}
+        onView={(row) => row.id && !row.id.startsWith("CART-") ? navigate(`/view-order/${row.id}`) : null}
+        emptyMessage="No abandoned carts or incomplete checkouts found"
+        onResetFilters={() => {
+          setSearchQuery("");
+          setSelectedDate("");
+          setTimeRange("all");
+        }}
+      />
+      {error && <p className="text-red-500 text-xs mt-2 font-medium">{error}</p>}
     </div>
   );
 }
