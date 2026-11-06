@@ -3,7 +3,7 @@ description: A new Flutter project for Restaurant App.
 
 publish_to: 'none'
 
-version: 1.0.37+38
+version: 1.0.38+39
 environment:
   sdk: '>=3.0.0 <4.0.0'
 
@@ -63,4 +63,5 @@ flutter:
     - assets/images/restaurant_menu_header_bg.jpg
     - assets/images/restaurant_order_header.jpg
     - assets/images/welcome_back.png
+
 
