@@ -46,16 +46,23 @@ const isTimeWithinRange = (currentMinutes, openStr, closeStr) => {
   }
 
   // 24-hour operation (e.g. 12:00 AM to 12:00 AM, 00:00 to 00:00, or 00:00 to 23:59)
-  if (openMinutes === closeMinutes) {
+  if (openMinutes === closeMinutes && openMinutes === 0 && (String(closeStr).includes("23:59") || openStr === closeStr)) {
     return true;
   }
 
+  // When closing at midnight (12:00 AM / 00:00) with daytime/evening opening (e.g. 09:00 AM - 12:00 AM):
+  // closeMinutes is 0, which marks midnight at the end of the day.
+  if (closeMinutes === 0 && openMinutes > 0) {
+    return currentMinutes >= openMinutes;
+  }
+
   if (openMinutes < closeMinutes) {
-    // Standard same-day operating hours e.g. 09:00 (540) to 23:00 (1380)
-    return currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
+    // Standard same-day operating hours e.g. 10:00 AM (600) to 10:00 PM (1320)
+    // Orders are accepted starting from open time up to 1 minute before closing time.
+    return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
   } else {
-    // Overnight operating hours e.g. 21:00 (1260) to 06:00 (360)
-    return currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
+    // Overnight operating hours e.g. 09:00 PM (1260) to 06:00 AM (360)
+    return currentMinutes >= openMinutes || currentMinutes < closeMinutes;
   }
 };
 
@@ -97,7 +104,7 @@ const getCurrentTimeInfoInZone = (referenceDate = new Date(), timeZone = process
  */
 const isRestaurantOpenNow = (restaurant, referenceDate = new Date()) => {
   if (!restaurant) return false;
-  
+
   // 1. Inactive or admin disabled
   if (restaurant.isActive === false) return false;
 
@@ -161,7 +168,7 @@ const checkRestaurantAvailability = async (restaurantIdOrObject) => {
   if (!restaurant) {
     return { available: false, reason: 'Restaurant not found' };
   }
-  
+
   if (typeof restaurant === 'string' || (restaurant instanceof mongoose.Types.ObjectId)) {
     const Restaurant = require('../models/Restaurant');
     restaurant = await Restaurant.findById(restaurantIdOrObject);

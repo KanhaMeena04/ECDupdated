@@ -601,7 +601,7 @@ exports.placeOrder = async (req, res) => {
         const basePay = Number(sysSettings?.riderPayoutConfig?.basePay ?? sysSettings?.riderEarningConfig?.baseEarning ?? 25);
         const baseDist = Number(sysSettings?.riderPayoutConfig?.baseDistanceKm ?? sysSettings?.riderEarningConfig?.baseDistanceKm ?? 2);
         const perKm = Number(sysSettings?.riderPayoutConfig?.extraPerKmFee ?? sysSettings?.riderEarningConfig?.perKmEarning ?? 5);
-        const distKm = Number(deliveryDistance || 1);
+        const distKm = Number(bill?.deliveryDistance ?? deliveryAddress?.distanceKm ?? 1);
         const extraKm = Math.max(0, distKm - baseDist);
         const distancePay = Math.round(extraKm * perKm * 100) / 100;
         const peakBonus = sysSettings?.riderEarningConfig?.isPeakBonusActive ? Number(sysSettings?.riderEarningConfig?.peakBonus || 10) : 0;
