@@ -45,11 +45,16 @@ const isTimeWithinRange = (currentMinutes, openStr, closeStr) => {
     return true; // If timing is invalid or missing, default to open
   }
 
-  if (openMinutes <= closeMinutes) {
+  // 24-hour operation (e.g. 12:00 AM to 12:00 AM, 00:00 to 00:00, or 00:00 to 23:59)
+  if (openMinutes === closeMinutes) {
+    return true;
+  }
+
+  if (openMinutes < closeMinutes) {
     // Standard same-day operating hours e.g. 09:00 (540) to 23:00 (1380)
     return currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
   } else {
-    // Overnight operating hours e.g. 22:00 (1320) to 04:00 (240)
+    // Overnight operating hours e.g. 21:00 (1260) to 06:00 (360)
     return currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
   }
 };
@@ -128,16 +133,21 @@ const isRestaurantOpenNow = (restaurant, referenceDate = new Date()) => {
 const formatTimeToAmPm = (timeStr) => {
   if (!timeStr || typeof timeStr !== 'string') return '';
   const trimmed = timeStr.trim();
+  if (!trimmed) return '';
   if (trimmed.toUpperCase() === 'CLOSED') return 'Closed';
   const match = trimmed.match(/^(\d{1,2}):(\d{2})(?:\s*([AP]M))?$/i);
   if (!match) return trimmed;
   let h = parseInt(match[1], 10);
   const m = match[2];
   let mod = match[3] ? match[3].toUpperCase() : null;
+  if (isNaN(h)) return trimmed;
   if (!mod) {
+    if (h < 0 || h > 23) return trimmed;
     mod = h >= 12 ? 'PM' : 'AM';
     h = h % 12;
     if (h === 0) h = 12;
+  } else {
+    if (h < 1 || h > 12) return trimmed;
   }
   const hStr = h < 10 ? `0${h}` : `${h}`;
   return `${hStr}:${m} ${mod}`;

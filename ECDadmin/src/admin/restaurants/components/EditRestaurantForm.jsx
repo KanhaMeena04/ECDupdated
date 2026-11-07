@@ -27,6 +27,7 @@ import { useEditRestaurantProfile} from "../../api/restaurant";
 import { useCuisine } from "../../api/cuisine";
 import { useCities } from "../../api/city";
 import GoogleServiceAreaMap, { parseGooglePlaceDetails } from "../../components/GoogleServiceAreaMap";
+import { formatTo24h, formatToAmPm } from "../../../utils/timeUtils";
 
 const EditRestaurantForm = () => {
   const navigate = useNavigate();
@@ -50,9 +51,9 @@ const EditRestaurantForm = () => {
 
   const applyMondayToAll = () => {
     const mon = data?.timing?.monday || {};
-    const monOpen = mon.open || "09:00";
-    const monClose = mon.close || "22:00";
-    const monClosed = Boolean(mon.isClosed || mon.isOpen === false);
+    const monOpen = formatTo24h(mon.open, "09:00");
+    const monClose = formatTo24h(mon.close, "22:00");
+    const monClosed = Boolean(mon.isClosed || mon.isOpen === false || mon.open === "Closed" || mon.close === "Closed");
     daysOfWeek.forEach((d) => {
       handleChange({ target: { name: `timing.${d.key}.open`, value: monOpen } });
       handleChange({ target: { name: `timing.${d.key}.close`, value: monClose } });
@@ -478,7 +479,7 @@ const EditRestaurantForm = () => {
                     <Clock size={18} className="text-[#00a67e]" /> Weekly Operational Hours & Timings
                   </h3>
                   <p className="text-xs text-gray-500 mt-1">
-                    Set opening and closing timings for each day. Mark days closed as needed.
+                    Set opening and closing timings for each day. Mark days closed as needed (All times in IST - Asia/Kolkata).
                   </p>
                 </div>
                 <Button
@@ -501,9 +502,14 @@ const EditRestaurantForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {daysOfWeek.map((day) => {
                   const dayTiming = data?.timing?.[day.key] || {};
-                  const isClosed = Boolean(dayTiming.isClosed || dayTiming.isOpen === false);
-                  const openTime = dayTiming.open || "09:00";
-                  const closeTime = dayTiming.close || "22:00";
+                  const isClosed = Boolean(
+                    dayTiming.isClosed ||
+                    dayTiming.isOpen === false ||
+                    dayTiming.open === "Closed" ||
+                    dayTiming.close === "Closed"
+                  );
+                  const openTime = formatTo24h(dayTiming.open || "", "09:00");
+                  const closeTime = formatTo24h(dayTiming.close || "", "22:00");
 
                   return (
                     <div
@@ -536,29 +542,52 @@ const EditRestaurantForm = () => {
                       </div>
 
                       {!isClosed ? (
-                        <div className="grid grid-cols-2 gap-2">
-                          <TextField
-                            label="Open Time"
-                            type="time"
-                            size="small"
-                            value={openTime}
-                            onChange={(e) =>
-                              handleChange({ target: { name: `timing.${day.key}.open`, value: e.target.value } })
-                            }
-                            InputLabelProps={{ shrink: true }}
-                            inputProps={{ step: 300 }}
-                          />
-                          <TextField
-                            label="Close Time"
-                            type="time"
-                            size="small"
-                            value={closeTime}
-                            onChange={(e) =>
-                              handleChange({ target: { name: `timing.${day.key}.close`, value: e.target.value } })
-                            }
-                            InputLabelProps={{ shrink: true }}
-                            inputProps={{ step: 300 }}
-                          />
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase w-10 shrink-0">Open</span>
+                            <div className="flex-1 relative">
+                              <TextField
+                                type="time"
+                                size="small"
+                                fullWidth
+                                value={openTime}
+                                onChange={(e) =>
+                                  handleChange({ target: { name: `timing.${day.key}.open`, value: e.target.value } })
+                                }
+                                InputLabelProps={{ shrink: true }}
+                                inputProps={{ step: 300 }}
+                                sx={{ '& input': { fontSize: '13px', fontWeight: 600, paddingRight: '6px' } }}
+                              />
+                            </div>
+                            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 shrink-0">
+                              {formatToAmPm(openTime).split(" ")[1] || ""}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase w-10 shrink-0">Close</span>
+                            <div className="flex-1 relative">
+                              <TextField
+                                type="time"
+                                size="small"
+                                fullWidth
+                                value={closeTime}
+                                onChange={(e) =>
+                                  handleChange({ target: { name: `timing.${day.key}.close`, value: e.target.value } })
+                                }
+                                InputLabelProps={{ shrink: true }}
+                                inputProps={{ step: 300 }}
+                                sx={{ '& input': { fontSize: '13px', fontWeight: 600, paddingRight: '6px' } }}
+                              />
+                            </div>
+                            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-600 shrink-0">
+                              {formatToAmPm(closeTime).split(" ")[1] || ""}
+                            </span>
+                          </div>
+                          <div className="text-center">
+                            <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {formatToAmPm(openTime)} – {formatToAmPm(closeTime)} (IST)
+                            </span>
+                          </div>
                         </div>
                       ) : (
                         <div className="py-2 text-center text-xs font-bold text-red-500 bg-red-100/60 rounded-lg">

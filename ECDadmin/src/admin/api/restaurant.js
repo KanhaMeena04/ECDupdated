@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { API_BASE_URL } from "../../utils/utils.js";
+import { normalizeTimingForEdit, normalizeTimingForSave } from "../../utils/timeUtils.js";
 import { useNavigate } from "react-router-dom";
 
 
@@ -319,7 +320,7 @@ const useEditRestaurantProfile = (restaurantId) => {
             successfulOrders: rawData.successfulOrders || rawData.orderCount || 0,
             averageOrderValue: rawData.averageOrderValue || 0,
             menu: res?.data?.menu || rawData.menu || {},
-            timing: rawData.timing || {},
+            timing: normalizeTimingForEdit(rawData.timing),
             documents: rawData.documents || (rawData.accountDetail ? { accountDetail: { number: rawData.upi || 'Verified', file: rawData.accountDetail } } : {}),
             bankDetails: rawData.bankDetails || (rawData.upi ? { upi: rawData.upi } : {}),
           };
@@ -367,6 +368,7 @@ const useEditRestaurantProfile = (restaurantId) => {
       };
       const payload = {
         ...data,
+        timing: normalizeTimingForSave(data.timing),
         geofenceRadius: Number(data.geofenceRadius ?? data.deliveryRadius ?? 10) || 10,
         deliveryRadius: Number(data.geofenceRadius ?? data.deliveryRadius ?? 10) || 10,
         serviceRadius: Number(data.geofenceRadius ?? data.deliveryRadius ?? 10) || 10,
