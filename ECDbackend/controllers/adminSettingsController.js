@@ -45,7 +45,34 @@ const toPublicPayload = (settings) => {
       cancellationWindowMins: settings.selfPickupConfig?.cancellationWindowMins || 5,
       riderPickupGracePeriodMins: settings.selfPickupConfig?.gracePeriodMins || 15,
       selfPickupGracePeriodMins: settings.selfPickupConfig?.gracePeriodMins || 15,
-      preparationBufferMins: 10
+      preparationBufferMins: 10,
+      restaurantAcceptanceTimeoutMins: 5,
+      riderAcceptanceTimeoutMins: 2,
+      preparationTimeoutMins: 30,
+      deliveryTimeoutMins: 45,
+      autoCancelOnAcceptanceTimeout: false
+    },
+    trackingConfig: settings.trackingConfig || {
+      gpsIntervalSeconds: 60,
+      activeDeliveryOnly: true,
+      staleThresholdSeconds: 180
+    },
+    dispatchConfig: settings.dispatchConfig || {
+      searchRadiusKm: 10,
+      batchSize: 5,
+      reassignmentTimeoutSeconds: 45,
+      priorityOrder: ['nearest', 'lowest_active_orders', 'highest_rating', 'shortest_pickup']
+    },
+    refundConfig: settings.refundConfig || {
+      mode: 'manual',
+      autoRefundReasons: ['payment_failure', 'timeout', 'technical']
+    },
+    rankingConfig: settings.rankingConfig || {
+      distanceWeight: 40,
+      ratingWeight: 30,
+      prepTimeWeight: 15,
+      ordersWeight: 15,
+      featuredBoost: 50
     }
   };
 };
@@ -227,7 +254,12 @@ exports.getOrderTimingConfig = async (req, res) => {
         cancellationWindowMins: settings.selfPickupConfig?.cancellationWindowMins || 5,
         riderPickupGracePeriodMins: settings.selfPickupConfig?.gracePeriodMins || 15,
         selfPickupGracePeriodMins: settings.selfPickupConfig?.gracePeriodMins || 15,
-        preparationBufferMins: 10
+        preparationBufferMins: 10,
+        restaurantAcceptanceTimeoutMins: 5,
+        riderAcceptanceTimeoutMins: 2,
+        preparationTimeoutMins: 30,
+        deliveryTimeoutMins: 45,
+        autoCancelOnAcceptanceTimeout: false
       }
     });
   } catch (error) {
@@ -238,16 +270,29 @@ exports.getOrderTimingConfig = async (req, res) => {
 exports.updateOrderTimingConfig = async (req, res) => {
   try {
     const settings = await ensureSettings();
-    const cancellationWindowMins = Number(req.body.cancellationWindowMins) || 5;
-    const riderPickupGracePeriodMins = Number(req.body.riderPickupGracePeriodMins) || 15;
-    const selfPickupGracePeriodMins = Number(req.body.selfPickupGracePeriodMins) || riderPickupGracePeriodMins;
-    const preparationBufferMins = Number(req.body.preparationBufferMins) || 10;
+    const prev = settings.orderTimingConfig ? { ...settings.orderTimingConfig.toObject?.() || settings.orderTimingConfig } : {};
+    const cancellationWindowMins = Number(req.body.cancellationWindowMins ?? prev.cancellationWindowMins ?? 5);
+    const riderPickupGracePeriodMins = Number(req.body.riderPickupGracePeriodMins ?? prev.riderPickupGracePeriodMins ?? 15);
+    const selfPickupGracePeriodMins = Number(req.body.selfPickupGracePeriodMins ?? prev.selfPickupGracePeriodMins ?? riderPickupGracePeriodMins);
+    const preparationBufferMins = Number(req.body.preparationBufferMins ?? prev.preparationBufferMins ?? 10);
+    const restaurantAcceptanceTimeoutMins = Number(req.body.restaurantAcceptanceTimeoutMins ?? prev.restaurantAcceptanceTimeoutMins ?? 5);
+    const riderAcceptanceTimeoutMins = Number(req.body.riderAcceptanceTimeoutMins ?? prev.riderAcceptanceTimeoutMins ?? 2);
+    const preparationTimeoutMins = Number(req.body.preparationTimeoutMins ?? prev.preparationTimeoutMins ?? 30);
+    const deliveryTimeoutMins = Number(req.body.deliveryTimeoutMins ?? prev.deliveryTimeoutMins ?? 45);
+    const autoCancelOnAcceptanceTimeout = req.body.autoCancelOnAcceptanceTimeout !== undefined
+      ? Boolean(req.body.autoCancelOnAcceptanceTimeout)
+      : Boolean(prev.autoCancelOnAcceptanceTimeout);
 
     settings.orderTimingConfig = {
       cancellationWindowMins,
       riderPickupGracePeriodMins,
       selfPickupGracePeriodMins,
-      preparationBufferMins
+      preparationBufferMins,
+      restaurantAcceptanceTimeoutMins,
+      riderAcceptanceTimeoutMins,
+      preparationTimeoutMins,
+      deliveryTimeoutMins,
+      autoCancelOnAcceptanceTimeout
     };
 
     if (settings.selfPickupConfig) {
@@ -266,3 +311,80 @@ exports.updateOrderTimingConfig = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Unified GET/PUT factory for AdminSetting sub-sections with AuditLog recording
+const createSectionHandlers = (sectionKey, defaults) => ({
+  get: async (req, res) => {
+    try {
+      const settings = await ensureSettings();
+      const current = settings[sectionKey] ? (settings[sectionKey].toObject?.() || settings[sectionKey]) : {};
+      return res.status(200).json({ success: true, config: { ...defaults, ...current } });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  },
+  update: async (req, res) => {
+    try {
+      const settings = await ensureSettings();
+      const oldVal = settings[sectionKey] ? (settings[sectionKey].toObject?.() || { ...settings[sectionKey] }) : { ...defaults };
+      const updated = { ...oldVal, ...req.body };
+      settings[sectionKey] = updated;
+      await settings.save();
+      try {
+        const AuditLog = require('../models/AuditLog');
+        if (AuditLog && AuditLog.log) {
+          await AuditLog.log({
+            action: `UPDATE_${sectionKey.toUpperCase()}`,
+            entityType: 'RuleEngine',
+            entityId: settings._id,
+            oldValue: oldVal,
+            newValue: updated,
+            adminUser: req.user?._id,
+            reason: req.body.reason || `Updated ${sectionKey} via Admin Control Tower`
+          });
+        }
+      } catch (_) {}
+      return res.status(200).json({ success: true, message: `${sectionKey} updated successfully`, config: settings[sectionKey] });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+});
+
+const trackingHandlers = createSectionHandlers('trackingConfig', {
+  gpsIntervalSeconds: 60,
+  activeDeliveryOnly: true,
+  staleThresholdSeconds: 180
+});
+exports.getTrackingConfig = trackingHandlers.get;
+exports.updateTrackingConfig = trackingHandlers.update;
+
+const dispatchHandlers = createSectionHandlers('dispatchConfig', {
+  searchRadiusKm: 10,
+  batchSize: 5,
+  reassignmentTimeoutSeconds: 45,
+  priorityOrder: ['nearest', 'lowest_active_orders', 'highest_rating', 'shortest_pickup']
+});
+exports.getDispatchConfig = dispatchHandlers.get;
+exports.updateDispatchConfig = dispatchHandlers.update;
+
+const refundHandlers = createSectionHandlers('refundConfig', {
+  mode: 'manual',
+  autoRefundReasons: ['payment_failure', 'timeout', 'technical']
+});
+exports.getRefundConfig = refundHandlers.get;
+exports.updateRefundConfig = refundHandlers.update;
+
+const rankingHandlers = createSectionHandlers('rankingConfig', {
+  distanceWeight: 40,
+  ratingWeight: 30,
+  prepTimeWeight: 15,
+  ordersWeight: 15,
+  featuredBoost: 50
+});
+exports.getRankingConfig = rankingHandlers.get;
+exports.updateRankingConfig = rankingHandlers.update;
+
+const notifTemplateHandlers = createSectionHandlers('notificationTemplates', {});
+exports.getNotificationTemplates = notifTemplateHandlers.get;
+exports.updateNotificationTemplates = notifTemplateHandlers.update;

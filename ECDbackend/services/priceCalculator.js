@@ -5,6 +5,7 @@ const Order = require('../models/Order');
 const AdminSetting = require('../models/AdminSetting');
 const Product = require('../models/Product');
 const mongoose = require('mongoose');
+const { evaluateRules } = require('./ruleEngineEvaluator');
 
 /**
  * Calculates complete order pricing, delivery fees, surge charges, platform fees, packaging fees,
@@ -204,6 +205,32 @@ async function calculateOrderPrice({
       }
     }
 
+    // Evaluate dynamic Admin Rule Engine policies
+    let userOrdCount = 0;
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      try {
+        userOrdCount = await Order.countDocuments({ user: userId, status: { $nin: ['cancelled', 'failed'] } });
+      } catch (_) {}
+    }
+    const ruleEval = await evaluateRules({
+      orderValue: itemTotal,
+      rainStatus: Boolean(adminSetting.surgeConfig?.rainCharge?.enabled),
+      riderDistance: deliveryDistance,
+      userOrderCount: userOrdCount
+    });
+
+    if (orderType !== 'self_pickup') {
+      if (ruleEval.overrideDeliveryFee !== null) {
+        deliveryFee = ruleEval.overrideDeliveryFee;
+        if (deliveryFee === 0) freeDeliveryApplied = true;
+        deliveryRuleApplied = `RuleEngine Override (₹${deliveryFee})`;
+      }
+      if (ruleEval.additionalDeliveryFee > 0) {
+        extraDeliveryCharges += ruleEval.additionalDeliveryFee;
+        surgeApplied = true;
+      }
+    }
+
     // 5. Coupon & Discounts
     const couponResult = await validateAndApplyCoupon({
       couponCode,
@@ -214,6 +241,13 @@ async function calculateOrderPrice({
     });
 
     let discount = couponResult.discount;
+    if (ruleEval.discountPercent > 0) {
+      discount += (itemTotal * ruleEval.discountPercent) / 100;
+    }
+    if (ruleEval.discountFixed > 0) {
+      discount += ruleEval.discountFixed;
+    }
+    discount = Math.min(discount, itemTotal + deliveryFee);
     if (couponResult.freeDelivery) {
       deliveryFee = 0;
       freeDeliveryApplied = true;

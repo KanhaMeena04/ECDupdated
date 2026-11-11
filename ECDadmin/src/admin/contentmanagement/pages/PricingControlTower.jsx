@@ -110,6 +110,9 @@ export default function PricingControlTower() {
 
   const [restaurantCommModal, setRestaurantCommModal] = useState({ open: false, restaurant: null });
   const [restaurantCommValue, setRestaurantCommValue] = useState(20);
+  const [scheduleEffectiveDate, setScheduleEffectiveDate] = useState('');
+  const [scheduleCommissionValue, setScheduleCommissionValue] = useState('');
+  const [scheduleNote, setScheduleNote] = useState('');
 
   // Calculator Preview State
   const [previewInput, setPreviewInput] = useState({
@@ -1204,6 +1207,61 @@ export default function PricingControlTower() {
               helperText="Overrides global default commission for this restaurant"
             />
           )}
+
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            Schedule Date-Based Commission Contract
+          </Typography>
+          <Grid container spacing={1}>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth size="small" label="Effective Date" type="date"
+                InputLabelProps={{ shrink: true }}
+                value={scheduleEffectiveDate}
+                onChange={(e) => setScheduleEffectiveDate(e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth size="small" label="Future Commission %" type="number"
+                value={scheduleCommissionValue}
+                onChange={(e) => setScheduleCommissionValue(e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth size="small" label="Contract Note (optional)"
+                value={scheduleNote}
+                onChange={(e) => setScheduleNote(e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Button
+                size="small"
+                variant="outlined"
+                fullWidth
+                disabled={!scheduleEffectiveDate || scheduleCommissionValue === ''}
+                onClick={async () => {
+                  try {
+                    await api.post(`/api/admin/restaurants/${restaurantCommModal.restaurant._id}/commission-schedule`, {
+                      effectiveDate: scheduleEffectiveDate,
+                      commissionPercent: Number(scheduleCommissionValue),
+                      note: scheduleNote
+                    });
+                    showAlert("Date-based commission schedule added!");
+                    setScheduleEffectiveDate('');
+                    setScheduleCommissionValue('');
+                    setScheduleNote('');
+                    fetchPricingConfig();
+                  } catch (err) {
+                    showAlert("Failed to schedule future commission", "error");
+                  }
+                }}
+              >
+                + Schedule Future Commission Change
+              </Button>
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setRestaurantCommModal({ open: false, restaurant: null })}>Cancel</Button>

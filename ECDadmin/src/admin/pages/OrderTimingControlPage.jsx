@@ -11,7 +11,9 @@ import {
   CardContent,
   Chip,
   Divider,
-  Alert
+  Alert,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import {
   AccessTime,
@@ -30,7 +32,12 @@ export default function OrderTimingControlPage() {
     cancellationWindowMins: 5,
     riderPickupGracePeriodMins: 15,
     selfPickupGracePeriodMins: 15,
-    preparationBufferMins: 10
+    preparationBufferMins: 10,
+    restaurantAcceptanceTimeoutMins: 10,
+    riderAcceptanceTimeoutMins: 5,
+    preparationTimeoutMins: 35,
+    deliveryTimeoutMins: 45,
+    autoCancelOnAcceptanceTimeout: false
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -152,6 +159,74 @@ export default function OrderTimingControlPage() {
                   fullWidth
                   value={config.preparationBufferMins}
                   onChange={(e) => setConfig({ ...config, preparationBufferMins: Math.max(0, Number(e.target.value)) })}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#374151', mt: 1 }}>
+                  Automated Order Timeout Escalation Rules
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Restaurant Acceptance Timeout (Mins)"
+                  helperText="Alert / Auto-cancel if restaurant stays silent"
+                  type="number"
+                  inputProps={{ min: 1, max: 60 }}
+                  fullWidth
+                  value={config.restaurantAcceptanceTimeoutMins ?? 10}
+                  onChange={(e) => setConfig({ ...config, restaurantAcceptanceTimeoutMins: Math.max(1, Number(e.target.value)) })}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Rider Acceptance Timeout (Mins)"
+                  helperText="Threshold before rider dispatch escalation"
+                  type="number"
+                  inputProps={{ min: 1, max: 60 }}
+                  fullWidth
+                  value={config.riderAcceptanceTimeoutMins ?? 5}
+                  onChange={(e) => setConfig({ ...config, riderAcceptanceTimeoutMins: Math.max(1, Number(e.target.value)) })}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Preparation Timeout Alert (Mins)"
+                  helperText="Emit admin alert if kitchen exceeds limit"
+                  type="number"
+                  inputProps={{ min: 5, max: 120 }}
+                  fullWidth
+                  value={config.preparationTimeoutMins ?? 35}
+                  onChange={(e) => setConfig({ ...config, preparationTimeoutMins: Math.max(5, Number(e.target.value)) })}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Delivery Timeout Alert (Mins)"
+                  helperText="Emit critical alert if out-for-delivery delays"
+                  type="number"
+                  inputProps={{ min: 5, max: 180 }}
+                  fullWidth
+                  value={config.deliveryTimeoutMins ?? 45}
+                  onChange={(e) => setConfig({ ...config, deliveryTimeoutMins: Math.max(5, Number(e.target.value)) })}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={Boolean(config.autoCancelOnAcceptanceTimeout)}
+                      onChange={(e) => setConfig({ ...config, autoCancelOnAcceptanceTimeout: e.target.checked })}
+                      color="error"
+                    />
+                  }
+                  label="Auto-Cancel & Auto-Refund if Restaurant Acceptance Times Out"
                 />
               </Grid>
 

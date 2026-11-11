@@ -8,7 +8,7 @@ const WalletTransaction = require("../models/WalletTransaction");
 const Promocode = require("../models/Promocode");
 const Review = require("../models/Review"); // New
 const mongoose = require("mongoose");
-const { sendNotification } = require("../utils/notificationService");
+const { sendNotification, sendTemplatedNotification } = require("../utils/notificationService");
 const { sendOTP } = require("../utils/twilioService");
 const { getPaginationParams } = require("../utils/pagination");
 const socketService = require("../services/socketService");
@@ -434,6 +434,41 @@ exports.placeOrder = async (req, res) => {
       return sendError(res, 400, "This restaurant only accepts Cash on Delivery.");
     }
 
+    // Enforce Admin Emergency Kill-Switches (SOW Admin #23)
+    try {
+      const EmergencyControl = require("../models/EmergencyControl");
+      const em = await EmergencyControl.getControls();
+      if (em) {
+        if (em.acceptNewOrders === false) {
+          return sendError(res, 503, em.reason || "Platform is temporarily paused for new orders.");
+        }
+        if (!isSelfPickup && em.deliveryService === false) {
+          return sendError(res, 503, em.reason || "Delivery service is temporarily paused by Admin.");
+        }
+        if (isSelfPickup && em.selfPickup === false) {
+          return sendError(res, 503, em.reason || "Self-Pickup is temporarily paused by Admin.");
+        }
+        if (normalizedMethod === 'online' && em.onlinePayment === false) {
+          return sendError(res, 503, em.reason || "Online payment is temporarily disabled by Admin.");
+        }
+        if (normalizedMethod === 'cod' && em.cod === false) {
+          return sendError(res, 503, em.reason || "Cash on Delivery is temporarily disabled by Admin.");
+        }
+        if ((req.body.couponCode || cart.couponCode) && em.couponsEnabled === false) {
+          return sendError(res, 400, "Coupons are temporarily disabled by Admin.");
+        }
+        if (Array.isArray(em.disabledRestaurants) && em.disabledRestaurants.some(id => String(id) === String(restaurant._id))) {
+          return sendError(res, 503, "This restaurant is temporarily paused by Admin.");
+        }
+        const addrStr = (deliveryAddress?.addressLine || deliveryAddress?.city || deliveryAddress?.pincode || "").toLowerCase();
+        if (Array.isArray(em.disabledAreas) && em.disabledAreas.some(area => area && addrStr.includes(String(area).toLowerCase()))) {
+          return sendError(res, 503, "Delivery service is temporarily paused in your selected area.");
+        }
+      }
+    } catch (emErr) {
+      logger.error("EmergencyControl check error", { error: emErr.message });
+    }
+
     let sysSettings = null;
     try {
       const AdminSetting = require("../models/AdminSetting");
@@ -627,27 +662,31 @@ exports.placeOrder = async (req, res) => {
     const restaurantIdCode = await ensureRestaurantId(restaurant);
     
     // Enrich cart items with Product details (name, image, price) if missing
+    let maxItemPrepTime = 0;
     const enrichedItems = await Promise.all(
       cart.items.map(async (item) => {
         let pName = item.name || (item.product && typeof item.product === 'object' ? item.product.name : null);
         let pImage = item.image || (item.product && typeof item.product === 'object' ? item.product.image : null);
         let pPrice = (typeof item.price === 'number' && item.price > 0) ? item.price : ((item.product && typeof item.product === 'object' && typeof item.product.price === 'number') ? item.product.price : null);
+        let itemPrep = Number(item.preparationTime || item.prepTime || (item.product && typeof item.product === 'object' ? item.product.preparationTime : 0) || 0);
 
         let prodId = item.product?._id || item.product || item.productId;
         if (typeof prodId === 'string' && prodId.includes('::')) {
           prodId = prodId.split('::')[0];
         }
         const validProdObjectId = (prodId && mongoose.Types.ObjectId.isValid(prodId)) ? prodId : null;
-        if ((!pName || !pPrice || !pImage) && validProdObjectId) {
+        if ((!pName || !pPrice || !pImage || itemPrep === 0) && validProdObjectId) {
           try {
-            const dbProd = await Product.findById(validProdObjectId).select('name image price basePrice pricing');
+            const dbProd = await Product.findById(validProdObjectId).select('name image price basePrice pricing preparationTime');
             if (dbProd) {
               if (!pName) pName = typeof dbProd.name === 'object' ? (dbProd.name.en || Object.values(dbProd.name)[0]) : dbProd.name;
               if (!pImage) pImage = dbProd.image || '';
               if (!pPrice || pPrice === 0) pPrice = dbProd.price || dbProd.basePrice || dbProd.pricing?.b2c?.sellingPrice || 0;
+              if (itemPrep === 0 && dbProd.preparationTime) itemPrep = Number(dbProd.preparationTime);
             }
           } catch (_) {}
         }
+        if (itemPrep > maxItemPrepTime) maxItemPrepTime = itemPrep;
 
         return {
           product: validProdObjectId,
@@ -661,6 +700,9 @@ exports.placeOrder = async (req, res) => {
         };
       })
     );
+    const computedPrepTimeMins = maxItemPrepTime > 0
+      ? maxItemPrepTime
+      : Number(restaurant?.estimatedPreparationTime || 15);
 
     const AdminSetting = require("../models/AdminSetting");
     const systemSettings = await AdminSetting.findOne().lean();
@@ -697,6 +739,7 @@ exports.placeOrder = async (req, res) => {
       pickupOtpExpiresAt: new Date(Date.now() + otpExpiry),
       selfPickupCode: pickupOtp,
       orderType: isSelfPickup ? "self_pickup" : "delivery",
+      prepTimeMinutes: computedPrepTimeMins,
       scheduledAt: (req.body.scheduledAt || req.body.scheduledTime || req.body.pickupTime) ? new Date(req.body.scheduledAt || req.body.scheduledTime || req.body.pickupTime) : undefined,
       deliveryOtp,
       deliveryOtpExpiresAt: new Date(Date.now() + otpExpiry),
@@ -2449,12 +2492,42 @@ exports.updateOrderStatus = async (req, res) => {
       );
       if (['accepted', 'preparing', 'ready', 'assigned', 'picked_up', 'out_for_delivery', 'on_the_way', 'reached_customer_location', 'delivery_arrived', 'delivered', 'cancelled'].includes(status)) {
         try {
-          await sendNotification(
-            populatedOrder.customer._id,
-            getCustomerNotificationTitle(status),
-            customerMessage,
-            { orderId: order._id.toString(), status, type: 'order_status' }
-          );
+          const tplMap = {
+            accepted: 'order_accepted',
+            preparing: 'order_preparing',
+            ready: 'order_ready',
+            assigned: 'rider_assigned',
+            picked_up: 'out_for_delivery',
+            out_for_delivery: 'out_for_delivery',
+            delivered: 'order_delivered',
+            cancelled: 'order_cancelled',
+          };
+          const restName = typeof populatedOrder.restaurant?.name === 'object'
+            ? (populatedOrder.restaurant.name.en || 'Restaurant')
+            : (populatedOrder.restaurant?.name || 'Restaurant');
+          const tplKey = tplMap[status];
+          if (tplKey) {
+            await sendTemplatedNotification({
+              userId: populatedOrder.customer._id,
+              templateKey: tplKey,
+              placeholders: {
+                orderNumber: populatedOrder.orderNumber || order._id.toString().slice(-6),
+                restaurantName: restName,
+                customerName: populatedOrder.customer?.name || 'Customer',
+                riderName: populatedOrder.rider?.name || 'Delivery Partner',
+              },
+              data: { orderId: order._id.toString(), status, type: 'order_status' },
+              fallbackTitle: getCustomerNotificationTitle(status),
+              fallbackMessage: customerMessage,
+            });
+          } else {
+            await sendNotification(
+              populatedOrder.customer._id,
+              getCustomerNotificationTitle(status),
+              customerMessage,
+              { orderId: order._id.toString(), status, type: 'order_status' }
+            );
+          }
         } catch (e) {
           logger.error("Failed to send customer push notification", { error: e.message, orderId: order._id });
         }
@@ -3773,12 +3846,18 @@ exports.adminAssignRider = async (req, res) => {
       const riderPhone = rider.phone || rider.mobile || riderUser?.mobile || riderUser?.phone || "";
 
       // Push and in-app notification to Customer
-      await sendNotification(
-        order.customer,
-        "🛵 Delivery Partner Assigned!",
-        `${riderDisplayName} has been assigned to deliver your order #${order.orderNumber || order._id}. Contact: ${riderPhone}`,
-        { orderId: order._id.toString(), status: "assigned", riderName: riderDisplayName, riderPhone }
-      );
+      await sendTemplatedNotification({
+        userId: order.customer,
+        templateKey: "rider_assigned",
+        placeholders: {
+          orderNumber: order.orderNumber || order._id,
+          riderName: riderDisplayName,
+          riderPhone,
+        },
+        data: { orderId: order._id.toString(), status: "assigned", riderName: riderDisplayName, riderPhone },
+        fallbackTitle: "🛵 Delivery Partner Assigned!",
+        fallbackMessage: `${riderDisplayName} has been assigned to deliver your order #${order.orderNumber || order._id}. Contact: ${riderPhone}`,
+      });
 
       // Push and in-app notification to Rider
       if (rider.user) {
@@ -4476,9 +4555,18 @@ exports.verifySelfPickup = async (req, res) => {
       return sendError(res, 400, "Order is already completed and handed over");
     }
 
-    const enteredCode = (selfPickupCode || req.body.otp || req.body.code || "").toString().trim();
+    let enteredCode = (selfPickupCode || req.body.otp || req.body.code || "").toString().trim();
+    if (req.body.qrPayload && typeof req.body.qrPayload === "string") {
+      const parts = req.body.qrPayload.trim().split("|");
+      if (parts.length >= 3 && parts[0] === "ECD_PICKUP") {
+        enteredCode = parts[2].trim();
+      }
+    } else if (enteredCode.startsWith("ECD_PICKUP|")) {
+      const parts = enteredCode.split("|");
+      if (parts.length >= 3) enteredCode = parts[2].trim();
+    }
     if (!enteredCode) {
-      return sendError(res, 400, "Pickup OTP code is required");
+      return sendError(res, 400, "Pickup OTP or QR code is required");
     }
 
     const expectedCode = (order.selfPickupCode || order.pickupOtp || "").toString().trim();
@@ -4800,7 +4888,7 @@ exports.verifyPickupVendor = async (req, res) => {
     const riderName = (order.rider && order.rider.name) ? order.rider.name : 'Delivery partner';
 
     const socketService = require("../services/socketService");
-    const { sendNotification } = require("../utils/notificationService");
+    const { sendNotification, sendTemplatedNotification } = require("../utils/notificationService");
 
     const updateData = {
       orderId: order._id.toString(),
@@ -5117,7 +5205,7 @@ exports.verifySelfPickupOTP = async (req, res) => {
       logger.error("Failed to trigger payment processing on self-pickup handover", { orderId: order._id, error: payErr.message });
     }
 
-    const { sendNotification } = require("../utils/notificationService");
+    const { sendNotification, sendTemplatedNotification } = require("../utils/notificationService");
     const socketService = require("../services/socketService");
 
     if (order.customer?._id) {

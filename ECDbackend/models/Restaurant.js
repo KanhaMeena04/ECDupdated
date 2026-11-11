@@ -170,6 +170,14 @@ const restaurantSchema = new mongoose.Schema(
       updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       updatedAt: { type: Date }
     },
+    commissionSchedule: [{
+      effectiveDate: { type: Date, required: true },
+      commissionPercent: { type: Number, required: true, min: 0, max: 100 },
+      note: { type: String, default: '' },
+      applied: { type: Boolean, default: false },
+      appliedAt: { type: Date },
+      createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+    }],
     timing: {
       monday: dailyTimingSchema,
       tuesday: dailyTimingSchema,

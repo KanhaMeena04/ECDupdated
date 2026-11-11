@@ -171,7 +171,104 @@ const AdminSettingSchema = new mongoose.Schema(
       cancellationWindowMins: { type: Number, default: 5 },
       riderPickupGracePeriodMins: { type: Number, default: 15 },
       selfPickupGracePeriodMins: { type: Number, default: 15 },
-      preparationBufferMins: { type: Number, default: 10 }
+      preparationBufferMins: { type: Number, default: 10 },
+      restaurantAcceptanceTimeoutMins: { type: Number, default: 5 },
+      riderAcceptanceTimeoutMins: { type: Number, default: 2 },
+      preparationTimeoutMins: { type: Number, default: 30 },
+      deliveryTimeoutMins: { type: Number, default: 45 },
+      autoCancelOnAcceptanceTimeout: { type: Boolean, default: false }
+    },
+
+    // Real-Time GPS Tracking Configuration (SOW #4, #5)
+    trackingConfig: {
+      gpsIntervalSeconds: { type: Number, default: 60, min: 10, max: 300 },
+      activeDeliveryOnly: { type: Boolean, default: true },
+      staleThresholdSeconds: { type: Number, default: 180, min: 60 }
+    },
+
+    // Rider Auto-Dispatch Priority Configuration (SOW Admin #6)
+    dispatchConfig: {
+      searchRadiusKm: { type: Number, default: 10, min: 1 },
+      batchSize: { type: Number, default: 5, min: 1, max: 20 },
+      reassignmentTimeoutSeconds: { type: Number, default: 45, min: 10 },
+      priorityOrder: {
+        type: [String],
+        default: ['nearest', 'lowest_active_orders', 'highest_rating', 'shortest_pickup']
+      }
+    },
+
+    // Refund & Cancellation Accounting Configuration (SOW #15 & Admin #16)
+    refundConfig: {
+      mode: { type: String, enum: ['manual', 'auto'], default: 'manual' },
+      autoRefundReasons: {
+        type: [String],
+        default: ['payment_failure', 'timeout', 'technical']
+      },
+      reasonRules: {
+        customer: {
+          refundPercent: { type: Number, default: 0 },
+          restaurantPayablePercent: { type: Number, default: 0 },
+          platformLossPercent: { type: Number, default: 0 }
+        },
+        restaurant: {
+          refundPercent: { type: Number, default: 100 },
+          restaurantPayablePercent: { type: Number, default: 0 },
+          platformLossPercent: { type: Number, default: 100 }
+        },
+        timeout: {
+          refundPercent: { type: Number, default: 100 },
+          restaurantPayablePercent: { type: Number, default: 0 },
+          platformLossPercent: { type: Number, default: 100 }
+        },
+        rider_unavailable: {
+          refundPercent: { type: Number, default: 100 },
+          restaurantPayablePercent: { type: Number, default: 50 },
+          platformLossPercent: { type: Number, default: 50 }
+        },
+        food_unavailable: {
+          refundPercent: { type: Number, default: 100 },
+          restaurantPayablePercent: { type: Number, default: 0 },
+          platformLossPercent: { type: Number, default: 100 }
+        },
+        technical: {
+          refundPercent: { type: Number, default: 100 },
+          restaurantPayablePercent: { type: Number, default: 0 },
+          platformLossPercent: { type: Number, default: 100 }
+        }
+      }
+    },
+
+    // Restaurant Ranking Weightage Control (SOW Admin #17)
+    rankingConfig: {
+      distanceWeight: { type: Number, default: 40, min: 0, max: 100 },
+      ratingWeight: { type: Number, default: 30, min: 0, max: 100 },
+      prepTimeWeight: { type: Number, default: 15, min: 0, max: 100 },
+      ordersWeight: { type: Number, default: 15, min: 0, max: 100 },
+      featuredBoost: { type: Number, default: 50, min: 0, max: 200 }
+    },
+
+    // Configurable Notification Templates (SOW Admin #18)
+    notificationTemplates: {
+      order_accepted: {
+        title: { type: String, default: 'Order Accepted' },
+        body: { type: String, default: 'Your order #{orderNumber} has been accepted by {restaurantName}.' },
+        enabled: { type: Boolean, default: true }
+      },
+      order_ready: {
+        title: { type: String, default: 'Order Ready' },
+        body: { type: String, default: 'Your food for order #{orderNumber} is ready at {restaurantName}.' },
+        enabled: { type: Boolean, default: true }
+      },
+      rider_assigned: {
+        title: { type: String, default: 'Rider Assigned' },
+        body: { type: String, default: 'Rider {riderName} is on the way to pick up order #{orderNumber}.' },
+        enabled: { type: Boolean, default: true }
+      },
+      order_delivered: {
+        title: { type: String, default: 'Order Delivered' },
+        body: { type: String, default: 'Your order #{orderNumber} has been delivered. Enjoy your meal!' },
+        enabled: { type: Boolean, default: true }
+      }
     },
 
     // Settlement Cycle Configuration (Requirement 11)

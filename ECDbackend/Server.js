@@ -325,6 +325,7 @@ const scheduledChangeRoutes = require('./routes/scheduledChangeRoutes');
 const serviceAreaRoutes = require('./routes/serviceAreaRoutes');
 const reconciliationRoutes = require('./routes/reconciliationRoutes');
 const settlementRoutes = require('./routes/settlementRoutes');
+const systemRoutes = require('./routes/systemRoutes');
 
 app.use('/api/rules', ruleEngineRoutes);
 app.use('/api/v1/rules', ruleEngineRoutes);
@@ -340,6 +341,8 @@ app.use('/api/reconciliations', reconciliationRoutes);
 app.use('/api/v1/reconciliations', reconciliationRoutes);
 app.use('/api/settlements', settlementRoutes);
 app.use('/api/v1/settlements', settlementRoutes);
+app.use('/api/system', systemRoutes);
+app.use('/api/v1/system', systemRoutes);
 
 app.use('/api/training', trainingRoutes);
 app.use('/api/v1/training', trainingRoutes);

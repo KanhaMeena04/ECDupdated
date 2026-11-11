@@ -7,6 +7,7 @@ import { API_BASE_URL } from '../../utils/utils';
 export default function PaymentReconciliationPage() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
 
   const fetchRecords = async () => {
     setLoading(true);
@@ -20,6 +21,22 @@ export default function PaymentReconciliationPage() {
       toast.error('Failed to load reconciliation reports');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRunAutoScan = async () => {
+    setScanning(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${API_BASE_URL}/api/reconciliations/scan`, { lookbackDays: 30 }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success(`Scanned ${res.data.scannedOrders || 0} orders — ${res.data.mismatchesFound || 0} new mismatch(es) flagged.`);
+      fetchRecords();
+    } catch (err) {
+      toast.error('Failed to run reconciliation scan');
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -44,7 +61,7 @@ export default function PaymentReconciliationPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
         <div>
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#111827', mb: 0.5 }}>
             Payment Gateway & Bank Reconciliation Engine
@@ -53,9 +70,14 @@ export default function PaymentReconciliationPage() {
             Monitor mismatches between order amounts, gateway receipts, refunds, and bank payouts.
           </Typography>
         </div>
-        <Button variant="contained" sx={{ bgcolor: '#248C70', '&:hover': { bgcolor: '#1e755d' } }} onClick={fetchRecords}>
-          🔄 Refresh Reconciliation
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Button variant="outlined" color="warning" disabled={scanning} onClick={handleRunAutoScan}>
+            {scanning ? 'Scanning...' : '⚡ Run Auto-Scan (30d)'}
+          </Button>
+          <Button variant="contained" sx={{ bgcolor: '#248C70', '&:hover': { bgcolor: '#1e755d' } }} onClick={fetchRecords}>
+            🔄 Refresh Reconciliation
+          </Button>
+        </Box>
       </Box>
 
       <Paper sx={{ width: '100%', overflow: 'hidden', borderRadius: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>

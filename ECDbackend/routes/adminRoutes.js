@@ -536,7 +536,17 @@ const {
   getSelfPickupConfig,
   updateSelfPickupConfig,
   getOrderTimingConfig,
-  updateOrderTimingConfig
+  updateOrderTimingConfig,
+  getTrackingConfig,
+  updateTrackingConfig,
+  getDispatchConfig,
+  updateDispatchConfig,
+  getRefundConfig,
+  updateRefundConfig,
+  getRankingConfig,
+  updateRankingConfig,
+  getNotificationTemplates,
+  updateNotificationTemplates
 } = require("../controllers/adminSettingsController");
 router.get('/rider-earning-config', protect, admin, getRiderEarningConfig);
 router.put('/rider-earning-config', protect, admin, updateRiderEarningConfig);
@@ -544,6 +554,52 @@ router.get('/self-pickup-config', protect, admin, getSelfPickupConfig);
 router.put('/self-pickup-config', protect, admin, updateSelfPickupConfig);
 router.get('/order-timing-config', protect, admin, getOrderTimingConfig);
 router.put('/order-timing-config', protect, admin, updateOrderTimingConfig);
+router.get('/public/tracking-config', getTrackingConfig);
+router.get('/tracking-config', protect, admin, getTrackingConfig);
+router.put('/tracking-config', protect, admin, updateTrackingConfig);
+router.get('/dispatch-config', protect, admin, getDispatchConfig);
+router.put('/dispatch-config', protect, admin, updateDispatchConfig);
+router.get('/refund-config', protect, admin, getRefundConfig);
+router.put('/refund-config', protect, admin, updateRefundConfig);
+router.get('/ranking-config', protect, admin, getRankingConfig);
+router.put('/ranking-config', protect, admin, updateRankingConfig);
+router.get('/notification-templates', protect, admin, getNotificationTemplates);
+router.put('/notification-templates', protect, admin, updateNotificationTemplates);
+
+// Date-Based Commission Contracts for Restaurants (SOW Admin #3)
+router.post('/restaurants/:id/commission-schedule', protect, admin, async (req, res) => {
+  try {
+    const Restaurant = require('../models/Restaurant');
+    const AuditLog = require('../models/AuditLog');
+    const { effectiveDate, commissionPercent, note } = req.body;
+    if (!effectiveDate || commissionPercent === undefined) {
+      return res.status(400).json({ success: false, message: 'effectiveDate and commissionPercent are required' });
+    }
+    const rest = await Restaurant.findById(req.params.id);
+    if (!rest) return res.status(404).json({ success: false, message: 'Restaurant not found' });
+    rest.commissionSchedule = rest.commissionSchedule || [];
+    rest.commissionSchedule.push({
+      effectiveDate: new Date(effectiveDate),
+      commissionPercent: Number(commissionPercent),
+      note: note || '',
+      applied: false,
+      createdBy: req.user?._id
+    });
+    await rest.save();
+    await AuditLog.log({
+      action: 'SCHEDULE_COMMISSION',
+      entityType: 'Restaurant',
+      entityId: rest._id,
+      oldValue: { adminCommission: rest.adminCommission },
+      newValue: { effectiveDate, commissionPercent },
+      adminUser: req.user?._id,
+      reason: note || 'Date-based commission scheduled'
+    });
+    res.status(201).json({ success: true, message: 'Commission schedule added', commissionSchedule: rest.commissionSchedule });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // Custom Push Notification Routes
 router.post('/custom-push', protect, admin, adminController.sendCustomPush);

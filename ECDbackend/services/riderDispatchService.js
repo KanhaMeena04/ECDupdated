@@ -7,11 +7,31 @@ const socketService = require('./socketService');
 const { sendNotification } = require('../utils/notificationService');
 const { calculateDistance, estimateTravelMinutes } = require('../utils/locationUtils');
 const { ensureRiderId } = require('../utils/idGenerator');
-const SEARCH_RADIUS_KM = process.env.NODE_ENV === 'production' ? 1000 : 1000; // 10km prod, 1000km dev
-const BATCH_SIZE = 5;              // How many riders to notify at once
-const BATCH_TIMEOUT_MS = 45000;   // 45 seconds for a batch to respond before sending next batch
+const AdminSetting = require('../models/AdminSetting');
+const EmergencyControl = require('../models/EmergencyControl');
+const { evaluateRules } = require('./ruleEngineEvaluator');
+
+const DEFAULT_RADIUS_KM = 10;
+const DEFAULT_BATCH_SIZE = 5;
+const DEFAULT_TIMEOUT_MS = 45000;
+
 exports.findAndNotifyRider = async (orderId) => {
     try {
+        const em = await EmergencyControl.getControls();
+        if (em && em.riderDispatch === false) {
+            console.log(`[Dispatch] Paused by EmergencyControl for Order ${orderId}`);
+            return;
+        }
+
+        const settings = await AdminSetting.getSettings();
+        const dispatchCfg = settings?.dispatchConfig || {};
+        const searchRadiusKm = Number(dispatchCfg.searchRadiusKm || DEFAULT_RADIUS_KM);
+        const batchSize = Number(dispatchCfg.batchSize || DEFAULT_BATCH_SIZE);
+        const batchTimeoutMs = Number(dispatchCfg.reassignmentTimeoutSeconds || 45) * 1000 || DEFAULT_TIMEOUT_MS;
+        const priorityOrder = Array.isArray(dispatchCfg.priorityOrder) && dispatchCfg.priorityOrder.length > 0
+            ? dispatchCfg.priorityOrder
+            : ['nearest', 'lowest_active_orders', 'highest_rating', 'shortest_pickup'];
+
         const targetId = String(orderId?._id || orderId || '').trim();
         const isObjectId = mongoose.Types.ObjectId.isValid(targetId) && targetId.length === 24;
         const orderFilter = isObjectId
@@ -31,30 +51,66 @@ exports.findAndNotifyRider = async (orderId) => {
         }
         const previousRequests = await RideRequest.find({ order: order._id }).select('rider');
         const alreadyNotifiedRiderIds = previousRequests.map(r => r.rider);
-        let nearbyRiders = [];
+        let candidateRiders = [];
         try {
-            nearbyRiders = await Rider.find({
+            candidateRiders = await Rider.find({
                 _id: { $nin: alreadyNotifiedRiderIds },
                 isOnline: true,
                 currentLocation: {
                     $geoWithin: {
                         $centerSphere: [
                             restaurant.location.coordinates,
-                            SEARCH_RADIUS_KM / 6378.1
+                            searchRadiusKm / 6378.1
                         ]
                     }
                 }
-            }).populate('user', 'name mobile').limit(BATCH_SIZE);
+            }).populate('user', 'name mobile').limit(batchSize * 3);
         } catch (geoErr) {
             console.warn('[Dispatch] Geo query error, falling back to online riders:', geoErr.message);
         }
 
-        if (nearbyRiders.length === 0) {
-            nearbyRiders = await Rider.find({
+        if (candidateRiders.length === 0) {
+            candidateRiders = await Rider.find({
                 _id: { $nin: alreadyNotifiedRiderIds },
                 isOnline: true
-            }).populate('user', 'name mobile').limit(BATCH_SIZE);
+            }).populate('user', 'name mobile').limit(batchSize * 3);
         }
+
+        // Apply RuleEngine riderDistance guards & Admin Priority Ranking
+        const restCoords = restaurant.location?.coordinates || [0, 0];
+        const scoredRiders = [];
+        for (const r of candidateRiders) {
+            const rCoords = r.currentLocation?.coordinates || [0, 0];
+            const distKm = calculateDistance(rCoords, restCoords);
+            const ruleCheck = await evaluateRules({ riderDistance: distKm, orderValue: order.totalAmount || 0 });
+            if (ruleCheck.preventAssignment) continue;
+
+            const activeCount = await Order.countDocuments({
+                rider: r._id,
+                status: { $in: ['assigned', 'rider_assigned', 'reached_restaurant', 'picked_up', 'out_for_delivery', 'on_the_way'] }
+            });
+            scoredRiders.push({
+                rider: r,
+                distKm,
+                activeCount,
+                rating: Number(r.rating?.average || 4.8)
+            });
+        }
+
+        scoredRiders.sort((a, b) => {
+            for (const criterion of priorityOrder) {
+                if (criterion === 'nearest' || criterion === 'shortest_pickup') {
+                    if (Math.abs(a.distKm - b.distKm) > 0.2) return a.distKm - b.distKm;
+                } else if (criterion === 'lowest_active_orders') {
+                    if (a.activeCount !== b.activeCount) return a.activeCount - b.activeCount;
+                } else if (criterion === 'highest_rating') {
+                    if (Math.abs(b.rating - a.rating) > 0.1) return b.rating - a.rating;
+                }
+            }
+            return a.distKm - b.distKm;
+        });
+
+        const nearbyRiders = scoredRiders.slice(0, batchSize).map(item => item.rider);
 
         if (nearbyRiders.length === 0) {
             console.log(`[Dispatch] No more riders found for Order ${orderId} — all batches exhausted`);
@@ -149,7 +205,7 @@ exports.findAndNotifyRider = async (orderId) => {
                     totalMinutes: pickupMinutes + deliveryMinutes
                 },
                 batchSize: successfulRequests.length,
-                expiresIn: BATCH_TIMEOUT_MS / 1000
+                expiresIn: batchTimeoutMs / 1000
             };
             const riderUserId = rider.user?._id ? rider.user._id.toString() : rider.user.toString();
             socketService.emitToRider(riderUserId, 'rider:new_order_request', requestData);
@@ -168,7 +224,7 @@ exports.findAndNotifyRider = async (orderId) => {
                 order._id,
                 successfulRequests.map(sr => sr.request._id)
             );
-        }, BATCH_TIMEOUT_MS);
+        }, batchTimeoutMs);
     } catch (error) {
         console.error('[Dispatch] Error:', error);
     }

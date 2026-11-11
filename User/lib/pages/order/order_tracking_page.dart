@@ -17,6 +17,7 @@ import '../../providers/user_provider.dart';
 import '../../services/location_service.dart';
 import '../../services/order_api_service.dart';
 import '../../services/restaurant_api_service.dart';
+import '../../services/runtime_control_service.dart';
 import '../../services/socket_service.dart';
 import '../../services/web_directions.dart';
 import 'contact_support_page.dart';
@@ -63,6 +64,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   List<LatLng> _roadRoutePoints = [];
   String? _lastRouteKey;
   bool _isLoadingRoute = false;
+  DateTime? _lastRiderLocationAt;
+  double? _prevRiderLat;
+  double? _prevRiderLng;
 
   bool get _isSelfPickup {
     final wType = widget.orderType.toLowerCase();
@@ -382,6 +386,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     }).catchError((_) {});
 
     _getPulseController();
+    RuntimeControlService.sync();
     _fetchTracking();
 
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -396,6 +401,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     _socketCallback = (data) {
       debugPrint('Order Tracking live update: $data');
       if (mounted) {
+        if (data is Map && (data['lat'] != null || data['latitude'] != null || data['location'] != null)) {
+          _lastRiderLocationAt = DateTime.now();
+        }
         Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted) {
             _fetchTracking();
@@ -435,6 +443,21 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
         if (mounted) {
           setState(() {
             _trackingData = data;
+            final rObj = data['rider'] ?? data['driver'] ?? data['order']?['rider'];
+            if (rObj is Map) {
+              double? rLat = double.tryParse((rObj['lat'] ?? rObj['latitude'] ?? '').toString());
+              double? rLng = double.tryParse((rObj['lng'] ?? rObj['longitude'] ?? '').toString());
+              if (rLat == null && rObj['currentLocation']?['coordinates'] is List && (rObj['currentLocation']['coordinates'] as List).length >= 2) {
+                rLng = double.tryParse(rObj['currentLocation']['coordinates'][0].toString());
+                rLat = double.tryParse(rObj['currentLocation']['coordinates'][1].toString());
+              }
+              if (rLat != null && rLng != null && (rLat != _prevRiderLat || rLng != _prevRiderLng || _lastRiderLocationAt == null)) {
+                _prevRiderLat = rLat;
+                _prevRiderLng = rLng;
+                final rawTs = (rObj['lastLocationUpdate'] ?? rObj['updatedAt'] ?? data['locationUpdatedAt'] ?? '').toString();
+                _lastRiderLocationAt = DateTime.tryParse(rawTs)?.toLocal() ?? DateTime.now();
+              }
+            }
             final status = (data['status'] ?? data['order']?['status'] ?? 'pending').toString().toLowerCase();
             final isSelf = _isSelfPickup;
             final rider = data['rider'] ?? data['order']?['rider'];
@@ -1488,19 +1511,36 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                               ),
                             ],
                           ),
-                          // Custom Painted Vector QR Code Box
-                          Container(
-                            width: 72,
-                            height: 72,
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF9FAFB),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: CustomPaint(
-                              painter: _QrCodePainter(),
-                            ),
+                          // Custom Painted Deterministic Vector QR Code Box (Tap to copy QR payload)
+                          Builder(
+                            builder: (context) {
+                              final otpVal = widget.pickupOtp.isNotEmpty
+                                  ? widget.pickupOtp
+                                  : (_trackingData?['pickupOtp'] ?? _trackingData?['order']?['pickupOtp'] ?? _trackingData?['selfPickupCode'] ?? '----').toString();
+                              final qrPayload = 'ECD_PICKUP|$_displayOrderNumber|$otpVal';
+                              return InkWell(
+                                onTap: () {
+                                  Clipboard.setData(ClipboardData(text: qrPayload));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Pickup QR token copied: $qrPayload')),
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  width: 72,
+                                  height: 72,
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF9FAFB),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                  child: CustomPaint(
+                                    painter: _QrCodePainter(payload: qrPayload),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -2244,41 +2284,60 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                       },
                     ),
 
-                    // Top Left Status Chip
+                    // Top Left Status & Stale Location Indicator Chip
                     Positioned(
                       top: 12,
                       left: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF10B981),
-                                shape: BoxShape.circle,
-                              ),
+                      child: Builder(
+                        builder: (context) {
+                          final int staleThreshold = RuntimeControlService.staleThresholdSeconds;
+                          final int? ageSecs = _lastRiderLocationAt != null
+                              ? DateTime.now().difference(_lastRiderLocationAt!).inSeconds
+                              : null;
+                          final bool isStale = hasRider &&
+                              activeStatus != 'delivered' &&
+                              activeStatus != 'cancelled' &&
+                              ageSecs != null &&
+                              ageSecs >= staleThreshold;
+                          final String chipLabel = isStale
+                              ? 'GPS stale (${(ageSecs / 60).floor()}m ago)'
+                              : 'Live GPS Route';
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: isStale
+                                  ? const Color(0xFFFFFBEB).withValues(alpha: 0.95)
+                                  : Colors.white.withValues(alpha: 0.92),
+                              borderRadius: BorderRadius.circular(20),
+                              border: isStale ? Border.all(color: const Color(0xFFF59E0B), width: 1) : null,
+                              boxShadow: const [
+                                BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+                              ],
                             ),
-                            const SizedBox(width: 6),
-                            const Text(
-                              'Live GPS Route',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF1F2937),
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: isStale ? const Color(0xFFD97706) : const Color(0xFF10B981),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  chipLabel,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: isStale ? const Color(0xFF92400E) : const Color(0xFF1F2937),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
 
@@ -3529,13 +3588,16 @@ class _ActiveRouteMapPainter extends CustomPainter {
 }
 
 class _QrCodePainter extends CustomPainter {
+  final String payload;
+  const _QrCodePainter({this.payload = ''});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = const Color(0xFF1F2937)
       ..style = PaintingStyle.fill;
 
-    double step = size.width / 8;
+    double step = size.width / 9;
 
     // Corner Finder Patterns
     canvas.drawRect(Rect.fromLTWH(0, 0, step * 2.5, step * 2.5), paint);
@@ -3553,16 +3615,22 @@ class _QrCodePainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTWH(size.width - step * 1.7, step * 0.8, step * 0.9, step * 0.9), paint);
     canvas.drawRect(Rect.fromLTWH(step * 0.8, size.height - step * 1.7, step * 0.9, step * 0.9), paint);
 
-    // Data Modules Matrix
-    canvas.drawRect(Rect.fromLTWH(step * 3.5, step * 0.5, step * 1.2, step * 1.2), paint);
-    canvas.drawRect(Rect.fromLTWH(step * 5.5, step * 1.5, step * 1.0, step * 1.0), paint);
-    canvas.drawRect(Rect.fromLTWH(step * 0.5, step * 3.5, step * 1.2, step * 1.2), paint);
-    canvas.drawRect(Rect.fromLTWH(step * 3.2, step * 3.2, step * 2.0, step * 2.0), paint);
-    canvas.drawRect(Rect.fromLTWH(step * 6.0, step * 4.0, step * 1.2, step * 1.2), paint);
-    canvas.drawRect(Rect.fromLTWH(step * 3.5, step * 6.0, step * 1.5, step * 1.5), paint);
-    canvas.drawRect(Rect.fromLTWH(step * 5.8, step * 6.0, step * 1.5, step * 1.5), paint);
+    // Deterministic Data Modules derived from payload hash
+    int seed = payload.codeUnits.fold(17, (acc, c) => (acc * 31 + c) & 0x7fffffff);
+    for (int r = 0; r < 9; r++) {
+      for (int c = 0; c < 9; c++) {
+        final inTopLeft = r < 3 && c < 3;
+        final inTopRight = r < 3 && c >= 6;
+        final inBottomLeft = r >= 6 && c < 3;
+        if (inTopLeft || inTopRight || inBottomLeft) continue;
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        if ((seed >> 16) % 2 == 0) {
+          canvas.drawRect(Rect.fromLTWH(c * step + 0.4, r * step + 0.4, step - 0.8, step - 0.8), paint);
+        }
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _QrCodePainter oldDelegate) => oldDelegate.payload != payload;
 }

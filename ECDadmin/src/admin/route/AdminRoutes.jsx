@@ -163,6 +163,10 @@ const OrderTimingControlPage=lazy(()=>import("../pages/OrderTimingControlPage"))
 const PaymentReconciliationPage=lazy(()=>import("../pages/PaymentReconciliationPage"))
 const RiderEarningsControlPage=lazy(()=>import("../pages/RiderEarningsControlPage"))
 const AuditLogsPage=lazy(()=>import("../pages/AuditLogsPage"))
+const SystemHealthPage=lazy(()=>import("../pages/SystemHealthPage"))
+const IntegrationsPage=lazy(()=>import("../pages/IntegrationsPage"))
+const NotificationTemplatesPage=lazy(()=>import("../pages/NotificationTemplatesPage"))
+const DispatchRankingControlPage=lazy(()=>import("../pages/DispatchRankingControlPage"))
 
 const AdminRoutes = () => {
   return (
@@ -348,10 +352,14 @@ const AdminRoutes = () => {
 				 <Route path="/service-areas" element={<ServiceAreasPage/>} />
 				 <Route path="/self-pickup-control" element={<SelfPickupControlPage/>} />
 				 <Route path="/order-timing-control" element={<OrderTimingControlPage/>} />
-				 <Route path="/setting" element={<OrderTimingControlPage/>} />
+				 {/* duplicate /setting removed */}
 				 <Route path="/payment-reconciliation" element={<PaymentReconciliationPage/>} />
 				 <Route path="/rider-earnings-control" element={<RiderEarningsControlPage/>} />
 				 <Route path="/audit-logs" element={<AuditLogsPage/>} />
+				 <Route path="/system-health" element={<SystemHealthPage/>} />
+				 <Route path="/integrations" element={<IntegrationsPage/>} />
+				 <Route path="/notification-templates" element={<NotificationTemplatesPage/>} />
+				 <Route path="/dispatch-ranking-control" element={<DispatchRankingControlPage/>} />
 
 			 </Route>
     </Routes>

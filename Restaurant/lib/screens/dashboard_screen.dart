@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../api_constants.dart';
 import '../models/order_model.dart';
 import '../services/restaurant_api_service.dart';
+import '../services/runtime_control_service.dart';
 import '../theme/app_colors.dart';
 import 'menu_management_screen.dart';
 import 'restaurant_dashboard_screen.dart';
@@ -53,6 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    RestaurantRuntimeControlService.sync();
     _initCurrentMonth();
     _loadLiveDashboardData();
     _setupSocketListener();
@@ -1392,11 +1394,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _handlePickup(Order order) async {
-    final enteredOtp = _otpControllers[order.id]?.text.trim() ?? '';
+    final rawEntered = _otpControllers[order.id]?.text.trim() ?? '';
+    final enteredOtp = rawEntered.startsWith('ECD_PICKUP|')
+        ? rawEntered.split('|').last.trim()
+        : rawEntered;
     if (enteredOtp.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter 4-digit OTP'),
+          content: Text('Please enter 4-digit OTP or scan pickup QR token'),
           backgroundColor: Colors.red,
         ),
       );

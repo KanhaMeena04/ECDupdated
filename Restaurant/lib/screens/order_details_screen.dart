@@ -666,10 +666,13 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () async {
-                          final input = _otpController.text.trim();
+                          final rawInput = _otpController.text.trim();
+                          final input = rawInput.startsWith('ECD_PICKUP|')
+                              ? rawInput.split('|').last.trim()
+                              : rawInput;
                           final expected = (widget.order.pickupOtp ?? '').trim();
                           
-                          if (input.length == 4) {
+                          if (input.length == 4 || rawInput.startsWith('ECD_PICKUP|')) {
                             final res = await RestaurantApiService.verifyPickup(widget.order.id, input);
                             if (res['success'] == true) {
                               if (mounted) Navigator.pop(context);

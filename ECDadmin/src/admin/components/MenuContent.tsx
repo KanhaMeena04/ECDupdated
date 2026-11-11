@@ -37,6 +37,9 @@ import {
   Warning,
   ReceiptLong,
   HealthAndSafety,
+  Extension,
+  NotificationsActive,
+  Rule,
 } from '@mui/icons-material'
 import AccountBalanceWallet from "@mui/icons-material/AccountBalanceWallet";
 import RateReview from "@mui/icons-material/RateReview";
@@ -158,7 +161,11 @@ export const menuItems: MenuItemType[] = [
   { text: 'CMS', icon: <Article />, path: '/user-app-cms', permission: 'CMSControlTower' },
   { text: 'Reports & Analytics', icon: <BarChart />, path: '/profit-loss-report', permission: 'Reports' },
 
+  { text: 'Rule Engine', icon: <Rule />, path: '/rule-engine', permission: 'RuleEngine' },
+  { text: 'Scheduled Changes', icon: <Schedule />, path: '/scheduled-changes', permission: 'RuleEngine' },
   { text: 'Feature Flags', icon: <Flag />, path: '/feature-flags', permission: 'RuleEngine' },
+  { text: 'Notification Templates', icon: <NotificationsActive />, path: '/notification-templates', permission: 'SiteSettings' },
+  { text: 'Dispatch & Ranking', icon: <Tune />, path: '/dispatch-ranking-control', permission: 'SiteSettings' },
 
   {
     text: 'Master Settings',
@@ -170,11 +177,14 @@ export const menuItems: MenuItemType[] = [
       { text: 'Rider Rules', path: '/rider-earnings-control' },
       { text: 'Restaurant Rules', path: '/self-pickup-control' },
       { text: 'Refund Rules', path: '/payment-reconciliation' },
+      { text: 'Dispatch & Ranking Rules', path: '/dispatch-ranking-control' },
     ]
   },
 
   { text: 'Roles & Permissions', icon: <Security />, path: '/role', permission: 'RuleEngine' },
   { text: 'Audit Logs', icon: <ReceiptLong />, path: '/audit-logs', permission: 'SiteSettings' },
+  { text: 'Integrations', icon: <Extension />, path: '/integrations', permission: 'SiteSettings' },
+  { text: 'System Health', icon: <HealthAndSafety sx={{ color: '#248C70' }} />, path: '/system-health', permission: 'SiteSettings' },
   { text: 'Chat Support', icon: <SupportAgent sx={{ color: '#248C70' }} />, path: '/support-chat', badge: 'LIVE' },
   { text: 'Emergency Controls', icon: <Warning />, path: '/emergency-controls', permission: 'RuleEngine' },
 ];

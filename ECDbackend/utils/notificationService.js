@@ -176,3 +176,40 @@ exports.sendNotification = async (userId, title, message, data = {}) => {
     return false;
   }
 };
+
+function interpolateTemplate(templateStr, placeholders = {}) {
+  if (!templateStr || typeof templateStr !== "string") return "";
+  return templateStr.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => {
+    const val = placeholders[key];
+    return val !== undefined && val !== null ? String(val) : "";
+  });
+}
+
+exports.sendTemplatedNotification = async ({
+  userId,
+  templateKey,
+  placeholders = {},
+  data = {},
+  fallbackTitle = "",
+  fallbackMessage = "",
+}) => {
+  try {
+    let title = fallbackTitle;
+    let message = fallbackMessage;
+    try {
+      const AdminSetting = require("../models/AdminSetting");
+      const settings = await AdminSetting.getSettings();
+      const tpl = settings?.notificationTemplates?.[templateKey];
+      if (tpl && tpl.enabled !== false) {
+        if (tpl.title) title = interpolateTemplate(tpl.title, placeholders) || fallbackTitle;
+        if (tpl.body) message = interpolateTemplate(tpl.body, placeholders) || fallbackMessage;
+      }
+    } catch (_) {
+      // Safe fallback to caller-supplied defaults
+    }
+    return exports.sendNotification(userId, title, message, data);
+  } catch (error) {
+    console.error("❌ sendTemplatedNotification Error:", error.message);
+    return exports.sendNotification(userId, fallbackTitle, fallbackMessage, data);
+  }
+};

@@ -2538,8 +2538,37 @@ exports.getAllRestaurants = async (req, res) => {
       };
     });
 
-    // Sort by distance (closest first)
-    withDistances.sort((a, b) => a.distanceKm - b.distanceKm);
+    // Rank restaurants using AdminSetting.rankingConfig (weighted distance, rating, prepTime, featuredBoost)
+    let rankingConfig = null;
+    try {
+      const AdminSetting = require("../models/AdminSetting");
+      const settings = await AdminSetting.getSettings();
+      rankingConfig = settings?.rankingConfig || null;
+    } catch (_) {
+      rankingConfig = null;
+    }
+
+    const wDist = Number(rankingConfig?.distanceWeight ?? 0.45);
+    const wRating = Number(rankingConfig?.ratingWeight ?? 0.30);
+    const wPrep = Number(rankingConfig?.prepTimeWeight ?? 0.15);
+    const wFeatured = Number(rankingConfig?.featuredBoost ?? 0.10);
+
+    const computeRankScore = (item) => {
+      const r = item.restaurant || {};
+      const distScore = 1 / (1 + Math.max(0, Number(item.distanceKm || 0)));
+      const avgRating = Number(r.rating?.average ?? r.rating ?? r.avgRating ?? 4.2);
+      const ratingScore = Math.min(1, Math.max(0, avgRating / 5));
+      const prep = Number(r.estimatedPreparationTime || r.prepTime || 20);
+      const prepScore = 1 / (1 + Math.max(0, prep) / 30);
+      const featuredScore = (r.isFeatured || r.isPromoted || r.isAd) ? 1 : 0;
+      return (distScore * wDist) + (ratingScore * wRating) + (prepScore * wPrep) + (featuredScore * wFeatured);
+    };
+
+    withDistances.sort((a, b) => {
+      const diff = computeRankScore(b) - computeRankScore(a);
+      if (Math.abs(diff) > 0.0001) return diff;
+      return a.distanceKm - b.distanceKm;
+    });
 
     // Strictly enforce restaurant delivery geofence radius when user coordinates are present!
     // If restaurant radius is reduced/updated (e.g., to 1 KM), only users within 1 KM will see it.

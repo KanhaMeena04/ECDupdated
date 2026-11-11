@@ -14,6 +14,7 @@ import '../../routes/app_routes.dart';
 import '../../providers/order_provider.dart';
 import '../../services/auth_service.dart';
 import '../../providers/user_provider.dart';
+import '../../services/runtime_control_service.dart';
 import '../auth/login_page.dart';
 
 class CheckoutFlow extends StatefulWidget {
@@ -189,6 +190,22 @@ class _CheckoutFlowState extends State<CheckoutFlow> {
     final cart = context.read<CartProvider>();
     final addressProvider = context.read<AddressProvider>();
 
+    await RuntimeControlService.sync(force: true);
+    final emergency = RuntimeControlService.emergency;
+    if (emergency['acceptNewOrders'] == false) {
+      final msg = (emergency['reason'] ?? '').toString().trim();
+      _showError(msg.isNotEmpty ? msg : 'Platform is temporarily paused for maintenance. Please try again shortly.');
+      return;
+    }
+    if (_isSelfPickup && (emergency['selfPickup'] == false || !RuntimeControlService.isFlagEnabled('SELF_PICKUP'))) {
+      _showError('Self-Pickup is temporarily disabled by Admin.');
+      return;
+    }
+    if (!_isSelfPickup && emergency['deliveryService'] == false) {
+      _showError('Delivery service is temporarily paused by Admin.');
+      return;
+    }
+
     if (addressProvider.addresses.isEmpty) {
       _showError('Please add a delivery address');
       return;
@@ -196,6 +213,10 @@ class _CheckoutFlowState extends State<CheckoutFlow> {
 
     final isCod = _selectedPayment == 0;
     if (isCod) {
+      if (emergency['cod'] == false || !RuntimeControlService.isFlagEnabled('COD')) {
+        _showError('Cash on Delivery is currently disabled by Admin. Please pay online.');
+        return;
+      }
       if (widget.total > cart.maxCodAmount) {
         _showError('Cash on Delivery is available only up to ₹${cart.maxCodAmount.toInt()}. Please pay online via UPI or Card.');
         return;
@@ -204,6 +225,9 @@ class _CheckoutFlowState extends State<CheckoutFlow> {
         _showError('Cash on Delivery is currently disabled by Admin. Please pay online via UPI or Card.');
         return;
       }
+    } else if (emergency['onlinePayment'] == false) {
+      _showError('Online payment is temporarily unavailable. Please use Cash on Delivery if enabled.');
+      return;
     }
 
     setState(() => _isPlacingOrder = true);

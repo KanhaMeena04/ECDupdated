@@ -14,6 +14,7 @@ import '../../../logic/blocs/driver/driver_bloc.dart';
 import '../../../logic/blocs/driver/driver_event.dart';
 import '../../../logic/blocs/driver/driver_state.dart';
 import '../../../data/services/location_service.dart';
+import '../../../data/services/runtime_control_service.dart';
 import '../auth/rider_relogin_screen.dart';
 import '../auth/profile_screen.dart';
 import '../onboarding_screen.dart';
@@ -35,6 +36,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   bool _isOnline = false;
   bool _isReturning = false;
   bool _isTrackingLocation = false;
+  bool _hasActiveDelivery = false;
+  DateTime? _lastLocationSentAt;
+  bool _sentInitialOnlinePing = false;
   bool _showIncomingOrder = false;
   bool _celebrationDialogShown = false;
   final Set<String> _processedOrders = {};
@@ -56,6 +60,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
+    RiderRuntimeControlService.sync();
     _initializeDriverStatus();
     _checkLocationPermission();
 
@@ -380,8 +385,27 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   }
 
   Future<void> _startLocationTracking() async {
+    await RiderRuntimeControlService.sync();
     await LocationService.startLocationUpdates(
       onLocationUpdate: (Position position) {
+        final now = DateTime.now();
+        final intervalSecs = RiderRuntimeControlService.gpsIntervalSeconds;
+        final activeOnly = RiderRuntimeControlService.activeDeliveryOnly;
+
+        // SOW #5: Continuous GPS tracking only during active delivery (allow 1 initial online check-in ping)
+        if (activeOnly && !_hasActiveDelivery && _sentInitialOnlinePing) {
+          return;
+        }
+
+        if (_lastLocationSentAt != null &&
+            now.difference(_lastLocationSentAt!).inSeconds < intervalSecs) {
+          return;
+        }
+
+        _lastLocationSentAt = now;
+        if (!_hasActiveDelivery) {
+          _sentInitialOnlinePing = true;
+        }
         context.read<DriverBloc>().add(
           UpdateDriverLocation(
             latitude: position.latitude,
@@ -548,6 +572,24 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 ),
               );
             } else if (state is ActiveOrdersLoaded) {
+              final bool hasAssignedOrPickedUp = state.orders.any((o) {
+                final ds = (o['deliveryStatus'] ?? '').toString().toLowerCase();
+                final st = (o['status'] ?? '').toString().toLowerCase();
+                return ds != 'driver_notified' &&
+                    st != 'delivered' &&
+                    st != 'completed' &&
+                    st != 'cancelled';
+              });
+              if (hasAssignedOrPickedUp != _hasActiveDelivery) {
+                _hasActiveDelivery = hasAssignedOrPickedUp;
+                if (hasAssignedOrPickedUp && !_isTrackingLocation) {
+                  _startLocationTracking();
+                } else if (!hasAssignedOrPickedUp &&
+                    RiderRuntimeControlService.activeDeliveryOnly &&
+                    _isTrackingLocation) {
+                  _stopLocationTracking();
+                }
+              }
               if (state.orders.isNotEmpty) {
                 final incomingIndex = state.orders.indexWhere((o) {
                   final ds = (o['deliveryStatus'] ?? '').toString().toLowerCase();

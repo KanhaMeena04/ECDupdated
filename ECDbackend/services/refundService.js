@@ -3,7 +3,25 @@ const Order = require('../models/Order');
 const WalletTransaction = require('../models/WalletTransaction');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
+const AdminSetting = require('../models/AdminSetting');
 const { isCOD, isOnline } = require('../utils/paymentHelpers');
+
+function resolveRefundRule(refundConfig, reason = '') {
+  const normalizedReason = String(reason || '').trim().toLowerCase();
+  const rules = Array.isArray(refundConfig?.reasonRules) ? refundConfig.reasonRules : [];
+  const matched = rules.find((r) => {
+    const k = String(r.reasonKey || '').trim().toLowerCase();
+    const l = String(r.label || '').trim().toLowerCase();
+    return (k && normalizedReason.includes(k)) || (l && normalizedReason.includes(l));
+  });
+  return {
+    ruleMatched: matched?.reasonKey || 'default',
+    refundPercent: matched?.refundPercent !== undefined ? Number(matched.refundPercent) : 100,
+    restaurantPayablePercent: matched?.restaurantPayablePercent !== undefined ? Number(matched.restaurantPayablePercent) : 0,
+    platformLossPercent: matched?.platformLossPercent !== undefined ? Number(matched.platformLossPercent) : 0,
+  };
+}
+
 async function processRefund({
   orderId,
   order = null,
@@ -35,9 +53,15 @@ async function processRefund({
         method: 'none'
       };
     }
-    const refundAmount = order.totalAmount;
+
+    const settings = await AdminSetting.getSettings().catch(() => null);
+    const refundConfig = settings?.refundConfig || { mode: 'manual', autoRefundReasons: [] };
+    const splitRule = resolveRefundRule(refundConfig, reason);
+    const refundAmount = Math.max(0, Math.round((Number(order.totalAmount || 0) * splitRule.refundPercent) / 100));
+
     let refundMethod = 'pending'; // Default: needs admin to process via gateway
     let walletCredited = false;
+    let creditedAmount = 0;
     const user = await User.findById(order.customer);
     if (!user) {
       return {
@@ -51,24 +75,48 @@ async function processRefund({
       type: 'debit'
     });
     if (walletDeduction) {
-      const walletAmount = Math.abs(walletDeduction.amount);
+      const walletAmount = Math.min(refundAmount, Math.abs(walletDeduction.amount));
+      if (walletAmount > 0) {
+        await creditWallet({
+          userId: order.customer,
+          amount: walletAmount,
+          description: `Refund for cancelled order #${order._id}`,
+          orderId: order._id,
+          adminId: initiatedBy
+        });
+        walletCredited = true;
+        creditedAmount = walletAmount;
+        refundMethod = 'wallet';
+      }
+    }
+
+    const autoReasons = Array.isArray(refundConfig.autoRefundReasons) ? refundConfig.autoRefundReasons : [];
+    const normalizedReason = String(reason || '').trim().toLowerCase();
+    const isReasonAutoEligible = autoReasons.length === 0
+      || autoReasons.some((r) => normalizedReason.includes(String(r || '').trim().toLowerCase()));
+
+    if (refundConfig.mode === 'auto' && isReasonAutoEligible && refundAmount > creditedAmount) {
+      const remainingToCredit = refundAmount - creditedAmount;
       await creditWallet({
         userId: order.customer,
-        amount: walletAmount,
-        description: `Refund for cancelled order #${order._id}`,
+        amount: remainingToCredit,
+        description: `Auto-refund (${splitRule.ruleMatched}) for order #${order.orderNumber || order._id}`,
         orderId: order._id,
         adminId: initiatedBy
       });
       walletCredited = true;
-      refundMethod = 'wallet';
+      creditedAmount += remainingToCredit;
+      refundMethod = walletDeduction ? 'wallet' : 'wallet_auto';
     }
+
     order.refund = {
       status: 'in_progress',
       amount: refundAmount,
       method: refundMethod,
-      note: reason
+      note: reason,
+      responsibilitySplit: splitRule
     };
-    if (walletCredited && walletDeduction.amount >= refundAmount) {
+    if (walletCredited && creditedAmount >= refundAmount) {
       order.refund.status = 'completed';
       order.refund.refundedAt = new Date();
       order.refund.refundedBy = initiatedBy;
@@ -90,7 +138,10 @@ async function processRefund({
       metadata: {
         refundAmount: refundAmount,
         walletCredited: walletCredited,
-        method: refundMethod
+        creditedAmount,
+        method: refundMethod,
+        responsibilitySplit: splitRule,
+        refundMode: refundConfig.mode
       }
     });
     return {
@@ -99,6 +150,7 @@ async function processRefund({
       refundAmount: refundAmount,
       method: refundMethod,
       walletCredited: walletCredited,
+      responsibilitySplit: splitRule,
       order: order
     };
   } catch (error) {
