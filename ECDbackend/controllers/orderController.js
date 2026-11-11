@@ -141,9 +141,9 @@ const calculateDistanceInKm = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Math.round(R * c * 10) / 10;
 };
@@ -202,6 +202,7 @@ const enrichOrderWithUnifiedPricing = (orderObj) => {
   orderObj.extraDeliveryCharges = bill.extraDeliveryCharges;
   orderObj.discount = bill.discount;
   orderObj.tip = bill.tip;
+  orderObj.restaurantEarning = bill.restaurantEarning;
   orderObj.inrAmount = bill.inrAmount;
   orderObj.bill = bill;
   return orderObj;
@@ -473,7 +474,7 @@ exports.placeOrder = async (req, res) => {
     try {
       const AdminSetting = require("../models/AdminSetting");
       sysSettings = await AdminSetting.getSettings();
-    } catch (_) {}
+    } catch (_) { }
 
     let bill;
     try {
@@ -484,7 +485,7 @@ exports.placeOrder = async (req, res) => {
         try {
           const orderCount = await Order.countDocuments({ user: req.user._id, status: { $nin: ['cancelled', 'failed'] } });
           if (orderCount === 0) isFirstOrderFallback = true;
-        } catch (_) {}
+        } catch (_) { }
       }
       const subtotal = req.body.subtotal || cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       const deliveryFee = (isSelfPickup || isFirstOrderFallback) ? 0 : (req.body.deliveryFee !== undefined ? Number(req.body.deliveryFee) : (sysSettings?.deliveryFeeConfig?.baseFee || 0));
@@ -619,7 +620,7 @@ exports.placeOrder = async (req, res) => {
     const initialStatusDesc = isOnlineOrder
       ? "Waiting for payment to be completed via Stripe."
       : "Your order has been placed";
-    
+
     const isComm = Boolean(restaurant.pricingModel === 'commission' || restaurant.useCommissionModel === true);
     const commRate = Number(bill.appliedCommissionRate !== undefined ? bill.appliedCommissionRate : (restaurant.adminCommission || 20));
     const adminCommission = bill.adminCommissionAmount !== undefined ? bill.adminCommissionAmount : Math.round(((bill.itemTotal * commRate) / 100) * 100) / 100;
@@ -636,7 +637,7 @@ exports.placeOrder = async (req, res) => {
         const basePay = Number(sysSettings?.riderPayoutConfig?.basePay ?? sysSettings?.riderEarningConfig?.baseEarning ?? 25);
         const baseDist = Number(sysSettings?.riderPayoutConfig?.baseDistanceKm ?? sysSettings?.riderEarningConfig?.baseDistanceKm ?? 2);
         const perKm = Number(sysSettings?.riderPayoutConfig?.extraPerKmFee ?? sysSettings?.riderEarningConfig?.perKmEarning ?? 5);
-        const distKm = Number(bill?.deliveryDistance ?? deliveryAddress?.distanceKm ?? 1);
+        const distKm = Number(deliveryDistance || 1);
         const extraKm = Math.max(0, distKm - baseDist);
         const distancePay = Math.round(extraKm * perKm * 100) / 100;
         const peakBonus = sysSettings?.riderEarningConfig?.isPeakBonusActive ? Number(sysSettings?.riderEarningConfig?.peakBonus || 10) : 0;
@@ -660,7 +661,7 @@ exports.placeOrder = async (req, res) => {
     const orderNumber = await getNextOrderId();
     const customerIdCode = await ensureCustomerId(user);
     const restaurantIdCode = await ensureRestaurantId(restaurant);
-    
+
     // Enrich cart items with Product details (name, image, price) if missing
     let maxItemPrepTime = 0;
     const enrichedItems = await Promise.all(
@@ -684,21 +685,21 @@ exports.placeOrder = async (req, res) => {
               if (!pPrice || pPrice === 0) pPrice = dbProd.price || dbProd.basePrice || dbProd.pricing?.b2c?.sellingPrice || 0;
               if (itemPrep === 0 && dbProd.preparationTime) itemPrep = Number(dbProd.preparationTime);
             }
-          } catch (_) {}
+          } catch (_) { }
         }
         if (itemPrep > maxItemPrepTime) maxItemPrepTime = itemPrep;
 
-        return {
-          product: validProdObjectId,
-          name: pName || 'Food Item',
-          image: pImage || '',
-          quantity: item.quantity || item.qty || 1,
-          price: Number(pPrice || 0),
-          variation: item.variation ? { name: item.variation.name, price: item.variation.price } : undefined,
-          addOns: item.addOns || [],
-          restaurant: restaurant._id || restaurantId
-        };
-      })
+          return {
+            product: validProdObjectId,
+            name: pName || 'Food Item',
+            image: pImage || '',
+            quantity: item.quantity || item.qty || 1,
+            price: Number(pPrice || 0),
+            variation: item.variation ? { name: item.variation.name, price: item.variation.price } : undefined,
+            addOns: item.addOns || [],
+            restaurant: restaurant._id || restaurantId
+          };
+        })
     );
     const computedPrepTimeMins = maxItemPrepTime > 0
       ? maxItemPrepTime
@@ -706,14 +707,14 @@ exports.placeOrder = async (req, res) => {
 
     const AdminSetting = require("../models/AdminSetting");
     const systemSettings = await AdminSetting.findOne().lean();
-    const dynamicCancellationMins = Number(systemSettings?.orderTimingConfig?.cancellationWindowMins || 
-                                           systemSettings?.selfPickupConfig?.cancellationWindowMins || 
-                                           restaurant?.cancellationWindowMinutes || 5);
-    const dynamicGracePeriodMins = Number(systemSettings?.orderTimingConfig?.riderPickupGracePeriodMins || 
-                                           systemSettings?.selfPickupConfig?.gracePeriodMins || 15);
+    const dynamicCancellationMins = Number(systemSettings?.orderTimingConfig?.cancellationWindowMins ||
+      systemSettings?.selfPickupConfig?.cancellationWindowMins ||
+      restaurant?.cancellationWindowMinutes || 5);
+    const dynamicGracePeriodMins = Number(systemSettings?.orderTimingConfig?.riderPickupGracePeriodMins ||
+      systemSettings?.selfPickupConfig?.gracePeriodMins || 15);
     const cancellationWindowExpiresAt = new Date(Date.now() + dynamicCancellationMins * 60 * 1000);
 
-    const resolvedRestName = restaurant?.name 
+    const resolvedRestName = restaurant?.name
       ? (typeof restaurant.name === "string" ? restaurant.name : (restaurant.name.en || restaurant.name.name || "Restaurant"))
       : "Restaurant";
     const resolvedCustName = user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || "Customer";
@@ -807,7 +808,7 @@ exports.placeOrder = async (req, res) => {
           `Your 4-digit pickup code for Order #${newOrder._id} is ${pickupOtp}. Show this code at counter for verification.`,
           { orderId: newOrder._id, pickupOtp, type: "self_pickup_otp" }
         );
-      } catch (notifErr) {}
+      } catch (notifErr) { }
     }
 
     if (isOnlineOrder) {
@@ -950,7 +951,7 @@ exports.placeOrder = async (req, res) => {
             io.to(room).emit("restaurant:new_order", restaurantOrderPayload);
           });
         }
-      } catch (_) {}
+      } catch (_) { }
     } catch (e) {
       logger.error("Notify restaurant error", e);
     }
@@ -1172,7 +1173,7 @@ exports.verifyPayment = async (req, res) => {
             io.to(room).emit("restaurant:new_order", restaurantOrderPayload);
           });
         }
-      } catch (_) {}
+      } catch (_) { }
 
       if (restaurant.owner) {
         try {
@@ -1182,7 +1183,7 @@ exports.verifyPayment = async (req, res) => {
             `Order #${order.orderNumber} - ₹${order.totalAmount}`,
             { orderId: order.orderNumber, backendOrderId: order._id, restaurantId: order.restaurant, totalAmount: order.totalAmount }
           );
-        } catch (_) {}
+        } catch (_) { }
       }
     }
 
@@ -1190,7 +1191,7 @@ exports.verifyPayment = async (req, res) => {
       socketService.emitToAdmin("order:new", restaurantOrderPayload);
       const io = req.app.get("io") || socketService.getIO();
       if (io) io.to("admin:dashboard").emit("newOrder", restaurantOrderPayload);
-    } catch (_) {}
+    } catch (_) { }
 
     return res.status(200).json({
       success: true,
@@ -1272,8 +1273,8 @@ exports.getMyOrders = async (req, res) => {
     const past = formattedOrders.filter(o => pastStatuses.includes((o.status || '').toLowerCase()));
     const cancelled = formattedOrders.filter(o => cancelledStatuses.includes((o.status || '').toLowerCase()));
 
-    res.status(200).json({ 
-      success: true, 
+    res.status(200).json({
+      success: true,
       orders: formattedOrders,
       active,
       past,
@@ -1958,12 +1959,14 @@ exports.customerCancelOrder = async (req, res) => {
     const oldStatus = order.status;
     order.status = 'cancelled';
     order.cancellationReason = `Cancelled by customer: ${reason}`;
+    order.cancellationInitiatedBy = 'customer';
+    order.cancelledAt = new Date();
     order.timeline.push({
       status: 'cancelled',
       timestamp: new Date(),
       label: 'Order Cancelled',
       by: 'customer',
-      description: 'Order cancelled by customer'
+      description: `Order cancelled by customer: ${reason}`
     });
     if (order.paymentStatus === 'paid' && order.paymentMethod !== 'cod') {
       const user = await User.findById(order.customer).session(session);
@@ -1979,13 +1982,13 @@ exports.customerCancelOrder = async (req, res) => {
             description: `Cancellation refund (${refundPercentage}%) - Order ${order.orderId || order._id.toString().slice(-6)}`,
             orderId: order._id
           }], { session });
-        } catch (_) {}
+        } catch (_) { }
       }
       order.paymentStatus = 'refunded';
       order.refund = {
         status: 'completed',
         amount: refundAmount,
-        completedAt: new Date(),
+        refundedAt: new Date(),
         method: 'wallet',
         note: `Customer cancellation (${refundPercentage}% refund)`
       };
@@ -1997,7 +2000,7 @@ exports.customerCancelOrder = async (req, res) => {
       try {
         const Rider = require('../models/Rider');
         await Rider.findByIdAndUpdate(order.rider, { isAvailable: true }).session(session);
-      } catch (_) {}
+      } catch (_) { }
     }
     try {
       socketService.emitToRestaurant(order.restaurant.toString(), 'order:cancelled_by_customer', {
@@ -2025,7 +2028,7 @@ exports.customerCancelOrder = async (req, res) => {
     }
     try {
       logOrderTransition(order._id, oldStatus, 'cancelled', req.user._id, 'customer');
-    } catch (_) {}
+    } catch (_) { }
     await session.commitTransaction();
     session.endSession();
 
@@ -2045,7 +2048,7 @@ exports.customerCancelOrder = async (req, res) => {
           { orderId: order._id.toString(), status: 'cancelled' }
         );
       }
-    } catch (_) {}
+    } catch (_) { }
 
     return res.status(200).json({
       success: true,
@@ -2434,13 +2437,13 @@ exports.updateOrderStatus = async (req, res) => {
       try {
         const { processCODDelivery, processOnlineDelivery } = require('../services/paymentService');
         const isCodOrder = (order.paymentMethod || '').toString().toLowerCase() === 'cod' ||
-                           (order.paymentMethod || '').toString().toLowerCase().includes('cash');
+          (order.paymentMethod || '').toString().toLowerCase().includes('cash');
         if (isCodOrder) {
           order.paymentMethod = 'cod';
           order.paymentStatus = 'paid';
           order.cashCollected = Number(order.totalAmount || 0);
           order.cashCollectedAt = new Date();
-          await order.save().catch(() => {});
+          await order.save().catch(() => { });
           processCODDelivery(order._id).catch(err =>
             logger.error("COD delivery payment processing failed", { orderId: order._id, error: err.message })
           );
@@ -2618,7 +2621,7 @@ exports.updateOrderStatus = async (req, res) => {
         io.to(`order_${order._id}`).emit("orderStatusUpdated", payload);
         io.emit("orderStatusUpdated", payload);
       }
-    } catch (_) {}
+    } catch (_) { }
 
     res.json({ message: "Status updated", order });
   } catch (error) {
@@ -2750,7 +2753,7 @@ exports.markOrderReady = async (req, res) => {
           `Your food at ${restaurantName} is ready! Show 4-digit OTP ${pickupCode} at counter.`,
           { orderId: order._id, status: 'ready', pickupOtp: pickupCode }
         );
-      } catch (_) {}
+      } catch (_) { }
     } else {
       try {
         await sendNotification(
@@ -2759,7 +2762,7 @@ exports.markOrderReady = async (req, res) => {
           `Your food at ${restaurantName || 'the restaurant'} is freshly prepared and ready for delivery partner pickup.`,
           { orderId: order._id, status: 'ready' }
         );
-      } catch (_) {}
+      } catch (_) { }
     }
     if (order.rider) {
       socketService.emitToRider(order.rider._id.toString(), 'order:ready', {
@@ -2855,7 +2858,7 @@ exports.markOrderReady = async (req, res) => {
         io.to(`order_${order._id}`).emit("orderStatusUpdated", payload);
         io.emit("orderStatusUpdated", payload);
       }
-    } catch (_) {}
+    } catch (_) { }
     res.status(200).json({
       message: "Order marked Ready. Riders notified.",
       order,
@@ -3620,10 +3623,13 @@ exports.adminResolveFailedOrder = async (req, res) => {
     order.status = "cancelled";
     order.cancellationReason =
       resolutionNote || "Cancelled by admin after failed payment";
+    order.cancelledAt = new Date();
     order.timeline.push({
       status: "cancelled",
       timestamp: new Date(),
-      note: order.cancellationReason,
+      label: "Order Cancelled by Admin",
+      by: "admin",
+      description: order.cancellationReason,
     });
     await order.save();
     res.status(200).json({ message: "Order cancelled/resolved", order });
@@ -3825,6 +3831,12 @@ exports.adminAssignRider = async (req, res) => {
       : { $or: [{ orderId: targetId }, { orderNumber: targetId }] };
     const order = await Order.findOne(orderQuery);
     if (!order) return res.status(404).json({ message: "Order not found" });
+    if (['cancelled', 'delivered', 'completed', 'rejected'].includes(order.status)) {
+      return res.status(400).json({ message: `Cannot assign rider to an order in '${order.status}' status` });
+    }
+    if (['placed', 'pending'].includes(order.status)) {
+      return res.status(400).json({ message: "Restaurant must accept the order before assigning a rider" });
+    }
     const rider = await Rider.findById(riderId);
     if (!rider) return res.status(404).json({ message: "Rider not found" });
     const riderIdCode = await ensureRiderId(rider);
@@ -3944,11 +3956,13 @@ exports.adminCancelOrder = async (req, res) => {
     const oldStatus = order.status;
     order.status = "cancelled";
     order.cancellationReason = reason;
+    order.cancelledAt = new Date();
     order.timeline.push({
       status: "cancelled",
       timestamp: new Date(),
-      note: `Admin Cancelled: ${reason}`,
-      by: 'admin'
+      label: "Order Cancelled by Admin",
+      by: 'admin',
+      description: `Admin Cancelled: ${reason}`,
     });
     await order.save({ session });
 
@@ -3969,7 +3983,7 @@ exports.adminCancelOrder = async (req, res) => {
             adminAction: true,
             adminId: req.user._id
           }], { session });
-        } catch (_) {}
+        } catch (_) { }
         order.paymentStatus = 'refunded';
         order.refund = {
           status: 'completed',
@@ -3989,7 +4003,7 @@ exports.adminCancelOrder = async (req, res) => {
       try {
         const Rider = require('../models/Rider');
         await Rider.findByIdAndUpdate(order.rider, { isAvailable: true }).session(session);
-      } catch (_) {}
+      } catch (_) { }
     }
 
     const cancelData = {
@@ -4007,7 +4021,7 @@ exports.adminCancelOrder = async (req, res) => {
           message: "Order has been cancelled by admin"
         });
       }
-    } catch (_) {}
+    } catch (_) { }
 
     await session.commitTransaction();
     session.endSession();
@@ -4019,7 +4033,7 @@ exports.adminCancelOrder = async (req, res) => {
         `Your order #${order.orderNumber || order._id.toString().slice(-6)} was cancelled by Admin. ${reason ? `Reason: ${reason}. ` : ''}${order.paymentStatus === 'refunded' ? 'Refund has been credited to your wallet.' : ''}`,
         { orderId: order._id.toString(), status: 'cancelled' }
       );
-    } catch (_) {}
+    } catch (_) { }
 
     return res.status(200).json({
       success: true,
@@ -4036,7 +4050,11 @@ exports.adminCancelOrder = async (req, res) => {
 };
 exports.ownerRejectOrder = async (req, res) => {
   try {
-    const { reason = "Rejected by restaurant" } = req.body || {};
+    const rawReason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+    if (!rawReason) {
+      return res.status(400).json({ success: false, message: "Rejection reason is required" });
+    }
+    const reason = rawReason;
     const orderId = req.params.id || req.params.orderId;
     const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
     const orderFilter = isObjectId
@@ -4064,14 +4082,25 @@ exports.ownerRejectOrder = async (req, res) => {
       }
     }
 
+    if (["delivered", "completed", "cancelled", "failed"].includes((order.status || "").toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        message: `Order cannot be rejected in status: ${order.status}`
+      });
+    }
+
     const oldStatus = order.status;
     order.status = "cancelled";
+    order.deliveryStatus = "cancelled";
     order.cancellationReason = `Rejected by restaurant: ${reason}`;
+    order.cancellationInitiatedBy = "restaurant_owner";
+    order.cancelledAt = new Date();
     order.timeline.push({
       status: "cancelled",
       timestamp: new Date(),
-      note: `Restaurant Rejected: ${reason}`,
-      by: "restaurant"
+      label: "Order Rejected",
+      by: "restaurant_owner",
+      description: `Restaurant Rejected: ${reason}`,
     });
 
     try {
@@ -4084,7 +4113,7 @@ exports.ownerRejectOrder = async (req, res) => {
         "restaurant_owner",
         `Rejected: ${reason}`,
       );
-    } catch (_) {}
+    } catch (_) { }
 
     if (order.paymentStatus === "paid" && order.paymentMethod !== "cod") {
       const user = await User.findById(order.customer);
@@ -4100,11 +4129,25 @@ exports.ownerRejectOrder = async (req, res) => {
             description: `Refund (Restaurant Rejected): Order #${order.orderId || order._id.toString().slice(-6)}`,
             orderId: order._id
           });
-        } catch (_) {}
+        } catch (_) { }
         order.paymentStatus = 'refunded';
+        order.refund = {
+          status: 'completed',
+          amount: order.totalAmount,
+          refundedAt: new Date(),
+          method: 'wallet',
+          note: `Restaurant rejection refund: ${reason}`,
+        };
       }
     } else if (order.paymentMethod === 'cod') {
       order.paymentStatus = 'cancelled';
+    }
+
+    if (order.rider) {
+      try {
+        const Rider = require('../models/Rider');
+        await Rider.findByIdAndUpdate(order.rider, { isAvailable: true });
+      } catch (_) {}
     }
 
     await order.save();
@@ -4114,9 +4157,19 @@ exports.ownerRejectOrder = async (req, res) => {
         orderId: order._id.toString(),
         status: "cancelled",
         reason: reason,
-        rejectedBy: "restaurant",
+        rejectedBy: "restaurant_owner",
         timestamp: new Date(),
       };
+      socketService.emitToOrder(order._id.toString(), "orderStatusUpdated", {
+        ...rejectData,
+        cancellationReason: reason,
+        message: `Restaurant rejected your order: ${reason}`,
+      });
+      socketService.emitToUser(order.customer.toString(), "orderStatusUpdated", {
+        ...rejectData,
+        cancellationReason: reason,
+        message: `Restaurant rejected your order: ${reason}`,
+      });
       socketService.emitToUser(order.customer.toString(), "order:cancelled", {
         ...rejectData,
         cancellationReason: reason,
@@ -4124,10 +4177,13 @@ exports.ownerRejectOrder = async (req, res) => {
       });
       socketService.emitToAdmin("order:cancelled", {
         ...rejectData,
-        restaurantName: restaurant.name,
-        restaurantId: restaurant._id,
+        restaurantName: restaurant?.name || "Restaurant",
+        restaurantId: restaurant?._id,
         cancellationReason: reason,
       });
+      if (order.rider) {
+        socketService.emitToRider(order.rider.toString(), "order:cancelled", rejectData);
+      }
     } catch (socketError) {
       console.error("Socket emission error:", socketError);
     }
@@ -4139,7 +4195,7 @@ exports.ownerRejectOrder = async (req, res) => {
         `Your order #${order.orderNumber || order.orderId || order._id.toString().slice(-6)} was rejected by the restaurant. Reason: ${reason}.${order.paymentStatus === 'refunded' ? ' Refund has been credited to your wallet.' : ''}`,
         { orderId: order._id.toString(), status: 'cancelled' }
       );
-    } catch (_) {}
+    } catch (_) { }
 
     return res.status(200).json({
       success: true,
@@ -4153,7 +4209,12 @@ exports.ownerRejectOrder = async (req, res) => {
 };
 exports.ownerCancelOrder = async (req, res) => {
   try {
-    const { reason = "Cancelled by restaurant", refundAmount } = req.body || {};
+    const rawReason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+    if (!rawReason) {
+      return res.status(400).json({ success: false, message: "Cancellation reason is required" });
+    }
+    const reason = rawReason;
+    const { refundAmount } = req.body || {};
     const orderId = req.params.id || req.params.orderId;
     const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
     const orderFilter = isObjectId
@@ -4181,18 +4242,22 @@ exports.ownerCancelOrder = async (req, res) => {
       }
     }
 
-    if (order.status === "cancelled") {
-      return res.status(400).json({ success: false, message: "Order already cancelled" });
+    if (["delivered", "completed", "cancelled", "failed"].includes((order.status || "").toLowerCase())) {
+      return res.status(400).json({ success: false, message: `Order cannot be cancelled in status: ${order.status}` });
     }
 
     const oldStatus = order.status;
     order.status = "cancelled";
+    order.deliveryStatus = "cancelled";
     order.cancellationReason = reason;
+    order.cancellationInitiatedBy = "restaurant_owner";
+    order.cancelledAt = new Date();
     order.timeline.push({
       status: "cancelled",
       timestamp: new Date(),
-      note: `Restaurant Cancelled: ${reason}`,
-      by: "restaurant"
+      label: "Order Cancelled by Restaurant",
+      by: "restaurant_owner",
+      description: `Restaurant Cancelled: ${reason}`,
     });
 
     try {
@@ -4204,7 +4269,7 @@ exports.ownerCancelOrder = async (req, res) => {
         "restaurant_owner",
         reason,
       );
-    } catch (_) {}
+    } catch (_) { }
 
     if (order.paymentStatus === "paid" && order.paymentMethod !== "cod") {
       const user = await User.findById(order.customer);
@@ -4221,8 +4286,15 @@ exports.ownerCancelOrder = async (req, res) => {
             description: `Refund (Restaurant Cancelled): Order #${order.orderId || order._id.toString().slice(-6)}`,
             orderId: order._id
           });
-        } catch (_) {}
+        } catch (_) { }
         order.paymentStatus = 'refunded';
+        order.refund = {
+          status: 'completed',
+          amount: amountToRefund,
+          refundedAt: new Date(),
+          method: 'wallet',
+          note: `Restaurant cancellation refund: ${reason}`,
+        };
       }
     } else if (order.paymentMethod === 'cod') {
       order.paymentStatus = 'cancelled';
@@ -4232,7 +4304,7 @@ exports.ownerCancelOrder = async (req, res) => {
       try {
         const Rider = require('../models/Rider');
         await Rider.findByIdAndUpdate(order.rider, { isAvailable: true });
-      } catch (_) {}
+      } catch (_) { }
     }
 
     await order.save();
@@ -4243,15 +4315,15 @@ exports.ownerCancelOrder = async (req, res) => {
         "Order Cancelled",
         `Your order #${order.orderId || order._id.toString().slice(-6)} was cancelled by the restaurant. Reason: ${reason}`,
         { orderId: order._id.toString() }
-      ).catch(() => {});
-    } catch (_) {}
+      ).catch(() => { });
+    } catch (_) { }
 
     try {
       const cancelData = {
         orderId: order._id.toString(),
         status: "cancelled",
         reason: reason,
-        rejectedBy: "restaurant",
+        rejectedBy: "restaurant_owner",
         timestamp: new Date(),
       };
       // Emit to order room (where User app tracking page is listening)
@@ -4596,7 +4668,7 @@ exports.verifySelfPickup = async (req, res) => {
         io.to(`restaurant_${order.restaurant}`).emit("orderStatusUpdated", payload);
         io.emit("orderStatusUpdated", payload);
       }
-    } catch (_) {}
+    } catch (_) { }
 
     try {
       await sendNotification(
@@ -4605,17 +4677,17 @@ exports.verifySelfPickup = async (req, res) => {
         `Your self-pickup order #${order.orderNumber || order._id} is completed. Thank you!`,
         { orderId: order._id, status: 'delivered' }
       );
-    } catch (_) {}
+    } catch (_) { }
 
     try {
       const { processOnlineDelivery } = require('../services/paymentService');
       await processOnlineDelivery(order._id);
-    } catch (_) {}
+    } catch (_) { }
 
     try {
       const { creditOrderRewards } = require('../services/rewardService');
       await creditOrderRewards(order);
-    } catch (_) {}
+    } catch (_) { }
 
     return res.status(200).json({
       success: true,
@@ -4668,7 +4740,7 @@ exports.notifyCustomerArrived = async (req, res) => {
         io.to(`order_${order._id}`).emit("customerArrived", payload);
         io.emit("orderStatusUpdated", payload);
       }
-    } catch (_) {}
+    } catch (_) { }
 
     if (order.restaurant && order.restaurant.owner) {
       try {
@@ -4678,7 +4750,7 @@ exports.notifyCustomerArrived = async (req, res) => {
           `${customerName} is at your counter for Order #${order.orderNumber || order._id}. Verify 4-digit OTP: ${order.selfPickupCode || order.pickupOtp}`,
           { orderId: order._id, customerArrived: true }
         );
-      } catch (_) {}
+      } catch (_) { }
     }
 
     return res.status(200).json({
@@ -4813,7 +4885,7 @@ exports.prepareOrderVendor = async (req, res) => {
         `The kitchen is now preparing your order #${order.orderNumber || order._id.toString().slice(-6)}!`,
         { orderId: order._id.toString(), status: "preparing" }
       );
-    } catch (_) {}
+    } catch (_) { }
 
     try {
       const payload = { orderId: order._id.toString(), status: "preparing", order: enriched, message: "Food is being prepared! 🍳" };
@@ -4826,7 +4898,7 @@ exports.prepareOrderVendor = async (req, res) => {
         io.to(`order_${order._id}`).emit("orderStatusUpdated", payload);
         io.emit("orderStatusUpdated", payload);
       }
-    } catch (_) {}
+    } catch (_) { }
 
     return res.status(200).json({ success: true, message: "Order is now preparing", order: enriched });
   } catch (error) {
@@ -4913,12 +4985,12 @@ exports.verifyPickupVendor = async (req, res) => {
             : `Your order is on the way! ${riderName} has picked up your order from the restaurant.`,
           { orderId: order._id.toString(), status: newStatus, type: "order_status" }
         );
-      } catch (_) {}
+      } catch (_) { }
       if (isSelfPickup) {
         try {
           const { creditOrderRewards } = require('../services/rewardService');
           await creditOrderRewards(order);
-        } catch (_) {}
+        } catch (_) { }
       }
     }
 
@@ -4940,7 +5012,7 @@ exports.verifyPickupVendor = async (req, res) => {
           io.to(`restaurant:${restId}`).emit("order:status", updateData);
           io.to(`restaurant:${restId}`).emit("order:picked_up", updateData);
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     try {
@@ -4949,7 +5021,7 @@ exports.verifyPickupVendor = async (req, res) => {
         io.to(`order_${order._id}`).emit("orderStatusUpdated", updateData);
         io.emit("orderStatusUpdated", updateData);
       }
-    } catch (_) {}
+    } catch (_) { }
 
     return res.status(200).json({
       success: true,
@@ -4997,7 +5069,7 @@ exports.completePickupVendor = async (req, res) => {
           : `Your order #${order.orderNumber || order._id.toString().slice(-6)} has been picked up from the restaurant and is on the way!`,
         { orderId: order._id.toString(), status: newStatus }
       );
-    } catch (_) {}
+    } catch (_) { }
 
     try {
       const payload = { orderId: order._id.toString(), status: newStatus, order: enriched };
@@ -5008,7 +5080,7 @@ exports.completePickupVendor = async (req, res) => {
         io.to(`order_${order._id}`).emit("orderStatusUpdated", payload);
         io.emit("orderStatusUpdated", payload);
       }
-    } catch (_) {}
+    } catch (_) { }
 
     return res.status(200).json({ success: true, message: isSelfPickup ? "Order handed over and completed" : "Pickup completed", order: enriched });
   } catch (error) {
@@ -5044,7 +5116,11 @@ exports.sendPickupOtpVendor = async (req, res) => {
 
 exports.customerCancelOrder = async (req, res) => {
   try {
-    const { reason = "Cancelled by customer" } = req.body || {};
+    const rawReason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+    if (!rawReason) {
+      return res.status(400).json({ success: false, message: "Cancellation reason is required" });
+    }
+    const reason = rawReason;
     const orderId = req.params.id || req.params.orderId;
     const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
     const orderFilter = isObjectId
@@ -5057,7 +5133,7 @@ exports.customerCancelOrder = async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied" });
     }
 
-    if (['delivered', 'cancelled', 'failed'].includes(order.status)) {
+    if (['delivered', 'completed', 'cancelled', 'failed'].includes((order.status || '').toLowerCase())) {
       return res.status(400).json({
         success: false,
         message: `Order cannot be cancelled in status: ${order.status}`
@@ -5065,12 +5141,16 @@ exports.customerCancelOrder = async (req, res) => {
     }
 
     order.status = 'cancelled';
+    order.deliveryStatus = 'cancelled';
     order.cancellationReason = reason;
+    order.cancellationInitiatedBy = 'customer';
+    order.cancelledAt = new Date();
     order.timeline.push({
       status: 'cancelled',
       timestamp: new Date(),
-      note: reason,
-      by: 'customer'
+      label: 'Order Cancelled',
+      by: 'customer',
+      description: reason
     });
 
     if (order.paymentStatus === 'paid' && order.paymentMethod !== 'cod') {
@@ -5087,9 +5167,16 @@ exports.customerCancelOrder = async (req, res) => {
             description: `Refund: Order #${order.orderId || order._id.toString().slice(-6)}`,
             orderId: order._id
           });
-        } catch (_) {}
+        } catch (_) { }
       }
       order.paymentStatus = 'refunded';
+      order.refund = {
+        status: 'completed',
+        amount: order.totalAmount,
+        refundedAt: new Date(),
+        method: 'wallet',
+        note: `Customer cancellation refund: ${reason}`,
+      };
     } else if (order.paymentMethod === 'cod') {
       order.paymentStatus = 'cancelled';
     }
@@ -5098,7 +5185,7 @@ exports.customerCancelOrder = async (req, res) => {
       try {
         const Rider = require('../models/Rider');
         await Rider.findByIdAndUpdate(order.rider, { isAvailable: true });
-      } catch (_) {}
+      } catch (_) { }
     }
 
     await order.save();
@@ -5107,15 +5194,20 @@ exports.customerCancelOrder = async (req, res) => {
       orderId: order._id.toString(),
       status: 'cancelled',
       reason,
+      cancellationReason: reason,
+      cancelledBy: 'customer',
       timestamp: new Date()
     };
     try {
+      socketService.emitToOrder(order._id.toString(), 'orderStatusUpdated', cancelData);
+      socketService.emitToUser(order.customer.toString(), 'orderStatusUpdated', cancelData);
       socketService.emitToRestaurant(order.restaurant.toString(), 'order:cancelled', cancelData);
       socketService.emitToAdmin('order:cancelled', { ...cancelData, customerName: req.user?.name });
       if (order.rider) {
         socketService.emitToRider(order.rider.toString(), 'order:cancelled', cancelData);
+        socketService.emitToRider(order.rider.toString(), 'orderStatusUpdated', cancelData);
       }
-    } catch (_) {}
+    } catch (_) { }
 
     return res.status(200).json({ success: true, message: "Order cancelled successfully", order });
   } catch (error) {

@@ -22,6 +22,7 @@ import '../order/order_tracking_screen.dart';
 import '../order/order_details_screen.dart';
 import '../wallet/rider_wallet_screen.dart';
 import 'widgets/notifications_sheet.dart';
+import '../../widgets/rider_reason_sheet.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -122,7 +123,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
              final String updatedAt = activeOrder['updatedAt'] ?? '';
              if (orderId != null) {
                _processedOrders.add('${orderId}_$updatedAt');
-               context.read<DriverBloc>().add(DeclineOrder(orderId: orderId));
+               context.read<DriverBloc>().add(DeclineOrder(orderId: orderId, reason: 'Request timed out (no response)'));
              }
           }
           setState(() => _showIncomingOrder = false);
@@ -1265,15 +1266,29 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () {
+                        onPressed: () async {
                           _stopOrderRingtone();
+                          _timerController.stop();
+                          final reason = await showRiderReasonSheet(
+                            context,
+                            title: 'Reject Delivery Request',
+                            subtitle: 'Select a reason to pass this delivery to another partner',
+                            confirmLabel: 'Confirm Reject',
+                            reasons: const [
+                              'Too far from my location',
+                              'Low payout / Fuel issue',
+                              'Vehicle / Traffic issue',
+                              'Taking a break / Going offline',
+                              'Other Reason',
+                            ],
+                          );
+                          if (reason == null || reason.trim().isEmpty || !mounted) return;
                           final String? orderId = activeOrder['_id'];
                           final String updatedAt = activeOrder['updatedAt'] ?? '';
                           if (orderId != null) {
                             _processedOrders.add('${orderId}_$updatedAt');
-                            context.read<DriverBloc>().add(DeclineOrder(orderId: orderId));
+                            context.read<DriverBloc>().add(DeclineOrder(orderId: orderId, reason: reason));
                           }
-                          _timerController.stop();
                           setState(() => _showIncomingOrder = false);
                         },
                         icon: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
@@ -1418,13 +1433,29 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 setState(() => _showIncomingOrder = false);
                 return true;
               } else if (direction == DismissDirection.endToStart) {
-                // Deny
+                // Deny with mandatory reason
                 _stopOrderRingtone();
+                _timerController.stop();
+                final reason = await showRiderReasonSheet(
+                  context,
+                  title: 'Reject Delivery Request',
+                  subtitle: 'Select a reason to pass this delivery to another partner',
+                  confirmLabel: 'Confirm Reject',
+                  reasons: const [
+                    'Too far from my location',
+                    'Low payout / Fuel issue',
+                    'Vehicle / Traffic issue',
+                    'Taking a break / Going offline',
+                    'Other Reason',
+                  ],
+                );
+                if (reason == null || reason.trim().isEmpty || !mounted) {
+                  return false;
+                }
                 if (orderId != null) {
                   _processedOrders.add(processKey!);
-                  context.read<DriverBloc>().add(DeclineOrder(orderId: orderId));
+                  context.read<DriverBloc>().add(DeclineOrder(orderId: orderId, reason: reason));
                 }
-                _timerController.stop();
                 setState(() => _showIncomingOrder = false);
                 return true;
               }

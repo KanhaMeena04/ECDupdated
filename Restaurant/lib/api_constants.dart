@@ -81,6 +81,6 @@ class ApiConstants {
   static String cancelOrder(String orderId) => "$baseUrl/orders/restaurant/cancel/$orderId";
   
   // Notifications
-  static String get notifications => "$baseUrl/notifications";
-  static String get markAllNotificationsRead => "$baseUrl/notifications/mark-all-read";
+  static String get notifications => "$baseUrl/notifications?app=restaurant";
+  static String get markAllNotificationsRead => "$baseUrl/notifications/mark-all-read?app=restaurant";
 }

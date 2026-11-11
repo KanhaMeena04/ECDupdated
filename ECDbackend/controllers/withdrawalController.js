@@ -188,17 +188,31 @@ exports.createRestaurantWithdrawal = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Restaurant profile not found' });
     }
 
-    // Check restaurant wallet balance
+    // Sync any already-PAID settlement ledgers before computing withdrawable balance
+    try {
+      const { syncPaidLedgersToWallet } = require("./settlementController");
+      await syncPaidLedgersToWallet(restaurant._id);
+    } catch (_) {}
+
+    // Check restaurant wallet balance (excluding active pending withdrawal requests)
     let rWallet = await RestaurantWallet.findOne({ restaurant: restaurant._id });
     if (!rWallet) {
       rWallet = await RestaurantWallet.create({ restaurant: restaurant._id, balance: restaurant.walletBalance || 0 });
     }
 
-    const availableBalance = rWallet.balance ?? restaurant.walletBalance ?? 0;
-    if (availableBalance < amount) {
+    const pendingAgg = await Withdrawal.aggregate([
+      { $match: { restaurant: restaurant._id, status: "pending" } },
+      { $group: { _id: null, totalPending: { $sum: "$amount" } } }
+    ]);
+    const activePendingAmount = Number(pendingAgg[0]?.totalPending || 0);
+    const walletBalance = Number(rWallet.balance ?? restaurant.walletBalance ?? 0);
+    const availableBalance = Math.max(0, Number((walletBalance - activePendingAmount).toFixed(2)));
+    if (availableBalance < Number(amount)) {
       return res.status(400).json({
         success: false,
-        message: `Insufficient wallet balance. Available: ₹${availableBalance}, Requested: ₹${amount}`
+        message: activePendingAmount > 0
+          ? `Insufficient withdrawable balance. Wallet: ₹${walletBalance}, Pending Requests: ₹${activePendingAmount}, Available: ₹${availableBalance}, Requested: ₹${amount}`
+          : `Insufficient wallet balance. Available: ₹${availableBalance}, Requested: ₹${amount}`
       });
     }
 
@@ -222,7 +236,7 @@ exports.createRestaurantWithdrawal = async (req, res) => {
     };
 
     const withdrawal = await Withdrawal.create({
-      user: userId || restaurant.owner || req.user._id,
+      user: userId || restaurant.owner || req.user?._id || undefined,
       restaurant: restaurant._id,
       requestType: 'restaurant',
       amount: Number(amount),
@@ -304,10 +318,10 @@ exports.approveWithdrawal = async (req, res) => {
           await restDoc.save();
         }
 
-        // Also update any matching SettlementLedger items to PAID
+        // Also update any matching SettlementLedger items to PAID and mark walletSettled idempotently
         await SettlementLedger.updateMany(
           { restaurant: restId, status: { $in: ['CALCULATED', 'REVIEW', 'APPROVED', 'PROCESSING'] } },
-          { $set: { status: 'PAID', paymentReference: utrNumber || `UTR-${Date.now()}`, settledAt: new Date() } }
+          { $set: { status: 'PAID', walletSettled: true, paymentReference: utrNumber || `UTR-${Date.now()}`, settledAt: new Date() } }
         );
       }
     }

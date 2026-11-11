@@ -29,6 +29,7 @@ class _NotificationsSheetState extends State<NotificationsSheet> {
   }
 
   Future<void> _loadNotifications() async {
+    await NotificationService.syncBackendNotifications();
     final list = await NotificationService.getNotifications();
     if (mounted) {
       setState(() {

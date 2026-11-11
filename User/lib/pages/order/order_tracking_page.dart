@@ -21,6 +21,7 @@ import '../../services/runtime_control_service.dart';
 import '../../services/socket_service.dart';
 import '../../services/web_directions.dart';
 import 'contact_support_page.dart';
+import 'order_cancellation_page.dart';
 
 /// 2-Stage Order Tracking Page with Realistic Google Maps Vector Painter
 
@@ -2031,11 +2032,24 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                 width: double.infinity,
                 height: 46,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
+                  onPressed: () async {
+                    final orderMap = _trackingData?['order'] ?? _trackingData ?? {};
+                    final payMethod = (orderMap['paymentMethod'] ?? '').toString().toLowerCase();
+                    final cancelled = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => OrderCancellationPage(
+                          orderId: widget.orderId,
+                          isCOD: payMethod == 'cod',
+                        ),
+                      ),
+                    );
+                    if (cancelled == true && mounted) {
+                      Navigator.pop(context, true);
+                    }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF3F4F6),
+                    backgroundColor: const Color(0xFFFEE2E2),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -2044,7 +2058,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                   child: const Text(
                     'Cancel Order',
                     style: TextStyle(
-                      color: Color(0xFF374151),
+                      color: Color(0xFFB91C1C),
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
                     ),

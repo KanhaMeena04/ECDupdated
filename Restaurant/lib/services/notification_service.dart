@@ -101,8 +101,12 @@ class RestaurantNotificationService {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'x-app-type': 'restaurant',
         },
-        body: jsonEncode({'fcmToken': fcmToken}),
+        body: jsonEncode({
+          'fcmToken': fcmToken,
+          'appType': 'restaurant',
+        }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {

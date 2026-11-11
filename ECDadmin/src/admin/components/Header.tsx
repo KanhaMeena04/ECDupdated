@@ -315,6 +315,14 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
         setNotifications(cleaned);
         const unread = cleaned.filter((n: NotificationItem) => !n.read).length;
         setUnreadCount(unread);
+
+        const nextSupportUnread = Number(res.data.supportUnreadCount ?? cleaned.filter(n => n.type === 'support' && !n.read).length);
+        if (prevSupportUnreadRef.current >= 0 && nextSupportUnread > prevSupportUnreadRef.current) {
+          playSupportAlertChime();
+          toast('💬 New Support message received!', { duration: 4000 });
+        }
+        prevSupportUnreadRef.current = nextSupportUnread;
+        setSupportUnreadCount(nextSupportUnread);
         return;
       }
     } catch (err) {
@@ -387,7 +395,20 @@ export default function Header({ onToggleDashboard, showToggleButton }: HeaderPr
         }
       } catch (_) {}
     }
-  }, []);
+  }, [playSupportAlertChime]);
+
+  React.useEffect(() => {
+    fetchLiveNotifications();
+    const timer = window.setInterval(() => {
+      fetchLiveNotifications();
+    }, 8000);
+    const handleFocus = () => fetchLiveNotifications();
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchLiveNotifications]);
 
   const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

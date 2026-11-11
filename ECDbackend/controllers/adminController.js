@@ -231,7 +231,8 @@ exports.getOrdersDashboard = async (req, res) => {
       assigned: ['assigned', 'rider_assigned'],
       ready: ['ready', 'ready_for_pickup'],
       picked_up: ['picked_up', 'partner_picked', 'out_for_delivery', 'on_the_way', 'reached_restaurant', 'reached_store', 'delivery_arrived'],
-      cancelled: ['cancelled', 'failed'],
+      cancelled: ['cancelled'],
+      failed: ['failed'],
       delivered: ['delivered', 'completed'],
     };
 
@@ -284,10 +285,12 @@ exports.getOrdersDashboard = async (req, res) => {
       const c = g.count || 0;
       const amt = g.amount || 0;
       totalCount += c;
-      totalRevenue += amt;
+      if (!statusMap.cancelled.includes(st) && !statusMap.failed.includes(st)) {
+        totalRevenue += amt;
+      }
 
       if (statusMap.delivered.includes(st)) completedCount += c;
-      else if (statusMap.cancelled.includes(st)) cancelledCount += c;
+      else if (statusMap.cancelled.includes(st) || statusMap.failed.includes(st)) cancelledCount += c;
 
       if (processingStatuses.includes(st)) processingCount += c;
 
@@ -345,6 +348,7 @@ exports.getOrdersDashboard = async (req, res) => {
       ready: 0,
       picked_up: 0,
       cancelled: 0,
+      failed: 0,
       delivered: 0,
     };
 
@@ -360,6 +364,7 @@ exports.getOrdersDashboard = async (req, res) => {
       else if (statusMap.picked_up.includes(st)) liveStatusCounts.picked_up += c;
       else if (statusMap.delivered.includes(st)) liveStatusCounts.delivered += c;
       else if (statusMap.cancelled.includes(st)) liveStatusCounts.cancelled += c;
+      else if (statusMap.failed.includes(st)) liveStatusCounts.failed += c;
     });
 
     // Dynamic Timeline Aggregation for Graph Chart
@@ -384,10 +389,22 @@ exports.getOrdersDashboard = async (req, res) => {
           },
           cancelled: {
             $sum: {
-              $cond: [{ $in: [{ $toLower: "$status" }, statusMap.cancelled] }, 1, 0]
+              $cond: [
+                { $in: [{ $toLower: "$status" }, [...statusMap.cancelled, ...statusMap.failed]] },
+                1,
+                0
+              ]
             }
           },
-          revenue: { $sum: "$totalAmount" }
+          revenue: {
+            $sum: {
+              $cond: [
+                { $in: [{ $toLower: "$status" }, [...statusMap.cancelled, ...statusMap.failed]] },
+                0,
+                "$totalAmount"
+              ]
+            }
+          }
         }
       },
       { $sort: { _id: -1 } },
@@ -421,10 +438,12 @@ exports.getOrdersDashboard = async (req, res) => {
         const h = new Date(o.createdAt).getHours();
         const slot = Math.min(7, Math.floor(h / 3));
         chartOrders[slot] += 1;
-        chartRevenue[slot] += Math.round(Number(o.totalAmount || 0));
         const st = (o.status || '').toLowerCase();
+        if (!statusMap.cancelled.includes(st) && !statusMap.failed.includes(st)) {
+          chartRevenue[slot] += Math.round(Number(o.totalAmount || 0));
+        }
         if (statusMap.delivered.includes(st)) chartCompleted[slot] += 1;
-        if (statusMap.cancelled.includes(st)) chartCancelled[slot] += 1;
+        if (statusMap.cancelled.includes(st) || statusMap.failed.includes(st)) chartCancelled[slot] += 1;
       });
     } else {
       chartLabels = ["12 AM", "3 AM", "6 AM", "9 AM", "12 PM", "3 PM", "6 PM", "9 PM"];
@@ -513,7 +532,8 @@ exports.getOrdersDashboard = async (req, res) => {
     const formattedRecentOrders = recentOrders.map(order => {
       const rawStatus = (order.status || '').toLowerCase();
       let normalizedStatus = 'pending';
-      if (statusMap.cancelled.includes(rawStatus)) normalizedStatus = 'cancelled';
+      if (statusMap.failed.includes(rawStatus)) normalizedStatus = 'failed';
+      else if (statusMap.cancelled.includes(rawStatus)) normalizedStatus = 'cancelled';
       else if (statusMap.delivered.includes(rawStatus)) normalizedStatus = 'delivered';
       else if (statusMap.picked_up.includes(rawStatus)) normalizedStatus = 'picked_up';
       else if (statusMap.ready.includes(rawStatus)) normalizedStatus = 'ready';
@@ -522,7 +542,8 @@ exports.getOrdersDashboard = async (req, res) => {
       else if (statusMap.accepted.includes(rawStatus)) normalizedStatus = 'accepted';
       else if (statusMap.pending.includes(rawStatus)) normalizedStatus = 'pending';
 
-      const statusType = normalizedStatus === 'cancelled' ? 'failed' :
+      const statusType = normalizedStatus === 'failed' ? 'failed' :
+        normalizedStatus === 'cancelled' ? 'cancelled' :
         normalizedStatus === 'delivered' ? 'completed' :
         normalizedStatus === 'picked_up' ? 'picked_up' :
         normalizedStatus === 'ready' ? 'ready' :
@@ -530,7 +551,7 @@ exports.getOrdersDashboard = async (req, res) => {
         normalizedStatus === 'preparing' ? 'preparing' :
         normalizedStatus === 'accepted' ? 'accepted' : 'processing';
 
-      const color = normalizedStatus === 'cancelled' ? 'text-rose-600' :
+      const color = (normalizedStatus === 'cancelled' || normalizedStatus === 'failed') ? 'text-rose-600' :
         normalizedStatus === 'delivered' ? 'text-emerald-600' :
         normalizedStatus === 'picked_up' ? 'text-indigo-600' :
         normalizedStatus === 'ready' ? 'text-teal-600' :
@@ -544,6 +565,7 @@ exports.getOrdersDashboard = async (req, res) => {
         normalizedStatus === 'preparing' ? 'Preparing' :
         normalizedStatus === 'assigned' ? 'Assigned' :
         normalizedStatus === 'ready' ? 'Ready' :
+        normalizedStatus === 'failed' ? 'Failed' :
         normalizedStatus === 'cancelled' ? 'Cancelled' :
         normalizedStatus === 'delivered' ? 'Delivered' :
         (order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1).replace(/_/g, ' ') : 'Pending');
@@ -738,7 +760,7 @@ exports.getAdminLiveNotifications = async (req, res) => {
       .slice(0, limit);
 
     const activeOrdersFilter = {
-      status: { $in: ['placed', 'accepted', 'preparation', 'ready', 'assigned', 'picked_up'] }
+      status: { $in: ['placed', 'accepted', 'preparing', 'preparation', 'ready', 'assigned', 'picked_up'] }
     };
     if (lastReadTime > 0) {
       activeOrdersFilter.createdAt = { $gt: new Date(lastReadTime) };
@@ -2220,7 +2242,7 @@ exports.processRiderPayout = async (req, res) => {
 
 exports.sendCustomPush = async (req, res) => {
   try {
-    const { sendTo, title, message } = req.body;
+    const { sendTo, targetApps, title, message } = req.body;
     if (!title || !title.trim()) {
       return res.status(400).json({ success: false, message: 'Notification title is required' });
     }
@@ -2230,86 +2252,144 @@ exports.sendCustomPush = async (req, res) => {
 
     const trimmedTitle = title.trim();
     const trimmedMessage = message.trim();
-    const targetGroup = (sendTo || 'all').toLowerCase();
 
-    let userQuery = {};
-    if (targetGroup === 'customers' || targetGroup === 'users') {
-      userQuery = { 
-        $or: [
-          { role: { $in: ['customer', 'user'] } },
-          { role: { $exists: false } },
-          { role: null },
-          { role: '' }
-        ] 
-      };
-    } else if (targetGroup === 'riders' || targetGroup === 'driver') {
-      let riderUserIds = [];
-      try {
-        const Rider = require('../models/Rider');
-        riderUserIds = await Rider.distinct('user');
-      } catch (_) {}
-      userQuery = {
-        $or: [
-          { role: { $in: ['rider', 'driver'] } },
-          ...(riderUserIds.length ? [{ _id: { $in: riderUserIds.filter(Boolean) } }] : [])
-        ]
-      };
-    } else if (targetGroup === 'restaurants' || targetGroup === 'vendor') {
-      let ownerIds = [];
-      try {
-        const Restaurant = require('../models/Restaurant');
-        ownerIds = await Restaurant.distinct('owner');
-      } catch (_) {}
-      userQuery = {
-        $or: [
-          { role: { $in: ['restaurant_owner', 'vendor', 'restaurant'] } },
-          ...(ownerIds.length ? [{ _id: { $in: ownerIds.filter(Boolean) } }] : [])
-        ]
-      };
-    } else if (targetGroup === 'android') {
-      userQuery = { $or: [{ platform: 'android' }, { deviceType: 'android' }, { role: { $in: ['customer', 'user'] } }] };
-    } else if (targetGroup === 'ios') {
-      userQuery = { $or: [{ platform: 'ios' }, { deviceType: 'ios' }] };
+    // Normalize selected target apps cleanly: supports both single sendTo string and targetApps[] multi-select
+    const normalizeAppKey = (raw) => {
+      const v = String(raw || '').toLowerCase().trim();
+      if (['customers', 'customer', 'users', 'user', 'user_app'].includes(v)) return 'customer';
+      if (['restaurants', 'restaurant', 'vendor', 'partner', 'restaurant_app'].includes(v)) return 'restaurant';
+      if (['riders', 'rider', 'driver', 'delivery', 'rider_app'].includes(v)) return 'rider';
+      if (['all', 'all_apps'].includes(v)) return 'all';
+      return v;
+    };
+
+    let requestedApps = [];
+    if (Array.isArray(targetApps) && targetApps.length > 0) {
+      requestedApps = [...new Set(targetApps.map(normalizeAppKey).filter(Boolean))];
     } else {
-      userQuery = {};
+      const single = normalizeAppKey(sendTo || 'all');
+      if (single === 'all') {
+        requestedApps = ['customer', 'restaurant', 'rider'];
+      } else {
+        requestedApps = [single];
+      }
+    }
+    if (requestedApps.includes('all')) {
+      requestedApps = ['customer', 'restaurant', 'rider'];
     }
 
-    const users = await User.find(userQuery).select('_id fcmToken name role email mobile phone');
+    // Fetch partner/rider IDs so restaurant/rider owners don't accidentally get customer-only pushes
+    const [restaurantsList, ridersList] = await Promise.all([
+      Restaurant.find({}).select('_id owner fcmToken').lean(),
+      Rider.find({}).select('_id user fcmToken').lean(),
+    ]);
 
-    let successCount = 0;
+    const ownerIds = [...new Set(restaurantsList.map(r => r.owner ? String(r.owner) : null).filter(Boolean))];
+    const riderUserIds = [...new Set(ridersList.map(r => r.user ? String(r.user) : null).filter(Boolean))];
+    const restTokenByOwner = new Map();
+    for (const r of restaurantsList) {
+      if (r.owner && r.fcmToken) restTokenByOwner.set(String(r.owner), r.fcmToken);
+    }
+    const riderTokenByUser = new Map();
+    for (const rd of ridersList) {
+      if (rd.user && rd.fcmToken) riderTokenByUser.set(String(rd.user), rd.fcmToken);
+    }
+
     const notificationDocs = [];
     const fcmTokens = [];
+    const dispatchedUserIds = new Set();
 
-    for (const u of users) {
-      notificationDocs.push({
-        user: u._id,
-        title: trimmedTitle,
-        message: trimmedMessage,
-        type: 'general',
-        data: {
-          type: 'general',
-          click_action: 'FLUTTER_NOTIFICATION_CLICK',
-        },
-        isRead: false,
-      });
+    const dispatchToApp = async (appType) => {
+      let query = {};
+      if (appType === 'customer') {
+        const excludePartnerIds = [...new Set([...ownerIds, ...riderUserIds])];
+        query = {
+          $and: [
+            {
+              $or: [
+                { role: { $in: ['customer', 'user'] } },
+                { role: { $exists: false } },
+                { role: null },
+                { role: '' }
+              ]
+            },
+            ...(excludePartnerIds.length > 0 ? [{ _id: { $nin: excludePartnerIds } }] : [])
+          ]
+        };
+      } else if (appType === 'restaurant') {
+        query = {
+          $or: [
+            { role: { $in: ['restaurant_owner', 'vendor', 'restaurant'] } },
+            ...(ownerIds.length ? [{ _id: { $in: ownerIds } }] : [])
+          ]
+        };
+      } else if (appType === 'rider') {
+        query = {
+          $or: [
+            { role: { $in: ['rider', 'driver'] } },
+            ...(riderUserIds.length ? [{ _id: { $in: riderUserIds } }] : [])
+          ]
+        };
+      } else if (appType === 'android') {
+        query = { $or: [{ platform: 'android' }, { deviceType: 'android' }] };
+      } else if (appType === 'ios') {
+        query = { $or: [{ platform: 'ios' }, { deviceType: 'ios' }] };
+      }
 
-      try {
-        socketService.emitToUser(u._id.toString(), 'notification:new', {
+      const appUsers = await User.find(query).select('_id fcmToken fcmTokens name role');
+      const storedTargetApp = ['customer', 'restaurant', 'rider'].includes(appType) ? appType : 'all';
+
+      for (const u of appUsers) {
+        const uid = u._id.toString();
+        dispatchedUserIds.add(`${storedTargetApp}:${uid}`);
+
+        notificationDocs.push({
+          user: u._id,
           title: trimmedTitle,
           message: trimmedMessage,
-          data: { type: 'general' },
+          type: 'general',
+          targetApp: storedTargetApp,
+          data: {
+            type: 'general',
+            targetApp: storedTargetApp,
+            click_action: 'FLUTTER_NOTIFICATION_CLICK',
+          },
           isRead: false,
-          createdAt: new Date(),
         });
-      } catch (err) {
-        // ignore socket emit error
-      }
 
-      if (u.fcmToken && typeof u.fcmToken === 'string' && u.fcmToken.trim().length > 10) {
-        fcmTokens.push(u.fcmToken.trim());
+        try {
+          socketService.emitToUser(uid, 'notification:new', {
+            title: trimmedTitle,
+            message: trimmedMessage,
+            targetApp: storedTargetApp,
+            data: { type: 'general', targetApp: storedTargetApp },
+            isRead: false,
+            createdAt: new Date(),
+          });
+        } catch (_) {}
+
+        let resolvedToken = null;
+        if (appType === 'customer') {
+          resolvedToken = u.fcmTokens?.customer || u.fcmToken;
+        } else if (appType === 'restaurant') {
+          resolvedToken = u.fcmTokens?.restaurant || restTokenByOwner.get(uid) || u.fcmToken;
+        } else if (appType === 'rider') {
+          resolvedToken = u.fcmTokens?.rider || riderTokenByUser.get(uid) || u.fcmToken;
+        } else {
+          resolvedToken = u.fcmToken;
+        }
+
+        if (resolvedToken && typeof resolvedToken === 'string' && resolvedToken.trim().length > 10) {
+          fcmTokens.push(resolvedToken.trim());
+        }
       }
-      successCount++;
+    };
+
+    for (const appType of requestedApps) {
+      await dispatchToApp(appType);
     }
+
+    const successCount = dispatchedUserIds.size;
 
     if (notificationDocs.length > 0) {
       await Notification.insertMany(notificationDocs).catch(err => console.error('insertMany notifications notice:', err.message));
@@ -2416,7 +2496,7 @@ exports.resetFinancialData = async (req, res) => {
     startToday.setHours(0, 0, 0, 0);
     const todayEffectiveStart = (lastResetAt && lastResetAt > startToday) ? lastResetAt : startToday;
     const todayAgg = await Order.aggregate([
-      { $match: { createdAt: { $gte: todayEffectiveStart } } },
+      { $match: { status: "delivered", createdAt: { $gte: todayEffectiveStart } } },
       { $group: { _id: null, todayEarnings: { $sum: { $ifNull: ["$totalAmount", 0] } } } }
     ]);
     const currentTodayEarnings = todayAgg[0]?.todayEarnings || 0;

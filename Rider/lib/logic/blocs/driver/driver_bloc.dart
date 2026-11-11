@@ -19,6 +19,7 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
     on<UpdateOrderStatus>(_onUpdateOrderStatus);
     on<AcceptOrder>(_onAcceptOrder);
     on<DeclineOrder>(_onDeclineOrder);
+    on<CancelActiveOrder>(_onCancelActiveOrder);
     on<ResetDriverError>(_onResetDriverError);
   }
 
@@ -480,6 +481,56 @@ class DriverBloc extends Bloc<DriverEvent, DriverState> {
         String errorMessage = result['message'] ?? 'Failed to decline order';
         emit(DriverError(
           message: errorMessage,
+          orders: _activeOrders,
+          completedOrders: _completedOrders,
+          cancelledOrders: _cancelledOrders,
+          summaryData: _summaryData,
+        ));
+      }
+    } catch (e) {
+      emit(DriverError(
+        message: 'Network error: $e',
+        orders: _activeOrders,
+        completedOrders: _completedOrders,
+        cancelledOrders: _cancelledOrders,
+        summaryData: _summaryData,
+      ));
+    }
+  }
+
+  // Cancel or unassign already-accepted active order with reason
+  Future<void> _onCancelActiveOrder(
+    CancelActiveOrder event,
+    Emitter<DriverState> emit,
+  ) async {
+    emit(DriverLoading(
+      orders: _activeOrders,
+      completedOrders: _completedOrders,
+      cancelledOrders: _cancelledOrders,
+      summaryData: _summaryData,
+    ));
+
+    try {
+      final result = await ApiService.cancelActiveOrder(event.orderId, reason: event.reason);
+      if (result['success'] == true) {
+        final String action = (result['action'] ?? 'cancelled').toString();
+        final String message = (result['message'] ?? 'Order cancelled successfully').toString();
+        add(const LoadActiveOrders());
+
+        emit(
+          OrderStatusUpdated(
+            orderId: event.orderId,
+            status: action == 'reassigned' ? 'reassigned' : 'cancelled',
+            message: message,
+            orders: _activeOrders,
+            completedOrders: _completedOrders,
+            cancelledOrders: _cancelledOrders,
+            summaryData: _summaryData,
+          ),
+        );
+      } else {
+        emit(DriverError(
+          message: (result['message'] ?? 'Failed to cancel order').toString(),
           orders: _activeOrders,
           completedOrders: _completedOrders,
           cancelledOrders: _cancelledOrders,

@@ -239,10 +239,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         final parsedOrders = ordersList.map<Order>((json) => Order.fromJson(json)).toList();
 
+        final now = DateTime.now();
         double computedRevenue = 0.0;
         for (var o in parsedOrders) {
-          if (o.status != 'Cancelled' && o.status != 'Failed') {
-            computedRevenue += o.totalAmount;
+          final st = o.status.toLowerCase();
+          final isCompleted = st == 'delivered' || st == 'completed' || st == 'handed over';
+          final isSameMonth = o.createdAt == null || (o.createdAt!.year == now.year && o.createdAt!.month == now.month);
+          if (isCompleted && isSameMonth) {
+            final net = (o.restaurantEarning != null && o.restaurantEarning! > 0)
+                ? o.restaurantEarning!
+                : (o.itemTotal > 0 ? o.itemTotal : o.totalAmount);
+            computedRevenue += net;
           }
         }
 
@@ -2199,37 +2206,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ],
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (order.restaurantEarning != null && order.restaurantEarning! > 0) ...[
-                      Text(
-                        '₹${order.restaurantEarning!.toStringAsFixed(2)}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryGreen,
-                        ),
-                      ),
-                      Text(
-                        'Bill: ₹${order.totalAmount.toStringAsFixed(2)}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          color: Colors.grey[500],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ] else ...[
-                      Text(
-                        '₹${order.totalAmount.toStringAsFixed(2)}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ],
-                  ],
+                Builder(
+                  builder: (context) {
+                    final lowerStatus = order.status.toLowerCase();
+                    final isCancelledOrFailed = lowerStatus.contains('cancel') ||
+                        lowerStatus.contains('reject') ||
+                        lowerStatus.contains('fail') ||
+                        lowerStatus.contains('refund');
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (isCancelledOrFailed) ...[
+                          Text(
+                            '₹0.00',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                          Text(
+                            'Bill: ₹${order.totalAmount.toStringAsFixed(2)}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: Colors.grey[400],
+                              decoration: TextDecoration.lineThrough,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ] else if (order.restaurantEarning != null && order.restaurantEarning! > 0) ...[
+                          Text(
+                            '₹${order.restaurantEarning!.toStringAsFixed(2)}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryGreen,
+                            ),
+                          ),
+                          Text(
+                            'Bill: ₹${order.totalAmount.toStringAsFixed(2)}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: Colors.grey[500],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ] else ...[
+                          Text(
+                            '₹${order.totalAmount.toStringAsFixed(2)}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
               ],
             ),

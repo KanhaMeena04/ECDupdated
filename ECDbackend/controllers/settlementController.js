@@ -2,6 +2,63 @@ const SettlementLedger = require('../models/SettlementLedger');
 const Restaurant = require('../models/Restaurant');
 const Order = require('../models/Order');
 const AuditLog = require('../models/AuditLog');
+const RestaurantWallet = require('../models/RestaurantWallet');
+const PaymentTransaction = require('../models/PaymentTransaction');
+const Withdrawal = require('../models/WithdrawalRequest');
+
+// Idempotent helper: syncs any newly-PAID SettlementLedgers to RestaurantWallet & Restaurant.walletBalance
+async function syncPaidLedgersToWallet(restaurantId, settledByUserId = null) {
+  if (!restaurantId) return 0;
+  const unsettledPaidLedgers = await SettlementLedger.find({
+    restaurant: restaurantId,
+    status: { $in: ['PAID', 'RECONCILED'] },
+    walletSettled: { $ne: true }
+  });
+  if (!unsettledPaidLedgers.length) return 0;
+
+  let totalToDeduct = 0;
+  const ledgerIds = [];
+  for (const ledger of unsettledPaidLedgers) {
+    totalToDeduct += Number(ledger.netPayable || 0);
+    ledgerIds.push(ledger._id);
+  }
+
+  let rWallet = await RestaurantWallet.findOne({ restaurant: restaurantId });
+  if (!rWallet) {
+    rWallet = await RestaurantWallet.create({ restaurant: restaurantId });
+  }
+
+  if (totalToDeduct > 0) {
+    const deductAmount = Math.min(totalToDeduct, Math.max(0, Number(rWallet.balance || 0)));
+    rWallet.balance = Math.max(0, Number(((rWallet.balance || 0) - deductAmount).toFixed(2)));
+    rWallet.pendingAmount = Math.max(0, Number(((rWallet.pendingAmount || 0) - deductAmount).toFixed(2)));
+    rWallet.totalPaidOut = Number(((rWallet.totalPaidOut || 0) + totalToDeduct).toFixed(2));
+    rWallet.lastPayoutAt = new Date();
+    rWallet.lastPayoutAmount = Number(totalToDeduct.toFixed(2));
+    await rWallet.save();
+
+    await Restaurant.findByIdAndUpdate(restaurantId, {
+      $set: { walletBalance: rWallet.balance }
+    }).catch(() => {});
+
+    await PaymentTransaction.create({
+      restaurant: restaurantId,
+      type: 'restaurant_weekly_payout',
+      amount: totalToDeduct,
+      status: 'completed',
+      note: `Settlement payout processed for ${ledgerIds.length} order(s)`,
+      processedBy: settledByUserId || undefined
+    }).catch(() => {});
+  }
+
+  await SettlementLedger.updateMany(
+    { _id: { $in: ledgerIds } },
+    { $set: { walletSettled: true } }
+  );
+
+  return totalToDeduct;
+}
+exports.syncPaidLedgersToWallet = syncPaidLedgersToWallet;
 
 // Get all restaurant settlement ledgers with aggregated totals & order breakdown
 exports.getRestaurantSettlements = async (req, res) => {
@@ -141,12 +198,16 @@ exports.updateSettlementStatus = async (req, res) => {
     if (paymentReference) ledger.paymentReference = paymentReference;
     if (disputeReason) ledger.disputeReason = disputeReason;
 
-    if (status === 'PAID') {
-      ledger.settledAt = new Date();
-      ledger.settledBy = req.user._id;
+    if (status === 'PAID' || status === 'RECONCILED') {
+      ledger.settledAt = ledger.settledAt || new Date();
+      ledger.settledBy = ledger.settledBy || req.user._id;
     }
 
     await ledger.save();
+
+    if (status === 'PAID' || status === 'RECONCILED') {
+      await syncPaidLedgersToWallet(ledger.restaurant, req.user._id);
+    }
 
     await AuditLog.log({
       entity: 'Settlement',
@@ -178,6 +239,8 @@ exports.processBatchPayout = async (req, res) => {
     }
 
     const batchId = 'BATCH-' + Date.now();
+    const targetLedgers = await SettlementLedger.find({ _id: { $in: settlementIds } }).select('restaurant');
+    const affectedRestaurantIds = [...new Set(targetLedgers.map(l => String(l.restaurant)).filter(Boolean))];
 
     const result = await SettlementLedger.updateMany(
       { _id: { $in: settlementIds } },
@@ -193,6 +256,10 @@ exports.processBatchPayout = async (req, res) => {
         }
       }
     );
+
+    for (const restId of affectedRestaurantIds) {
+      await syncPaidLedgersToWallet(restId, req.user._id);
+    }
 
     await AuditLog.log({
       entity: 'Settlement',
@@ -409,12 +476,27 @@ exports.getRestaurantAppEarningsAndSettlement = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Restaurant profile not found' });
     }
 
-    const rWallet = await RestaurantWallet.findOne({ restaurant: restaurant._id });
-    const walletBalance = rWallet?.balance ?? restaurant.walletBalance ?? 0;
+    await syncPaidLedgersToWallet(restaurant._id);
 
-    const ledgers = await SettlementLedger.find({ restaurant: restaurant._id })
-      .populate('order', 'orderNumber itemTotal totalAmount status createdAt paymentMethod')
-      .sort({ createdAt: -1 });
+    const [rWallet, ledgers, withdrawals] = await Promise.all([
+      RestaurantWallet.findOne({ restaurant: restaurant._id }),
+      SettlementLedger.find({ restaurant: restaurant._id })
+        .populate('order', 'orderNumber itemTotal totalAmount status createdAt paymentMethod')
+        .sort({ createdAt: -1 }),
+      Withdrawal.find({
+        $or: [
+          { restaurant: restaurant._id },
+          ...(restaurant.owner ? [{ user: restaurant.owner, requestType: 'restaurant' }] : [])
+        ]
+      }).sort({ createdAt: -1 }).limit(30)
+    ]);
+
+    const walletBalance = Number((rWallet?.balance ?? restaurant.walletBalance ?? 0).toFixed(2));
+    const pendingWithdrawalAmount = withdrawals
+      .filter(w => w.status === 'pending')
+      .reduce((sum, w) => sum + Number(w.amount || 0), 0);
+    const availableBalance = Math.max(0, Number((walletBalance - pendingWithdrawalAmount).toFixed(2)));
+    const totalPaidOut = Number((rWallet?.totalPaidOut || 0).toFixed(2));
 
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -481,8 +563,21 @@ exports.getRestaurantAppEarningsAndSettlement = async (req, res) => {
         week: parseFloat(weekEarnings.toFixed(2)),
         month: parseFloat(monthEarnings.toFixed(2)),
         total: parseFloat(totalEarnings.toFixed(2)),
-        walletBalance: parseFloat(walletBalance.toFixed(2))
+        walletBalance: parseFloat(walletBalance.toFixed(2)),
+        availableBalance: parseFloat(availableBalance.toFixed(2)),
+        totalPaidOut: parseFloat(Math.max(totalPaidOut, paidSettlementAmount).toFixed(2)),
+        pendingWithdrawalAmount: parseFloat(pendingWithdrawalAmount.toFixed(2))
       },
+      withdrawals: withdrawals.map(w => ({
+        _id: w._id,
+        amount: w.amount,
+        status: w.status,
+        method: w.method,
+        utrNumber: w.utrNumber || '',
+        adminNote: w.adminNote || '',
+        createdAt: w.createdAt,
+        processedAt: w.processedAt
+      })),
       settlementsSummary: {
         pending: { amount: parseFloat(pendingSettlementAmount.toFixed(2)), count: pendingCount },
         processing: { amount: parseFloat(processingSettlementAmount.toFixed(2)), count: processingCount },

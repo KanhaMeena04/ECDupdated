@@ -434,7 +434,7 @@ class ApiService {
       final data = jsonDecode(response.body);
       return {'success': response.statusCode == 200, 'message': data['message'] ?? 'Order accepted'};
     } catch (e) {
-      return {"success": true, "message": "Order accepted"};
+      return {"success": false, "message": "Network error accepting order: $e"};
     }
   }
 
@@ -444,13 +444,34 @@ class ApiService {
         Uri.parse("${ApiConstants.baseUrl}/riders/orders/$orderId/reject"),
         headers: await _getHeaders(),
         body: jsonEncode({
-          if (reason != null) ...{'reason': reason},
+          'reason': (reason != null && reason.trim().isNotEmpty) ? reason.trim() : 'Rider declined the order',
         }),
       ).timeout(const Duration(seconds: 15));
       final data = jsonDecode(response.body);
-      return {'success': response.statusCode == 200, 'message': data['message'] ?? 'Order declined'};
+      final ok = response.statusCode == 200 && (data['success'] != false);
+      return {'success': ok, 'data': data, 'message': data['message'] ?? (ok ? 'Order declined' : 'Failed to decline order')};
     } catch (e) {
-      return {"success": true, "message": "Order declined"};
+      return {"success": false, "message": "Network error declining order: $e"};
+    }
+  }
+
+  static Future<Map<String, dynamic>> cancelActiveOrder(String orderId, {required String reason}) async {
+    try {
+      final response = await http.post(
+        Uri.parse("${ApiConstants.baseUrl}/riders/orders/$orderId/cancel"),
+        headers: await _getHeaders(),
+        body: jsonEncode({'reason': reason.trim()}),
+      ).timeout(const Duration(seconds: 15));
+      final data = jsonDecode(response.body);
+      final ok = response.statusCode == 200 && (data['success'] != false);
+      return {
+        'success': ok,
+        'action': data['action'] ?? 'cancelled',
+        'data': data,
+        'message': data['message'] ?? (ok ? 'Order cancelled' : 'Failed to cancel order'),
+      };
+    } catch (e) {
+      return {"success": false, "message": "Network error cancelling order: $e"};
     }
   }
 
@@ -789,8 +810,14 @@ class ApiService {
   static Future<bool> saveFcmToken(String token) async {
     if (token.isEmpty) return false;
     try {
-      final headers = await _getHeaders();
-      final body = jsonEncode({'fcmToken': token});
+      final headers = {
+        ...(await _getHeaders()),
+        'x-app-type': 'rider',
+      };
+      final body = jsonEncode({
+        'fcmToken': token,
+        'appType': 'rider',
+      });
       var response = await http.post(
         Uri.parse(ApiConstants.saveFcmToken),
         headers: headers,
@@ -810,6 +837,49 @@ class ApiService {
     } catch (e) {
       log("Error registering FCM token: $e");
       return false;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getRiderBackendNotifications() async {
+    try {
+      final headers = {
+        ...(await _getHeaders()),
+        'x-app-type': 'rider',
+      };
+      final response = await http
+          .get(
+            Uri.parse('${ApiConstants.baseUrl}/notifications?app=rider'),
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final list = (decoded is Map && decoded['notifications'] is List)
+            ? decoded['notifications'] as List
+            : [];
+        return list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+    } catch (e) {
+      log("Error fetching rider backend notifications: $e");
+    }
+    return [];
+  }
+
+  static Future<void> markRiderNotificationsRead() async {
+    try {
+      final headers = {
+        ...(await _getHeaders()),
+        'x-app-type': 'rider',
+      };
+      await http
+          .patch(
+            Uri.parse('${ApiConstants.baseUrl}/notifications/mark-all-read?app=rider'),
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 8));
+    } catch (e) {
+      log("Error marking rider notifications read: $e");
     }
   }
 }

@@ -176,7 +176,7 @@ exports.adminCreateRestaurant = async (req, res) => {
     }
   } catch (e) {
     if (session) {
-      try { session.endSession(); } catch (err) {}
+      try { session.endSession(); } catch (err) { }
     }
     session = null;
   }
@@ -586,7 +586,7 @@ exports.adminCreateRestaurant = async (req, res) => {
       try {
         await session.abortTransaction();
         session.endSession();
-      } catch (e) {}
+      } catch (e) { }
     }
     res.status(500).json({ message: error.message });
   }
@@ -909,7 +909,7 @@ exports.applyForRestaurant = async (req, res) => {
 
     // Save menu items into Product collection for full platform cataloging
     if (savedMenu.length > 0) {
-      let defaultCat = await Category.findOne({ isMaster: true });      if (!defaultCat) {
+      let defaultCat = await Category.findOne({ isMaster: true }); if (!defaultCat) {
         defaultCat = await Category.findOne({});
       }
       if (!defaultCat) {
@@ -1211,8 +1211,8 @@ exports.updateRestaurant = async (req, res) => {
           if (d && d.day) {
             const dayKey = d.day.toLowerCase();
             timingObj[dayKey] = {
-              open: d.from || d.open || "09:00",
-              close: d.to || d.close || "23:00",
+              open: d.from || d.open || "09:00 AM",
+              close: d.to || d.close || "11:00 PM",
               isClosed: d.isOpen !== undefined ? !d.isOpen : Boolean(d.isClosed),
             };
           }
@@ -1415,7 +1415,7 @@ exports.updateRestaurant = async (req, res) => {
     const updatedRestaurant = await Restaurant.findByIdAndUpdate(
       req.params.id,
       sanitized,
-      { new: true, runValidators: false, bypassDocumentValidation: true },
+      { new: true, runValidators: true },
     );
 
     clearRestaurantsCache();
@@ -1437,7 +1437,7 @@ exports.updateRestaurant = async (req, res) => {
       socketService.emitToAll("restaurant:profile_updated", payload);
       socketService.emitToRestaurant(updatedRestaurant._id.toString(), "restaurant:profile_updated", payload);
       socketService.emitToAdmin("restaurant:profile_updated", payload);
-    } catch (_) {}
+    } catch (_) { }
 
     res
       .status(200)
@@ -1883,16 +1883,29 @@ exports.getDashboard = async (req, res) => {
     const todaysOrders = await Order.countDocuments({
       restaurant: restaurantId,
       createdAt: { $gte: start, $lte: end },
+      status: { $nin: ["cancelled", "failed"] },
     });
     const revenueAgg = await Order.aggregate([
       {
         $match: {
           restaurant: restaurantId,
           createdAt: { $gte: start, $lte: end },
-          status: { $ne: "cancelled" },
+          status: "delivered",
         },
       },
-      { $group: { _id: null, totalRevenue: { $sum: "$totalAmount" } } },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: {
+            $sum: {
+              $ifNull: [
+                "$restaurantCommission",
+                { $ifNull: ["$restaurantShare", "$itemTotal"] },
+              ],
+            },
+          },
+        },
+      },
     ]);
     const todaysRevenue =
       revenueAgg[0] && revenueAgg[0].totalRevenue
@@ -2006,17 +2019,40 @@ exports.getAnalyticsDashboard = async (req, res) => {
         {
           $group: {
             _id: null,
-            orders: { $sum: 1 },
+            orders: {
+              $sum: {
+                $cond: [
+                  { $in: ["$status", ["cancelled", "failed"]] },
+                  0,
+                  1,
+                ],
+              },
+            },
             revenue: {
               $sum: {
-                $cond: [{ $ne: ["$status", "cancelled"] }, "$totalAmount", 0],
+                $cond: [
+                  { $eq: ["$status", "delivered"] },
+                  {
+                    $ifNull: [
+                      "$restaurantCommission",
+                      { $ifNull: ["$restaurantShare", "$itemTotal"] },
+                    ],
+                  },
+                  0,
+                ],
               },
             },
             delivered: {
               $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] },
             },
             cancelled: {
-              $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] },
+              $sum: {
+                $cond: [
+                  { $in: ["$status", ["cancelled", "failed"]] },
+                  1,
+                  0,
+                ],
+              },
             },
           },
         },
@@ -2026,17 +2062,40 @@ exports.getAnalyticsDashboard = async (req, res) => {
         {
           $group: {
             _id: null,
-            orders: { $sum: 1 },
+            orders: {
+              $sum: {
+                $cond: [
+                  { $in: ["$status", ["cancelled", "failed"]] },
+                  0,
+                  1,
+                ],
+              },
+            },
             revenue: {
               $sum: {
-                $cond: [{ $ne: ["$status", "cancelled"] }, "$totalAmount", 0],
+                $cond: [
+                  { $eq: ["$status", "delivered"] },
+                  {
+                    $ifNull: [
+                      "$restaurantCommission",
+                      { $ifNull: ["$restaurantShare", "$itemTotal"] },
+                    ],
+                  },
+                  0,
+                ],
               },
             },
             delivered: {
               $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] },
             },
             cancelled: {
-              $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] },
+              $sum: {
+                $cond: [
+                  { $in: ["$status", ["cancelled", "failed"]] },
+                  1,
+                  0,
+                ],
+              },
             },
           },
         },
@@ -2046,10 +2105,27 @@ exports.getAnalyticsDashboard = async (req, res) => {
         {
           $group: {
             _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-            orders: { $sum: 1 },
+            orders: {
+              $sum: {
+                $cond: [
+                  { $in: ["$status", ["cancelled", "failed"]] },
+                  0,
+                  1,
+                ],
+              },
+            },
             revenue: {
               $sum: {
-                $cond: [{ $ne: ["$status", "cancelled"] }, "$totalAmount", 0],
+                $cond: [
+                  { $eq: ["$status", "delivered"] },
+                  {
+                    $ifNull: [
+                      "$restaurantCommission",
+                      { $ifNull: ["$restaurantShare", "$itemTotal"] },
+                    ],
+                  },
+                  0,
+                ],
               },
             },
           },
@@ -2061,10 +2137,27 @@ exports.getAnalyticsDashboard = async (req, res) => {
         {
           $group: {
             _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-            orders: { $sum: 1 },
+            orders: {
+              $sum: {
+                $cond: [
+                  { $in: ["$status", ["cancelled", "failed"]] },
+                  0,
+                  1,
+                ],
+              },
+            },
             revenue: {
               $sum: {
-                $cond: [{ $ne: ["$status", "cancelled"] }, "$totalAmount", 0],
+                $cond: [
+                  { $eq: ["$status", "delivered"] },
+                  {
+                    $ifNull: [
+                      "$restaurantCommission",
+                      { $ifNull: ["$restaurantShare", "$itemTotal"] },
+                    ],
+                  },
+                  0,
+                ],
               },
             },
           },
@@ -2126,7 +2219,7 @@ exports.financeSummary = async (req, res) => {
       return res.status(404).json({ message: "Restaurant not found" });
     const { period = "day", from, to } = req.query;
     const Order = require("../models/Order");
-    const match = { restaurant: restaurant._id, status: { $ne: "cancelled" } };
+    const match = { restaurant: restaurant._id, status: "delivered" };
     if (from) match.createdAt = { $gte: new Date(from) };
     if (to)
       match.createdAt = match.createdAt
@@ -2145,7 +2238,14 @@ exports.financeSummary = async (req, res) => {
       {
         $group: {
           _id: groupId,
-          totalRevenue: { $sum: "$totalAmount" },
+          totalRevenue: {
+            $sum: {
+              $ifNull: [
+                "$restaurantCommission",
+                { $ifNull: ["$restaurantShare", "$itemTotal"] },
+              ],
+            },
+          },
           orders: { $sum: 1 },
           platformFees: { $sum: "$platformFee" },
         },
@@ -2182,14 +2282,23 @@ exports.financeSummary = async (req, res) => {
 };
 exports.getRestaurantWalletEarnings = async (req, res) => {
   try {
-    const restaurant = await Restaurant.findOne({ owner: req.user._id });
+    const restaurant = await Restaurant.findOne({ owner: req.user._id }) || (req.user?.restaurantId ? await Restaurant.findById(req.user.restaurantId) : null);
     if (!restaurant) return res.status(404).json({ message: "Restaurant not found" });
+    try {
+      const { syncPaidLedgersToWallet } = require('./settlementController');
+      await syncPaidLedgersToWallet(restaurant._id);
+    } catch (_) {}
     const RestaurantWallet = require('../models/RestaurantWallet');
+    const Withdrawal = require('../models/WithdrawalRequest');
     const Order = require('../models/Order');
-    const [wallet, ordersAgg] = await Promise.all([
+    const [wallet, pendingWithdrawalsAgg, ordersAgg] = await Promise.all([
       RestaurantWallet.findOne({ restaurant: restaurant._id }),
+      Withdrawal.aggregate([
+        { $match: { restaurant: restaurant._id, status: 'pending' } },
+        { $group: { _id: null, totalPending: { $sum: '$amount' } } }
+      ]),
       Order.aggregate([
-        { $match: { restaurant: restaurant._id, status: 'delivered' } },
+        { $match: { restaurant: restaurant._id, status: { $in: ['delivered', 'completed'] } } },
         {
           $group: {
             _id: null,
@@ -2202,13 +2311,17 @@ exports.getRestaurantWalletEarnings = async (req, res) => {
       ]),
     ]);
     const agg = ordersAgg[0] || { totalRevenue: 0, totalCommission: 0, totalRestaurantNet: 0, totalOrders: 0 };
+    const pendingWithdrawalAmt = Number(pendingWithdrawalsAgg[0]?.totalPending || 0);
+    const availableBalance = Math.max(0, Number(((wallet?.balance || 0) - pendingWithdrawalAmt).toFixed(2)));
     res.status(200).json({
       success: true,
       wallet: wallet ? {
         balance: Number((wallet.balance || 0).toFixed(2)),
+        availableBalance,
         totalEarnings: Number((wallet.totalEarnings || 0).toFixed(2)),
         totalPaidOut: Number((wallet.totalPaidOut || 0).toFixed(2)),
         pendingAmount: Number((wallet.pendingAmount || 0).toFixed(2)),
+        pendingWithdrawalAmount: Number(pendingWithdrawalAmt.toFixed(2)),
         lastPayoutAt: wallet.lastPayoutAt || null,
         lastPayoutAmount: wallet.lastPayoutAmount || 0,
         nextPayoutDate: wallet.nextPayoutDate || null,
@@ -2230,7 +2343,7 @@ exports.bestSellers = async (req, res) => {
     if (!restaurant)
       return res.status(404).json({ message: "Restaurant not found" });
     const { limit = 10, from, to } = req.query;
-    const match = { restaurant: restaurant._id, status: { $ne: "cancelled" } };
+    const match = { restaurant: restaurant._id, status: { $in: ["delivered", "completed"] } };
     if (from) match.createdAt = { $gte: new Date(from) };
     if (to)
       match.createdAt = match.createdAt
@@ -2295,7 +2408,7 @@ exports.settlementReport = async (req, res) => {
     if (!restaurant)
       return res.status(404).json({ message: "Restaurant not found" });
     const { from, to, format } = req.query;
-    const match = { restaurant: restaurant._id, status: { $ne: "cancelled" } };
+    const match = { restaurant: restaurant._id, status: { $in: ["delivered", "completed"] } };
     if (from) match.createdAt = { $gte: new Date(from) };
     if (to)
       match.createdAt = match.createdAt
@@ -2307,7 +2420,14 @@ exports.settlementReport = async (req, res) => {
       {
         $group: {
           _id: null,
-          revenue: { $sum: "$totalAmount" },
+          revenue: {
+            $sum: {
+              $ifNull: [
+                "$restaurantCommission",
+                { $ifNull: ["$restaurantShare", "$itemTotal"] },
+              ],
+            },
+          },
           platformFees: { $sum: "$platformFee" },
           orders: { $sum: 1 },
         },
@@ -2538,6 +2658,8 @@ exports.getAllRestaurants = async (req, res) => {
       };
     });
 
+    // Sort by distance (closest first)
+    withDistances.sort((a, b) => a.distanceKm - b.distanceKm);
     // Rank restaurants using AdminSetting.rankingConfig (weighted distance, rating, prepTime, featuredBoost)
     let rankingConfig = null;
     try {
@@ -2952,7 +3074,7 @@ exports.deleteRestaurant = async (req, res) => {
 
     // 3. Reset User role if needed
     if (ownerId) {
-      await User.findByIdAndUpdate(ownerId, { role: "user" }).catch(() => {});
+      await User.findByIdAndUpdate(ownerId, { role: "user" }).catch(() => { });
     }
 
     res.status(200).json({ message: "Restaurant, menu items, and access deleted successfully from database" });
@@ -3843,7 +3965,7 @@ exports.vendorEditMenuItem = async (req, res) => {
             "menu.$.approvalStatus": product.approvalStatus
           }
         }
-      ).catch(() => {});
+      ).catch(() => { });
     }
 
     return res.status(200).json({
@@ -4029,12 +4151,12 @@ exports.vendorLoginWithPin = async (req, res) => {
     const storedPass = user?.password;
 
     let isMatch = (String(storedPin).trim() === String(inputPin).trim()) ||
-                  (inputPin === "1234");
+      (inputPin === "1234");
 
     if (!isMatch && storedPass) {
       try {
         isMatch = await bcrypt.compare(String(inputPin).trim(), storedPass);
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (!isMatch) {

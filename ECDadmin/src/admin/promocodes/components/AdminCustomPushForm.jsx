@@ -15,7 +15,7 @@ import toast from 'react-hot-toast';
 
 const AdminCustomPushForm = () => {
   const [formData, setFormData] = useState({
-    sendTo: 'all',
+    sendTo: 'customers',
     title: '',
     message: ''
   });
@@ -128,12 +128,10 @@ const AdminCustomPushForm = () => {
               onChange={handleChange}
               placeholder="Send To"
             >
-              <MenuItem value="all">All Users & Partners</MenuItem>
-              <MenuItem value="customers">All Customers</MenuItem>
-              <MenuItem value="riders">All Delivery Riders</MenuItem>
-              <MenuItem value="restaurants">All Restaurants</MenuItem>
-              <MenuItem value="android">Android Users</MenuItem>
-              <MenuItem value="ios">iOS Users</MenuItem>
+              <MenuItem value="customers">User App Only (All Customers)</MenuItem>
+              <MenuItem value="restaurants">Restaurant App Only (All Restaurants)</MenuItem>
+              <MenuItem value="riders">Rider App Only (All Delivery Riders)</MenuItem>
+              <MenuItem value="all">All 3 Apps (User + Restaurant + Rider)</MenuItem>
             </TextField>
           </div>
 

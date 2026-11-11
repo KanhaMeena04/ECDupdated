@@ -48,6 +48,7 @@ const {
   getAvailableOrders,
   acceptOrder,
   rejectOrder,
+  cancelAssignedOrder,
   getMyActiveOrder,
   resendPickupOTP,
   resendDeliveryOTP,
@@ -108,6 +109,7 @@ router.get("/orders/my-active", protect, rider, getMyActiveOrder);
 router.get("/orders/completed", protect, rider, getCompletedOrdersForRider);
 router.post("/orders/:id/accept", protect, rider, acceptOrder);
 router.post("/orders/:id/reject", protect, rider, rejectOrder);
+router.post("/orders/:id/cancel", protect, rider, cancelAssignedOrder);
 router.post("/orders/verify-pickup", protect, rider, verifyPickup);
 router.post("/orders/verify-delivery", protect, rider, verifyDelivery);
 router.post("/orders/:id/resend-pickup-otp", protect, rider, resendPickupOTP);

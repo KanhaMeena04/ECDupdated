@@ -20,6 +20,7 @@ class NotificationApiService {
     final token = await AuthService.getToken();
     return {
       'Content-Type': 'application/json',
+      'x-app-type': 'customer',
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
@@ -28,7 +29,14 @@ class NotificationApiService {
     if (kFrontendPreviewMode) return true;
     try {
       final response = await http.post(
-        Uri.parse('$notificationsUrl/register-device'), headers: await _getHeaders(), body: jsonEncode({'fcmToken': fcmToken, 'platform': kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android')})).timeout(const Duration(seconds: 5));
+        Uri.parse('$notificationsUrl/register-device'),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'fcmToken': fcmToken,
+          'appType': 'customer',
+          'platform': kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android'),
+        }),
+      ).timeout(const Duration(seconds: 5));
       
       debugPrint('API Response [registerDevice]: ${response.statusCode}');
       return response.statusCode == 200 || response.statusCode == 201;
@@ -60,7 +68,7 @@ class NotificationApiService {
         return 0;
       }
       final response = await http.get(
-        Uri.parse(notificationsUrl),
+        Uri.parse('$notificationsUrl?app=customer'),
         headers: await _getHeaders(),
       );
       if (response.statusCode == 200) {
@@ -109,7 +117,7 @@ class NotificationApiService {
     }
     try {
       final response = await http.get(
-        Uri.parse(notificationsUrl),
+        Uri.parse('$notificationsUrl?app=customer'),
         headers: await _getHeaders(),
       );
       debugPrint('API Response [getNotifications]: ${response.statusCode}');
@@ -137,7 +145,7 @@ class NotificationApiService {
     if (kFrontendPreviewMode) return true;
     try {
       final response = await http.patch(
-        Uri.parse('$notificationsUrl/mark-all-read'),
+        Uri.parse('$notificationsUrl/mark-all-read?app=customer'),
         headers: await _getHeaders(),
       );
       unreadCountNotifier.value = 0;

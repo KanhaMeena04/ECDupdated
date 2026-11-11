@@ -26,12 +26,24 @@ const STATUS_TABS = [
   { key: "ready", label: "Ready", badgeKey: "ready", color: "teal" },
   { key: "picked_up", label: "Picked Up", badgeKey: "picked_up", color: "indigo" },
   { key: "cancelled", label: "Cancelled", badgeKey: "cancelled", color: "rose" },
+  { key: "failed", label: "Failed", badgeKey: "failed", color: "rose" },
   { key: "delivered", label: "Delivered", badgeKey: "delivered", color: "emerald" },
 ];
 
 const getStatusConfig = (normalizedStatus, rawStatus) => {
   const status = (normalizedStatus || rawStatus || "").toLowerCase();
-  if (status.includes("cancel") || status.includes("failed")) {
+  if (status.includes("fail")) {
+    return {
+      Icon: Warning,
+      bg: "bg-rose-50",
+      text: "text-rose-700",
+      border: "border-rose-200",
+      pillBg: "bg-rose-100/80",
+      pillText: "text-rose-800",
+      label: "Failed",
+    };
+  }
+  if (status.includes("cancel")) {
     return {
       Icon: Warning,
       bg: "bg-rose-50",
@@ -133,13 +145,15 @@ const normalizeOrderStatus = (ord) => {
   const norm = (ord?.normalizedStatus || "").toLowerCase();
   if (norm) {
     if (norm === "placed") return "pending";
-    if (norm.includes("cancel") || norm.includes("fail")) return "cancelled";
+    if (norm.includes("fail")) return "failed";
+    if (norm.includes("cancel")) return "cancelled";
     if (norm.includes("deliver") || norm.includes("complet")) return "delivered";
     if (norm.includes("pick") || norm.includes("out_for") || norm.includes("way") || norm.includes("partner_picked") || norm.includes("reached")) return "picked_up";
     return norm;
   }
   const raw = (ord?.rawStatus || ord?.status || "").toLowerCase();
-  if (raw.includes("cancel") || raw.includes("fail")) return "cancelled";
+  if (raw.includes("fail")) return "failed";
+  if (raw.includes("cancel")) return "cancelled";
   if (raw.includes("deliver") || raw.includes("complet")) return "delivered";
   if (raw.includes("pick") || raw.includes("out_for") || raw.includes("way") || raw.includes("partner_picked") || raw.includes("reached")) return "picked_up";
   if (raw.includes("ready")) return "ready";

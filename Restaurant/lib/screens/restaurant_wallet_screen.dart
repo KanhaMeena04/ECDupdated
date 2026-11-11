@@ -17,6 +17,8 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
   double _availableBalance = 0.0;
   double _totalEarnings = 0.0;
   double _totalCommissionPaid = 0.0;
+  double _totalPaidOut = 0.0;
+  double _pendingWithdrawalAmount = 0.0;
   String _destinationBank = 'Linked Bank Account';
   List<dynamic> _transactions = [];
 
@@ -33,8 +35,8 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
       var restId = ApiConstants.restaurantId.isNotEmpty
           ? ApiConstants.restaurantId
           : (prefs.getString('restaurantId') ?? '');
-      final phone = prefs.getString('userPhone') ?? '8305370330';
-      if (restId.isEmpty) restId = phone;
+      final phone = prefs.getString('userPhone') ?? '';
+      if (restId.isEmpty && phone.isNotEmpty) restId = phone;
       final token = prefs.getString('token') ?? '';
 
       final bName = prefs.getString('bankName') ?? 'Bank Account';
@@ -43,78 +45,152 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
         _destinationBank = '$bName (**** ${bAcc.length > 4 ? bAcc.substring(bAcc.length - 4) : bAcc})';
       }
 
-      final ordersUrl = '${ApiConstants.baseUrl}/orders/restaurant/$restId';
-      final res = await http.get(
-        Uri.parse(ordersUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 8));
+      final headers = {
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+      };
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        List<dynamic> rawOrders = [];
-        if (data is List) {
-          rawOrders = data;
-        } else if (data['orders'] is List) {
-          rawOrders = data['orders'];
-        }
+      // 1. Primary source of truth: synced backend Settlement + Wallet + Withdrawals overview
+      final overviewRes = await http
+          .get(
+            Uri.parse('${ApiConstants.baseUrl}/settlements/restaurant-app/overview'),
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 10));
 
-        double totalRev = 0.0;
-        double totalComm = 0.0;
-        final List<dynamic> generatedTxns = [];
+      if (overviewRes.statusCode == 200) {
+        final data = jsonDecode(overviewRes.body);
+        if (data is Map && data['success'] == true) {
+          final earnings = (data['earnings'] is Map) ? data['earnings'] as Map : {};
+          final summary = (data['settlementsSummary'] is Map) ? data['settlementsSummary'] as Map : {};
+          final rawWithdrawals = (data['withdrawals'] is List) ? data['withdrawals'] as List : [];
+          final rawBreakdown = (data['orderWiseBreakdown'] is List) ? data['orderWiseBreakdown'] as List : [];
 
-        for (var o in rawOrders) {
-          final status = (o['status'] ?? '').toString().toLowerCase();
-          final payable = double.tryParse((o['payableAmount'] ?? o['totalAmount'] ?? 0).toString()) ?? 0.0;
-          final ordId = o['orderNumber'] ?? o['_id'] ?? 'N/A';
-          final dateStr = o['createdAt'] ?? DateTime.now().toIso8601String();
+          double toDoubleVal(dynamic v) => double.tryParse((v ?? 0).toString()) ?? 0.0;
 
-          if (status == 'delivered' || status == 'picked_up' || status == 'completed') {
-            final restEarning = (o['restaurantCommission'] != null)
-                ? (o['restaurantCommission'] as num).toDouble()
-                : (payable * 0.80);
-            final comm = (o['adminCommission'] != null)
-                ? (o['adminCommission'] as num).toDouble()
-                : (payable * 0.20);
+          final totalEarn = toDoubleVal(earnings['total']);
+          final avail = toDoubleVal(earnings['availableBalance'] ?? earnings['walletBalance']);
+          final paidOut = toDoubleVal(earnings['totalPaidOut']);
+          final pendingWd = toDoubleVal(earnings['pendingWithdrawalAmount']);
+          final totalComm = toDoubleVal(summary['totalCommissionDeducted']);
 
-            totalRev += restEarning;
-            totalComm += comm;
+          final List<Map<String, dynamic>> txns = [];
 
-            generatedTxns.add({
-              'id': 'TXN_${ordId.toString().length > 6 ? ordId.toString().substring(ordId.toString().length - 6) : ordId}',
-              'type': 'credit',
-              'amount': restEarning,
-              'status': 'completed',
-              'createdAt': dateStr,
-              'description': 'Order #$ordId Payment Received',
-            });
-            generatedTxns.add({
-              'id': 'FEE_${ordId.toString().length > 6 ? ordId.toString().substring(ordId.toString().length - 6) : ordId}',
-              'type': 'commission',
-              'amount': comm,
-              'status': 'completed',
-              'createdAt': dateStr,
-              'description': 'Platform Commission for Order #$ordId',
+          for (final w in rawWithdrawals) {
+            if (w is! Map) continue;
+            final wStatus = (w['status'] ?? 'pending').toString().toLowerCase();
+            final wIdRaw = (w['_id'] ?? '').toString();
+            final shortId = wIdRaw.length > 6 ? wIdRaw.substring(wIdRaw.length - 6) : wIdRaw;
+            txns.add({
+              'id': 'WD_$shortId',
+              'type': 'payout',
+              'amount': toDoubleVal(w['amount']),
+              'status': wStatus,
+              'createdAt': w['createdAt'] ?? DateTime.now().toIso8601String(),
+              'description': wStatus == 'paid' || wStatus == 'approved'
+                  ? 'Payout Settled to Bank Account'
+                  : wStatus == 'rejected'
+                      ? 'Payout Request Rejected'
+                      : 'Payout Request (Pending Approval)',
             });
           }
-        }
 
-        final double avail = totalRev;
+          for (final o in rawBreakdown) {
+            if (o is! Map) continue;
+            final ordNum = (o['orderNumber'] ?? o['orderId'] ?? 'N/A').toString();
+            final net = toDoubleVal(o['netRestaurantPayout']);
+            final comm = toDoubleVal(o['commissionDeducted']);
+            final sStatus = (o['settlementStatus'] ?? 'PENDING').toString();
+            final dateStr = o['date'] ?? DateTime.now().toIso8601String();
 
-        if (mounted) {
-          setState(() {
-            _totalEarnings = totalRev;
-            _totalCommissionPaid = totalComm;
-            _availableBalance = avail;
-            _transactions = generatedTxns;
-            _isLoading = false;
+            txns.add({
+              'id': 'ORD_$ordNum',
+              'type': 'credit',
+              'amount': net,
+              'status': sStatus.toLowerCase(),
+              'createdAt': dateStr,
+              'description': 'Order #$ordNum Earning ($sStatus)',
+            });
+            if (comm > 0) {
+              txns.add({
+                'id': 'FEE_$ordNum',
+                'type': 'commission',
+                'amount': comm,
+                'status': sStatus.toLowerCase(),
+                'createdAt': dateStr,
+                'description': 'Platform Markup / Fee (#$ordNum)',
+              });
+            }
+          }
+
+          txns.sort((a, b) {
+            final da = DateTime.tryParse((a['createdAt'] ?? '').toString()) ?? DateTime(2000);
+            final db = DateTime.tryParse((b['createdAt'] ?? '').toString()) ?? DateTime(2000);
+            return db.compareTo(da);
           });
+
+          if (mounted) {
+            setState(() {
+              _totalEarnings = totalEarn;
+              _totalCommissionPaid = totalComm;
+              _totalPaidOut = paidOut;
+              _pendingWithdrawalAmount = pendingWd;
+              _availableBalance = avail < 0 ? 0.0 : avail;
+              _transactions = txns;
+              _isLoading = false;
+            });
+          }
+          return;
         }
-      } else {
-        if (mounted) setState(() => _isLoading = false);
       }
+
+      // 2. Secondary backend-synced fallback: /restaurants/wallet-earnings
+      final walletRes = await http
+          .get(
+            Uri.parse('${ApiConstants.baseUrl}/restaurants/wallet-earnings'),
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 8));
+
+      if (walletRes.statusCode == 200) {
+        final wData = jsonDecode(walletRes.body);
+        if (wData is Map && wData['success'] == true) {
+          final avail = double.tryParse((wData['availableBalance'] ?? wData['walletBalance'] ?? 0).toString()) ?? 0.0;
+          final totalEarn = double.tryParse((wData['totalEarnings'] ?? 0).toString()) ?? 0.0;
+          final paidOut = double.tryParse((wData['totalPaidOut'] ?? 0).toString()) ?? 0.0;
+          final pendingWd = double.tryParse((wData['pendingWithdrawalAmount'] ?? 0).toString()) ?? 0.0;
+          final rawRecent = (wData['recentOrders'] is List) ? wData['recentOrders'] as List : [];
+
+          final List<Map<String, dynamic>> txns = [];
+          for (final o in rawRecent) {
+            if (o is! Map) continue;
+            final ordNum = (o['orderNumber'] ?? o['_id'] ?? 'N/A').toString();
+            final earn = double.tryParse((o['restaurantEarning'] ?? 0).toString()) ?? 0.0;
+            txns.add({
+              'id': 'ORD_$ordNum',
+              'type': 'credit',
+              'amount': earn,
+              'status': (o['status'] ?? 'delivered').toString(),
+              'createdAt': o['createdAt'] ?? DateTime.now().toIso8601String(),
+              'description': 'Order #$ordNum Earning',
+            });
+          }
+
+          if (mounted) {
+            setState(() {
+              _totalEarnings = totalEarn;
+              _totalPaidOut = paidOut;
+              _pendingWithdrawalAmount = pendingWd;
+              _availableBalance = avail < 0 ? 0.0 : avail;
+              _transactions = txns;
+              _isLoading = false;
+            });
+          }
+          return;
+        }
+      }
+
+      if (mounted) setState(() => _isLoading = false);
     } catch (_) {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -374,7 +450,7 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
                                     body: jsonEncode({
                                       'amount': enteredAmount,
                                       'restaurantId': restId,
-                                      'method': 'bank',
+                                      'method': 'bank_transfer',
                                       'bankDetails': {
                                         'bankName': prefs.getString('bankName') ?? '',
                                         'accountNumber': prefs.getString('bankAccount') ?? '',
@@ -386,17 +462,6 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
 
                                   if (response.statusCode == 200 || response.statusCode == 201) {
                                     if (!mounted) return;
-                                    setState(() {
-                                      _availableBalance -= enteredAmount;
-                                      _transactions.insert(0, {
-                                        'id': 'TXN_${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-                                        'type': 'payout',
-                                        'amount': enteredAmount,
-                                        'status': 'pending',
-                                        'createdAt': DateTime.now().toIso8601String(),
-                                        'description': 'Instant Payout Request to $_destinationBank',
-                                      });
-                                    });
                                     navigator.pop();
                                     messenger.showSnackBar(
                                       SnackBar(
@@ -405,17 +470,26 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
                                         behavior: SnackBarBehavior.floating,
                                       ),
                                     );
+                                    _fetchLiveWallet();
                                   } else {
-                                    final errData = jsonDecode(response.body);
-                                    throw Exception(errData['message'] ?? 'Failed to submit payout request');
+                                    String errMsg = 'Failed to submit payout request (${response.statusCode})';
+                                    try {
+                                      final errData = jsonDecode(response.body);
+                                      if (errData is Map && errData['message'] != null) {
+                                        errMsg = errData['message'].toString();
+                                      }
+                                    } catch (_) {}
+                                    throw Exception(errMsg);
                                   }
                                 } catch (e) {
-                                  setModalState(() {
-                                    isSubmitting = false;
-                                  });
+                                  if (modalContext.mounted) {
+                                    setModalState(() {
+                                      isSubmitting = false;
+                                    });
+                                  }
                                   messenger.showSnackBar(
                                     SnackBar(
-                                      content: Text('Error: ${e.toString().replaceAll('Exception:', '')}'),
+                                      content: Text('Error: ${e.toString().replaceAll('Exception:', '').trim()}'),
                                       backgroundColor: Colors.red,
                                     ),
                                   );
@@ -535,19 +609,65 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
                           Text(
                             '₹${_availableBalance.toStringAsFixed(2)}',
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 32,
                               fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryGreen,
+                              color: Colors.white,
                             ),
                           ),
+                          if (_totalPaidOut > 0 || _pendingWithdrawalAmount > 0) ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 6,
+                              children: [
+                                if (_totalPaidOut > 0)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      'Paid Out: ₹${_totalPaidOut.toStringAsFixed(2)}',
+                                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                if (_pendingWithdrawalAmount > 0)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.withValues(alpha: 0.35),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      'Pending Payout: ₹${_pendingWithdrawalAmount.toStringAsFixed(2)}',
+                                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 16),
                           ElevatedButton.icon(
-                            onPressed: _availableBalance > 0 ? () => _showRequestPayoutModal(context) : null,
-                            icon: const Icon(Icons.account_balance, color: AppTheme.primaryGreen),
-                            label: const Text('Request Instant Payout', style: TextStyle(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold)),
+                            onPressed: _availableBalance >= 1 ? () => _showRequestPayoutModal(context) : null,
+                            icon: Icon(
+                              _availableBalance >= 1 ? Icons.account_balance : Icons.check_circle_outline,
+                              color: _availableBalance >= 1 ? AppTheme.primaryGreen : Colors.grey[700],
+                            ),
+                            label: Text(
+                              _availableBalance >= 1
+                                  ? 'Request Instant Payout'
+                                  : (_pendingWithdrawalAmount > 0
+                                      ? 'Payout Request Pending'
+                                      : (_totalPaidOut > 0 ? 'All Settled / Paid Out' : 'No Balance Available')),
+                              style: TextStyle(
+                                color: _availableBalance >= 1 ? AppTheme.primaryGreen : Colors.grey[800],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
-                              disabledBackgroundColor: Colors.white60,
+                              disabledBackgroundColor: Colors.white70,
                               elevation: 2,
                               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

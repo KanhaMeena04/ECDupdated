@@ -23,6 +23,12 @@ const notificationSchema = new mongoose.Schema(
       enum: ['order_status', 'promo_offer', 'system', 'general', 'dispatch_request', 'order_available'],
       default: 'general',
     },
+    targetApp: {
+      type: String,
+      enum: ['customer', 'restaurant', 'rider', 'all'],
+      default: 'all',
+      index: true,
+    },
     data: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

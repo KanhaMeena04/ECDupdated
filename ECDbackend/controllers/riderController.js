@@ -4165,7 +4165,7 @@ exports.getAvailableOrders = async (req, res) => {
 
     const orderQuery = {
       orderType: { $ne: 'self_pickup' },
-      status: { $in: ["placed", "accepted", "preparing", "ready"] },
+      status: { $in: ["accepted", "preparing", "ready", "in_kitchen"] },
       rider: null,
       createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     };
@@ -4287,16 +4287,22 @@ exports.acceptOrder = async (req, res) => {
     if (!orderToValidate) {
       return res.status(404).json({ message: "Order not found" });
     }
-    const acceptableStatuses = ['placed', 'accepted', 'preparing', 'ready'];
+    if (orderToValidate.status === 'cancelled' || orderToValidate.status === 'rejected') {
+      return res.status(400).json({ message: "Order has been cancelled" });
+    }
+    if (orderToValidate.status === 'placed' || orderToValidate.status === 'pending') {
+      return res.status(400).json({
+        message: "Waiting for restaurant acceptance. Order cannot be assigned to a rider until the restaurant accepts it.",
+        currentStatus: orderToValidate.status
+      });
+    }
+    const acceptableStatuses = ['accepted', 'preparing', 'ready', 'in_kitchen'];
     if (!acceptableStatuses.includes(orderToValidate.status)) {
       return res.status(400).json({
         message: "Order not available for acceptance",
         error: `Order must be in one of these stages: ${acceptableStatuses.join(', ')}`,
         currentStatus: orderToValidate.status
       });
-    }
-    if (orderToValidate.status === 'cancelled') {
-      return res.status(400).json({ message: "Order has been cancelled" });
     }
     const pickupOtp = (orderToValidate.pickupOtp && String(orderToValidate.pickupOtp).length === 4)
       ? String(orderToValidate.pickupOtp)
@@ -4595,23 +4601,35 @@ exports.rejectOrder = async (req, res) => {
     }
     if (order.riderNotificationStatus?.notifiedRiders) {
       const notifEntry = order.riderNotificationStatus.notifiedRiders.find(
-        r => r.riderId.toString() === riderId.toString()
+        r => r.riderId && r.riderId.toString() === riderId.toString()
       );
       if (notifEntry) {
-        notifEntry.status = 'rejected';
+        notifEntry.status = 'declined';
+        notifEntry.declinedAt = new Date();
+        notifEntry.declineReason = reason;
         notifEntry.rejectedAt = new Date();
         notifEntry.rejectionReason = reason;
       } else {
         order.riderNotificationStatus.notifiedRiders.push({
           riderId: riderId,
-          status: 'rejected',
+          status: 'declined',
           notifiedAt: new Date(),
+          declinedAt: new Date(),
+          declineReason: reason,
           rejectedAt: new Date(),
           rejectionReason: reason
         });
       }
-      await order.save();
     }
+    order.timeline = order.timeline || [];
+    order.timeline.push({
+      status: order.status,
+      timestamp: new Date(),
+      label: 'Rider Declined Delivery',
+      by: 'rider',
+      description: `${riderProfile.name || 'Rider'} declined: ${reason}`
+    });
+    await order.save();
     await Rider.findByIdAndUpdate(riderId, {
       $inc: { 'stats.ordersRejected': 1 }
     });
@@ -4674,6 +4692,206 @@ exports.rejectOrder = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+exports.cancelAssignedOrder = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const riderUserId = req.user._id;
+    const rawReason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+    if (!rawReason) {
+      return res.status(400).json({ success: false, message: "Cancellation reason is required" });
+    }
+    const reason = rawReason;
+
+    const riderProfile = await Rider.findOne({ user: riderUserId });
+    if (!riderProfile) {
+      return res.status(404).json({ success: false, message: "Rider profile not found" });
+    }
+    const riderId = riderProfile._id;
+
+    const targetId = String(orderId?._id || orderId || "").trim();
+    const isObjectId = mongoose.Types.ObjectId.isValid(targetId) && targetId.length === 24;
+    const orderFilter = isObjectId
+      ? { $or: [{ _id: targetId }, { orderId: targetId }, { orderNumber: targetId }] }
+      : { $or: [{ orderId: targetId }, { orderNumber: targetId }] };
+
+    const order = await Order.findOne(orderFilter)
+      .populate("customer", "name")
+      .populate("restaurant", "name");
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    if (!order.rider || order.rider.toString() !== riderId.toString()) {
+      return res.status(403).json({ success: false, message: "This order is not assigned to you" });
+    }
+
+    const currentStatus = (order.status || "").toLowerCase();
+    if (["delivered", "completed", "cancelled", "failed"].includes(currentStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `Order cannot be cancelled in status: ${order.status}`
+      });
+    }
+
+    const { logRiderAction } = require("../utils/logger");
+    const isAfterPickup = ["picked_up", "delivery_arrived", "out_for_delivery", "on_the_way"].includes(currentStatus);
+
+    if (!isAfterPickup) {
+      // Order has not been picked up yet -> unassign rider & re-dispatch so another rider can fulfill it
+      order.rider = undefined;
+      order.deliveryStatus = "searching";
+      if (["assigned", "reached_restaurant"].includes(currentStatus)) {
+        order.status = order.readyAt ? "ready" : "preparing";
+      }
+      if (order.riderNotificationStatus?.notifiedRiders) {
+        const notifEntry = order.riderNotificationStatus.notifiedRiders.find(
+          r => r.riderId && r.riderId.toString() === riderId.toString()
+        );
+        if (notifEntry) {
+          notifEntry.status = "declined";
+          notifEntry.declinedAt = new Date();
+          notifEntry.declineReason = reason;
+        }
+      }
+      order.timeline = order.timeline || [];
+      order.timeline.push({
+        status: order.status,
+        timestamp: new Date(),
+        label: "Rider Cancelled Assignment",
+        by: "rider",
+        description: `${riderProfile.name || "Rider"} cancelled assignment: ${reason}`
+      });
+      await order.save();
+
+      await Rider.findByIdAndUpdate(riderId, {
+        isAvailable: true,
+        $inc: { "stats.ordersRejected": 1 }
+      });
+      logRiderAction(order._id, riderId, "cancelled_assignment", reason);
+
+      try {
+        const payload = {
+          orderId: order._id.toString(),
+          riderId: riderId.toString(),
+          riderName: riderProfile.name,
+          status: order.status,
+          deliveryStatus: order.deliveryStatus,
+          reason
+        };
+        socketService.emitToAdmin("rider:order_cancelled", payload);
+        if (order.restaurant?._id) {
+          socketService.emitToRestaurant(order.restaurant._id.toString(), "rider:order_rejected", {
+            ...payload,
+            message: `Rider ${riderProfile.name || ""} cancelled pickup (${reason}). Re-assigning another rider.`
+          });
+        }
+        socketService.emitToOrder(order._id.toString(), "orderStatusUpdated", {
+          ...payload,
+          message: "Finding another delivery partner for your order"
+        });
+      } catch (_) {}
+
+      try {
+        const riderDispatchService = require("../services/riderDispatchService");
+        await riderDispatchService.dispatchToNearbyRiders(order._id);
+      } catch (_) {}
+
+      return res.status(200).json({
+        success: true,
+        action: "reassigned",
+        message: "Assignment cancelled and order re-opened for nearby riders",
+        orderId: order._id,
+        reason
+      });
+    }
+
+    // Order already picked up -> cancel order with full reason, wallet refund, and alerts
+    order.status = "cancelled";
+    order.deliveryStatus = "cancelled";
+    order.cancellationReason = `Cancelled by rider: ${reason}`;
+    order.cancellationInitiatedBy = "rider";
+    order.cancelledAt = new Date();
+    order.timeline = order.timeline || [];
+    order.timeline.push({
+      status: "cancelled",
+      timestamp: new Date(),
+      label: "Order Cancelled by Rider",
+      by: "rider",
+      description: reason
+    });
+
+    if (order.paymentStatus === "paid" && order.paymentMethod !== "cod") {
+      const user = await User.findById(order.customer?._id || order.customer);
+      if (user) {
+        user.walletBalance = (user.walletBalance || 0) + order.totalAmount;
+        await user.save();
+        try {
+          const WalletTransaction = require("../models/WalletTransaction");
+          await WalletTransaction.create({
+            user: user._id,
+            amount: order.totalAmount,
+            type: "credit",
+            description: `Refund (Rider Cancelled): Order #${order.orderId || order._id.toString().slice(-6)}`,
+            orderId: order._id
+          });
+        } catch (_) {}
+      }
+      order.paymentStatus = "refunded";
+      order.refund = {
+        status: "completed",
+        amount: order.totalAmount,
+        refundedAt: new Date(),
+        method: "wallet",
+        note: `Rider cancellation refund: ${reason}`
+      };
+    } else if (order.paymentMethod === "cod") {
+      order.paymentStatus = "cancelled";
+    }
+
+    await order.save();
+    await Rider.findByIdAndUpdate(riderId, {
+      isAvailable: true,
+      $inc: { "stats.ordersRejected": 1 }
+    });
+    logRiderAction(order._id, riderId, "cancelled_order", reason);
+
+    try {
+      const cancelData = {
+        orderId: order._id.toString(),
+        status: "cancelled",
+        reason,
+        cancellationReason: order.cancellationReason,
+        cancelledBy: "rider",
+        timestamp: new Date()
+      };
+      const customerId = (order.customer?._id || order.customer)?.toString();
+      if (customerId) {
+        socketService.emitToUser(customerId, "order:cancelled", cancelData);
+        socketService.emitToUser(customerId, "orderStatusUpdated", cancelData);
+      }
+      socketService.emitToOrder(order._id.toString(), "orderStatusUpdated", cancelData);
+      if (order.restaurant?._id) {
+        socketService.emitToRestaurant(order.restaurant._id.toString(), "order:cancelled", cancelData);
+      }
+      socketService.emitToAdmin("order:cancelled", {
+        ...cancelData,
+        riderName: riderProfile.name,
+        restaurantName: order.restaurant?.name
+      });
+    } catch (_) {}
+
+    return res.status(200).json({
+      success: true,
+      action: "cancelled",
+      message: "Order cancelled successfully",
+      orderId: order._id,
+      reason
+    });
+  } catch (error) {
+    console.error("Rider cancel order error:", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 exports.getMyActiveOrder = async (req, res) => {
@@ -4954,7 +5172,7 @@ exports.getMyActiveOrder = async (req, res) => {
     if (pendingRequests.length > 0) {
       unassignedOrders = pendingRequests
         .map(r => r.order)
-        .filter(o => o && !o.rider && ['ready', 'preparing', 'accepted', 'in_kitchen', 'placed'].includes(o.status));
+        .filter(o => o && !o.rider && ['ready', 'preparing', 'accepted', 'in_kitchen'].includes(o.status));
     }
 
     if (unassignedOrders.length === 0) {
@@ -4968,7 +5186,7 @@ exports.getMyActiveOrder = async (req, res) => {
         _id: { $nin: rejectedOrderIds },
         orderType: { $ne: 'self_pickup' },
         rider: null,
-        status: { $in: ['ready', 'preparing', 'accepted', 'in_kitchen', 'placed'] },
+        status: { $in: ['ready', 'preparing', 'accepted', 'in_kitchen'] },
         createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
       })
         .populate('customer', 'name phone mobile')

@@ -140,6 +140,11 @@ const settlementLedgerSchema = new mongoose.Schema({
   },
   disputeReason: {
     type: String
+  },
+  walletSettled: {
+    type: Boolean,
+    default: false,
+    index: true
   }
 }, {
   timestamps: true

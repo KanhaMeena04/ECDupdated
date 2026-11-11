@@ -92,6 +92,17 @@ class DeclineOrder extends DriverEvent {
   List<Object?> get props => [orderId, reason];
 }
 
+// Cancel already-accepted active order with mandatory reason
+class CancelActiveOrder extends DriverEvent {
+  final String orderId;
+  final String reason;
+
+  const CancelActiveOrder({required this.orderId, required this.reason});
+
+  @override
+  List<Object?> get props => [orderId, reason];
+}
+
 // Reset driver error state
 class ResetDriverError extends DriverEvent {
   const ResetDriverError();

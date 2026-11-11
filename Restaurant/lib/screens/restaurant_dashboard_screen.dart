@@ -52,6 +52,28 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
     super.dispose();
   }
 
+  double _extractNetEarning(Map<String, dynamic> o) {
+    final bill = o['bill'] is Map ? o['bill'] : null;
+    final candidates = [
+      o['restaurantEarning'],
+      bill?['restaurantEarning'],
+      o['restaurantCommission'],
+      o['restaurantEarnings'],
+      o['restaurantNetPayable'],
+      o['restaurantShare'],
+      o['itemTotal'],
+      o['payableAmount'],
+      o['totalAmount'],
+    ];
+    for (final val in candidates) {
+      if (val != null) {
+        final parsed = double.tryParse(val.toString());
+        if (parsed != null && parsed > 0) return parsed;
+      }
+    }
+    return double.tryParse((o['totalAmount'] ?? 0).toString()) ?? 0.0;
+  }
+
   void _applyFilter() {
     final now = DateTime.now();
     final sevenDaysAgo = now.subtract(const Duration(days: 7));
@@ -65,11 +87,11 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     for (var o in _rawOrders) {
-      final amt = double.tryParse((o['payableAmount'] ?? o['totalAmount'] ?? 0).toString()) ?? 0.0;
+      final amt = _extractNetEarning(o is Map<String, dynamic> ? o : Map<String, dynamic>.from(o));
       final status = (o['status'] ?? '').toString().toLowerCase();
       final deliveryStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
       final isCancelled = status == 'cancelled' || status == 'failed';
-      final isCompleted = status == 'delivered' || deliveryStatus == 'delivered';
+      final isCompleted = status == 'delivered' || status == 'completed' || deliveryStatus == 'delivered';
 
       DateTime orderDate = DateTime.now();
       if (o['createdAt'] != null) {
@@ -89,8 +111,10 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
 
       if (matchesPeriod) {
         if (!isCancelled) {
-          pEarn += amt;
           pOrdCount++;
+        }
+        if (isCompleted) {
+          pEarn += amt;
         }
         if (isCancelled) {
           pCancelled++;
@@ -98,7 +122,7 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
           pCompleted++;
         }
 
-        if (isCompleted || !isCancelled) {
+        if (isCompleted) {
           final period = orderDate.hour >= 12 ? 'PM' : 'AM';
           final hr = orderDate.hour > 12 ? orderDate.hour - 12 : (orderDate.hour == 0 ? 12 : orderDate.hour);
           final min = orderDate.minute.toString().padLeft(2, '0');
@@ -180,10 +204,11 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
         }
 
         for (var o in rawOrders) {
-          final amt = double.tryParse((o['payableAmount'] ?? o['totalAmount'] ?? 0).toString()) ?? 0.0;
+          final amt = _extractNetEarning(o is Map<String, dynamic> ? o : Map<String, dynamic>.from(o));
           final status = (o['status'] ?? '').toString().toLowerCase();
           final deliveryStatus = (o['deliveryStatus'] ?? '').toString().toLowerCase();
           final isCancelled = status == 'cancelled' || status == 'failed';
+          final isCompleted = status == 'delivered' || status == 'completed' || deliveryStatus == 'delivered';
           final orderType = (o['orderType'] ?? 'delivery').toString().toLowerCase();
 
           DateTime orderDate = DateTime.now();
@@ -193,11 +218,14 @@ class _RestaurantDashboardScreenState extends State<RestaurantDashboardScreen> w
 
           final isSameDay = orderDate.year == now.year && orderDate.month == now.month && orderDate.day == now.day;
 
-          if (!isCancelled) {
+          if (!isCancelled && isSameDay) {
+            todayOrdCount++;
+          }
+
+          if (isCompleted) {
             totalRev += amt;
             if (isSameDay) {
               todayEarn += amt;
-              todayOrdCount++;
             }
 
             // Bucket into last 6 months

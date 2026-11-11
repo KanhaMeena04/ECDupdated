@@ -34,39 +34,54 @@ class _OrderCancellationPageState extends State<OrderCancellationPage> {
   }
 
   Future<void> _submitCancellation() async {
-    try {
-      final reason = _selectedReason == 'Other' 
-          ? _otherReasonController.text 
-          : _selectedReason;
+    final reason = _selectedReason == 'Other'
+        ? _otherReasonController.text.trim()
+        : (_selectedReason ?? '').trim();
 
-      if (reason == null || reason.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please provide a reason for cancellation')),
-          );
-        }
-        return;
-      }
-
-      final provider = context.read<OrderProvider>();
-      
-      // Fire and forget
-      provider.cancelOrder(widget.orderId, reason).catchError((_) => <String, dynamic>{});
-
+    if (reason.isEmpty) {
       if (mounted) {
-        final successMsg = widget.isCOD 
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please provide a reason for cancellation'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      final provider = context.read<OrderProvider>();
+      final result = await provider.cancelOrder(widget.orderId, reason);
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        final successMsg = widget.isCOD
             ? 'Your order has been cancelled successfully.'
-            : 'Your order has been cancelled successfully. Your refund will be processed and credited back to your account within 1 hour.';
-            
+            : 'Your order has been cancelled successfully. Refund has been initiated to your wallet.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMsg), backgroundColor: Colors.green),
         );
+        Navigator.of(context).pop(true);
+      } else {
+        final errMsg = (result['message'] ?? 'Unable to cancel order. Please try again.').toString();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errMsg), backgroundColor: Colors.redAccent),
+        );
       }
     } catch (e) {
-      debugPrint('CRITICAL UI ERROR: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error cancelling order: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
-        Navigator.of(context).pop(true);
+        setState(() => _isSubmitting = false);
       }
     }
   }

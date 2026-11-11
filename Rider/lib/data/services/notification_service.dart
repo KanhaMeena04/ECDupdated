@@ -53,8 +53,9 @@ class NotificationService {
         sound: true,
       );
 
-      // 3. Register device token with backend
+      // 3. Register device token with backend & sync notifications
       await registerToken();
+      syncBackendNotifications();
 
       // 4. Listen for Token Refreshes
       _messaging.onTokenRefresh.listen((newToken) {
@@ -151,8 +152,60 @@ class NotificationService {
     }
   }
 
+  /// Sync notifications stored on backend (Admin pushes, order/rider alerts)
+  static Future<void> syncBackendNotifications() async {
+    try {
+      final remoteList = await ApiService.getRiderBackendNotifications();
+      if (remoteList.isEmpty) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final List<Map<String, dynamic>> currentList = await getNotifications();
+      bool modified = false;
+
+      for (final n in remoteList) {
+        final remoteId = (n['_id'] ?? n['id'] ?? '').toString();
+        if (remoteId.isEmpty) continue;
+        final localId = 'backend_$remoteId';
+        final existsIndex = currentList.indexWhere((item) => item['id'] == localId);
+        final bool remoteRead = n['isRead'] == true;
+
+        if (existsIndex == -1) {
+          currentList.add({
+            'id': localId,
+            'title': (n['title'] ?? 'Notification').toString(),
+            'body': (n['message'] ?? n['body'] ?? '').toString(),
+            'type': (n['type'] ?? 'GENERAL').toString(),
+            'isRead': remoteRead,
+            'timestamp': (n['createdAt'] ?? DateTime.now().toIso8601String()).toString(),
+            'data': n['data'] ?? {},
+          });
+          modified = true;
+        } else if (remoteRead && currentList[existsIndex]['isRead'] != true) {
+          currentList[existsIndex]['isRead'] = true;
+          modified = true;
+        }
+      }
+
+      if (modified) {
+        currentList.sort((a, b) {
+          final timeA = DateTime.tryParse((a['timestamp'] ?? '').toString()) ?? DateTime(2020);
+          final timeB = DateTime.tryParse((b['timestamp'] ?? '').toString()) ?? DateTime(2020);
+          return timeB.compareTo(timeA);
+        });
+        if (currentList.length > 100) {
+          currentList.removeRange(100, currentList.length);
+        }
+        await prefs.setString(_notificationsKey, jsonEncode(currentList));
+        await refreshUnreadCount();
+      }
+    } catch (e) {
+      log("Error syncing backend notifications: $e");
+    }
+  }
+
   /// Sync withdrawal requests from backend and generate payout notifications
   static Future<void> syncWithdrawalNotifications() async {
+    await syncBackendNotifications();
     try {
       final withdrawals = await ApiService.getWithdrawals();
       if (withdrawals.isEmpty) return;
@@ -296,6 +349,7 @@ class NotificationService {
       }
       await prefs.setString(_notificationsKey, jsonEncode(list));
       unreadCountNotifier.value = 0;
+      ApiService.markRiderNotificationsRead();
     } catch (e) {
       log("Error marking notifications as read: $e");
     }

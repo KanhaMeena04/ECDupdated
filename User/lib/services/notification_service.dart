@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import '../routes/app_routes.dart';
 import 'notification_api_service.dart';
 
 @pragma('vm:entry-point')
@@ -67,9 +68,32 @@ class NotificationService {
       // Foreground message listener
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         debugPrint('Notification received in foreground!');
-        debugPrint('Title: ${message.notification?.title}');
-        debugPrint('Body: ${message.notification?.body}');
+        final title = message.notification?.title ?? message.data['title']?.toString() ?? '';
+        final body = message.notification?.body ?? message.data['message']?.toString() ?? '';
+        debugPrint('Title: $title');
+        debugPrint('Body: $body');
         NotificationApiService.refreshUnreadCount();
+
+        final ctx = AppRoutes.rootNavigatorKey.currentContext;
+        if (ctx != null && (title.isNotEmpty || body.isNotEmpty)) {
+          ScaffoldMessenger.maybeOf(ctx)?.showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: const Color(0xFF248C70),
+              duration: const Duration(seconds: 4),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (title.isNotEmpty)
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                  if (body.isNotEmpty)
+                    Text(body, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+          );
+        }
       });
 
       // App opened from background notification listener

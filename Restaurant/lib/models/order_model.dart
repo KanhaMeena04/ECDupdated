@@ -240,7 +240,11 @@ class Order {
     }
 
     double? parsedEarnings;
-    if (json['restaurantCommission'] != null) {
+    if (json['restaurantEarning'] != null) {
+      parsedEarnings = double.tryParse(json['restaurantEarning'].toString());
+    } else if (json['bill'] is Map && json['bill']['restaurantEarning'] != null) {
+      parsedEarnings = double.tryParse(json['bill']['restaurantEarning'].toString());
+    } else if (json['restaurantCommission'] != null) {
       parsedEarnings = double.tryParse(json['restaurantCommission'].toString());
     } else if (json['restaurantEarnings'] != null) {
       parsedEarnings = double.tryParse(json['restaurantEarnings'].toString());

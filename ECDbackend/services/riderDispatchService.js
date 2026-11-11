@@ -287,7 +287,8 @@ exports.handleRiderResponse = async (riderUserId, requestId, action) => {
             }
             const targetOrder = await Order.findOne({
                 _id: rideRequest.order._id,
-                rider: null
+                rider: null,
+                status: { $in: ['accepted', 'preparing', 'ready', 'in_kitchen'] }
             }).session(session);
             if (!targetOrder) {
                 rideRequest.status = 'rejected';

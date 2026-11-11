@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api_constants.dart';
 import '../models/order_model.dart';
+import '../services/restaurant_api_service.dart';
 import '../theme/app_colors.dart';
 import 'order_details_screen.dart';
 import 'cancelled_orders_screen.dart';
@@ -78,8 +79,12 @@ class _PickupOrdersScreenState extends State<PickupOrdersScreen> {
           final ord = Order.fromJson(o);
           if (ord.isSelfPickup || ord.orderType.toLowerCase() == 'pickup') {
             parsedList.add(ord);
-            if (ord.status.toLowerCase() != 'cancelled' && ord.status.toLowerCase() != 'failed') {
-              rev += ord.totalAmount;
+            final st = ord.status.toLowerCase();
+            if (st == 'delivered' || st == 'completed' || st == 'handed over') {
+              final net = (ord.restaurantEarning != null && ord.restaurantEarning! > 0)
+                  ? ord.restaurantEarning!
+                  : (ord.itemTotal > 0 ? ord.itemTotal : ord.totalAmount);
+              rev += net;
             }
           }
         }
@@ -273,13 +278,130 @@ class _PickupOrdersScreenState extends State<PickupOrdersScreen> {
   }
 
   void _rejectOrder(Order order) {
-    setState(() {
-      _pickupOrders.removeWhere((o) => o.id == order.id);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Pick-up Order rejected.'),
-        backgroundColor: Colors.redAccent,
+    String? selectedReason;
+    final TextEditingController otherReasonController = TextEditingController();
+    String? validationError;
+    bool isSubmitting = false;
+    final reasons = [
+      'Item(s) Out of Stock',
+      'Kitchen Overloaded / Too Much Rush',
+      'Restaurant Closing Soon',
+      'Unable to Fulfill Special Instructions',
+      'Operational / Staff Shortage',
+      'Other Reason',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalContext, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('Reject Pick-up Order #${order.id}', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text('Reason is mandatory to reject this order', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
+                const SizedBox(height: 12),
+                ...reasons.map((r) => RadioListTile<String>(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(r, style: GoogleFonts.poppins(fontSize: 13)),
+                  value: r,
+                  groupValue: selectedReason,
+                  activeColor: Colors.redAccent,
+                  onChanged: (val) => setModalState(() {
+                    selectedReason = val;
+                    validationError = null;
+                  }),
+                )),
+                if (selectedReason == 'Other Reason') ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: otherReasonController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      hintText: 'Specify rejection reason...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+                if (validationError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(validationError!, style: GoogleFonts.poppins(fontSize: 12, color: Colors.redAccent)),
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: isSubmitting ? null : () => Navigator.pop(modalContext),
+                        child: Text('Dismiss', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: isSubmitting ? null : () async {
+                          final finalReason = selectedReason == 'Other Reason'
+                              ? otherReasonController.text.trim()
+                              : (selectedReason ?? '').trim();
+                          if (finalReason.isEmpty) {
+                            setModalState(() => validationError = 'Please select or enter a reason');
+                            return;
+                          }
+                          setModalState(() => isSubmitting = true);
+                          final targetId = order.backendId.isNotEmpty ? order.backendId : order.id;
+                          final res = await RestaurantApiService.cancelOrder(targetId, finalReason);
+                          if (!mounted) return;
+                          if (res['success'] == true) {
+                            Navigator.pop(modalContext);
+                            setState(() {
+                              _pickupOrders.removeWhere((o) => o.id == order.id || o.backendId == targetId);
+                            });
+                            _fetchLivePickupOrders(isSilent: true);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Order rejected: $finalReason'), backgroundColor: Colors.redAccent),
+                            );
+                          } else {
+                            setModalState(() {
+                              isSubmitting = false;
+                              validationError = res['message']?.toString() ?? 'Failed to reject order';
+                            });
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                        child: isSubmitting
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : Text('Confirm Reject', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

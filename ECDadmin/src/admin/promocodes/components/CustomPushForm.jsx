@@ -13,26 +13,75 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import api from '../../../utils/api';
 import toast from 'react-hot-toast';
 
+const APP_OPTIONS = [
+  { key: 'customers', label: 'User App (Customers)', short: 'User App' },
+  { key: 'restaurants', label: 'Restaurant App (Partners)', short: 'Restaurant App' },
+  { key: 'riders', label: 'Rider App (Delivery Partners)', short: 'Rider App' },
+];
+
 const CustomPushForm = () => {
   const [formData, setFormData] = useState({
-    sendTo: 'all',
+    sendTo: 'customers',
+    targetApps: ['customers'],
     title: '',
     message: ''
   });
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
+  const handleToggleApp = (appKey) => {
+    if (appKey === 'all') {
+      const allKeys = APP_OPTIONS.map((o) => o.key);
+      const isAllSelected = allKeys.every((k) => formData.targetApps.includes(k));
+      const nextApps = isAllSelected ? ['customers'] : allKeys;
+      setFormData((prev) => ({
+        ...prev,
+        targetApps: nextApps,
+        sendTo: nextApps.length === 3 ? 'all' : nextApps[0]
+      }));
+    } else {
+      setFormData((prev) => {
+        const exists = prev.targetApps.includes(appKey);
+        const nextApps = exists
+          ? prev.targetApps.filter((k) => k !== appKey)
+          : [...prev.targetApps, appKey];
+        const safeApps = nextApps.length > 0 ? nextApps : [appKey];
+        return {
+          ...prev,
+          targetApps: safeApps,
+          sendTo: safeApps.length === 3 ? 'all' : safeApps[0]
+        };
+      });
+    }
+    if (feedback) setFeedback(null);
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value
-    }));
+    if (name === 'sendTo') {
+      const nextApps = value === 'all' ? APP_OPTIONS.map((o) => o.key) : [value];
+      setFormData((prev) => ({
+        ...prev,
+        sendTo: value,
+        targetApps: nextApps
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value
+      }));
+    }
     if (feedback) setFeedback(null);
   };
 
   const handleSend = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+
+    if (!formData.targetApps || formData.targetApps.length === 0) {
+      toast.error('Please select at least one target app');
+      setFeedback({ type: 'error', text: 'Please select at least one target app' });
+      return;
+    }
 
     if (!formData.title || !formData.title.trim()) {
       toast.error('Please enter a notification title');
@@ -49,8 +98,10 @@ const CustomPushForm = () => {
     setLoading(true);
     setFeedback(null);
 
+    const isAllApps = formData.targetApps.length === 3;
     const payload = {
-      sendTo: formData.sendTo || 'all',
+      sendTo: isAllApps ? 'all' : formData.targetApps[0],
+      targetApps: isAllApps ? ['all'] : formData.targetApps,
       title: formData.title.trim(),
       message: formData.message.trim()
     };
@@ -121,25 +172,54 @@ const CustomPushForm = () => {
             </Alert>
           )}
 
-          {/* Send To - Select Dropdown */}
+          {/* Send To - Target Apps Selector */}
           <Box>
-            <label className="block text-sm text-gray-500 mb-1 font-medium">Send Target Audience*</label>
+            <label className="block text-sm text-gray-600 mb-2 font-semibold">
+              Select Target App(s)* <span className="text-xs font-normal text-gray-400">(Choose single app, multiple apps, or All 3 Apps)</span>
+            </label>
+            <div className="flex flex-wrap gap-2.5 mb-3">
+              {APP_OPTIONS.map((opt) => {
+                const selected = formData.targetApps.includes(opt.key);
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => handleToggleApp(opt.key)}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition cursor-pointer ${
+                      selected
+                        ? 'bg-[#248C70] text-white border-[#248C70] shadow-xs'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {selected ? '✓ ' : ''}{opt.label}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => handleToggleApp('all')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition cursor-pointer ${
+                  formData.targetApps.length === 3
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                    : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                {formData.targetApps.length === 3 ? '✓ ' : ''}All 3 Apps (User + Restaurant + Rider)
+              </button>
+            </div>
             <TextField
               select
               fullWidth
               name="sendTo"
-              value={formData.sendTo}
+              value={formData.targetApps.length === 3 ? 'all' : (formData.targetApps.length === 1 ? formData.targetApps[0] : formData.sendTo)}
               onChange={handleChange}
               variant="outlined"
               size="small"
-              placeholder="Send To"
             >
-              <MenuItem value="all">🌐 All Users & Partners (Broadcast)</MenuItem>
-              <MenuItem value="customers">👤 All Customers (User App)</MenuItem>
-              <MenuItem value="riders">🛵 All Delivery Riders (Rider App)</MenuItem>
-              <MenuItem value="restaurants">🍳 All Restaurants (Partner App)</MenuItem>
-              <MenuItem value="android">📱 Android Users</MenuItem>
-              <MenuItem value="ios">🍏 iOS Users</MenuItem>
+              <MenuItem value="customers">👤 User App Only (All Customers)</MenuItem>
+              <MenuItem value="restaurants">🍳 Restaurant App Only (All Partners)</MenuItem>
+              <MenuItem value="riders">🛵 Rider App Only (All Delivery Riders)</MenuItem>
+              <MenuItem value="all">🌐 All 3 Apps (User + Restaurant + Rider)</MenuItem>
             </TextField>
           </Box>
 

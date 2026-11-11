@@ -18,24 +18,31 @@ exports.sendNotification = async (userId, title, message, data = {}) => {
     let targetUser = null;
     let targetFcmToken = null;
     let recipientName = "User";
+    let inferredApp = data?.targetApp || 'all';
 
     // Try finding direct User
-    targetUser = await User.findById(userIdStr).select("fcmToken name role");
+    targetUser = await User.findById(userIdStr).select("fcmToken fcmTokens name role");
     if (targetUser) {
-      targetFcmToken = targetUser.fcmToken;
+      if (data?.targetApp && targetUser.fcmTokens?.[data.targetApp]) {
+        targetFcmToken = targetUser.fcmTokens[data.targetApp];
+      } else {
+        targetFcmToken = targetUser.fcmToken;
+      }
       recipientName = targetUser.name || "User";
     } else {
       // Try finding Rider if userIdStr was a Rider ID
-      const rider = await Rider.findById(userIdStr).populate("user", "fcmToken name role");
+      const rider = await Rider.findById(userIdStr).populate("user", "fcmToken fcmTokens name role");
       if (rider) {
-        targetFcmToken = rider.user?.fcmToken || rider.fcmToken;
+        inferredApp = 'rider';
+        targetFcmToken = rider.user?.fcmTokens?.rider || rider.fcmToken || rider.user?.fcmToken;
         recipientName = rider.name || rider.user?.name || "Rider";
         if (rider.user) targetUser = rider.user;
       } else {
         // Try finding Restaurant if userIdStr was a Restaurant ID
-        const restaurant = await Restaurant.findById(userIdStr).populate("owner", "fcmToken name role");
+        const restaurant = await Restaurant.findById(userIdStr).populate("owner", "fcmToken fcmTokens name role");
         if (restaurant) {
-          targetFcmToken = restaurant.owner?.fcmToken || restaurant.fcmToken;
+          inferredApp = 'restaurant';
+          targetFcmToken = restaurant.owner?.fcmTokens?.restaurant || restaurant.fcmToken || restaurant.owner?.fcmToken;
           recipientName = restaurant.name || restaurant.owner?.name || "Restaurant";
           if (restaurant.owner) targetUser = restaurant.owner;
         }
@@ -57,6 +64,7 @@ exports.sendNotification = async (userId, title, message, data = {}) => {
         title,
         message,
         type,
+        targetApp: ['customer', 'restaurant', 'rider', 'all'].includes(inferredApp) ? inferredApp : 'all',
         data: data || {},
       });
     } catch (dbErr) {

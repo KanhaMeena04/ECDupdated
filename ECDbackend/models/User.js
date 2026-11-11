@@ -113,6 +113,11 @@ const userSchema = new mongoose.Schema(
       profilePic: { type: String }
     },
     fcmToken: { type: String },
+    fcmTokens: {
+      customer: { type: String },
+      restaurant: { type: String },
+      rider: { type: String },
+    },
     recentSearches: [{ type: String }],
     codActive: { type: Boolean, default: true },
     isCodBlocked: { type: Boolean, default: false },

@@ -4,6 +4,7 @@ import '../../../logic/blocs/driver/driver_bloc.dart';
 import '../../../logic/blocs/driver/driver_event.dart';
 import '../../../logic/blocs/driver/driver_state.dart';
 import '../../../data/services/api_service.dart';
+import '../../widgets/rider_reason_sheet.dart';
 import 'order_tracking_screen.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
@@ -100,7 +101,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               behavior: SnackBarBehavior.floating,
             ),
           );
-          if (state.status == 'delivered') {
+          if (state.status == 'delivered' ||
+              state.status == 'declined' ||
+              state.status == 'cancelled' ||
+              state.status == 'reassigned') {
             Navigator.pop(context);
           }
         } else if (state is DriverError) {
@@ -197,10 +201,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
                   const SizedBox(height: 16),
 
-                  if (deliveryStatus != 'driver_notified' && deliveryStatus != 'delivered' && deliveryStatus != 'cancelled')
+                  if (deliveryStatus != 'driver_notified' && deliveryStatus != 'delivered' && deliveryStatus != 'cancelled') ...[
                     Container(
                       width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 16),
+                      margin: const EdgeInsets.only(bottom: 10),
                       child: ElevatedButton.icon(
                         onPressed: () {
                           Navigator.push(
@@ -224,6 +228,48 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         ),
                       ),
                     ),
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      child: OutlinedButton.icon(
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                final reason = await showRiderReasonSheet(
+                                  context,
+                                  title: 'Cancel / Unassign Delivery',
+                                  subtitle: 'Please select a reason. If food is not picked up, another rider will be assigned.',
+                                  confirmLabel: 'Submit & Cancel',
+                                  reasons: const [
+                                    'Vehicle breakdown / Puncture',
+                                    'Medical / Personal emergency',
+                                    'Restaurant closed / Long delay',
+                                    'Customer unreachable / Wrong address',
+                                    'Other Reason',
+                                  ],
+                                );
+                                if (reason == null || reason.trim().isEmpty || !mounted) return;
+                                setState(() => _isLoading = true);
+                                context.read<DriverBloc>().add(
+                                      CancelActiveOrder(
+                                        orderId: (_currentOrder['_id'] ?? '').toString(),
+                                        reason: reason,
+                                      ),
+                                    );
+                              },
+                        icon: const Icon(Icons.cancel_outlined, color: Colors.redAccent),
+                        label: const Text(
+                          'Cancel / Unassign Order',
+                          style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.redAccent),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ],
 
                   if (restaurant['name'] != null) ...[
                     _buildSection(
@@ -398,9 +444,28 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () {
-                            context.read<DriverBloc>().add(DeclineOrder(orderId: _currentOrder['_id'] ?? ''));
-                            Navigator.pop(context);
+                          onPressed: () async {
+                            final reason = await showRiderReasonSheet(
+                              context,
+                              title: 'Decline Delivery Request',
+                              subtitle: 'Select a reason to pass this delivery to another partner',
+                              confirmLabel: 'Confirm Decline',
+                              reasons: const [
+                                'Too far from my location',
+                                'Low payout / Fuel issue',
+                                'Vehicle / Traffic issue',
+                                'Taking a break / Going offline',
+                                'Other Reason',
+                              ],
+                            );
+                            if (reason == null || reason.trim().isEmpty || !mounted) return;
+                            setState(() => _isLoading = true);
+                            context.read<DriverBloc>().add(
+                                  DeclineOrder(
+                                    orderId: (_currentOrder['_id'] ?? '').toString(),
+                                    reason: reason,
+                                  ),
+                                );
                           },
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.red),

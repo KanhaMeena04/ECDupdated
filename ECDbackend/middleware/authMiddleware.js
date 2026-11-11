@@ -17,6 +17,24 @@ const protect = async (req, res, next) => {
             user = await User.findById(riderDoc.user).select('-password');
           }
         }
+        if (!user && (decoded.restaurantId || decoded.role === 'restaurant_owner')) {
+          const Restaurant = require('../models/Restaurant');
+          const restDoc = await Restaurant.findById(decoded.restaurantId || decoded._id || decoded.id);
+          if (restDoc) {
+            if (restDoc.owner) {
+              user = await User.findById(restDoc.owner).select('-password');
+            }
+            if (!user) {
+              user = {
+                _id: restDoc._id,
+                role: 'restaurant_owner',
+                restaurant: restDoc._id,
+                restaurantId: restDoc._id,
+                name: typeof restDoc.name === 'object' ? (restDoc.name.en || 'Restaurant Partner') : (restDoc.name || 'Restaurant Partner')
+              };
+            }
+          }
+        }
         if (user) {
           if (user.isDeleted) {
             return res.status(404).json({ success: false, message: "User not found" });

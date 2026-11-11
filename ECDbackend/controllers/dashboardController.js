@@ -103,14 +103,16 @@ exports.getOverview = async (req, res) => {
     let todayRiderEarnings = 0;
 
     todayAgg.forEach(row => {
-      todayGOV += row.totalAmount || 0;
-      todayDiscounts += row.discounts || 0;
-      todayDeliveryFees += row.deliveryFees || 0;
-      todayPlatformFees += row.platformFees || 0;
-      todayPackagingFees += row.packagingFees || 0;
-      todayTax += row.tax || 0;
-      todayAdminRevenue += row.adminCommission || 0;
-      todayRiderEarnings += row.riderEarning || 0;
+      if (row._id === "delivered") {
+        todayGOV += row.totalAmount || 0;
+        todayDiscounts += row.discounts || 0;
+        todayDeliveryFees += row.deliveryFees || 0;
+        todayPlatformFees += row.platformFees || 0;
+        todayPackagingFees += row.packagingFees || 0;
+        todayTax += row.tax || 0;
+        todayAdminRevenue += row.adminCommission || 0;
+        todayRiderEarnings += row.riderEarning || 0;
+      }
     });
 
     const statusAgg = await Order.aggregate([
@@ -203,6 +205,7 @@ exports.getOverview = async (req, res) => {
     });
 
     const topRestaurantsAgg = await Order.aggregate([
+      { $match: { status: "delivered" } },
       {
         $group: {
           _id: "$restaurant",
@@ -258,6 +261,7 @@ exports.getOverview = async (req, res) => {
     });
 
     const topUsersAgg = await Order.aggregate([
+      { $match: { status: { $nin: ["cancelled", "failed"] } } },
       {
         $group: {
           _id: "$customer",

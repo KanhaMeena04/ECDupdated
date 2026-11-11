@@ -622,10 +622,37 @@ exports.saveFCMToken = async (req, res) => {
                 success: false 
             });
         }
-        const oldToken = user.fcmToken;
+        const rawApp = (req.body.appType || req.body.app || req.headers['x-app-type'] || '').toString().trim().toLowerCase();
+        const urlLower = (req.originalUrl || '').toLowerCase();
+        let appKey = 'customer';
+        if (['restaurant', 'vendor', 'partner'].includes(rawApp) || user.role === 'restaurant_owner') {
+            appKey = 'restaurant';
+        } else if (['rider', 'driver', 'delivery'].includes(rawApp) || urlLower.includes('/riders/') || ['rider', 'driver'].includes(user.role)) {
+            appKey = 'rider';
+        } else if (['customer', 'user'].includes(rawApp)) {
+            appKey = 'customer';
+        }
+
+        const oldToken = user.fcmTokens?.[appKey] || user.fcmToken;
+        user.fcmTokens = {
+            ...(user.fcmTokens || {}),
+            [appKey]: fcmToken
+        };
         user.fcmToken = fcmToken;
         await user.save();
-        console.log(`✅ FCM Token saved for user ${user._id} (${user.name})`);
+
+        if (appKey === 'restaurant') {
+            try {
+                const Restaurant = require('../models/Restaurant');
+                await Restaurant.updateMany({ owner: user._id }, { $set: { fcmToken } });
+            } catch (_) {}
+        } else if (appKey === 'rider') {
+            try {
+                const Rider = require('../models/Rider');
+                await Rider.updateMany({ user: user._id }, { $set: { fcmToken } });
+            } catch (_) {}
+        }
+        console.log(`✅ FCM Token [${appKey}] saved for user ${user._id} (${user.name})`);
         if (oldToken && oldToken !== fcmToken) {
             console.log(`   Replaced old token: ${oldToken.substring(0, 20)}...`);
         }
