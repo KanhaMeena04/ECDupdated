@@ -1,5 +1,18 @@
 const AdminSetting = require('../models/AdminSetting');
 
+const DEFAULT_REFUND_CONFIG = {
+  mode: 'manual',
+  autoRefundReasons: ['payment_failure', 'timeout', 'technical'],
+  reasonRules: {
+    customer: { refundPercent: 100, preparingRefundPercent: 50, restaurantPayablePercent: 0, platformLossPercent: 100 },
+    restaurant: { refundPercent: 100, restaurantPayablePercent: 0, platformLossPercent: 100 },
+    timeout: { refundPercent: 100, restaurantPayablePercent: 0, platformLossPercent: 100 },
+    rider_unavailable: { refundPercent: 100, restaurantPayablePercent: 50, platformLossPercent: 50 },
+    food_unavailable: { refundPercent: 100, restaurantPayablePercent: 0, platformLossPercent: 100 },
+    technical: { refundPercent: 100, restaurantPayablePercent: 0, platformLossPercent: 100 }
+  }
+};
+
 const ensureSettings = async () => {
   const existing = await AdminSetting.findOne();
   if (existing) return existing;
@@ -63,9 +76,13 @@ const toPublicPayload = (settings) => {
       reassignmentTimeoutSeconds: 45,
       priorityOrder: ['nearest', 'lowest_active_orders', 'highest_rating', 'shortest_pickup']
     },
-    refundConfig: settings.refundConfig || {
-      mode: 'manual',
-      autoRefundReasons: ['payment_failure', 'timeout', 'technical']
+    refundConfig: {
+      ...DEFAULT_REFUND_CONFIG,
+      ...(settings.refundConfig || {}),
+      reasonRules: {
+        ...DEFAULT_REFUND_CONFIG.reasonRules,
+        ...(settings.refundConfig?.reasonRules || {}),
+      },
     },
     rankingConfig: settings.rankingConfig || {
       distanceWeight: 40,
@@ -368,10 +385,7 @@ const dispatchHandlers = createSectionHandlers('dispatchConfig', {
 exports.getDispatchConfig = dispatchHandlers.get;
 exports.updateDispatchConfig = dispatchHandlers.update;
 
-const refundHandlers = createSectionHandlers('refundConfig', {
-  mode: 'manual',
-  autoRefundReasons: ['payment_failure', 'timeout', 'technical']
-});
+const refundHandlers = createSectionHandlers('refundConfig', DEFAULT_REFUND_CONFIG);
 exports.getRefundConfig = refundHandlers.get;
 exports.updateRefundConfig = refundHandlers.update;
 

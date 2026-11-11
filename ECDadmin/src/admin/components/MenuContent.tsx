@@ -176,7 +176,7 @@ export const menuItems: MenuItemType[] = [
       { text: 'Delivery Rules', path: '/pricing-control' },
       { text: 'Rider Rules', path: '/rider-earnings-control' },
       { text: 'Restaurant Rules', path: '/self-pickup-control' },
-      { text: 'Refund Rules', path: '/payment-reconciliation' },
+      { text: 'Refund Rules', path: '/order-refund?tab=rules' },
       { text: 'Dispatch & Ranking Rules', path: '/dispatch-ranking-control' },
     ]
   },

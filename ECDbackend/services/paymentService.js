@@ -539,36 +539,40 @@ async function processOnlineDelivery(orderId) {
 
   let riderWallet = null;
 
+  let assignedRiderId = null;
+
   // 1. Process Rider Wallet if delivery order and rider assigned
   if (!isPickup && order.rider) {
-    const riderId = order.rider._id || order.rider;
-    riderWallet = await RiderWallet.findOne({ rider: riderId });
-    if (!riderWallet) riderWallet = await RiderWallet.create({ rider: riderId });
+    assignedRiderId = order.rider._id || order.rider;
+    riderWallet = await RiderWallet.findOne({ rider: assignedRiderId });
+    if (!riderWallet) riderWallet = await RiderWallet.create({ rider: assignedRiderId });
     riderWallet.totalEarnings += riderEarning;
     riderWallet.availableBalance += riderEarning;
     await riderWallet.save();
-
-    await PaymentTransaction.create({
-      order: order._id,
-      rider: riderId,
-      restaurant: restaurant._id,
-      user: order.customer,
-      type: order.paymentMethod === 'wallet' ? 'wallet_payment' : 'online_payment',
-      amount: orderAmount,
-      deliveryDistanceKm: order.deliveryDistanceKm || 0,
-      breakdown: {
-        orderAmount,
-        commissionPercent,
-        commissionAmount: adminCommission,
-        deliveryFee,
-        restaurantNet,
-        riderEarning,
-        tip,
-        platformEarning: adminCommission + (deliveryFee * 0.3)
-      },
-      status: 'completed'
-    });
   }
+
+  // Record customer online / wallet payment transaction for both delivery and self-pickup orders
+  await PaymentTransaction.create({
+    order: order._id,
+    rider: assignedRiderId || undefined,
+    restaurant: restaurant._id,
+    user: order.customer,
+    type: order.paymentMethod === 'wallet' ? 'wallet_payment' : 'online_payment',
+    amount: orderAmount,
+    deliveryDistanceKm: order.deliveryDistanceKm || 0,
+    breakdown: {
+      orderAmount,
+      commissionPercent,
+      commissionAmount: adminCommission,
+      deliveryFee,
+      restaurantNet,
+      riderEarning,
+      tip,
+      platformEarning: adminCommission + (isPickup ? 0 : Math.max(0, deliveryFee - riderEarning))
+    },
+    note: `${order.paymentMethod === 'wallet' ? 'Wallet' : 'Online'} payment settled for order #${order.orderNumber || order._id.toString().slice(-6)}`,
+    status: 'completed'
+  });
 
   // 2. Process Restaurant Wallet (Platform collected online money, credits restaurantNet to restaurant wallet)
   let restaurantWallet = await RestaurantWallet.findOne({ restaurant: restaurant._id });
@@ -676,86 +680,155 @@ async function setRiderCashLimit(riderId, newLimit, adminUserId) {
   await riderWallet.save();
   return { success: true, cashLimit: riderWallet.cashLimit, isFrozen: riderWallet.isFrozen };
 }
-async function processWeeklyPayouts() {
-  const results = { restaurants: [], riders: [], admin: null, errors: [] };
-  
+async function processWeeklyPayouts(adminUserId = null) {
+  const SettlementLedger = require('../models/SettlementLedger');
+  const AuditLog = require('../models/AuditLog');
+  const now = new Date();
+  const batchId = `WEEKLY-${Date.now()}`;
+  const nextSunday = new Date(now);
+  nextSunday.setDate(nextSunday.getDate() + ((7 - nextSunday.getDay()) || 7));
+
+  const results = {
+    batchId,
+    restaurants: [],
+    riders: [],
+    admin: null,
+    errors: [],
+    totalRestaurantsPaid: 0,
+    totalRidersPaid: 0,
+    totalRestaurantsAmount: 0,
+    totalRidersAmount: 0,
+    totalDisbursed: 0
+  };
+
   // Process Restaurant Payouts
   const restaurantWallets = await RestaurantWallet.find({ balance: { $gt: 0 } });
   for (const wallet of restaurantWallets) {
     try {
-      const payoutAmount = wallet.balance;
-      wallet.totalPaidOut += payoutAmount;
+      const payoutAmount = Number((wallet.balance || 0).toFixed(2));
+      wallet.totalPaidOut = Number(((wallet.totalPaidOut || 0) + payoutAmount).toFixed(2));
       wallet.lastPayoutAmount = payoutAmount;
-      wallet.lastPayoutAt = new Date();
+      wallet.lastPayoutAt = now;
       wallet.balance = 0;
       wallet.pendingAmount = 0;
-      const nextSunday = new Date();
-      nextSunday.setDate(nextSunday.getDate() + (7 - nextSunday.getDay()));
       wallet.nextPayoutDate = nextSunday;
       await wallet.save();
+
+      await Restaurant.findByIdAndUpdate(wallet.restaurant, {
+        $set: { walletBalance: 0 }
+      }).catch(() => {});
+
+      await SettlementLedger.updateMany(
+        {
+          restaurant: wallet.restaurant,
+          status: { $nin: ['PAID', 'RECONCILED', 'PAYMENT_FAILED'] }
+        },
+        {
+          $set: {
+            status: 'PAID',
+            walletSettled: true,
+            settlementBatchId: batchId,
+            settledAt: now,
+            settledBy: adminUserId || undefined,
+            settlementMethod: 'bank_transfer',
+            notes: `Settled via Weekly Payout Batch ${batchId}`
+          }
+        }
+      );
+
       await PaymentTransaction.create({
         restaurant: wallet.restaurant,
         type: 'restaurant_weekly_payout',
         amount: payoutAmount,
-        note: `Weekly payout of ₹${payoutAmount}`,
-        status: 'completed'
+        note: `Weekly payout (${batchId}) of ₹${payoutAmount}`,
+        status: 'completed',
+        processedBy: adminUserId || undefined
       });
       results.restaurants.push({ restaurantId: wallet.restaurant, amount: payoutAmount });
+      results.totalRestaurantsAmount = Number((results.totalRestaurantsAmount + payoutAmount).toFixed(2));
     } catch (err) {
       results.errors.push({ type: 'restaurant', id: wallet.restaurant, error: err.message });
     }
   }
-  
+
   // Process Rider Payouts
   const riderWallets = await RiderWallet.find({ availableBalance: { $gt: 0 } });
   for (const wallet of riderWallets) {
     try {
-      const payoutAmount = wallet.availableBalance;
-      wallet.totalPayouts += payoutAmount;
+      const payoutAmount = Number((wallet.availableBalance || 0).toFixed(2));
+      wallet.totalPayouts = Number(((wallet.totalPayouts || 0) + payoutAmount).toFixed(2));
       wallet.lastPayoutAmount = payoutAmount;
-      wallet.lastPayoutAt = new Date();
+      wallet.lastPayoutAt = now;
       wallet.availableBalance = 0;
       await wallet.save();
+
+      await Rider.findByIdAndUpdate(wallet.rider, {
+        $set: { currentBalance: 0 }
+      }).catch(() => {});
+
       await PaymentTransaction.create({
         rider: wallet.rider,
         type: 'rider_weekly_payout',
         amount: payoutAmount,
-        note: `Weekly earning payout of ₹${payoutAmount}`,
-        status: 'completed'
+        note: `Weekly earning payout (${batchId}) of ₹${payoutAmount}`,
+        status: 'completed',
+        processedBy: adminUserId || undefined
       });
       results.riders.push({ riderId: wallet.rider, amount: payoutAmount });
+      results.totalRidersAmount = Number((results.totalRidersAmount + payoutAmount).toFixed(2));
     } catch (err) {
       results.errors.push({ type: 'rider', id: wallet.rider, error: err.message });
     }
   }
-  
-  // Process Admin Commission Payout
+
+  // Process Admin Commission Payout tracking
   try {
     const adminWallet = await AdminCommissionWallet.getInstance();
-    if (adminWallet.balance > 0) {
-      const payoutAmount = adminWallet.balance;
-      adminWallet.totalPaidOut += payoutAmount;
+    if ((adminWallet.balance || 0) > 0) {
+      const payoutAmount = Number((adminWallet.balance || 0).toFixed(2));
+      adminWallet.totalPaidOut = Number(((adminWallet.totalPaidOut || 0) + payoutAmount).toFixed(2));
       adminWallet.lastPayoutAmount = payoutAmount;
-      adminWallet.lastPayoutAt = new Date();
+      adminWallet.lastPayoutAt = now;
       adminWallet.balance = 0;
-      const nextSunday = new Date();
-      nextSunday.setDate(nextSunday.getDate() + (7 - nextSunday.getDay()));
       adminWallet.nextPayoutDate = nextSunday;
       await adminWallet.save();
-      
+
       await PaymentTransaction.create({
         type: 'admin_commission_payout',
         amount: payoutAmount,
-        note: `Weekly admin commission payout of ₹${payoutAmount}`,
-        status: 'completed'
+        note: `Weekly admin commission payout (${batchId}) of ₹${payoutAmount}`,
+        status: 'completed',
+        processedBy: adminUserId || undefined
       });
-      
+
       results.admin = { amount: payoutAmount, paidOut: adminWallet.totalPaidOut };
     }
   } catch (err) {
     results.errors.push({ type: 'admin', error: err.message });
   }
-  
+
+  results.totalRestaurantsPaid = results.restaurants.length;
+  results.totalRidersPaid = results.riders.length;
+  results.totalDisbursed = Number((results.totalRestaurantsAmount + results.totalRidersAmount).toFixed(2));
+
+  if (adminUserId && (results.totalRestaurantsPaid > 0 || results.totalRidersPaid > 0)) {
+    await AuditLog.log({
+      entity: 'Settlement',
+      action: 'weekly_payout',
+      userId: adminUserId,
+      userRole: 'admin',
+      reason: `Weekly payout batch ${batchId}: ${results.totalRestaurantsPaid} restaurant(s) ₹${results.totalRestaurantsAmount}, ${results.totalRidersPaid} rider(s) ₹${results.totalRidersAmount}`,
+      metadata: {
+        batchId,
+        totalRestaurantsPaid: results.totalRestaurantsPaid,
+        totalRidersPaid: results.totalRidersPaid,
+        totalRestaurantsAmount: results.totalRestaurantsAmount,
+        totalRidersAmount: results.totalRidersAmount,
+        totalDisbursed: results.totalDisbursed
+      }
+    }).catch(() => {});
+  }
+
   return results;
 }
 module.exports = {

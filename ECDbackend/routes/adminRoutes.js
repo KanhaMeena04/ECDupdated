@@ -139,6 +139,7 @@ const {
   getAllRefundsAdmin,
   approveRefund,
   rejectRefund,
+  createManualRefundAdmin,
 } = require("../controllers/refundController");
 const {
   getAdminCategories,
@@ -460,6 +461,7 @@ router.get('/zones/:id', protect, admin, getZoneById);
 router.put('/zones/:id', protect, admin, updateZone);
 router.delete('/zones/:id', protect, admin, deleteZone);
 router.get("/refunds", protect, admin, getAllRefundsAdmin);
+router.post("/refunds/manual", protect, admin, createManualRefundAdmin);
 router.post("/refunds/:id/approve", protect, admin, approveRefund);
 router.post("/refunds/:id/reject", protect, admin, rejectRefund);
 router.post("/incentives", protect, admin, createIncentive);

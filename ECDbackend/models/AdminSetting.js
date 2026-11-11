@@ -206,9 +206,10 @@ const AdminSettingSchema = new mongoose.Schema(
       },
       reasonRules: {
         customer: {
-          refundPercent: { type: Number, default: 0 },
+          refundPercent: { type: Number, default: 100 },
+          preparingRefundPercent: { type: Number, default: 50 },
           restaurantPayablePercent: { type: Number, default: 0 },
-          platformLossPercent: { type: Number, default: 0 }
+          platformLossPercent: { type: Number, default: 100 }
         },
         restaurant: {
           refundPercent: { type: Number, default: 100 },

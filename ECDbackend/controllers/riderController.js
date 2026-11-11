@@ -4823,29 +4823,14 @@ exports.cancelAssignedOrder = async (req, res) => {
     });
 
     if (order.paymentStatus === "paid" && order.paymentMethod !== "cod") {
-      const user = await User.findById(order.customer?._id || order.customer);
-      if (user) {
-        user.walletBalance = (user.walletBalance || 0) + order.totalAmount;
-        await user.save();
-        try {
-          const WalletTransaction = require("../models/WalletTransaction");
-          await WalletTransaction.create({
-            user: user._id,
-            amount: order.totalAmount,
-            type: "credit",
-            description: `Refund (Rider Cancelled): Order #${order.orderId || order._id.toString().slice(-6)}`,
-            orderId: order._id
-          });
-        } catch (_) {}
-      }
-      order.paymentStatus = "refunded";
-      order.refund = {
-        status: "completed",
-        amount: order.totalAmount,
-        refundedAt: new Date(),
-        method: "wallet",
-        note: `Rider cancellation refund: ${reason}`
-      };
+      const { processRefund } = require("../services/refundService");
+      await processRefund({
+        order,
+        reason,
+        initiatedBy: req.user._id,
+        initiatorRole: "rider",
+        skipOrderSave: true
+      });
     } else if (order.paymentMethod === "cod") {
       order.paymentStatus = "cancelled";
     }

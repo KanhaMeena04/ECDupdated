@@ -1950,12 +1950,6 @@ exports.customerCancelOrder = async (req, res) => {
         currentStatus: order.status
       });
     }
-    let refundAmount = order.totalAmount;
-    let refundPercentage = 100;
-    if (order.status === 'preparing') {
-      refundAmount = Math.round(order.totalAmount * 0.5 * 100) / 100;
-      refundPercentage = 50;
-    }
     const oldStatus = order.status;
     order.status = 'cancelled';
     order.cancellationReason = `Cancelled by customer: ${reason}`;
@@ -1968,30 +1962,23 @@ exports.customerCancelOrder = async (req, res) => {
       by: 'customer',
       description: `Order cancelled by customer: ${reason}`
     });
+    let refundAmount = 0;
+    let refundPercentage = 0;
     if (order.paymentStatus === 'paid' && order.paymentMethod !== 'cod') {
-      const user = await User.findById(order.customer).session(session);
-      if (user) {
-        user.walletBalance = (user.walletBalance || 0) + refundAmount;
-        await user.save({ session });
-        try {
-          const WalletTransaction = require('../models/WalletTransaction');
-          await WalletTransaction.create([{
-            user: user._id,
-            amount: refundAmount,
-            type: 'credit',
-            description: `Cancellation refund (${refundPercentage}%) - Order ${order.orderId || order._id.toString().slice(-6)}`,
-            orderId: order._id
-          }], { session });
-        } catch (_) { }
+      const { processRefund } = require('../services/refundService');
+      const refundResult = await processRefund({
+        order,
+        reason,
+        initiatedBy: req.user._id,
+        initiatorRole: 'customer',
+        orderStatusBeforeCancel: oldStatus,
+        skipOrderSave: true,
+        session
+      });
+      if (refundResult.success) {
+        refundAmount = refundResult.refundAmount || 0;
+        refundPercentage = refundResult.refundPercentage || 0;
       }
-      order.paymentStatus = 'refunded';
-      order.refund = {
-        status: 'completed',
-        amount: refundAmount,
-        refundedAt: new Date(),
-        method: 'wallet',
-        note: `Customer cancellation (${refundPercentage}% refund)`
-      };
     } else if (order.paymentMethod === 'cod') {
       order.paymentStatus = 'cancelled';
     }
@@ -3956,6 +3943,7 @@ exports.adminCancelOrder = async (req, res) => {
     const oldStatus = order.status;
     order.status = "cancelled";
     order.cancellationReason = reason;
+    order.cancellationInitiatedBy = "admin";
     order.cancelledAt = new Date();
     order.timeline.push({
       status: "cancelled",
@@ -3964,40 +3952,24 @@ exports.adminCancelOrder = async (req, res) => {
       by: 'admin',
       description: `Admin Cancelled: ${reason}`,
     });
-    await order.save({ session });
 
     if ((order.paymentStatus === "paid" && order.paymentMethod !== "cod") || refundAmount) {
-      const user = await User.findById(order.customer).session(session);
-      if (user) {
-        const amountToRefund = refundAmount ? Number(refundAmount) : order.totalAmount;
-        user.walletBalance = (user.walletBalance || 0) + amountToRefund;
-        await user.save({ session });
-        try {
-          const WalletTransaction = require('../models/WalletTransaction');
-          await WalletTransaction.create([{
-            user: user._id,
-            amount: amountToRefund,
-            type: 'credit',
-            description: `Refund (Admin): Order #${order.orderId || order._id.toString().slice(-6)}`,
-            orderId: order._id,
-            adminAction: true,
-            adminId: req.user._id
-          }], { session });
-        } catch (_) { }
-        order.paymentStatus = 'refunded';
-        order.refund = {
-          status: 'completed',
-          amount: amountToRefund,
-          refundedAt: new Date(),
-          method: 'wallet',
-          note: reason
-        };
-        await order.save({ session });
-      }
+      const { processRefund } = require('../services/refundService');
+      await processRefund({
+        order,
+        reason,
+        initiatedBy: req.user._id,
+        initiatorRole: 'admin',
+        orderStatusBeforeCancel: oldStatus,
+        customRefundAmount: refundAmount ? Number(refundAmount) : null,
+        forceWalletRefund: true,
+        skipOrderSave: true,
+        session
+      });
     } else if (order.paymentMethod === 'cod') {
       order.paymentStatus = 'cancelled';
-      await order.save({ session });
     }
+    await order.save({ session });
 
     if (order.rider) {
       try {
@@ -4116,29 +4088,15 @@ exports.ownerRejectOrder = async (req, res) => {
     } catch (_) { }
 
     if (order.paymentStatus === "paid" && order.paymentMethod !== "cod") {
-      const user = await User.findById(order.customer);
-      if (user) {
-        user.walletBalance = (user.walletBalance || 0) + order.totalAmount;
-        await user.save();
-        try {
-          const WalletTransaction = require('../models/WalletTransaction');
-          await WalletTransaction.create({
-            user: user._id,
-            amount: order.totalAmount,
-            type: 'credit',
-            description: `Refund (Restaurant Rejected): Order #${order.orderId || order._id.toString().slice(-6)}`,
-            orderId: order._id
-          });
-        } catch (_) { }
-        order.paymentStatus = 'refunded';
-        order.refund = {
-          status: 'completed',
-          amount: order.totalAmount,
-          refundedAt: new Date(),
-          method: 'wallet',
-          note: `Restaurant rejection refund: ${reason}`,
-        };
-      }
+      const { processRefund } = require('../services/refundService');
+      await processRefund({
+        order,
+        reason,
+        initiatedBy: req.user._id,
+        initiatorRole: 'restaurant_owner',
+        orderStatusBeforeCancel: oldStatus,
+        skipOrderSave: true
+      });
     } else if (order.paymentMethod === 'cod') {
       order.paymentStatus = 'cancelled';
     }
@@ -4272,30 +4230,16 @@ exports.ownerCancelOrder = async (req, res) => {
     } catch (_) { }
 
     if (order.paymentStatus === "paid" && order.paymentMethod !== "cod") {
-      const user = await User.findById(order.customer);
-      if (user) {
-        const amountToRefund = refundAmount ? Number(refundAmount) : order.totalAmount;
-        user.walletBalance = (user.walletBalance || 0) + amountToRefund;
-        await user.save();
-        try {
-          const WalletTransaction = require('../models/WalletTransaction');
-          await WalletTransaction.create({
-            user: user._id,
-            amount: amountToRefund,
-            type: 'credit',
-            description: `Refund (Restaurant Cancelled): Order #${order.orderId || order._id.toString().slice(-6)}`,
-            orderId: order._id
-          });
-        } catch (_) { }
-        order.paymentStatus = 'refunded';
-        order.refund = {
-          status: 'completed',
-          amount: amountToRefund,
-          refundedAt: new Date(),
-          method: 'wallet',
-          note: `Restaurant cancellation refund: ${reason}`,
-        };
-      }
+      const { processRefund } = require('../services/refundService');
+      await processRefund({
+        order,
+        reason,
+        initiatedBy: req.user._id,
+        initiatorRole: 'restaurant_owner',
+        orderStatusBeforeCancel: oldStatus,
+        customRefundAmount: refundAmount ? Number(refundAmount) : null,
+        skipOrderSave: true
+      });
     } else if (order.paymentMethod === 'cod') {
       order.paymentStatus = 'cancelled';
     }

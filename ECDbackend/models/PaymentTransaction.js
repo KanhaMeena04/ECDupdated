@@ -19,6 +19,7 @@ const paymentTransactionSchema = new mongoose.Schema({
       'online_payment',         // Customer paid online
       'wallet_payment',         // Customer paid via wallet
       'refund',                 // Refund issued
+      'admin_commission_payout', // Weekly payout of platform commission
     ],
     required: true
   },

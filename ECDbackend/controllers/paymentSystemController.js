@@ -309,7 +309,19 @@ exports.getRestaurantWalletByAdmin = async (req, res) => {
 };
 exports.getAdminSummary = async (req, res) => {
   try {
-    const [totalCOD, totalOnline, totalCommission, totalPaidOut, frozenCount, pendingPayouts] = await Promise.all([
+    const AdminCommissionWallet = require('../models/AdminCommissionWallet');
+    const [
+      totalCOD,
+      totalOnline,
+      totalCommission,
+      totalPaidOut,
+      frozenCount,
+      restWalletStats,
+      riderWalletStats,
+      eligibleRestaurantsCount,
+      eligibleRidersCount,
+      adminWallet
+    ] = await Promise.all([
       PaymentTransaction.aggregate([
         { $match: { type: 'cod_collected' } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
@@ -327,17 +339,56 @@ exports.getAdminSummary = async (req, res) => {
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       RiderWallet.countDocuments({ isFrozen: true }),
-      RestaurantWallet.aggregate([{ $group: { _id: null, total: { $sum: '$balance' } } }]),
+      RestaurantWallet.aggregate([
+        {
+          $group: {
+            _id: null,
+            pendingBalance: { $sum: '$balance' },
+            totalPaidOut: { $sum: '$totalPaidOut' }
+          }
+        }
+      ]),
+      RiderWallet.aggregate([
+        {
+          $group: {
+            _id: null,
+            cashInHand: { $sum: '$cashInHand' },
+            pendingBalance: { $sum: '$availableBalance' },
+            totalPaidOut: { $sum: '$totalPayouts' }
+          }
+        }
+      ]),
+      RestaurantWallet.countDocuments({ balance: { $gt: 0 } }),
+      RiderWallet.countDocuments({ availableBalance: { $gt: 0 } }),
+      AdminCommissionWallet.getInstance()
     ]);
+
+    const pendingRestaurantPayouts = Number((restWalletStats[0]?.pendingBalance || 0).toFixed(2));
+    const pendingRiderPayouts = Number((riderWalletStats[0]?.pendingBalance || 0).toFixed(2));
+    const riderCashInHand = Number((riderWalletStats[0]?.cashInHand || 0).toFixed(2));
+
+    const now = new Date();
+    const nextSunday = new Date(now);
+    nextSunday.setDate(nextSunday.getDate() + ((7 - nextSunday.getDay()) || 7));
+
     return res.status(200).json({
       success: true,
       data: {
-        totalCODCollected: totalCOD[0]?.total || 0,
-        totalOnlinePayments: totalOnline[0]?.total || 0,
-        totalCommissionEarned: totalCommission[0]?.total || 0,
-        totalPaidOut: totalPaidOut[0]?.total || 0,
+        totalCODCollected: Number((totalCOD[0]?.total || 0).toFixed(2)),
+        totalOnlinePayments: Number((totalOnline[0]?.total || 0).toFixed(2)),
+        totalCommissionEarned: Number((totalCommission[0]?.total || 0).toFixed(2)),
+        totalPaidOut: Number((totalPaidOut[0]?.total || 0).toFixed(2)),
         frozenRidersCount: frozenCount,
-        pendingRestaurantPayouts: pendingPayouts[0]?.total || 0,
+        riderCashInHand,
+        pendingRestaurantPayouts,
+        restaurantTotalPaidOut: Number((restWalletStats[0]?.totalPaidOut || 0).toFixed(2)),
+        pendingRiderPayouts,
+        riderTotalPaidOut: Number((riderWalletStats[0]?.totalPaidOut || 0).toFixed(2)),
+        eligibleRestaurantsCount,
+        eligibleRidersCount,
+        totalEligiblePayout: Number((pendingRestaurantPayouts + pendingRiderPayouts).toFixed(2)),
+        adminPendingCommission: Number((adminWallet?.balance || 0).toFixed(2)),
+        nextScheduledPayoutDate: nextSunday.toISOString(),
       }
     });
   } catch (err) {
@@ -346,10 +397,14 @@ exports.getAdminSummary = async (req, res) => {
 };
 exports.triggerWeeklyPayout = async (req, res) => {
   try {
-    const results = await processWeeklyPayouts();
+    const results = await processWeeklyPayouts(req.user?._id || null);
+    const hasPayouts = results.totalRestaurantsPaid > 0 || results.totalRidersPaid > 0;
+    const message = hasPayouts
+      ? `Weekly payout complete (${results.batchId}): ${results.totalRestaurantsPaid} restaurant(s) (₹${results.totalRestaurantsAmount}) & ${results.totalRidersPaid} rider(s) (₹${results.totalRidersAmount}).`
+      : 'No pending partner wallet balances (> ₹0) to disburse right now.';
     return res.status(200).json({
       success: true,
-      message: `Payout complete: ${results.restaurants.length} restaurants, ${results.riders.length} riders`,
+      message,
       data: results
     });
   } catch (err) {
@@ -360,21 +415,31 @@ exports.triggerWeeklyPayout = async (req, res) => {
 exports.getAllTransactions = async (req, res) => {
   try {
     const { page = 1, limit = 20, type } = req.query;
-    const skip = (page - 1) * limit;
-    const filter = type ? { type } : {};
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
+    let filter = {};
+    if (type) {
+      const types = String(type).split(',').map(t => t.trim()).filter(Boolean);
+      filter = types.length > 1 ? { type: { $in: types } } : { type: types[0] };
+    }
     const [transactions, total] = await Promise.all([
       PaymentTransaction.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(parseInt(limit))
-        .populate('order', 'totalAmount paymentMethod status')
-        .populate('rider', 'user')
+        .limit(limitNum)
+        .populate('order', 'orderNumber totalAmount paymentMethod status')
+        .populate({
+          path: 'rider',
+          select: 'name fullName riderId user',
+          populate: { path: 'user', select: 'name phone' }
+        })
         .populate('restaurant', 'name'),
       PaymentTransaction.countDocuments(filter)
     ]);
     return res.status(200).json({
       success: true,
-      data: { transactions, total, page: parseInt(page), pages: Math.ceil(total / limit) }
+      data: { transactions, total, page: pageNum, pages: Math.ceil(total / limitNum) }
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

@@ -3,18 +3,20 @@ const cron = require('node-cron');
 const { processWeeklyPayouts } = require('./paymentService');
 const initPaymentCronJobs = () => {
   console.log('💰 Initializing Payment Cron Jobs...');
-  // cron.schedule('0 0 * * 0', async () => {
-  //   console.log('[Payment Cron] Running weekly payouts...');
-  //   try {
-  //     const results = await processWeeklyPayouts();
-  //     console.log(`✅ Weekly Payout Done: ${results.restaurants.length} restaurants, ${results.riders.length} riders`);
-  //     if (results.errors.length > 0) {
-  //       console.error('Payout errors:', results.errors);
-  //     }
-  //   } catch (err) {
-  //     console.error('[Payment Cron] Weekly payout failed:', err.message);
-  //   }
-  // });
+  // Weekly automated payout every Sunday at 00:00
+  cron.schedule('0 0 * * 0', async () => {
+    if (require('mongoose').connection.readyState !== 1) return;
+    console.log('[Payment Cron] Running weekly payouts...');
+    try {
+      const results = await processWeeklyPayouts();
+      console.log(`✅ Weekly Payout Done: ${results.restaurants.length} restaurants, ${results.riders.length} riders (₹${results.totalDisbursed})`);
+      if (results.errors.length > 0) {
+        console.error('Payout errors:', results.errors);
+      }
+    } catch (err) {
+      console.error('[Payment Cron] Weekly payout failed:', err.message);
+    }
+  });
   cron.schedule('*/30 * * * *', async () => {
     if (require('mongoose').connection.readyState !== 1) return;
     try {
