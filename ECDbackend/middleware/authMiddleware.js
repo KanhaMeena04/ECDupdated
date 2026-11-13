@@ -225,13 +225,38 @@ const ensureOwnOrder = async (req, res, next) => {
 };
 const optionalAuth = async (req, res, next) => {
   try {
-    let token = req.cookies.token;
+    let token = req.cookies?.token;
     if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
-    if (token) {
+    if (token && token !== 'null' && token !== 'undefined' && token !== '') {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded._id || decoded.id).select('-password');
+      let user = await User.findById(decoded._id || decoded.id).select('-password');
+      if (!user) {
+        const Rider = require('../models/Rider');
+        const riderDoc = await Rider.findById(decoded._id || decoded.id);
+        if (riderDoc && riderDoc.user) {
+          user = await User.findById(riderDoc.user).select('-password');
+        }
+      }
+      if (!user && (decoded.restaurantId || decoded.role === 'restaurant_owner')) {
+        const Restaurant = require('../models/Restaurant');
+        const restDoc = await Restaurant.findById(decoded.restaurantId || decoded._id || decoded.id);
+        if (restDoc) {
+          if (restDoc.owner) {
+            user = await User.findById(restDoc.owner).select('-password');
+          }
+          if (!user) {
+            user = {
+              _id: restDoc._id,
+              role: 'restaurant_owner',
+              restaurantId: restDoc._id,
+              name: restDoc.name
+            };
+          }
+        }
+      }
+      req.user = user || null;
     }
   } catch (error) {
     // Silently continue for optional auth

@@ -4036,18 +4036,20 @@ exports.ownerRejectOrder = async (req, res) => {
     const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
 
-    let restaurant = await Restaurant.findOne({ owner: req.user._id });
-    if (!restaurant) {
-      restaurant = await Restaurant.findById(req.user._id);
+    let restaurant = null;
+    if (req.user?._id) {
+      restaurant = await Restaurant.findOne({ owner: req.user._id });
+      if (!restaurant) restaurant = await Restaurant.findById(req.user._id);
+      if (!restaurant && req.user.restaurantId) restaurant = await Restaurant.findById(req.user.restaurantId);
     }
-    if (!restaurant && req.user.restaurantId) {
-      restaurant = await Restaurant.findById(req.user.restaurantId);
+    if (!restaurant && order.restaurant) {
+      restaurant = await Restaurant.findById(order.restaurant);
     }
     const isOwner = restaurant && (
       order.restaurant.toString() === restaurant._id.toString() ||
       (restaurant.owner && order.restaurant.toString() === restaurant.owner.toString())
     );
-    const isAdmin = req.user.role === "admin";
+    const isAdmin = req.user?.role === "admin";
     if (!isOwner && !isAdmin) {
       if (!restaurant || order.restaurant.toString() !== restaurant._id.toString()) {
         return res.status(403).json({ success: false, message: "Access denied" });
@@ -4075,13 +4077,14 @@ exports.ownerRejectOrder = async (req, res) => {
       description: `Restaurant Rejected: ${reason}`,
     });
 
+    const actorId = req.user?._id || restaurant?.owner || order.restaurant;
     try {
-      logRestaurantAction(order._id, restaurant._id, "rejected", reason);
+      logRestaurantAction(order._id, restaurant?._id || order.restaurant, "rejected", reason);
       logOrderTransition(
         order._id,
         oldStatus,
         "cancelled",
-        req.user._id,
+        actorId,
         "restaurant_owner",
         `Rejected: ${reason}`,
       );
@@ -4092,7 +4095,7 @@ exports.ownerRejectOrder = async (req, res) => {
       await processRefund({
         order,
         reason,
-        initiatedBy: req.user._id,
+        initiatedBy: actorId,
         initiatorRole: 'restaurant_owner',
         orderStatusBeforeCancel: oldStatus,
         skipOrderSave: true
@@ -4110,50 +4113,71 @@ exports.ownerRejectOrder = async (req, res) => {
 
     await order.save();
 
+    const customerId = order.customer?._id
+      ? order.customer._id.toString()
+      : (order.customer ? order.customer.toString() : (order.user ? order.user.toString() : null));
+
     try {
       const rejectData = {
         orderId: order._id.toString(),
+        orderNumber: order.orderNumber || order.orderId,
         status: "cancelled",
         reason: reason,
+        cancellationReason: `Rejected by restaurant: ${reason}`,
         rejectedBy: "restaurant_owner",
+        cancelledBy: "restaurant_owner",
         timestamp: new Date(),
       };
       socketService.emitToOrder(order._id.toString(), "orderStatusUpdated", {
         ...rejectData,
-        cancellationReason: reason,
         message: `Restaurant rejected your order: ${reason}`,
       });
-      socketService.emitToUser(order.customer.toString(), "orderStatusUpdated", {
+      socketService.emitToOrder(order._id.toString(), "order:status", {
         ...rejectData,
-        cancellationReason: reason,
-        message: `Restaurant rejected your order: ${reason}`,
       });
-      socketService.emitToUser(order.customer.toString(), "order:cancelled", {
-        ...rejectData,
-        cancellationReason: reason,
-        message: `Restaurant rejected your order: ${reason}`,
-      });
+
+      if (customerId) {
+        socketService.emitToUser(customerId, "orderStatusUpdated", {
+          ...rejectData,
+          message: `Restaurant rejected your order: ${reason}`,
+        });
+        socketService.emitToUser(customerId, "order:cancelled", {
+          ...rejectData,
+          message: `Restaurant rejected your order: ${reason}`,
+        });
+      }
+
       socketService.emitToAdmin("order:cancelled", {
         ...rejectData,
         restaurantName: restaurant?.name || "Restaurant",
-        restaurantId: restaurant?._id,
-        cancellationReason: reason,
+        restaurantId: restaurant?._id || order.restaurant,
       });
+      socketService.emitToAdmin("order_status_update", {
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber || order.orderId,
+        status: "cancelled",
+        cancellationReason: `Rejected by restaurant: ${reason}`,
+      });
+
       if (order.rider) {
-        socketService.emitToRider(order.rider.toString(), "order:cancelled", rejectData);
+        const riderIdStr = order.rider?._id ? order.rider._id.toString() : order.rider.toString();
+        socketService.emitToRider(riderIdStr, "order:cancelled", rejectData);
+        socketService.emitToRider(riderIdStr, "orderStatusUpdated", rejectData);
       }
     } catch (socketError) {
       console.error("Socket emission error:", socketError);
     }
 
-    try {
-      await sendNotification(
-        order.customer,
-        "Order Rejected by Restaurant ❌",
-        `Your order #${order.orderNumber || order.orderId || order._id.toString().slice(-6)} was rejected by the restaurant. Reason: ${reason}.${order.paymentStatus === 'refunded' ? ' Refund has been credited to your wallet.' : ''}`,
-        { orderId: order._id.toString(), status: 'cancelled' }
-      );
-    } catch (_) { }
+    if (customerId) {
+      try {
+        await sendNotification(
+          customerId,
+          "Order Rejected by Restaurant ❌",
+          `Your order #${order.orderNumber || order.orderId || order._id.toString().slice(-6)} was rejected by the restaurant. Reason: ${reason}.${order.paymentStatus === 'refunded' ? ' Refund has been credited to your wallet.' : ''}`,
+          { orderId: order._id.toString(), status: 'cancelled' }
+        );
+      } catch (_) { }
+    }
 
     return res.status(200).json({
       success: true,
@@ -4182,18 +4206,20 @@ exports.ownerCancelOrder = async (req, res) => {
     const order = await Order.findOne(orderFilter);
     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
 
-    let restaurant = await Restaurant.findOne({ owner: req.user._id });
-    if (!restaurant) {
-      restaurant = await Restaurant.findById(req.user._id);
+    let restaurant = null;
+    if (req.user?._id) {
+      restaurant = await Restaurant.findOne({ owner: req.user._id });
+      if (!restaurant) restaurant = await Restaurant.findById(req.user._id);
+      if (!restaurant && req.user.restaurantId) restaurant = await Restaurant.findById(req.user.restaurantId);
     }
-    if (!restaurant && req.user.restaurantId) {
-      restaurant = await Restaurant.findById(req.user.restaurantId);
+    if (!restaurant && order.restaurant) {
+      restaurant = await Restaurant.findById(order.restaurant);
     }
     const isOwner = restaurant && (
       order.restaurant.toString() === restaurant._id.toString() ||
       (restaurant.owner && order.restaurant.toString() === restaurant.owner.toString())
     );
-    const isAdmin = req.user.role === "admin";
+    const isAdmin = req.user?.role === "admin";
     if (!isOwner && !isAdmin) {
       if (!restaurant || order.restaurant.toString() !== restaurant._id.toString()) {
         return res.status(403).json({ success: false, message: "Access denied" });
@@ -4218,12 +4244,14 @@ exports.ownerCancelOrder = async (req, res) => {
       description: `Restaurant Cancelled: ${reason}`,
     });
 
+    const actorId = req.user?._id || restaurant?.owner || order.restaurant;
     try {
+      logRestaurantAction(order._id, restaurant?._id || order.restaurant, "cancelled", reason);
       logOrderTransition(
         order._id,
         oldStatus,
         "cancelled",
-        req.user._id,
+        actorId,
         "restaurant_owner",
         reason,
       );
@@ -4234,7 +4262,7 @@ exports.ownerCancelOrder = async (req, res) => {
       await processRefund({
         order,
         reason,
-        initiatedBy: req.user._id,
+        initiatedBy: actorId,
         initiatorRole: 'restaurant_owner',
         orderStatusBeforeCancel: oldStatus,
         customRefundAmount: refundAmount ? Number(refundAmount) : null,
@@ -4253,65 +4281,71 @@ exports.ownerCancelOrder = async (req, res) => {
 
     await order.save();
 
-    try {
-      sendNotification(
-        order.customer,
-        "Order Cancelled",
-        `Your order #${order.orderId || order._id.toString().slice(-6)} was cancelled by the restaurant. Reason: ${reason}`,
-        { orderId: order._id.toString() }
-      ).catch(() => { });
-    } catch (_) { }
+    const customerId = order.customer?._id
+      ? order.customer._id.toString()
+      : (order.customer ? order.customer.toString() : (order.user ? order.user.toString() : null));
+
+    if (customerId) {
+      try {
+        sendNotification(
+          customerId,
+          "Order Cancelled by Restaurant ❌",
+          `Your order #${order.orderNumber || order.orderId || order._id.toString().slice(-6)} was cancelled by the restaurant. Reason: ${reason}.${order.paymentStatus === 'refunded' ? ' Refund has been credited to your wallet.' : ''}`,
+          { orderId: order._id.toString(), status: 'cancelled' }
+        ).catch(() => { });
+      } catch (_) { }
+    }
 
     try {
       const cancelData = {
         orderId: order._id.toString(),
+        orderNumber: order.orderNumber || order.orderId,
         status: "cancelled",
         reason: reason,
+        cancellationReason: reason,
         rejectedBy: "restaurant_owner",
+        cancelledBy: "restaurant_owner",
         timestamp: new Date(),
       };
       // Emit to order room (where User app tracking page is listening)
       socketService.emitToOrder(order._id.toString(), "orderStatusUpdated", {
-        orderId: order._id.toString(),
-        status: "cancelled",
-        cancellationReason: reason,
+        ...cancelData,
         message: `Restaurant cancelled your order: ${reason}`,
       });
       socketService.emitToOrder(order._id.toString(), "order:status", {
-        orderId: order._id.toString(),
-        status: "cancelled",
-        cancellationReason: reason,
+        ...cancelData,
       });
 
       // Emit to user private channel
-      socketService.emitToUser(order.customer.toString(), "orderStatusUpdated", {
-        ...cancelData,
-        cancellationReason: reason,
-        message: `Restaurant cancelled your order: ${reason}`,
-      });
-      socketService.emitToUser(order.customer.toString(), "order:cancelled", {
-        ...cancelData,
-        cancellationReason: reason,
-        message: `Restaurant cancelled your order: ${reason}`,
-      });
+      if (customerId) {
+        socketService.emitToUser(customerId, "orderStatusUpdated", {
+          ...cancelData,
+          message: `Restaurant cancelled your order: ${reason}`,
+        });
+        socketService.emitToUser(customerId, "order:cancelled", {
+          ...cancelData,
+          message: `Restaurant cancelled your order: ${reason}`,
+        });
+      }
 
       // Emit to Admin
       socketService.emitToAdmin("order:cancelled", {
         ...cancelData,
         restaurantName: restaurant?.name || "Restaurant",
-        restaurantId: restaurant?._id,
-        cancellationReason: reason,
+        restaurantId: restaurant?._id || order.restaurant,
       });
       socketService.emitToAdmin("order_status_update", {
         orderId: order._id.toString(),
+        orderNumber: order.orderNumber || order.orderId,
         status: "cancelled",
         cancellationReason: reason,
       });
 
       // Emit to Rider if assigned
       if (order.rider) {
-        socketService.emitToRider(order.rider.toString(), "order:cancelled", cancelData);
-        socketService.emitToRider(order.rider.toString(), "orderStatusUpdated", cancelData);
+        const riderIdStr = order.rider?._id ? order.rider._id.toString() : order.rider.toString();
+        socketService.emitToRider(riderIdStr, "order:cancelled", cancelData);
+        socketService.emitToRider(riderIdStr, "orderStatusUpdated", cancelData);
       }
     } catch (socketError) {
       console.error("Socket emission error:", socketError);

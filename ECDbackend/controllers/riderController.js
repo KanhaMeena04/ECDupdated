@@ -4641,6 +4641,7 @@ exports.rejectOrder = async (req, res) => {
         riderUserId: riderUserId.toString(),
         riderName: riderProfile.name,
         orderId: order._id.toString(),
+        orderNumber: order.orderNumber || order.orderId,
         customerName: order.customer?.name || "Customer",
         restaurantName: order.restaurant?.name || "Restaurant",
         orderStatus: order.status,
@@ -4648,25 +4649,52 @@ exports.rejectOrder = async (req, res) => {
         timestamp: new Date(),
         action: "rejected_order"
       });
-      socketService.emitToRestaurant(
-        order.restaurant._id.toString(),
-        "rider:order_rejected",
-        {
-          orderId: order._id,
-          riderName: riderProfile.name,
-          reason: reason,
-          message: "Rider rejected the order - finding another rider",
-          timestamp: new Date()
-        }
-      );
+      socketService.emitToAdmin("order_status_update", {
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber || order.orderId,
+        status: order.status,
+        riderRejected: true,
+        rejectionReason: reason,
+      });
+
+      const restId = order.restaurant?._id
+        ? order.restaurant._id.toString()
+        : (order.restaurant ? order.restaurant.toString() : null);
+      if (restId) {
+        socketService.emitToRestaurant(
+          restId,
+          "rider:order_rejected",
+          {
+            orderId: order._id,
+            orderNumber: order.orderNumber || order.orderId,
+            riderName: riderProfile.name,
+            reason: reason,
+            message: "Rider rejected the order - finding another rider",
+            timestamp: new Date()
+          }
+        );
+      }
       socketService.emitToOrder(
         order._id.toString(),
         "order:rider_rejected",
         {
           orderId: order._id,
+          orderNumber: order.orderNumber || order.orderId,
           riderId: riderId,
           riderName: riderProfile.name,
           reason: reason,
+          message: "Finding another delivery partner for your order",
+          timestamp: new Date()
+        }
+      );
+      socketService.emitToOrder(
+        order._id.toString(),
+        "orderStatusUpdated",
+        {
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber || order.orderId,
+          status: order.status,
+          message: "Finding another delivery partner for your order",
           timestamp: new Date()
         }
       );
