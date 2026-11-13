@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, admin } = require('../middleware/authMiddleware');
+const { protect, admin, optionalAuth } = require('../middleware/authMiddleware');
 const {
   getRestaurantSettlements,
   getRestaurantSettlementBreakdown,
@@ -21,8 +21,8 @@ const {
 } = require('../controllers/withdrawalController');
 
 // Restaurant App Earnings & Settlement Breakdown Endpoints
-router.get('/restaurant-app/overview', protect, getRestaurantAppEarningsAndSettlement);
-router.get('/restaurant-app/:restaurantId/overview', protect, getRestaurantAppEarningsAndSettlement);
+router.get('/restaurant-app/overview', optionalAuth, getRestaurantAppEarningsAndSettlement);
+router.get('/restaurant-app/:restaurantId/overview', optionalAuth, getRestaurantAppEarningsAndSettlement);
 
 // Restaurant Payout Requests Endpoints
 router.get('/withdrawals', protect, admin, getRestaurantWithdrawals);

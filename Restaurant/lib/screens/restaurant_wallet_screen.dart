@@ -48,12 +48,17 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
       final headers = {
         'Content-Type': 'application/json',
         if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (restId.isNotEmpty) 'x-restaurant-id': restId,
       };
 
       // 1. Primary source of truth: synced backend Settlement + Wallet + Withdrawals overview
+      final String overviewUrl = restId.isNotEmpty
+          ? '${ApiConstants.baseUrl}/settlements/restaurant-app/$restId/overview'
+          : '${ApiConstants.baseUrl}/settlements/restaurant-app/overview';
+
       final overviewRes = await http
           .get(
-            Uri.parse('${ApiConstants.baseUrl}/settlements/restaurant-app/overview'),
+            Uri.parse(overviewUrl),
             headers: headers,
           )
           .timeout(const Duration(seconds: 10));
@@ -68,11 +73,11 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
 
           double toDoubleVal(dynamic v) => double.tryParse((v ?? 0).toString()) ?? 0.0;
 
-          final totalEarn = toDoubleVal(earnings['total']);
+          final totalEarn = toDoubleVal(earnings['total'] ?? earnings['totalRevenue']);
           final avail = toDoubleVal(earnings['availableBalance'] ?? earnings['walletBalance']);
           final paidOut = toDoubleVal(earnings['totalPaidOut']);
           final pendingWd = toDoubleVal(earnings['pendingWithdrawalAmount']);
-          final totalComm = toDoubleVal(summary['totalCommissionDeducted']);
+          final totalComm = toDoubleVal(summary['totalCommissionDeducted'] ?? earnings['totalCommissionPaid']);
 
           final List<Map<String, dynamic>> txns = [];
 
@@ -98,10 +103,10 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
           for (final o in rawBreakdown) {
             if (o is! Map) continue;
             final ordNum = (o['orderNumber'] ?? o['orderId'] ?? 'N/A').toString();
-            final net = toDoubleVal(o['netRestaurantPayout']);
-            final comm = toDoubleVal(o['commissionDeducted']);
-            final sStatus = (o['settlementStatus'] ?? 'PENDING').toString();
-            final dateStr = o['date'] ?? DateTime.now().toIso8601String();
+            final net = toDoubleVal(o['netPayable'] ?? o['netRestaurantPayout']);
+            final comm = toDoubleVal(o['commissionAmount'] ?? o['commissionDeducted']);
+            final sStatus = (o['status'] ?? o['settlementStatus'] ?? 'PENDING').toString();
+            final dateStr = (o['createdAt'] ?? o['date'] ?? DateTime.now().toIso8601String()).toString();
 
             txns.add({
               'id': 'ORD_$ordNum',
@@ -144,10 +149,10 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
         }
       }
 
-      // 2. Secondary backend-synced fallback: /restaurants/wallet-earnings
+      // 2. Secondary backend-synced fallback: /restaurants/finance/wallet
       final walletRes = await http
           .get(
-            Uri.parse('${ApiConstants.baseUrl}/restaurants/wallet-earnings'),
+            Uri.parse('${ApiConstants.baseUrl}/restaurants/finance/wallet'),
             headers: headers,
           )
           .timeout(const Duration(seconds: 8));
@@ -155,38 +160,84 @@ class _RestaurantWalletScreenState extends State<RestaurantWalletScreen> {
       if (walletRes.statusCode == 200) {
         final wData = jsonDecode(walletRes.body);
         if (wData is Map && wData['success'] == true) {
-          final avail = double.tryParse((wData['availableBalance'] ?? wData['walletBalance'] ?? 0).toString()) ?? 0.0;
-          final totalEarn = double.tryParse((wData['totalEarnings'] ?? 0).toString()) ?? 0.0;
-          final paidOut = double.tryParse((wData['totalPaidOut'] ?? 0).toString()) ?? 0.0;
-          final pendingWd = double.tryParse((wData['pendingWithdrawalAmount'] ?? 0).toString()) ?? 0.0;
-          final rawRecent = (wData['recentOrders'] is List) ? wData['recentOrders'] as List : [];
+          final w = (wData['wallet'] is Map) ? wData['wallet'] as Map : {};
+          final s = (wData['summary'] is Map) ? wData['summary'] as Map : {};
 
-          final List<Map<String, dynamic>> txns = [];
-          for (final o in rawRecent) {
-            if (o is! Map) continue;
-            final ordNum = (o['orderNumber'] ?? o['_id'] ?? 'N/A').toString();
-            final earn = double.tryParse((o['restaurantEarning'] ?? 0).toString()) ?? 0.0;
-            txns.add({
-              'id': 'ORD_$ordNum',
-              'type': 'credit',
-              'amount': earn,
-              'status': (o['status'] ?? 'delivered').toString(),
-              'createdAt': o['createdAt'] ?? DateTime.now().toIso8601String(),
-              'description': 'Order #$ordNum Earning',
-            });
-          }
+          double toDoubleVal(dynamic v) => double.tryParse((v ?? 0).toString()) ?? 0.0;
+          final avail = toDoubleVal(w['availableBalance'] ?? w['balance']);
+          final totalEarn = toDoubleVal(s['totalRestaurantNet'] ?? w['totalEarnings']);
+          final paidOut = toDoubleVal(w['totalPaidOut']);
+          final pendingWd = toDoubleVal(w['pendingWithdrawalAmount']);
+          final commPaid = toDoubleVal(s['totalPlatformCommission']);
 
           if (mounted) {
             setState(() {
               _totalEarnings = totalEarn;
+              _totalCommissionPaid = commPaid;
               _totalPaidOut = paidOut;
               _pendingWithdrawalAmount = pendingWd;
               _availableBalance = avail < 0 ? 0.0 : avail;
-              _transactions = txns;
               _isLoading = false;
             });
           }
           return;
+        }
+      }
+
+      // 3. Third resilient fallback: calculate directly from restaurant orders
+      if (restId.isNotEmpty) {
+        final ordersRes = await http
+            .get(
+              Uri.parse('${ApiConstants.baseUrl}/orders/restaurant/$restId'),
+              headers: headers,
+            )
+            .timeout(const Duration(seconds: 8));
+
+        if (ordersRes.statusCode == 200) {
+          final oData = jsonDecode(ordersRes.body);
+          List<dynamic> oList = [];
+          if (oData is List) {
+            oList = oData;
+          } else if (oData is Map && oData['orders'] is List) {
+            oList = oData['orders'];
+          }
+
+          double fallbackRevenue = 0.0;
+          double fallbackComm = 0.0;
+          final List<Map<String, dynamic>> txns = [];
+
+          for (final ord in oList) {
+            if (ord is! Map) continue;
+            final st = (ord['status'] ?? '').toString().toLowerCase();
+            if (st == 'delivered' || st == 'completed' || st == 'handed over') {
+              final ordNum = (ord['orderNumber'] ?? ord['_id'] ?? 'N/A').toString();
+              final net = double.tryParse((ord['restaurantCommission'] ?? ord['itemTotal'] ?? ord['totalAmount'] ?? 0).toString()) ?? 0.0;
+              final comm = double.tryParse((ord['adminCommission'] ?? 0).toString()) ?? 0.0;
+              final dateStr = (ord['createdAt'] ?? DateTime.now().toIso8601String()).toString();
+
+              fallbackRevenue += net;
+              fallbackComm += comm;
+
+              txns.add({
+                'id': 'ORD_$ordNum',
+                'type': 'credit',
+                'amount': net,
+                'status': st,
+                'createdAt': dateStr,
+                'description': 'Order #$ordNum Earning',
+              });
+            }
+          }
+
+          if (mounted && fallbackRevenue > 0) {
+            setState(() {
+              _totalEarnings = fallbackRevenue;
+              _totalCommissionPaid = fallbackComm;
+              _transactions = txns;
+              _isLoading = false;
+            });
+            return;
+          }
         }
       }
 

@@ -462,14 +462,36 @@ exports.getRiderSettlements = async (req, res) => {
 // Restaurant App Earnings & Settlement Overview (Today, Week, Month, Order-wise breakdown)
 exports.getRestaurantAppEarningsAndSettlement = async (req, res) => {
   try {
-    let { restaurantId } = req.params;
+    const mongoose = require('mongoose');
+    let restaurantId = req.params.restaurantId || req.query.restaurantId || req.headers['x-restaurant-id'];
     const userId = req.user?._id;
 
     let restaurant = null;
-    if (restaurantId) {
+    if (restaurantId && mongoose.Types.ObjectId.isValid(restaurantId)) {
       restaurant = await Restaurant.findById(restaurantId);
-    } else if (userId) {
+    }
+    if (!restaurant && userId) {
       restaurant = await Restaurant.findOne({ owner: userId });
+      if (!restaurant) {
+        restaurant = await Restaurant.findOne({
+          $or: [
+            { owner: String(userId) },
+            { 'owner._id': userId }
+          ]
+        });
+      }
+    }
+    if (!restaurant && req.user?.restaurant) {
+      restaurant = await Restaurant.findById(req.user.restaurant);
+    }
+    if (!restaurant && restaurantId) {
+      restaurant = await Restaurant.findOne({
+        $or: [
+          { contactNumber: restaurantId },
+          { phone: restaurantId },
+          { ownerMobile: restaurantId }
+        ]
+      });
     }
 
     if (!restaurant) {
@@ -509,6 +531,7 @@ exports.getRestaurantAppEarningsAndSettlement = async (req, res) => {
     let weekEarnings = 0;
     let monthEarnings = 0;
     let totalEarnings = 0;
+    let totalCommissionDeducted = 0;
 
     let pendingSettlementAmount = 0;
     let pendingCount = 0;
@@ -520,8 +543,10 @@ exports.getRestaurantAppEarningsAndSettlement = async (req, res) => {
     const orderWiseBreakdown = ledgers.map(l => {
       const createdAt = new Date(l.createdAt);
       const netPayable = l.netPayable || 0;
+      const comm = l.platformCommissionAmount || 0;
 
       totalEarnings += netPayable;
+      totalCommissionDeducted += comm;
       if (createdAt >= startOfToday) todayEarnings += netPayable;
       if (createdAt >= startOfWeek) weekEarnings += netPayable;
       if (createdAt >= startOfMonth) monthEarnings += netPayable;
@@ -540,14 +565,19 @@ exports.getRestaurantAppEarningsAndSettlement = async (req, res) => {
       return {
         settlementId: l.settlementId,
         orderId: l.order?.orderNumber || l.order?._id || 'N/A',
+        orderNumber: l.order?.orderNumber || l.order?._id || 'N/A',
         createdAt: l.createdAt,
+        date: l.createdAt,
         grossSales: l.grossSales,
         commissionPercent: l.platformCommissionPercent || 20,
-        commissionAmount: l.platformCommissionAmount,
+        commissionAmount: comm,
+        commissionDeducted: comm,
         packagingFee: l.packagingFee || 0,
         couponShare: l.couponDiscountShare || 0,
         netPayable: l.netPayable,
-        status: l.status
+        netRestaurantPayout: l.netPayable,
+        status: l.status,
+        settlementStatus: l.status
       };
     });
 
@@ -563,8 +593,11 @@ exports.getRestaurantAppEarningsAndSettlement = async (req, res) => {
         week: parseFloat(weekEarnings.toFixed(2)),
         month: parseFloat(monthEarnings.toFixed(2)),
         total: parseFloat(totalEarnings.toFixed(2)),
+        totalRevenue: parseFloat(totalEarnings.toFixed(2)),
         walletBalance: parseFloat(walletBalance.toFixed(2)),
         availableBalance: parseFloat(availableBalance.toFixed(2)),
+        pendingSettlementAmount: parseFloat(pendingSettlementAmount.toFixed(2)),
+        totalCommissionPaid: parseFloat(totalCommissionDeducted.toFixed(2)),
         totalPaidOut: parseFloat(Math.max(totalPaidOut, paidSettlementAmount).toFixed(2)),
         pendingWithdrawalAmount: parseFloat(pendingWithdrawalAmount.toFixed(2))
       },
@@ -579,6 +612,7 @@ exports.getRestaurantAppEarningsAndSettlement = async (req, res) => {
         processedAt: w.processedAt
       })),
       settlementsSummary: {
+        totalCommissionDeducted: parseFloat(totalCommissionDeducted.toFixed(2)),
         pending: { amount: parseFloat(pendingSettlementAmount.toFixed(2)), count: pendingCount },
         processing: { amount: parseFloat(processingSettlementAmount.toFixed(2)), count: processingCount },
         paid: { amount: parseFloat(paidSettlementAmount.toFixed(2)), count: paidCount }
