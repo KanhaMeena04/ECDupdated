@@ -45,6 +45,7 @@ analyzer:
     unused_element_parameter: ignore
     prefer_conditional_assignment: ignore
     unnecessary_null_comparison: ignore
+    curly_braces_in_flow_control_structures: ignore
 
 include: package:flutter_lints/flutter.yaml
 

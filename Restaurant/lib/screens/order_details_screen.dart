@@ -673,7 +673,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           final expected = (widget.order.pickupOtp ?? '').trim();
                           
                           if (input.length == 4 || rawInput.startsWith('ECD_PICKUP|')) {
-                            final res = await RestaurantApiService.verifyPickup(widget.order.id, input);
+                            final targetId = widget.order.backendId.isNotEmpty ? widget.order.backendId : widget.order.id;
+                            final res = await RestaurantApiService.verifyPickup(targetId, input);
                             if (res['success'] == true) {
                               if (mounted) Navigator.pop(context);
                               final isSelf = widget.order.isSelfPickup;

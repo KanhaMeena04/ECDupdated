@@ -1282,7 +1282,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                               'Other Reason',
                             ],
                           );
-                          if (reason == null || reason.trim().isEmpty || !mounted) return;
+                          if (reason == null || reason.trim().isEmpty || !mounted) {
+                            return;
+                          }
                           final String? orderId = activeOrder['_id'];
                           final String updatedAt = activeOrder['updatedAt'] ?? '';
                           if (orderId != null) {

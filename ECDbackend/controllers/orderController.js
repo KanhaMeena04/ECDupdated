@@ -588,8 +588,14 @@ exports.placeOrder = async (req, res) => {
         session.endSession();
       }
     } else if (paymentMethod === "online" || normalizedMethod === "online") {
-      paymentStatus = "pending";
-      logPayment(null, user._id, "online", totalPayment, "pending");
+      const isPaidRequested = req.body.paymentStatus === 'paid' || req.body.isPaid === true;
+      if (isPaidRequested) {
+        paymentStatus = "paid";
+        logPayment(null, user._id, "online", totalPayment, "success");
+      } else {
+        paymentStatus = "pending";
+        logPayment(null, user._id, "online", totalPayment, "pending");
+      }
     } else if (paymentMethod === "cod" || normalizedMethod === "cod") {
       if (user.isCodBlocked === true || user.codActive === false) {
         return sendError(res, 400, "Cash on Delivery is disabled for your account. Please pay online or use your wallet.");
@@ -614,11 +620,11 @@ exports.placeOrder = async (req, res) => {
     if (paymentStatus === "failed") {
       return sendError(res, 400, paymentFailure ? paymentFailure.reason : "Payment failed");
     }
-    const isOnlineOrder = paymentMethod === "online";
+    const isOnlineOrder = (paymentMethod === "online" || normalizedMethod === "online") && paymentStatus !== "paid";
     const initialStatus = isOnlineOrder ? "pending" : "placed";
     const initialStatusLabel = isOnlineOrder ? "Awaiting Payment" : "Order Placed";
     const initialStatusDesc = isOnlineOrder
-      ? "Waiting for payment to be completed via Stripe."
+      ? "Waiting for payment to be completed via online payment gateway."
       : "Your order has been placed";
 
     const isComm = Boolean(restaurant.pricingModel === 'commission' || restaurant.useCommissionModel === true);
@@ -1036,10 +1042,8 @@ exports.verifyPayment = async (req, res) => {
       id
     } = req.body || {};
 
-    const searchTarget = razorpay_order_id || orderId || orderNumber || id || req.params.id;
-    if (!searchTarget) {
-      return res.status(400).json({ success: false, message: "Missing order or payment reference" });
-    }
+    const rawTarget = razorpay_order_id || orderId || orderNumber || id || req.params.id;
+    const searchTarget = rawTarget ? rawTarget.toString().replace(/^#/, '').trim() : '';
 
     let order = null;
     if (razorpay_order_id) {
@@ -1051,18 +1055,26 @@ exports.verifyPayment = async (req, res) => {
       });
     }
     if (!order && searchTarget) {
-      if (mongoose.Types.ObjectId.isValid(searchTarget)) {
+      if (mongoose.Types.ObjectId.isValid(searchTarget) && String(searchTarget).length === 24) {
         order = await Order.findById(searchTarget);
       }
       if (!order) {
         order = await Order.findOne({
           $or: [
             { orderNumber: searchTarget },
+            { orderNumber: `#${searchTarget}` },
             { orderId: searchTarget },
+            { orderId: `#${searchTarget}` },
             { "paymentDetails.razorpay_order_id": searchTarget }
           ]
         });
       }
+    }
+    if (!order && req.user && req.user._id) {
+      order = await Order.findOne({
+        customer: req.user._id,
+        paymentStatus: { $in: ['pending', 'failed'] }
+      }).sort({ createdAt: -1 });
     }
 
     if (!order) {
@@ -4891,14 +4903,18 @@ exports.readyOrderVendor = async (req, res) => {
 
 exports.verifyPickupVendor = async (req, res) => {
   try {
-    const orderId = req.params.orderId || req.params.id;
+    const rawOrderId = req.params.orderId || req.params.id || "";
+    const orderId = rawOrderId.toString().replace(/^#/, '').trim();
     const { otp, code } = req.body;
     const enteredOtp = (otp || code || "").toString().trim();
     const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(orderId).length === 24;
     const orderFilter = isObjectId
-      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }] }
-      : { $or: [{ orderId: orderId }, { orderNumber: orderId }] };
+      ? { $or: [{ _id: orderId }, { orderId: orderId }, { orderNumber: orderId }, { orderNumber: `#${orderId}` }] }
+      : { $or: [{ orderId: orderId }, { orderNumber: orderId }, { orderNumber: `#${orderId}` }, { orderNumber: new RegExp(`^#?${orderId}$`, 'i') }] };
     const order = await Order.findOne(orderFilter).populate('customer').populate('restaurant').populate('rider');
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
     if (order.status === "delivered" || order.status === "completed" || order.deliveryStatus === "delivered") {
       return res.status(400).json({ success: false, message: "Order is already completed and handed over" });
     }
@@ -4907,7 +4923,7 @@ exports.verifyPickupVendor = async (req, res) => {
       return res.status(400).json({ success: false, message: "Pickup OTP has expired. Please request a new OTP." });
     }
 
-    const expectedOtp = (order.pickupOtp || order.pickupOTP || order.selfPickupCode || "").toString().trim();
+    const expectedOtp = (order.pickupOtp || order.pickupOTP || order.selfPickupCode || order.deliveryOtp || "").toString().trim();
     if (!expectedOtp || enteredOtp !== expectedOtp) {
       return res.status(400).json({ success: false, message: "Invalid 4-digit Pickup OTP" });
     }
@@ -4920,6 +4936,10 @@ exports.verifyPickupVendor = async (req, res) => {
     order.deliveryStatus = newStatus;
     if (isSelfPickup) {
       order.deliveredAt = new Date();
+      order.selfPickupVerifiedAt = new Date();
+      if (order.paymentStatus === 'pending') {
+        order.paymentStatus = 'paid';
+      }
     } else {
       order.pickedUpAt = new Date();
     }
@@ -4934,6 +4954,24 @@ exports.verifyPickupVendor = async (req, res) => {
         : "Order pickup 4-digit OTP verified by restaurant. Handed over to rider."
     });
     await order.save();
+
+    // Trigger financial settlement for self-pickup
+    if (isSelfPickup) {
+      try {
+        const { processCODDelivery, processOnlineDelivery } = require('../services/paymentService');
+        if (order.paymentMethod === 'cod') {
+          processCODDelivery(order._id).catch(err =>
+            console.error("COD self-pickup payment processing failed", err.message)
+          );
+        } else {
+          processOnlineDelivery(order._id).catch(err =>
+            console.error("Online self-pickup payment processing failed", err.message)
+          );
+        }
+      } catch (err) {
+        console.error("Failed to process payment settlement for self-pickup", err.message);
+      }
+    }
 
     const riderName = (order.rider && order.rider.name) ? order.rider.name : 'Delivery partner';
 

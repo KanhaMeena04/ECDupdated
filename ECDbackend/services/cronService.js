@@ -245,6 +245,8 @@ const initCronJobs = () => {
                 const staleUnassignedOrders = await Order.find({
                     status: { $in: ['accepted', 'preparing', 'ready'] },
                     rider: null,
+                    orderType: { $nin: ['self_pickup', 'pickup', 'takeaway'] },
+                    isSelfPickup: { $ne: true },
                     createdAt: { $lt: sixHoursAgo }
                 });
                 if (staleUnassignedOrders.length === 0) {

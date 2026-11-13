@@ -1,4 +1,4 @@
-export const formatTo24h = (timeStr, fallback = "09:00") => {
+const formatTo24h = (timeStr, fallback = "09:00") => {
   if (!timeStr || typeof timeStr !== "string") return fallback;
   const str = timeStr.trim();
   if (str.toUpperCase() === "CLOSED") return fallback;
@@ -18,7 +18,7 @@ export const formatTo24h = (timeStr, fallback = "09:00") => {
   return `${String(h).padStart(2, "0")}:${m}`;
 };
 
-export const formatToAmPm = (timeStr) => {
+const formatToAmPm = (timeStr) => {
   if (!timeStr || typeof timeStr !== "string") return "";
   const str = timeStr.trim();
   if (str.toUpperCase() === "CLOSED") return "Closed";
@@ -34,4 +34,9 @@ export const formatToAmPm = (timeStr) => {
   h = h % 12;
   if (h === 0) h = 12;
   return `${String(h).padStart(2, "0")}:${m} ${period}`;
+};
+
+module.exports = {
+  formatTo24h,
+  formatToAmPm,
 };
